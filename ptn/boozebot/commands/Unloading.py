@@ -11,7 +11,8 @@ class Unloading(commands.Cog):
         This class is a collection functionality for tracking a booze cruise unload operations
         """
 
-    @cog_ext.cog_slash(name="booze_cruise_unload", guild_ids=[bot_guild_id()],
+    @commands.has_any_role('Carrier Owner', 'Admin', 'Auxiliary Carrier')
+    @cog_ext.cog_slash(name="BoozeCruiseUnload", guild_ids=[bot_guild_id()],
                        description="Creates a new unload operation in this channel.")
     async def booze_unload_market(self, ctx: SlashContext):
         """
@@ -23,10 +24,12 @@ class Unloading(commands.Cog):
         print(f'User {ctx.author} requested a new booze unload in channel: {ctx.channel}.')
 
         embed = discord.Embed(title='A new market opening is happening.')
-        embed.add_field(name='If you are INBOUND, please react with:', value=':airplane_arriving:', inline=True)
+        embed.add_field(name='If you are INTENDING TO BUY, please react with:', value=':airplane_arriving:',
+                        inline=True)
         embed.add_field(name='Once you are DOCKED react with:', value=':Assassin:', inline=True)
         embed.add_field(name='Once you PURCHASE WINE, react with:', value=':wine_glass:', inline=True)
-        embed.set_footer(text='Market will be opened once we have aligned the number of commanders.')
+        embed.set_footer(text='Market will be opened once we have aligned the number of commanders. All 3 emoji '
+                              'counts should match by the end.')
 
         message = await ctx.send(embed=embed)
         await message.add_reaction('🛬')
