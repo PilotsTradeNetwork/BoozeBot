@@ -30,7 +30,7 @@ setup(
     author='Graeme Cruickshank',
     url='',
     install_required=[
-
+        'discord',
     ],
     license='MIT',
     keyworkd='PTN',
