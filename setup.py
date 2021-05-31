@@ -31,6 +31,7 @@ setup(
     url='',
     install_required=[
         'discord',
+        'discord-py-slash-command'
     ],
     license='MIT',
     keyworkd='PTN',
