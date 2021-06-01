@@ -31,7 +31,10 @@ setup(
     url='',
     install_required=[
         'discord',
-        'discord-py-slash-command'
+        'discord-py-slash-command',
+        'google-api-python-client',
+        'gspread',
+        'oauth2client'
     ],
     license='MIT',
     keyworkd='PTN',
