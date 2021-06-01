@@ -44,6 +44,8 @@ class DatabaseInteraction(Cog):
     async def update_database_from_googlesheets(self, ctx: SlashContext):
         """
         Slash command for updating the database from the GoogleSheet.
+        # TODO: This command itself should not be called by a user, this is provided only as a short-term solution
+            for migration towards the actual commands.
 
         :returns: A discord embed to the user.
         :rtype: None
@@ -53,7 +55,7 @@ class DatabaseInteraction(Cog):
         updated_db = False
         added_count = 0
         updated_count = 0
-        carriers_same = 0
+        unchanged_count = 0
         total_carriers = len(self.records_data[1::])
 
         # First row is the headers, drop them.
@@ -62,16 +64,16 @@ class DatabaseInteraction(Cog):
 
             # Check if it is in the database already
             carrier_db.execute(
-                "SELECT * FROM boozecarriers WHERE carriername LIKE (?)", (f'%{record["Carrier Name"]}%', )
+                "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{record["Carrier ID"]}%', )
             )
             carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
             if len(carrier_data) > 1:
-                raise ValueError(f'Two carriers are listed with this carrier name: {record["Carrier Name"]}. Problem '
+                raise ValueError(f'Two carriers are listed with this carrier ID: {record["Carrier ID"]}. Problem '
                                  f'in the sheet!')
 
             if carrier_data:
                 # We have a carrier, just check the values and update it if needed.
-                print(f'The carrier {record["Carrier Name"]} exists, checking the values.')
+                print(f'The carrier for {record["Carrier ID"]} exists, checking the values.')
                 expected_carrier_data = BoozeCarrier(record)
                 db_carrier_data = carrier_data[0]
 
@@ -110,7 +112,7 @@ class DatabaseInteraction(Cog):
                 else:
                     print(f'The DB data for {db_carrier_data.carrier_name} is the same as the sheets record - '
                           f'skipping over.')
-                    carriers_same += 1
+                    unchanged_count += 1
 
             else:
                 added_count += 1
@@ -138,12 +140,12 @@ class DatabaseInteraction(Cog):
                 carrier_db_lock.release()
             dump_database()
             print('Wrote the database and dumped the SQL')
-
+        updated_count = 100
         embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
-        embed.add_field(name='Total number of carriers:', value=f'{total_carriers}', inline=False)
-        embed.add_field(name='Number of new carriers added:', value=f'{added_count}', inline=False)
-        embed.add_field(name='Number of carriers amended:', value=f'{updated_count}', inline=False)
-        embed.add_field(name='Number of carriers untouched:', value=f'{carriers_same}', inline=False)
-        embed.add_field(name='Database written:', value=f'{updated_db}', inline=False)
+        embed.add_field(name=f'Total number of carriers: {total_carriers:>20}.\nNumber of new carriers added: '
+                             f'{added_count:>8}.\nNumber of carriers amended: {updated_count:>11}.\nNumber of '
+                             f'carriers unchanged: {unchanged_count:>7}.',
+                        value='Pirate Steve hope he got this right.',
+                        inline=False)
 
         return await ctx.send(embed=embed)

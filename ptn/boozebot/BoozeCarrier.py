@@ -16,7 +16,7 @@ class BoozeCarrier:
         # Because we also pass a DB object, we should also covert those to the same fields
         self.carrier_name = info_dict.get('Carrier Name', None) or info_dict.get('carriername', None)
         self.wine_total = info_dict.get('Wine Total (tons)', None) or info_dict.get('winetotal', None)
-        self.carrier_identifier = info_dict.get('cid', None) or info_dict.get('carrierid', None)
+        self.carrier_identifier = info_dict.get('Carrier ID', None) or info_dict.get('carrierid', None)
         self.platform = info_dict.get("Carrier Owner's Platform", None) or info_dict.get('platform', None)
 
         # Assume we have a carrier name, then this is a False object, else None
