@@ -56,24 +56,24 @@ class DatabaseInteraction(Cog):
         added_count = 0
         updated_count = 0
         unchanged_count = 0
-        total_carriers = len(self.records_data[1::])
+        total_carriers = len(self.records_data)
 
         # First row is the headers, drop them.
-        for record in self.records_data[1::]:
+        for record in self.records_data:
             # Iterate over the records and populate the database as required.
 
             # Check if it is in the database already
             carrier_db.execute(
-                "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{record["Carrier ID"]}%', )
+                "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{record["Carrier ID"].upper()}%', )
             )
             carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
             if len(carrier_data) > 1:
-                raise ValueError(f'Two carriers are listed with this carrier ID: {record["Carrier ID"]}. Problem '
-                                 f'in the sheet!')
+                raise ValueError(f'Two carriers are listed with this carrier ID: {record["Carrier ID"].upper()}.'
+                                 f'Problem in the sheet!')
 
             if carrier_data:
                 # We have a carrier, just check the values and update it if needed.
-                print(f'The carrier for {record["Carrier ID"]} exists, checking the values.')
+                print(f'The carrier for {record["Carrier ID"].upper()} exists, checking the values.')
                 expected_carrier_data = BoozeCarrier(record)
                 db_carrier_data = carrier_data[0]
 
@@ -141,7 +141,7 @@ class DatabaseInteraction(Cog):
                 carrier_db_lock.release()
             dump_database()
             print('Wrote the database and dumped the SQL')
-        updated_count = 100
+
         embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
         embed.add_field(name=f'Total number of carriers: {total_carriers:>20}.\nNumber of new carriers added: '
                              f'{added_count:>8}.\nNumber of carriers amended: {updated_count:>11}.\nNumber of '
