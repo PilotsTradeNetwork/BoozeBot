@@ -44,7 +44,7 @@ def build_database_on_startup():
                 CREATE TABLE boozecarriers( 
                     entry INTEGER PRIMARY KEY AUTOINCREMENT,
                     carriername TEXT NOT NULL, 
-                    carrierid TEXT UNIQUE,
+                    carrierid TEXT,
                     winetotal INT,
                     platform TEXT NOT NULL,
                     officialcarrier BOOLEAN,
