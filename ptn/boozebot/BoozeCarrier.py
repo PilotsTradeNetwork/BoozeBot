@@ -29,6 +29,7 @@ class BoozeCarrier:
 
         self.discord_username = info_dict.get('Discord Username', None) or info_dict.get('discordusername', None)
         self.timestamp = info_dict.get('Timestamp', None) or info_dict.get('timestamp', None)
+        self.discord_unload_notification = info_dict.get('discord_unload', None)
 
     def to_dictionary(self):
         """
@@ -51,7 +52,8 @@ class BoozeCarrier:
         """
         return 'BoozeCarrier: CarrierName:"{0.carrier_name}" WineTotal:{0.wine_total} ' \
                'CarrierIdentifier:"{0.carrier_identifier}" Platform:{0.platform} PTNCarrier:{0.ptn_carrier} ' \
-               'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp}"'.format(self)
+               'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp} DiscordUnload: ' \
+               '{0.discord_unload_notification}"'.format(self)
 
     def __bool__(self):
         """
