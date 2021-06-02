@@ -12,7 +12,7 @@ PROD_DB_PATH = os.path.join(os.path.expanduser('~'), 'booze_carriers.db')
 
 # Testing variables
 TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
-TEST_ASSASSIN_ID = 806498760586035200
+TEST_ASSASSIN_ID = 848957573792137247
 TEST_DB_PATH = 'booze_carriers.db'
 
 _production = ast.literal_eval(os.environ.get('PTN_BOOZE_BOT', 'False'))
