@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 
 .env
+/ptn/boozebot/booze_carriers.db
