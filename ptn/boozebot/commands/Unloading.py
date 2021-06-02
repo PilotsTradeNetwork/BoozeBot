@@ -23,14 +23,13 @@ class Unloading(commands.Cog):
         """
         print(f'User {ctx.author} requested a new booze unload in channel: {ctx.channel}.')
 
-        embed = discord.Embed(title='A new market opening is happening.')
-        embed.add_field(name='If you are INTENDING TO BUY, please react with:', value=':airplane_arriving:',
+        embed = discord.Embed(title='Avast Ye!')
+        embed.add_field(name='If you are INTENDING TO BUY, please react with: :airplane_arriving:.\n'
+                             f'Once you are DOCKED react with: <:Assassin:{str(get_custom_assassin_id())}>\n'
+                             f'Once you PURCHASE WINE, react with: :wine_glass:',
+                        value='Market will be opened once we have aligned the number of commanders.',
                         inline=True)
-        embed.add_field(name='Once you are DOCKED react with:', value=f'<:Assassin:{str(get_custom_assassin_id())}>',
-                        inline=True)
-        embed.add_field(name='Once you PURCHASE WINE, react with:', value=':wine_glass:', inline=True)
-        embed.set_footer(text='Market will be opened once we have aligned the number of commanders. All 3 emoji '
-                              'counts should match by the end.')
+        embed.set_footer(text='All 3 emoji counts should match by the end or Pirate Steve will be unhappy. 🏴‍☠')
 
         message = await ctx.send(embed=embed)
         await message.add_reaction('🛬')
@@ -43,8 +42,9 @@ class Unloading(commands.Cog):
                                    "active channel.")
     async def booze_market_closed(self, ctx: SlashContext):
         print(f'User {ctx.author} requested a to close the market in channel: {ctx.channel}.')
-        embed = discord.Embed(title='The market is now closed.')
-        embed.add_field(name='Yo Ho Ho, this sale is currently done.', value='Arrrrrrr!')
+        embed = discord.Embed(title='Batten Down The Hatches! This sale is currently done!')
+        embed.add_field(name='Go fight the sidewinder for the landing pad.',
+                        value='Hopefully you got some booty, now go get your doubloons!')
         embed.set_footer(text='Notified by your friendly neighbourhood pirate bot.')
         message = await ctx.send(embed=embed)
         await message.add_reaction('🏴‍☠️')
