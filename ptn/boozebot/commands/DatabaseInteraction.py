@@ -121,9 +121,10 @@ class DatabaseInteraction(Cog):
                 print(f'Carrier {record["Carrier Name"]} is not yet in the database - adding it')
                 try:
                     carrier_db_lock.acquire()
-                    carrier_db.execute(''' INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?) ''',
+                    carrier_db.execute(''' INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, NULL) ''',
                                    (carrier.carrier_name, carrier.carrier_identifier, carrier.wine_total,
-                                    carrier.platform, carrier.ptn_carrier, carrier.discord_username, carrier.timestamp)
+                                    carrier.platform, carrier.ptn_carrier, carrier.discord_username,
+                                    carrier.timestamp)
                                    )
                 finally:
                     carrier_db_lock.release()

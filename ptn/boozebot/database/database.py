@@ -49,7 +49,8 @@ def build_database_on_startup():
                     platform TEXT NOT NULL,
                     officialcarrier BOOLEAN,
                     discordusername TEXT NOT NULL,
-                    timestamp DATETIME
+                    timestamp DATETIME,
+                    discord_unload INT
                 ) 
             ''')
             print('Database created')

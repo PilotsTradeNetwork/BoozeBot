@@ -9,11 +9,13 @@ from discord_slash import SlashCommand
 PROD_DISCORD_GUILD = 800080948716503040  # PTN Discord server
 PROD_ASSASSIN_ID = 806498760586035200
 PROD_DB_PATH = os.path.join(os.path.expanduser('~'), 'booze_carriers.db')
+PROD_BOOZE_UNLOAD_ID = 838699587249242162
 
 # Testing variables
 TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
 TEST_ASSASSIN_ID = 848957573792137247
 TEST_DB_PATH = 'booze_carriers.db'
+TEST_BOOZE_UNLOAD_ID = 849570829230014464
 
 _production = ast.literal_eval(os.environ.get('PTN_BOOZE_BOT', 'False'))
 
@@ -50,3 +52,13 @@ def get_custom_assassin_id():
     :rtype: str
     """
     return PROD_ASSASSIN_ID if _production else TEST_ASSASSIN_ID
+
+
+def get_discord_booze_unload_channel():
+    """
+    Returns the channel ID for booze cruise unloads in discord.
+
+    :returns: The ID value
+    :rtype: int
+    """
+    return PROD_BOOZE_UNLOAD_ID if _production else TEST_BOOZE_UNLOAD_ID
