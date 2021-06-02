@@ -73,7 +73,8 @@ class Unloading(commands.Cog):
               f'channel: {unload_channel} using timed markets: {timed_market}.')
 
         if timed_market and not unload_channel:
-            return await ctx.send('Sorry, to run a timed market we need an unload channel.')
+            return await ctx.send(f'Sorry, to run a timed market we need an unload channel, you '
+                                  f'provided: {unload_channel}.')
 
         carrier_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
@@ -84,7 +85,13 @@ class Unloading(commands.Cog):
         if not carrier_data:
             return await ctx.send(f'Sorry, could not find a carrier for the data: {carrier_id}.')
 
-        unload_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
+        wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
+        unloading_channel_id = None
+        if unload_channel:
+            unloading_channel_id = bot.get_channel(
+                int(unload_channel.replace('#', '').replace('<', '').replace('>', ''))
+            )
+        print('{}')
         if carrier_data.discord_unload_notification:
             print(f'Sorry, carrier {carrier_data.carrier_identifier} is already on a wine unload.')
             return await ctx.send(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is '
@@ -98,15 +105,14 @@ class Unloading(commands.Cog):
         # Only in the case of timed openings does a channel make sense.
         unload_tracking = f' Tracked in {unload_channel}.' if timed_market else ''
 
-        wine_load_embed = discord.Embed(title='Wine unload notification.',
-                                        description=f'Carrier {carrier_data.carrier_name} ('
-                                                    f'**{carrier_data.carrier_identifier}**) is currently unloading '
-                                                    f'**{carrier_data.wine_total}** tonnes of wine from "'
-                                                    f'**{planetary_body}**".\n Running: {market_conditions}.'
-                                                    f'{unload_tracking}'
-                                        )
+        wine_load_embed = discord.Embed(
+            title='Wine unload notification.',
+            description=f'Carrier {carrier_data.carrier_name} (**{carrier_data.carrier_identifier}**) is currently '
+                        f'unloading **{carrier_data.wine_total}** tonnes of wine from **{planetary_body}**".'
+                        f'\n Market Conditions: **{market_conditions}**.{unload_tracking}'
+        )
         wine_load_embed.set_footer(text='Please react with 💯 once completed.')
-        wine_unload_alert = await unload_alert_channel.send(embed=wine_load_embed)
+        wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
         await message_send.delete()
         # Get the discord alert ID and drop it into the database
         discord_alert_id = wine_unload_alert.id
@@ -129,6 +135,19 @@ class Unloading(commands.Cog):
         finally:
             carrier_db_lock.release()
         print(f'Discord alert ID written to database for {carrier_data.carrier_identifier}')
+
+        if unload_channel:
+            embed = discord.Embed(title='Wine unloading starting shortly')
+            # If we have an unload channel ID, go write a message there also.
+            embed.add_field(
+                name=f'Carrier {carrier_data.carrier_name} ({carrier_data.carrier_identifier}).\n'
+                     f'Unloading {carrier_data.wine_total} tonnes of wine with timed openings.\n'
+                     f'Location: {planetary_body}',
+                value='Market unloads will begin shortly.',
+                inline=True
+            )
+            embed.set_footer(text='C/O: Try the commands /boozecruiseunload and /boozecruisemarketclosed.')
+            await unloading_channel_id.send(embed=embed)
 
         return await ctx.send(f'Wine unload requested by {ctx.author} for {carrier_id} processed successfully. '
                               f'Market: {market_conditions}. {unload_tracking}'
