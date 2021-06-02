@@ -26,12 +26,13 @@ class Unloading(commands.Cog):
         embed = discord.Embed(title='A new market opening is happening.')
         embed.add_field(name='If you are INTENDING TO BUY, please react with:', value=':airplane_arriving:',
                         inline=True)
-        embed.add_field(name='Once you are DOCKED react with:', value=':Assassin:', inline=True)
+        embed.add_field(name='Once you are DOCKED react with:', value=f'<:Assassin:{str(get_custom_assassin_id())}>',
+                        inline=True)
         embed.add_field(name='Once you PURCHASE WINE, react with:', value=':wine_glass:', inline=True)
         embed.set_footer(text='Market will be opened once we have aligned the number of commanders. All 3 emoji '
                               'counts should match by the end.')
 
         message = await ctx.send(embed=embed)
         await message.add_reaction('🛬')
-        await message.add_reaction(str(get_custom_assassin_id()))
+        await message.add_reaction(f'<:Assassin:{str(get_custom_assassin_id())}>')
         await message.add_reaction('🍷')
