@@ -17,6 +17,10 @@ class BoozeCarrier:
         self.carrier_name = info_dict.get('Carrier Name', None) or info_dict.get('carriername', None)
         self.wine_total = info_dict.get('Wine Total (tons)', None) or info_dict.get('winetotal', None)
         self.carrier_identifier = info_dict.get('Carrier ID', None) or info_dict.get('carrierid', None)
+        if self.carrier_identifier:
+            # Cast the carrier ID to upper case for consistency
+            self.carrier_identifier = self.carrier_identifier.upper()
+
         self.platform = info_dict.get("Carrier Owner's Platform", None) or info_dict.get('platform', None)
 
         # Assume we have a carrier name, then this is a False object, else None
