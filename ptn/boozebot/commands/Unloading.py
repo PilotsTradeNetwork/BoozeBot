@@ -54,9 +54,8 @@ class Unloading(commands.Cog):
     @commands.has_any_role('Carrier Owner', 'Admin', 'Sommelier')
     @cog_ext.cog_slash(name='WineUnload', guild_ids=[bot_guild_id()],
                        description='Posts a new wine unloading notification.')
-    async def new_carrier_unload(self, ctx: SlashContext, carrier_id, planetary_body, timed_market: bool,
-                                 unload_channel=None
-                                 ):
+    async def wine_carrier_unload(self, ctx: SlashContext, carrier_id, planetary_body, timed_market: bool,
+                                  unload_channel=None):
         """
         Posts a wine unload request to the unloading channel.
 
@@ -65,7 +64,7 @@ class Unloading(commands.Cog):
         :param str planetary_body: Where is the carrier? Star, P1 etc?
         :param bool timed_market: Is the carrier running timed market openings, True or False.
         :param str unload_channel: The discord unload channel. Required if using timed market openings so we can
-            point the user where to go.
+            point the user where to go. This is an optional value.
         :returns: A message to the user
         :rtype: Union[discord.Message, dict]
         """
@@ -152,3 +151,47 @@ class Unloading(commands.Cog):
         return await ctx.send(f'Wine unload requested by {ctx.author} for {carrier_id} processed successfully. '
                               f'Market: {market_conditions}. {unload_tracking}'
                               )
+
+    @commands.has_any_role('Carrier Owner', 'Admin', 'Sommelier')
+    @cog_ext.cog_slash(name='WineUnloadComplete', guild_ids=[bot_guild_id()],
+                       description='Removes any trade channel notification for unloading wine.')
+    async def wine_unloading_complete(self, ctx: SlashContext, carrier_id):
+        print(f'Wine unloading complete for {carrier_id} flagged by {ctx.author}.')
+
+        carrier_db.execute(
+            "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
+        )
+
+        # We will only get a single entry back here as the carrierid is a unique field.
+        carrier_data = BoozeCarrier(carrier_db.fetchone())
+        if not carrier_data:
+            return await ctx.send(f'Sorry, could not find a carrier for the data: {carrier_id}.')
+
+        if carrier_data.discord_unload_notification and carrier_data.discord_unload_notification != 'NULL':
+            # If we have a notification, remove it.
+            print(f'Deleting the wine carrier unload notification for: {carrier_id}.')
+            wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
+            msg = await wine_alert_channel.fetch_message(carrier_data.discord_unload_notification)
+            # Now delete it in the database
+
+            try:
+                carrier_db_lock.acquire()
+                data = (f'%{carrier_id}%',)
+                carrier_db.execute('''
+                    UPDATE boozecarriers
+                    SET discord_unload=NULL
+                    WHERE carrierid LIKE (?)
+                ''', data)
+                carriers_conn.commit()
+            finally:
+                carrier_db_lock.release()
+
+            await msg.delete()
+            response = f'Removed the unload notification for {carrier_id}'
+            print(f'Deleted the carrier discord notification for carrier: {carrier_id}')
+        else:
+            response = f'Sorry {ctx.author}, we have no carrier unload notification found in the database for ' \
+                       f'{carrier_id}.'
+            print(f'No discord alert found for carrier, {carrier_id}. It likely ran open market.')
+
+        return await ctx.send(response)
