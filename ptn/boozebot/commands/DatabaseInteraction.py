@@ -5,12 +5,14 @@ import os.path
 import discord
 from discord.ext import commands
 from discord_slash import cog_ext, SlashContext
+from discord_slash.model import SlashCommandPermissionType
+from discord_slash.utils.manage_commands import create_permission, create_option
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 from discord.ext.commands import Cog
 
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.constants import bot_guild_id, bot
+from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id
 from ptn.boozebot.database.database import carrier_db, carriers_conn, dump_database, carrier_db_lock
 
 
@@ -211,7 +213,14 @@ class DatabaseInteraction(Cog):
     @cog_ext.cog_slash(
         name="find_carriers_with_wine",
         guild_ids=[bot_guild_id()],
-        description="Returns the carriers in the database that are still flagged as having wine remaining."
+        description="Returns the carriers in the database that are still flagged as having wine remaining.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        }
     )
     async def find_carriers_with_wine(self, ctx: SlashContext):
         """
@@ -344,3 +353,103 @@ class DatabaseInteraction(Cog):
                     f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
                 await message.delete()
                 break
+
+    @cog_ext.cog_slash(
+        name="wine_mark_completed_forcefully",
+        guild_ids=[bot_guild_id()],
+        description="Forcefully marks a carrier in the database as unload completed",
+        options=[
+            create_option(
+                name='carrier_id',
+                description='The XXX-XXX ID string for the carrier',
+                option_type=3,
+                required=True
+            )
+        ],
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        }
+    )
+    async def find_carriers_with_wine(self, ctx: SlashContext, carrier_id):
+        """
+        Forcefully marks a carrier as completed an unload. Ideally will never be used.
+
+        :param SlashContext ctx: The discord slash context.
+        :param str carrier_id: The XXX-XXX carrier ID you want to action.
+        :returns: None
+        """
+        print(f'{ctx.author} wants to forcefully mark the carrier {carrier_id} as unloaded.')
+
+        # Check if it is in the database already
+        carrier_db.execute(
+            "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
+        )
+        # Really only expect a single entry here, unique field and all that
+        carrier_data = BoozeCarrier(carrier_db.fetchone())
+
+        carrier_embed = discord.Embed(
+            title=f'Argh We found this data for {carrier_id}:',
+            description="y/n"
+        )
+
+        def check(check_message):
+            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+                   check_message.content.lower() in ["y", "n"]
+
+        # Send the embed
+        message = await ctx.send(embed=carrier_embed)
+
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=30)
+            if msg.content.lower() == "n":
+                await message.delete()
+                await msg.delete()
+                print(f'User {ctx.author} aborted the request to mark the carrier {carrier_id} as unloaded.')
+                return await ctx.send(f"Arrgh you cancelled the action for marking {carrier_id} "
+                                      f"as forcefully completed.")
+
+            elif msg.content.lower() == "y":
+                try:
+                    await message.delete()
+                    await msg.delete()
+                    print(f'User {ctx.author} agreed to mark the carrier {carrier_id} as unloaded.')
+
+                    # Go update the object in the database.
+                    try:
+                        carrier_db_lock.acquire()
+
+                        data = (
+                            f'%{carrier_data.carrier_identifier}%',
+                        )
+                        carrier_db.execute(
+                            ''' 
+                            UPDATE boozecarriers 
+                            SET totalunloads=totalunloads+1
+                            WHERE carrierid LIKE (?) 
+                            ''', data
+                        )
+                        carriers_conn.commit()
+                    finally:
+                        carrier_db_lock.release()
+
+                    print(f'Database for unloaded forcefully updated by {ctx.author} for {carrier_id}')
+                    embed = discord.Embed(
+                        description=f"Fleet carrier {carrier_data.carrier_name} marked as unloaded.",
+                    )
+                    embed.add_field(
+                        name=f'Runs Made: {carrier_data.run_count}',
+                        value=f'Unloads Completed: {carrier_data.total_unloads}'
+                    )
+                    return await ctx.send(embed=embed)
+                except Exception as e:
+                    return ctx.send(f'Something went wrong, go tell the bot team "computer said: {e}"')
+
+        except asyncio.TimeoutError:
+            await message.delete()
+            return await ctx.send("**Cancelled - timed out**")
+
+        await message.delete()
