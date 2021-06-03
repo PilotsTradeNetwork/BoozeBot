@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os.path
+import re
 
 import discord
 from discord.ext import commands
@@ -383,6 +384,12 @@ class DatabaseInteraction(Cog):
         :returns: None
         """
         print(f'{ctx.author} wants to forcefully mark the carrier {carrier_id} as unloaded.')
+
+        # Check the carrier ID regex
+        if not re.match(r"\w{3}-\w{3}", carrier_id):
+            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await ctx.channel.send(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, '
+                                          f'{carrier_id}.')
 
         # Check if it is in the database already
         carrier_db.execute(
