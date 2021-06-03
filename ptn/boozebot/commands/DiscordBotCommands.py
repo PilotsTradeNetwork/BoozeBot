@@ -49,6 +49,7 @@ class DiscordBotCommands(commands.Cog):
         :param discord.ext.commands.Context ctx: The Discord context object
         :returns: None
         """
+        print(f'User {ctx.author} requested to exit')
         await remove_all_commands(self.bot.user.id, TOKEN, [bot_guild_id()])
         await ctx.send(f"Ahoy! k thx bye")
         await sys.exit("User requested exit.")
