@@ -1,6 +1,3 @@
-import ast
-import os
-
 from ptn.boozebot.commands.DatabaseInteraction import DatabaseInteraction
 from ptn.boozebot.commands.DiscordBotCommands import DiscordBotCommands
 from ptn.boozebot.commands.Unloading import Unloading
