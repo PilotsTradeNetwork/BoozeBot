@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import os.path
 
@@ -9,7 +10,7 @@ import gspread
 from discord.ext.commands import Cog
 
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.constants import bot_guild_id
+from ptn.boozebot.constants import bot_guild_id, bot
 from ptn.boozebot.database.database import carrier_db, carriers_conn, dump_database, carrier_db_lock
 
 
@@ -206,3 +207,140 @@ class DatabaseInteraction(Cog):
             'unchanged_count': unchanged_count,
             'total_carriers': total_carriers
         }
+
+    @cog_ext.cog_slash(
+        name="find_carriers_with_wine",
+        guild_ids=[bot_guild_id()],
+        description="Returns the carriers in the database that are still flagged as having wine remaining."
+    )
+    async def find_carriers_with_wine(self, ctx: SlashContext):
+        """
+        Returns an interactive list of all the carriers with wine that has not yet been unloaded.
+
+        :param SlashContext ctx: The discord slash context
+        :returns: An interactive message embed.
+        :rtype: Union[discord.Message, dict]
+        """
+        print(f'{ctx.author} requested to find the carrier with wine')
+        carrier_db.execute(
+            "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
+        )
+        carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
+        if len(carrier_data) == 0:
+            # No carriers remaining
+            return await ctx.send('Pirate Steve is sorry, but there are no more carriers with wine remaining.')
+
+        # Else we have wine left
+
+        def chunk(chunk_list, max_size=10):
+            """
+            Take an input list, and an expected max_size.
+
+            :returns: A chunked list that is yielded back to the caller
+            :rtype: iterator
+            """
+            for i in range(0, len(chunk_list), max_size):
+                yield chunk_list[i:i + max_size]
+
+        def validate_response(react, user):
+            """
+            Validates the user response
+            """
+            return user == ctx.author and str(react.emoji) in ["◀️", "▶️"]
+
+        pages = [page for page in chunk(carrier_data)]
+        max_pages = len(pages)
+        current_page = 1
+
+        embed = discord.Embed(
+            title=f"{len(carrier_data)} Carriers left with wine in the database. Page: #{current_page} of {max_pages}"
+        )
+        count = 0  # Track the overall count for all carriers
+
+        # Go populate page 0 by default
+        for carrier in pages[0]:
+            count += 1
+            embed.add_field(
+                name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                inline=False
+            )
+
+        # Now go send it and wait on a reaction
+        message = await ctx.send(embed=embed)
+
+        # From page 0 we can only go forwards
+        await message.add_reaction("▶️")
+        # 60 seconds time out gets raised by Asyncio
+        while True:
+            try:
+                reaction, user = await bot.wait_for('reaction_add', timeout=60, check=validate_response)
+                if str(reaction.emoji) == "▶️" and current_page != max_pages:
+
+                    print(f'{ctx.author} requested to go forward a page.')
+                    current_page += 1  # Forward a page
+                    new_embed = discord.Embed(
+                        title=f"{len(carrier_data)} Carriers left with wine in the database. Page:{current_page}"
+                    )
+                    for carrier in pages[current_page - 1]:
+                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
+                        count += 1
+                        new_embed.add_field(
+                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                            inline=False
+                        )
+
+                    await message.edit(embed=new_embed)
+
+                    # Ok now we can go back, check if we can also go forwards still
+                    if current_page == max_pages:
+                        await message.clear_reaction("▶️")
+
+                    await message.remove_reaction(reaction, user)
+                    await message.add_reaction("◀️")
+
+                elif str(reaction.emoji) == "◀️" and current_page > 1:
+                    print(f'{ctx.author} requested to go back a page.')
+                    current_page -= 1  # Go back a page
+
+                    new_embed = discord.Embed(
+                        title=f"{len(carrier_data)} Carriers left with wine in the database. Page:{current_page}"
+                    )
+                    # Start by counting back however many carriers are in the current page, minus the new page, that way
+                    # when we start a 3rd page we don't end up in problems
+                    count -= len(pages[current_page - 1])
+                    count -= len(pages[current_page])
+
+                    for carrier in pages[current_page - 1]:
+                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
+                        count += 1
+                        new_embed.add_field(
+                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                            inline=False
+                        )
+
+                    await message.edit(embed=new_embed)
+                    # Ok now we can go forwards, check if we can also go backwards still
+                    if current_page == 1:
+                        await message.clear_reaction("◀️")
+
+                    await message.remove_reaction(reaction, user)
+                    await message.add_reaction("▶️")
+                else:
+                    # It should be impossible to hit this part, but lets gate it just in case.
+                    print(
+                        f'HAL9000 error: {ctx.author} ended in a random state while trying to handle: {reaction.emoji} '
+                        f'and on page: {current_page}.')
+                    # HAl-9000 error response.
+                    error_embed = discord.Embed(title=f"I'm sorry {ctx.author}, I'm afraid I can't do that.")
+                    await message.edit(embed=error_embed)
+                    await message.remove_reaction(reaction, user)
+
+            except asyncio.TimeoutError:
+                print(f'Timeout hit during carrier request by: {ctx.author}')
+                await ctx.send(
+                    f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
+                await message.delete()
+                break
