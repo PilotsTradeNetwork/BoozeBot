@@ -171,7 +171,7 @@ class Unloading(commands.Cog):
         # We will only get a single entry back here as the carrierid is a unique field.
         carrier_data = BoozeCarrier(carrier_db.fetchone())
         if not carrier_data:
-            return await ctx.send(f'Sorry, could not find a carrier for the data: {carrier_id}.')
+            return await ctx.send(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
 
         wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
         unloading_channel_id = None
@@ -216,7 +216,7 @@ class Unloading(commands.Cog):
 
             carrier_db.execute('''
                 UPDATE boozecarriers
-                SET discord_unload=?
+                SET discord_unload_in_progress=?, totalunloads=totalunloads+1
                 WHERE carrierid LIKE (?)
             ''', data)
             carriers_conn.commit()
@@ -273,7 +273,8 @@ class Unloading(commands.Cog):
         # We will only get a single entry back here as the carrierid is a unique field.
         carrier_data = BoozeCarrier(carrier_db.fetchone())
         if not carrier_data:
-            return await ctx.send(f'Sorry, could not find a carrier for the data: {carrier_id}.')
+            print(f'No carrier found while searching the DB for: {carrier_id}')
+            return await ctx.send(f'Sorry, could not find a carrier for the ID data in DB: {carrier_id}.')
 
         response = None
         if carrier_data.discord_unload_notification and carrier_data.discord_unload_notification != 'NULL':
@@ -288,7 +289,7 @@ class Unloading(commands.Cog):
                 data = (f'%{carrier_id}%',)
                 carrier_db.execute('''
                     UPDATE boozecarriers
-                    SET discord_unload=NULL
+                    SET discord_unload_in_progress=NULL
                     WHERE carrierid LIKE (?)
                 ''', data)
                 carriers_conn.commit()
@@ -301,6 +302,6 @@ class Unloading(commands.Cog):
         else:
             response = f'Sorry {ctx.author}, we have no carrier unload notification found in the database for ' \
                        f'{carrier_id}.'
-            print(f'No discord alert found for carrier, {carrier_id}. It likely ran open market.')
+            print(f'No discord alert found for carrier, {carrier_id}. It likely ran an untracked market.')
 
         return await ctx.channel.send(content=response)

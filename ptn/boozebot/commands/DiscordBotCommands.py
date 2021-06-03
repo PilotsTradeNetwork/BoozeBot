@@ -1,6 +1,9 @@
 import sys
 
 from discord.ext import commands
+from discord_slash.utils.manage_commands import remove_all_commands
+
+from ptn.boozebot.constants import bot_guild_id, TOKEN
 
 
 class DiscordBotCommands(commands.Cog):
@@ -20,6 +23,10 @@ class DiscordBotCommands(commands.Cog):
         :returns: None
         """
         print(f'{self.bot.user.name} has connected to Discord server!')
+
+    @commands.Cog.listener()
+    async def on_disconnect(self):
+        print(f'{self.bot.user.name} has disconnected from discord server.')
 
     @commands.command(name='ping', help='Ping the bot')
     @commands.has_role('Carrier Owner')
@@ -42,6 +49,7 @@ class DiscordBotCommands(commands.Cog):
         :param discord.ext.commands.Context ctx: The Discord context object
         :returns: None
         """
+        await remove_all_commands(self.bot.user.id, TOKEN, [bot_guild_id()])
         await ctx.send(f"k thx bye")
         await sys.exit("User requested exit.")
 

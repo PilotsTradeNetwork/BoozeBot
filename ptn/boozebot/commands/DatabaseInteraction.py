@@ -55,7 +55,7 @@ class DatabaseInteraction(Cog):
             result = self._update_db()
 
             embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
-            embed.add_field(name=f'Total number of carriers: {result["total_carrier"]:>20}.\n'
+            embed.add_field(name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
                                  f'Number of new carriers added: {result["added_count"]:>8}.\n'
                                  f'Number of carriers amended: {result["updated_count"]:>11}.\n'
                                  f'Number of carriers unchanged: {result["unchanged_count"]:>7}.',
@@ -80,6 +80,30 @@ class DatabaseInteraction(Cog):
         unchanged_count = 0
         total_carriers = len(self.records_data)
 
+        # A list of carrier dicts, containing how often they are in the overall input sheet, populate this to start
+        # with. This is a quick and dirty amalgamation of the data. We do this first to avoid unnecessary writes to
+        # the database.
+
+        carrier_count = []
+        for record in self.records_data:
+            carrier = BoozeCarrier(record)
+            if not any(data['carrier_name'] == carrier.carrier_name for data in carrier_count):
+                # if the carrier does not exist, then we need to add it
+                carrier_dict = {
+                    'carrier_name': carrier.carrier_name,
+                    'run_count': carrier.run_count,
+                    'wine_total': carrier.wine_total
+                }
+                carrier_count.append(carrier_dict)
+            else:
+                # Go append in the stats for this entry then
+                for data in carrier_count:
+                    if data['carrier_name'] == carrier.carrier_name:
+                        data['run_count'] += 1
+                        data['wine_total'] += carrier.wine_total
+
+        print(carrier_count)
+
         # First row is the headers, drop them.
         for record in self.records_data:
             # Iterate over the records and populate the database as required.
@@ -91,13 +115,20 @@ class DatabaseInteraction(Cog):
             carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
             if len(carrier_data) > 1:
                 raise ValueError(f'{len(carrier_data)} carriers are listed with this carrier ID:'
-                                 f' {record["Carrier ID"].upper()}.Problem in the sheet!')
+                                 f' {record["Carrier ID"].upper()}. Problem in the DB!')
 
             if carrier_data:
                 # We have a carrier, just check the values and update it if needed.
                 print(f'The carrier for {record["Carrier ID"].upper()} exists, checking the values.')
                 expected_carrier_data = BoozeCarrier(record)
                 db_carrier_data = carrier_data[0]
+
+                # Update the expected values for wine and count to those coming out of the earlier check if they exist
+                for data in carrier_count:
+                    # There must be a better solution than this, but this was the simplest path I could see
+                    if data['carrier_name'] == expected_carrier_data.carrier_name:
+                        expected_carrier_data.wine_total = data['wine_total']
+                        expected_carrier_data.run_count = data['run_count']
 
                 print(f'EXPECTED: \t{expected_carrier_data}')
                 print(f'RECORD: \t{db_carrier_data}')
@@ -118,13 +149,14 @@ class DatabaseInteraction(Cog):
                             expected_carrier_data.ptn_carrier,
                             expected_carrier_data.discord_username,
                             expected_carrier_data.timestamp,
+                            expected_carrier_data.run_count,
                             f'%{db_carrier_data.carrier_name}%'
                         )
 
                         carrier_db.execute(
                             ''' UPDATE boozecarriers 
                             SET carriername=?, carrierid=?, winetotal=?, platform=?, officialcarrier=?, 
-                            discordusername=?, timestamp=?
+                            discordusername=?, timestamp=?, runtotal=?
                             WHERE carriername LIKE (?) ''', data
                         )
 
@@ -143,11 +175,14 @@ class DatabaseInteraction(Cog):
                 print(f'Carrier {record["Carrier Name"]} is not yet in the database - adding it')
                 try:
                     carrier_db_lock.acquire()
-                    carrier_db.execute(''' INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, NULL) ''',
-                                       (carrier.carrier_name, carrier.carrier_identifier, carrier.wine_total,
-                                        carrier.platform, carrier.ptn_carrier, carrier.discord_username,
-                                        carrier.timestamp)
-                                       )
+                    carrier_db.execute(''' 
+                    INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) 
+                    ''', (
+                        carrier.carrier_name, carrier.carrier_identifier, carrier.wine_total,
+                        carrier.platform, carrier.ptn_carrier, carrier.discord_username,
+                        carrier.timestamp, carrier.run_count, carrier.total_unloads
+                        )
+                    )
                 finally:
                     carrier_db_lock.release()
 
