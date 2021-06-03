@@ -1,3 +1,5 @@
+import re
+
 import discord
 from discord.ext import commands
 from discord_slash import SlashContext, cog_ext
@@ -130,20 +132,34 @@ class Unloading(commands.Cog):
                 ]
             ),
             create_option(
-                name='timed_market',
-                description='True if carrier is running timed markets, else False',
-                option_type=5,
-                required=True
+                name='market_type',
+                description='The market conditions for the carrier',
+                option_type=3,
+                required=True,
+                choices=[
+                    create_choice(
+                        name="TimedMarkets",
+                        value="Timed"
+                    ),
+                    create_choice(
+                        name="Squadron",
+                        value="Squadron"
+                    ),
+                    create_choice(
+                        name="Open",
+                        value="Open"
+                    )
+                ]
             ),
             create_option(
                 name='unload_channel',
                 description='The discord channel #xxx which the carrier will run timed unloads in',
                 option_type=3,
                 required=False
-            )
+            ),
         ]
     )
-    async def wine_carrier_unload(self, ctx: SlashContext, carrier_id, planetary_body, timed_market: bool,
+    async def wine_carrier_unload(self, ctx: SlashContext, carrier_id: str, planetary_body: str, market_type: str,
                                   unload_channel=None):
         """
         Posts a wine unload request to the unloading channel.
@@ -151,16 +167,23 @@ class Unloading(commands.Cog):
         :param SlashContext ctx: The discord slash context.
         :param str carrier_id: The carrier ID string
         :param str planetary_body: Where is the carrier? Star, P1 etc?
-        :param bool timed_market: Is the carrier running timed market openings, True or False.
+        :param str market_type: The market conditions for the opening. Timed, Squadron or Open
         :param str unload_channel: The discord unload channel. Required if using timed market openings so we can
             point the user where to go. This is an optional value.
         :returns: A message to the user
         :rtype: Union[discord.Message, dict]
         """
         print(f'User {ctx.author} has flagged a new overall unload operation for carrier: {carrier_id} using unload '
-              f'channel: {unload_channel} using timed markets: {timed_market}.')
+              f'channel: {unload_channel} using timed markets: {market_type}.')
 
-        if timed_market and not unload_channel:
+        # Check the carrier ID regex
+        if not re.match(r"\w{3}-\w{3}", carrier_id):
+            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await ctx.channel.send(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, '
+                                          f'{carrier_id}.')
+
+        if market_type == 'Timed' and not unload_channel:
+            print(f'Sorry, to run a timed market we need an unload channel, you provided: {unload_channel}.')
             return await ctx.channel.send(f'Sorry, to run a timed market we need an unload channel, you '
                                           f'provided: {unload_channel}.')
 
@@ -188,15 +211,20 @@ class Unloading(commands.Cog):
         print(f'Starting to post un-load operation for carrier: {carrier_data}')
         message_send = await ctx.channel.send("**Sending to Discord...**")
 
-        market_conditions = 'Timed Openings' if timed_market else f'{carrier_data.platform} Squadron and Friends'
+        market_conditions = 'Timed Openings'
+        if market_type == 'Squadron':
+            market_conditions = f'{carrier_data.platform} Squadron and Friends'
+        elif market_type == 'Open':
+            market_conditions = 'Open for all.'
 
         # Only in the case of timed openings does a channel make sense.
-        unload_tracking = f' Tracked in {unload_channel}.' if timed_market else ''
+        unload_tracking = f' Tracked in {unload_channel}.' if market_type == 'Timed Openings' else ''
 
         wine_load_embed = discord.Embed(
             title='Wine unload notification.',
             description=f'Carrier {carrier_data.carrier_name} (**{carrier_data.carrier_identifier}**) is currently '
-                        f'unloading **{carrier_data.wine_total}** tonnes of wine from **{planetary_body}**".'
+                        f'unloading **{carrier_data.wine_total // carrier_data.run_count}** tonnes of wine from *'
+                        f'*{planetary_body}**.'
                         f'\n Market Conditions: **{market_conditions}**.{unload_tracking}'
         )
         wine_load_embed.set_footer(text='Please react with 💯 once completed.')
@@ -239,7 +267,7 @@ class Unloading(commands.Cog):
 
         return await ctx.send(
             f'Wine unload requested by {ctx.author} for **{carrier_id}** processed successfully. Market: '
-            f'**{market_conditions}**. **{unload_tracking}**'
+            f'**{market_conditions}**.{unload_tracking}'
         )
 
     @cog_ext.cog_slash(
@@ -265,6 +293,12 @@ class Unloading(commands.Cog):
     )
     async def wine_unloading_complete(self, ctx: SlashContext, carrier_id):
         print(f'Wine unloading complete for {carrier_id} flagged by {ctx.author}.')
+
+        # Check the carrier ID regex
+        if not re.match(r"\w{3}-\w{3}", carrier_id):
+            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await ctx.channel.send(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, '
+                                          f'{carrier_id}.')
 
         carrier_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
