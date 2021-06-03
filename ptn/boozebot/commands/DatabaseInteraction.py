@@ -37,21 +37,43 @@ class DatabaseInteraction(Cog):
 
         # A JSON form tracking all the records
         self.records_data = tracking_sheet.get_all_records()
+        self._update_db()   # On instantiation, go build the DB
 
     @commands.has_any_role('Admin')
-    @cog_ext.cog_slash(name="UpdateBoozeCruiseDatabase", guild_ids=[bot_guild_id()],
+    @cog_ext.cog_slash(name="update_booze_db", guild_ids=[bot_guild_id()],
                        description="Populates the booze cruise database from the updated google sheet.")
-    async def update_database_from_googlesheets(self, ctx: SlashContext):
+    async def user_update_database_from_googlesheets(self, ctx: SlashContext):
         """
         Slash command for updating the database from the GoogleSheet.
-        # TODO: This command itself should not be called by a user, this is provided only as a short-term solution
-            for migration towards the actual commands.
 
         :returns: A discord embed to the user.
         :rtype: None
         """
         print(f'User {ctx.author} requested to re-populate the database at {datetime.datetime.now()}')
 
+        try:
+            result = self._update_db()
+
+            embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
+            embed.add_field(name=f'Total number of carriers: {result["total_carrier"]:>20}.\n'
+                                 f'Number of new carriers added: {result["added_count"]:>8}.\n'
+                                 f'Number of carriers amended: {result["updated_count"]:>11}.\n'
+                                 f'Number of carriers unchanged: {result["unchanged_count"]:>7}.',
+                            value='Pirate Steve hope he got this right.',
+                            inline=False)
+
+            return await ctx.send(embed=embed)
+
+        except ValueError as ex:
+            return await ctx.send(str(ex))
+
+    def _update_db(self):
+        """
+        Private method to wrap the DB update commands.
+
+        :returns:
+        :rtype:
+        """
         updated_db = False
         added_count = 0
         updated_count = 0
@@ -64,12 +86,12 @@ class DatabaseInteraction(Cog):
 
             # Check if it is in the database already
             carrier_db.execute(
-                "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{record["Carrier ID"].upper()}%', )
+                "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{record["Carrier ID"].upper()}%',)
             )
             carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
             if len(carrier_data) > 1:
-                return await ctx.send(f'{len(carrier_data)} carriers are listed with this carrier ID:'
-                                      f' {record["Carrier ID"].upper()}.Problem in the sheet!')
+                raise ValueError(f'{len(carrier_data)} carriers are listed with this carrier ID:'
+                                 f' {record["Carrier ID"].upper()}.Problem in the sheet!')
 
             if carrier_data:
                 # We have a carrier, just check the values and update it if needed.
@@ -122,10 +144,10 @@ class DatabaseInteraction(Cog):
                 try:
                     carrier_db_lock.acquire()
                     carrier_db.execute(''' INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, NULL) ''',
-                                   (carrier.carrier_name, carrier.carrier_identifier, carrier.wine_total,
-                                    carrier.platform, carrier.ptn_carrier, carrier.discord_username,
-                                    carrier.timestamp)
-                                   )
+                                       (carrier.carrier_name, carrier.carrier_identifier, carrier.wine_total,
+                                        carrier.platform, carrier.ptn_carrier, carrier.discord_username,
+                                        carrier.timestamp)
+                                       )
                 finally:
                     carrier_db_lock.release()
 
@@ -142,11 +164,10 @@ class DatabaseInteraction(Cog):
             dump_database()
             print('Wrote the database and dumped the SQL')
 
-        embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
-        embed.add_field(name=f'Total number of carriers: {total_carriers:>20}.\nNumber of new carriers added: '
-                             f'{added_count:>8}.\nNumber of carriers amended: {updated_count:>11}.\nNumber of '
-                             f'carriers unchanged: {unchanged_count:>7}.',
-                        value='Pirate Steve hope he got this right.',
-                        inline=False)
-
-        return await ctx.send(embed=embed)
+        return {
+            'updated_db': updated_db,
+            'added_count': added_count,
+            'updated_count': updated_count,
+            'unchanged_count': unchanged_count,
+            'total_carriers': total_carriers
+        }
