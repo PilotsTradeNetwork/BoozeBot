@@ -48,7 +48,7 @@ class BoozeCarrier:
         self.run_count = info_dict.get('run_count', 1)
 
         # How many unloading operations are completed.
-        self.total_unloads = info_dict.get('totalunloads', 1)
+        self.total_unloads = info_dict.get('totalunloads', 0)
 
     def to_dictionary(self):
         """
@@ -71,8 +71,8 @@ class BoozeCarrier:
         """
         return 'BoozeCarrier: CarrierName:"{0.carrier_name}" WineTotal:{0.wine_total} ' \
                'CarrierIdentifier:"{0.carrier_identifier}" Platform:{0.platform} PTNCarrier:{0.ptn_carrier} ' \
-               'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp} RunCount: {0.run_count} ' \
-               'DiscordUnload: {0.discord_unload_notification}"'.format(self)
+               'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp} RunCount: {0.run_count} TotalUnloads: ' \
+               '{0.total_unloads} DiscordUnload: {0.discord_unload_notification}"'.format(self)
 
     def __bool__(self):
         """

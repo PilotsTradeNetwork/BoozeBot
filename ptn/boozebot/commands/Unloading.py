@@ -211,13 +211,12 @@ class Unloading(commands.Cog):
             carrier_db_lock.acquire()
             data = (
                 discord_alert_id,
-                True,
                 f'%{carrier_id}%'
             )
 
             carrier_db.execute('''
                 UPDATE boozecarriers
-                SET discord_unload_in_progress=?, unloading_in_progress=?
+                SET discord_unload_in_progress=?, totalunloads=totalunloads+1
                 WHERE carrierid LIKE (?)
             ''', data)
             carriers_conn.commit()
@@ -298,7 +297,7 @@ class Unloading(commands.Cog):
                 carrier_db_lock.release()
 
             await msg.delete()
-            response += f'Removed the unload notification for {carrier_id}'
+            response = f'Removed the unload notification for {carrier_id}'
             print(f'Deleted the carrier discord notification for carrier: {carrier_id}')
         else:
             response = f'Sorry {ctx.author}, we have no carrier unload notification found in the database for ' \
