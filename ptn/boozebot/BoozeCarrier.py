@@ -53,8 +53,8 @@ class BoozeCarrier:
         # How many unloading operations are completed.
         self.total_unloads = info_dict.get('totalunloads', None)
         if self.carrier_name and not self.total_unloads:
-            # Increment to 1 in the case of a carrier name without a run count defined
-            self.run_count = 1
+            # Set to 0 in the case of a carrier name without a total unloads value defined
+            self.total_unloads = 0
 
     def to_dictionary(self):
         """
