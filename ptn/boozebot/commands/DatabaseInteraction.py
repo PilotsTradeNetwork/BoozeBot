@@ -4,6 +4,7 @@ import os.path
 import re
 
 import discord
+from discord import HTTPException
 from discord.ext import commands
 from discord_slash import cog_ext, SlashContext
 from discord_slash.model import SlashCommandPermissionType
@@ -41,7 +42,7 @@ class DatabaseInteraction(Cog):
 
         # A JSON form tracking all the records
         self.records_data = tracking_sheet.get_all_records()
-        self._update_db()   # On instantiation, go build the DB
+        self._update_db()  # On instantiation, go build the DB
 
     @commands.has_any_role('Admin')
     @cog_ext.cog_slash(name="update_booze_db", guild_ids=[bot_guild_id()],
@@ -185,8 +186,8 @@ class DatabaseInteraction(Cog):
                         carrier.carrier_name, carrier.carrier_identifier, carrier.wine_total,
                         carrier.platform, carrier.ptn_carrier, carrier.discord_username,
                         carrier.timestamp, carrier.run_count, carrier.total_unloads
-                        )
                     )
+                                       )
                 finally:
                     carrier_db_lock.release()
 
@@ -461,7 +462,7 @@ class DatabaseInteraction(Cog):
         await message.delete()
 
     @cog_ext.cog_slash(
-        name="find_carriers_for_platform",
+        name="find_wine_carriers_for_platform",
         guild_ids=[bot_guild_id()],
         description="Returns the carriers in the database for the platform.",
         options=[
@@ -644,3 +645,45 @@ class DatabaseInteraction(Cog):
                 await ctx.send(
                     f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
                 await message.delete()
+
+    @cog_ext.cog_slash(
+        name="find_wine_carrier_by_id",
+        guild_ids=[bot_guild_id()],
+        description="Returns the carriers in the database for the ID.",
+    )
+    async def find_carrier_by_id(self, ctx: SlashContext, carrier_id: str):
+        print(f'{ctx.author} wants to find a carrier by ID: {carrier_id}.')
+
+        # Check the carrier ID regex
+        if not re.match(r"\w{3}-\w{3}", carrier_id):
+            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await ctx.channel.send(
+                f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+
+        # Check if it is in the database already
+        carrier_db.execute(
+            "SELECT * FROM boozecarriers WHERE carrierid = (?)", (f'{carrier_id}',)
+        )
+        # Really only expect a single entry here, unique field and all that
+        carrier_data = BoozeCarrier(carrier_db.fetchone())
+        print(f'Found: {carrier_data}')
+
+        if not carrier_data:
+            print(f'No carrier found for: {carrier_id}')
+            return await ctx.send(f'No carrier found for: {carrier_id}')
+
+        # TODO: Username should really come via a lookup of the input user string. This was returning None with
+        #  discord.utils.get(ctx.guild.members, name=<thing>)
+
+        carrier_embed = discord.Embed(
+            title=f'YARR! Found carrier details for the input: {carrier_id}',
+            description=f'CarrierName: **{carrier_data.carrier_name}**\n'
+                        f'ID: **{carrier_data.carrier_identifier}**\n'
+                        f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
+                        f'Number of trips to the peak: **{carrier_data.run_count}**\n'
+                        f'Total Unloads: **{carrier_data.total_unloads}**\n'
+                        f'PTN Official: {carrier_data.ptn_carrier}\n'
+                        f'Operated by: {carrier_data.discord_username}'
+        )
+
+        return await ctx.send(embed=carrier_embed)
