@@ -18,7 +18,7 @@ class Unloading(commands.Cog):
         """
 
     @cog_ext.cog_slash(
-        name="WineHelperMarketOpen",
+        name="Wine_Helper_Market_Open",
         guild_ids=[bot_guild_id()],
         description="Creates a new unload operation in this channel.",
         permissions={
@@ -53,7 +53,7 @@ class Unloading(commands.Cog):
         await message.add_reaction('🍷')
 
     @cog_ext.cog_slash(
-        name="WineHelperMarketClosed",
+        name="Wine_Helper_Market_Closed",
         guild_ids=[bot_guild_id()],
         description="Sends a dummy message to indicate you have closed your market. Command sent in active channel.",
         permissions={
@@ -238,8 +238,8 @@ class Unloading(commands.Cog):
             await unloading_channel_id.send(embed=embed)
 
         return await ctx.send(
-            f'Wine unload requested by {ctx.author} for {carrier_id} processed successfully. Market: '
-            f'{market_conditions}. {unload_tracking}'
+            f'Wine unload requested by {ctx.author} for **{carrier_id}** processed successfully. Market: '
+            f'**{market_conditions}**. **{unload_tracking}**'
         )
 
     @cog_ext.cog_slash(
