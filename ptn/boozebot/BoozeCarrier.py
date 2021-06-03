@@ -45,10 +45,16 @@ class BoozeCarrier:
         self.discord_unload_notification = info_dict.get('discord_unload_in_progress', None)
 
         # Track number of runs the carrier completed
-        self.run_count = info_dict.get('run_count', 1)
+        self.run_count = info_dict.get('run_count', None) or info_dict.get('runtotal', None)
+        if self.carrier_name and not self.run_count:
+            # Increment to 1 in the case of a carrier name without a run count defined
+            self.run_count = 1
 
         # How many unloading operations are completed.
-        self.total_unloads = info_dict.get('totalunloads', 0)
+        self.total_unloads = info_dict.get('totalunloads', None)
+        if self.carrier_name and not self.total_unloads:
+            # Increment to 1 in the case of a carrier name without a run count defined
+            self.run_count = 1
 
     def to_dictionary(self):
         """
