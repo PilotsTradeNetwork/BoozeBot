@@ -23,12 +23,12 @@ TEST_BOOZE_UNLOAD_ID = 849570829230014464
 TEST_ADMIN_ID = 818174400997228545
 TEST_SOMMELIER_ID = 849907019502059530
 TEST_CO_ID = 822999970012463154
-TEST_AUX_CO_DI = 849909113776898071
+TEST_AUX_CO_ID = 849909113776898071
 
 _production = ast.literal_eval(os.environ.get('PTN_BOOZE_BOT', 'False'))
 
 # The bot object:
-bot = commands.Bot(command_prefix='b.', intents=Intents.all())
+bot = commands.Bot(command_prefix='b/', intents=Intents.all())
 slash = SlashCommand(bot, sync_commands=True)
 
 
