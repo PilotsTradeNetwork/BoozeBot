@@ -7,7 +7,7 @@ import discord
 from discord.ext import commands
 from discord_slash import cog_ext, SlashContext
 from discord_slash.model import SlashCommandPermissionType
-from discord_slash.utils.manage_commands import create_permission, create_option
+from discord_slash.utils.manage_commands import create_permission, create_option, create_choice
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 from discord.ext.commands import Cog
@@ -353,7 +353,6 @@ class DatabaseInteraction(Cog):
                 await ctx.send(
                     f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
                 await message.delete()
-                break
 
     @cog_ext.cog_slash(
         name="wine_mark_completed_forcefully",
@@ -375,7 +374,7 @@ class DatabaseInteraction(Cog):
             ]
         }
     )
-    async def find_carriers_with_wine(self, ctx: SlashContext, carrier_id):
+    async def wine_mark_completed_forcefully(self, ctx: SlashContext, carrier_id):
         """
         Forcefully marks a carrier as completed an unload. Ideally will never be used.
 
@@ -460,3 +459,188 @@ class DatabaseInteraction(Cog):
             return await ctx.send("**Cancelled - timed out**")
 
         await message.delete()
+
+    @cog_ext.cog_slash(
+        name="find_carriers_for_platform",
+        guild_ids=[bot_guild_id()],
+        description="Returns the carriers in the database for the platform.",
+        options=[
+            create_option(
+                name='platform',
+                description='The platform the carrier operates on.',
+                option_type=3,
+                required=True,
+                choices=[
+                    create_choice(
+                        name="PC",
+                        value="PC"
+                    ),
+                    create_choice(
+                        name="Xbox",
+                        value="Xbox"
+                    ),
+                    create_choice(
+                        name="Playstation",
+                        value="Playstation"
+                    ),
+                ]
+            ),
+            create_option(
+                name='remaining_wine',
+                description='True if you only want carriers with wine, else False. Default True',
+                option_type=5,
+                required=False
+            )
+        ],
+    )
+    async def find_carriers_for_platform(self, ctx: SlashContext, platform: str, remaining_wine=True):
+        """
+        Find carriers for the specified platform.
+
+        :param SlashContext ctx: The discord SlashContext.
+        :param str platform: The platform to search for.
+        :param bool remaining_wine: True if you only want carriers with wine
+        :returns: None
+        """
+        print(f'{ctx.author} requested to fine carriers for: {platform} with wine: {remaining_wine}')
+
+        if remaining_wine:
+            data = (
+                f'%{platform}%',
+            )
+            carrier_search = 'platform LIKE (?) and runtotal > totalunloads'
+
+        else:
+            data = (
+                f'%{platform}%',
+            )
+            carrier_search = 'platform LIKE (?)'
+
+        # Check if it is in the database already
+        carrier_db.execute(
+            f"SELECT * FROM boozecarriers WHERE {carrier_search}", data
+        )
+        # Really only expect a single entry here, unique field and all that
+        carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
+
+        print(f'Found {len(carrier_data)} carriers matching the search')
+
+        if not carrier_data:
+            print(f'Did not find a carrier matching the condition: {carrier_search}.')
+            return await ctx.send(f'Could not find a carrier matching the inputs: {platform}, '
+                                  f'with wine: {remaining_wine}')
+
+        def chunk(chunk_list, max_size=10):
+            """
+            Take an input list, and an expected max_size.
+
+            :returns: A chunked list that is yielded back to the caller
+            :rtype: iterator
+            """
+            for i in range(0, len(chunk_list), max_size):
+                yield chunk_list[i:i + max_size]
+
+        def validate_response(react, user):
+            """
+            Validates the user response
+            """
+            return user == ctx.author and str(react.emoji) in ["◀️", "▶️"]
+
+        pages = [page for page in chunk(carrier_data)]
+        max_pages = len(pages)
+        current_page = 1
+
+        embed = discord.Embed(
+            title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. Page: #{current_page} of"
+                  f" {max_pages}"
+        )
+        count = 0  # Track the overall count for all carriers
+
+        # Go populate page 0 by default
+        for carrier in pages[0]:
+            count += 1
+            embed.add_field(
+                name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                inline=False
+            )
+
+        # Now go send it and wait on a reaction
+        message = await ctx.send(embed=embed)
+
+        # From page 0 we can only go forwards
+        await message.add_reaction("▶️")
+        # 60 seconds time out gets raised by Asyncio
+        while True:
+            try:
+                reaction, user = await bot.wait_for('reaction_add', timeout=60, check=validate_response)
+                if str(reaction.emoji) == "▶️" and current_page != max_pages:
+
+                    print(f'{ctx.author} requested to go forward a page.')
+                    current_page += 1  # Forward a page
+                    new_embed = discord.Embed(
+                        title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. Page"
+                              f":{current_page}"
+                    )
+                    for carrier in pages[current_page - 1]:
+                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
+                        count += 1
+                        new_embed.add_field(
+                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                            inline=False
+                        )
+
+                    await message.edit(embed=new_embed)
+
+                    # Ok now we can go back, check if we can also go forwards still
+                    if current_page == max_pages:
+                        await message.clear_reaction("▶️")
+
+                    await message.remove_reaction(reaction, user)
+                    await message.add_reaction("◀️")
+
+                elif str(reaction.emoji) == "◀️" and current_page > 1:
+                    print(f'{ctx.author} requested to go back a page.')
+                    current_page -= 1  # Go back a page
+
+                    new_embed = discord.Embed(
+                        title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. "
+                              f"Page:{current_page}"
+                    )
+                    # Start by counting back however many carriers are in the current page, minus the new page, that way
+                    # when we start a 3rd page we don't end up in problems
+                    count -= len(pages[current_page - 1])
+                    count -= len(pages[current_page])
+
+                    for carrier in pages[current_page - 1]:
+                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
+                        count += 1
+                        new_embed.add_field(
+                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                            inline=False
+                        )
+
+                    await message.edit(embed=new_embed)
+                    # Ok now we can go forwards, check if we can also go backwards still
+                    if current_page == 1:
+                        await message.clear_reaction("◀️")
+
+                    await message.remove_reaction(reaction, user)
+                    await message.add_reaction("▶️")
+                else:
+                    # It should be impossible to hit this part, but lets gate it just in case.
+                    print(
+                        f'HAL9001 error: {ctx.author} ended in a random state while trying to handle: {reaction.emoji} '
+                        f'and on page: {current_page}.')
+                    # HAl-9000 error response.
+                    error_embed = discord.Embed(title=f"I'm sorry {ctx.author}, I'm afraid I can't do that.")
+                    await message.edit(embed=error_embed)
+                    await message.remove_reaction(reaction, user)
+
+            except asyncio.TimeoutError:
+                print(f'Timeout hit during carrier request by: {ctx.author}')
+                await ctx.send(
+                    f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
+                await message.delete()
