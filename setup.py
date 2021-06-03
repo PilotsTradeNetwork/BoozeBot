@@ -34,7 +34,8 @@ setup(
         'discord-py-slash-command',
         'google-api-python-client',
         'gspread',
-        'oauth2client'
+        'oauth2client',
+        'requests'
     ],
     license='MIT',
     keyworkd='PTN',
