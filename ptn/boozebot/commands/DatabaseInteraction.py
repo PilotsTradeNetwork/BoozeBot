@@ -68,8 +68,8 @@ class DatabaseInteraction(Cog):
             )
             carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
             if len(carrier_data) > 1:
-                raise ValueError(f'Two carriers are listed with this carrier ID: {record["Carrier ID"].upper()}.'
-                                 f'Problem in the sheet!')
+                return await ctx.send(f'{len(carrier_data)} carriers are listed with this carrier ID:'
+                                      f' {record["Carrier ID"].upper()}.Problem in the sheet!')
 
             if carrier_data:
                 # We have a carrier, just check the values and update it if needed.
@@ -121,9 +121,10 @@ class DatabaseInteraction(Cog):
                 print(f'Carrier {record["Carrier Name"]} is not yet in the database - adding it')
                 try:
                     carrier_db_lock.acquire()
-                    carrier_db.execute(''' INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?) ''',
+                    carrier_db.execute(''' INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, NULL) ''',
                                    (carrier.carrier_name, carrier.carrier_identifier, carrier.wine_total,
-                                    carrier.platform, carrier.ptn_carrier, carrier.discord_username, carrier.timestamp)
+                                    carrier.platform, carrier.ptn_carrier, carrier.discord_username,
+                                    carrier.timestamp)
                                    )
                 finally:
                     carrier_db_lock.release()
