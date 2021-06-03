@@ -75,7 +75,7 @@ class Unloading(commands.Cog):
         await message.add_reaction('🏴‍☠️')
 
     @cog_ext.cog_slash(
-        name='WineUnload',
+        name='Wine_Unload',
         guild_ids=[bot_guild_id()],
         description='Posts a new wine unloading notification for a specific carrier.',
         permissions={
@@ -237,13 +237,13 @@ class Unloading(commands.Cog):
             embed.set_footer(text='C/O: Try the commands /boozecruiseunload and /boozecruisemarketclosed.')
             await unloading_channel_id.send(embed=embed)
 
-        return await ctx.channel.send(
+        return await ctx.send(
             f'Wine unload requested by {ctx.author} for {carrier_id} processed successfully. Market: '
             f'{market_conditions}. {unload_tracking}'
         )
 
     @cog_ext.cog_slash(
-        name='WineUnloadComplete',
+        name='Wine_Unload_Complete',
         guild_ids=[bot_guild_id()],
         description='Removes any trade channel notification for unloading wine.',
         options=[
@@ -276,7 +276,6 @@ class Unloading(commands.Cog):
             print(f'No carrier found while searching the DB for: {carrier_id}')
             return await ctx.send(f'Sorry, could not find a carrier for the ID data in DB: {carrier_id}.')
 
-        response = None
         if carrier_data.discord_unload_notification and carrier_data.discord_unload_notification != 'NULL':
             # If we have a notification, remove it.
             print(f'Deleting the wine carrier unload notification for: {carrier_id}.')
@@ -304,4 +303,4 @@ class Unloading(commands.Cog):
                        f'{carrier_id}.'
             print(f'No discord alert found for carrier, {carrier_id}. It likely ran an untracked market.')
 
-        return await ctx.channel.send(content=response)
+        return await ctx.send(content=response)

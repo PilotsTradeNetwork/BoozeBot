@@ -50,7 +50,7 @@ class DiscordBotCommands(commands.Cog):
         :returns: None
         """
         await remove_all_commands(self.bot.user.id, TOKEN, [bot_guild_id()])
-        await ctx.send(f"k thx bye")
+        await ctx.send(f"Ahoy! k thx bye")
         await sys.exit("User requested exit.")
 
     @commands.Cog.listener()
