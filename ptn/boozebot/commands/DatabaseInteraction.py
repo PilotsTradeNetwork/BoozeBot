@@ -68,8 +68,8 @@ class DatabaseInteraction(Cog):
             )
             carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
             if len(carrier_data) > 1:
-                raise ValueError(f'Two carriers are listed with this carrier ID: {record["Carrier ID"].upper()}.'
-                                 f'Problem in the sheet!')
+                return await ctx.send(f'{len(carrier_data)} carriers are listed with this carrier ID:'
+                                      f' {record["Carrier ID"].upper()}.Problem in the sheet!')
 
             if carrier_data:
                 # We have a carrier, just check the values and update it if needed.
