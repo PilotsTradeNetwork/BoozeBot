@@ -5,6 +5,7 @@ import os
 from discord import Intents
 from discord.ext import commands
 from discord_slash import SlashCommand
+from dotenv import load_dotenv
 
 PROD_DISCORD_GUILD = 800080948716503040  # PTN Discord server
 PROD_ASSASSIN_ID = 806498760586035200
@@ -26,6 +27,13 @@ TEST_CO_ID = 822999970012463154
 TEST_AUX_CO_ID = 849909113776898071
 
 _production = ast.literal_eval(os.environ.get('PTN_BOOZE_BOT', 'False'))
+
+
+# Get the discord token from the local .env file. Deliberately not hosted in the repo or Discord takes the bot down
+# because the keys are exposed. DO NOT HOST IN THE REPO. Seriously do not do it ...
+load_dotenv()
+
+TOKEN = os.getenv('DISCORD_TOKEN_PROD') if _production else os.getenv('DISCORD_TOKEN_TESTING')
 
 # The bot object:
 bot = commands.Bot(command_prefix='b/', intents=Intents.all())
