@@ -1,3 +1,6 @@
+import re
+
+
 class BoozeCarrier:
 
     def __init__(self, info_dict=None):
@@ -20,6 +23,10 @@ class BoozeCarrier:
         if self.carrier_identifier:
             # Cast the carrier ID to upper case for consistency
             self.carrier_identifier = self.carrier_identifier.upper()
+
+            # make sure it matches the regex
+            if not re.match(r"\w{3}-\w{3}", self.carrier_identifier):
+                raise ValueError(f'Incompatible carrier ID found: {self.carrier_identifier} - {self.carrier_name}')
 
         self.platform = info_dict.get("Carrier Owner's Platform", None) or info_dict.get('platform', None)
 
