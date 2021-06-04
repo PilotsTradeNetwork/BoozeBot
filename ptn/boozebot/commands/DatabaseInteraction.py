@@ -4,8 +4,6 @@ import os.path
 import re
 
 import discord
-from discord import HTTPException
-from discord.ext import commands
 from discord_slash import cog_ext, SlashContext
 from discord_slash.model import SlashCommandPermissionType
 from discord_slash.utils.manage_commands import create_permission, create_option, create_choice
@@ -44,9 +42,18 @@ class DatabaseInteraction(Cog):
         self.records_data = tracking_sheet.get_all_records()
         self._update_db()  # On instantiation, go build the DB
 
-    @commands.has_any_role('Admin')
-    @cog_ext.cog_slash(name="update_booze_db", guild_ids=[bot_guild_id()],
-                       description="Populates the booze cruise database from the updated google sheet.")
+    @cog_ext.cog_slash(
+        name="update_booze_db",
+        guild_ids=[bot_guild_id()],
+        description="Populates the booze cruise database from the updated google sheet. Admin/Sommelier role required.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        },
+    )
     async def user_update_database_from_googlesheets(self, ctx: SlashContext):
         """
         Slash command for updating the database from the GoogleSheet.
@@ -216,13 +223,6 @@ class DatabaseInteraction(Cog):
         name="find_carriers_with_wine",
         guild_ids=[bot_guild_id()],
         description="Returns the carriers in the database that are still flagged as having wine remaining.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
     )
     async def find_carriers_with_wine(self, ctx: SlashContext):
         """
@@ -232,6 +232,7 @@ class DatabaseInteraction(Cog):
         :returns: An interactive message embed.
         :rtype: Union[discord.Message, dict]
         """
+        self._update_db()
         print(f'{ctx.author} requested to find the carrier with wine')
         carrier_db.execute(
             "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
@@ -353,12 +354,12 @@ class DatabaseInteraction(Cog):
                 print(f'Timeout hit during carrier request by: {ctx.author}')
                 await ctx.send(
                     f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
-                await message.delete()
+                return await message.delete()
 
     @cog_ext.cog_slash(
         name="wine_mark_completed_forcefully",
         guild_ids=[bot_guild_id()],
-        description="Forcefully marks a carrier in the database as unload completed",
+        description="Forcefully marks a carrier in the database as unload completed. Admin/Sommelier required.",
         options=[
             create_option(
                 name='carrier_id',
@@ -383,6 +384,7 @@ class DatabaseInteraction(Cog):
         :param str carrier_id: The XXX-XXX carrier ID you want to action.
         :returns: None
         """
+        self._update_db()
         print(f'{ctx.author} wants to forcefully mark the carrier {carrier_id} as unloaded.')
 
         # Check the carrier ID regex
@@ -503,6 +505,7 @@ class DatabaseInteraction(Cog):
         :param bool remaining_wine: True if you only want carriers with wine
         :returns: None
         """
+        self._update_db()
         print(f'{ctx.author} requested to fine carriers for: {platform} with wine: {remaining_wine}')
 
         if remaining_wine:
@@ -644,7 +647,7 @@ class DatabaseInteraction(Cog):
                 print(f'Timeout hit during carrier request by: {ctx.author}')
                 await ctx.send(
                     f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
-                await message.delete()
+                return await message.delete()
 
     @cog_ext.cog_slash(
         name="find_wine_carrier_by_id",
@@ -660,6 +663,7 @@ class DatabaseInteraction(Cog):
         ],
     )
     async def find_carrier_by_id(self, ctx: SlashContext, carrier_id: str):
+        self._update_db()
         print(f'{ctx.author} wants to find a carrier by ID: {carrier_id}.')
 
         # Check the carrier ID regex
@@ -679,9 +683,6 @@ class DatabaseInteraction(Cog):
         if not carrier_data:
             print(f'No carrier found for: {carrier_id}')
             return await ctx.send(f'No carrier found for: {carrier_id}')
-
-        # TODO: Username should really come via a lookup of the input user string. This was returning None with
-        #  discord.utils.get(ctx.guild.members, name=<thing>)
 
         carrier_embed = discord.Embed(
             title=f'YARR! Found carrier details for the input: {carrier_id}',
