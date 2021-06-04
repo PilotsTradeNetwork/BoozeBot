@@ -4,7 +4,6 @@ import os.path
 import re
 
 import discord
-from discord.ext import commands
 from discord_slash import cog_ext, SlashContext
 from discord_slash.model import SlashCommandPermissionType
 from discord_slash.utils.manage_commands import create_permission, create_option, create_choice
@@ -46,7 +45,7 @@ class DatabaseInteraction(Cog):
     @cog_ext.cog_slash(
         name="update_booze_db",
         guild_ids=[bot_guild_id()],
-        description="Populates the booze cruise database from the updated google sheet.",
+        description="Populates the booze cruise database from the updated google sheet. Admin/Sommelier role required.",
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
@@ -360,7 +359,7 @@ class DatabaseInteraction(Cog):
     @cog_ext.cog_slash(
         name="wine_mark_completed_forcefully",
         guild_ids=[bot_guild_id()],
-        description="Forcefully marks a carrier in the database as unload completed",
+        description="Forcefully marks a carrier in the database as unload completed. Admin/Sommelier required.",
         options=[
             create_option(
                 name='carrier_id',
