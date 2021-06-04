@@ -22,7 +22,7 @@ class Unloading(commands.Cog):
     @cog_ext.cog_slash(
         name="Wine_Helper_Market_Open",
         guild_ids=[bot_guild_id()],
-        description="Creates a new unload operation in this channel.",
+        description="Creates a new unloading helper operation in this channel.",
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
@@ -58,7 +58,7 @@ class Unloading(commands.Cog):
     @cog_ext.cog_slash(
         name="Wine_Helper_Market_Closed",
         guild_ids=[bot_guild_id()],
-        description="Sends a dummy message to indicate you have closed your market. Command sent in active channel.",
+        description="Sends a message to indicate you have closed your market. Command sent in active channel.",
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
@@ -81,7 +81,7 @@ class Unloading(commands.Cog):
     @cog_ext.cog_slash(
         name='Wine_Unload',
         guild_ids=[bot_guild_id()],
-        description='Posts a new wine unloading notification for a specific carrier.',
+        description='Posts a new wine unloading notification for a specific carrier. Admin/Sommelier role required.',
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
@@ -274,7 +274,7 @@ class Unloading(commands.Cog):
     @cog_ext.cog_slash(
         name='Wine_Unload_Complete',
         guild_ids=[bot_guild_id()],
-        description='Removes any trade channel notification for unloading wine.',
+        description='Removes any trade channel notification for unloading wine. Admin/Sommelier role required.',
         options=[
             create_option(
                 name='carrier_id',
