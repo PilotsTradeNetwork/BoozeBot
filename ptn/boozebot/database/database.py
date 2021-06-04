@@ -1,10 +1,8 @@
-import ast
 import os
-import pathlib
 import sqlite3
 import threading
 
-from ptn.boozebot.constants import get_db_path
+from ptn.boozebot.constants import get_db_path, get_db_dumps_path
 
 print(f'Starting DB at: {get_db_path()}')
 
@@ -12,7 +10,7 @@ carriers_conn = sqlite3.connect(get_db_path())
 carriers_conn.row_factory = sqlite3.Row
 carrier_db = carriers_conn.cursor()
 
-db_sql_store = os.path.join(pathlib.Path(__file__).parent.absolute(), 'dumps', 'booze_carriers.sql')
+db_sql_store = get_db_dumps_path()
 carrier_db_lock = threading.Lock()
 
 
