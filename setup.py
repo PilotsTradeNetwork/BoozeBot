@@ -37,6 +37,11 @@ setup(
         'oauth2client',
         'requests'
     ],
+    entry_points={
+        'console_scripts': [
+            'booze=ptn.boozebot.booze:run',
+        ],
+    },
     license='MIT',
     keyworkd='PTN',
     project_urls={
