@@ -7,6 +7,10 @@ from discord.ext import commands
 from discord_slash import SlashCommand
 from dotenv import load_dotenv, find_dotenv
 
+# Get the discord token from the local .env file. Deliberately not hosted in the repo or Discord takes the bot down
+# because the keys are exposed. DO NOT HOST IN THE REPO. Seriously do not do it ...
+load_dotenv(find_dotenv())
+
 PROD_DISCORD_GUILD = 800080948716503040  # PTN Discord server
 PROD_ASSASSIN_ID = 806498760586035200
 PROD_DB_PATH = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'booze_carriers.db')
@@ -40,10 +44,6 @@ if not os.path.exists(os.path.dirname(PROD_DB_DUMPS_PATH)):
     print(f'Folder {os.path.dirname(PROD_DB_DUMPS_PATH)} does not exist, making it now.')
     os.mkdir(os.path.dirname(PROD_DB_DUMPS_PATH))
 
-
-# Get the discord token from the local .env file. Deliberately not hosted in the repo or Discord takes the bot down
-# because the keys are exposed. DO NOT HOST IN THE REPO. Seriously do not do it ...
-load_dotenv(find_dotenv())
 
 TOKEN = os.getenv('DISCORD_TOKEN_PROD') if _production else os.getenv('DISCORD_TOKEN_TESTING')
 
