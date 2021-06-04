@@ -35,7 +35,8 @@ setup(
         'google-api-python-client',
         'gspread',
         'oauth2client',
-        'requests'
+        'requests',
+        'python-dotenv'
     ],
     entry_points={
         'console_scripts': [
