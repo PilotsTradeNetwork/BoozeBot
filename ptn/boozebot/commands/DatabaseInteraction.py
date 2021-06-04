@@ -353,7 +353,7 @@ class DatabaseInteraction(Cog):
                 print(f'Timeout hit during carrier request by: {ctx.author}')
                 await ctx.send(
                     f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
-                await message.delete()
+                return await message.delete()
 
     @cog_ext.cog_slash(
         name="wine_mark_completed_forcefully",
@@ -644,7 +644,7 @@ class DatabaseInteraction(Cog):
                 print(f'Timeout hit during carrier request by: {ctx.author}')
                 await ctx.send(
                     f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
-                await message.delete()
+                return await message.delete()
 
     @cog_ext.cog_slash(
         name="find_wine_carrier_by_id",
