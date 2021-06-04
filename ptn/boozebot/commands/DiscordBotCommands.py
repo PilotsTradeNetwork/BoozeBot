@@ -5,6 +5,7 @@ from discord.ext import commands
 from discord_slash.utils.manage_commands import remove_all_commands
 
 from ptn.boozebot.constants import bot_guild_id, TOKEN
+from ptn.boozebot._metadata import __version__
 
 
 class DiscordBotCommands(commands.Cog):
@@ -23,11 +24,11 @@ class DiscordBotCommands(commands.Cog):
 
         :returns: None
         """
-        print(f'{self.bot.user.name} has connected to Discord server!')
+        print(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
 
     @commands.Cog.listener()
     async def on_disconnect(self):
-        print(f'{self.bot.user.name} has disconnected from discord server.')
+        print(f'Booze bot has disconnected from discord server, booze bot version: {__version__}.')
 
     @commands.command(name='ping', help='Ping the bot')
     @commands.has_role('Admin')
@@ -38,7 +39,7 @@ class DiscordBotCommands(commands.Cog):
         :param discord.Context ctx: The Discord context object
         :returns: None
         """
-        await ctx.send("**PING? PONG!**")
+        await ctx.send(f"**Avast Ye Landlubber! {self.bot.user.name} is here!**")
 
     # quit the bot
     @commands.command(name='exit', help="Stops the bots process on the VM, ending all functions.")
@@ -83,3 +84,15 @@ class DiscordBotCommands(commands.Cog):
         """
         print(f'Restarting the application to perform updates requested by {ctx.author}')
         os.execv(sys.executable, ['python'] + sys.argv)
+
+    @commands.command(name='version', help="Logs the bot version")
+    @commands.has_role('Admin')
+    async def version(self, ctx):
+        """
+        Logs the bot version
+
+        :param discord.ext.commands.Context ctx: The Discord context object
+        :returns: None
+        """
+        print(f'User {ctx.author} requested the version: {__version__}.')
+        await ctx.send(f"Avast Ye Landlubber! {self.bot.user.name} is on version: {__version__}.")
