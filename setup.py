@@ -29,7 +29,7 @@ setup(
     long_description=long_description,
     author='Graeme Cruickshank',
     url='',
-    install_required=[
+    install_requires=[
         'discord',
         'discord-py-slash-command',
         'google-api-python-client',
