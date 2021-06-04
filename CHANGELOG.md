@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2
+
+- \#89 - Release 1.0.2
+- \#61 - Fixes Readme file
+- \#81 - Make it clearer what roles you need to run the commands
+- \#84 - Wrap the database updating into a sub block that is called from other commands
+- \#80 - Allow users to check the find_carriers_with_wine command
+- \#79 - Find carriers double prints the error message
+
 ## 1.0.1
 
 - Load dotenv needs to come before reading values from it
