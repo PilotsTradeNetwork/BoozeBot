@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+.env
+/ptn/boozebot/booze_carriers.db
