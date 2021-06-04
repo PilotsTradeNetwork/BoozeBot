@@ -216,13 +216,6 @@ class DatabaseInteraction(Cog):
         name="find_carriers_with_wine",
         guild_ids=[bot_guild_id()],
         description="Returns the carriers in the database that are still flagged as having wine remaining.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
     )
     async def find_carriers_with_wine(self, ctx: SlashContext):
         """
