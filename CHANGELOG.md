@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1
+
+- Load dotenv needs to come before reading values from it
+- Bot should log the version
+- Grant sommeliers the right to use the helper commands
+- Add dotenv as dependency
+- Fix setup.py
+
 ## 1.0.0
 
 - Database sql dump and DB itself needs to be in a local folder in production
