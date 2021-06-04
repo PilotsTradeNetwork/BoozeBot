@@ -650,6 +650,14 @@ class DatabaseInteraction(Cog):
         name="find_wine_carrier_by_id",
         guild_ids=[bot_guild_id()],
         description="Returns the carriers in the database for the ID.",
+        options=[
+            create_option(
+                name='carrier_id',
+                description='The XXX-XXX ID string for the carrier',
+                option_type=3,
+                required=True
+            )
+        ],
     )
     async def find_carrier_by_id(self, ctx: SlashContext, carrier_id: str):
         print(f'{ctx.author} wants to find a carrier by ID: {carrier_id}.')
