@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 
 PROD_DISCORD_GUILD = 800080948716503040  # PTN Discord server
 PROD_ASSASSIN_ID = 806498760586035200
-PROD_DB_PATH = os.path.join(os.path.expanduser('~'), 'booze_carriers.db')
+PROD_DB_PATH = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'booze_carriers.db')
+PROD_DB_DUMPS_PATH = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'dumps', 'booze_carriers.sql')
 PROD_BOOZE_UNLOAD_ID = 838699587249242162
 PROD_ADMIN_ID = 800125148971663392
 PROD_SOMMELIER_ID = 838520893181263872
@@ -19,7 +20,8 @@ PROD_AUX_CO_ID = 839149899596955708
 # Testing variables
 TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
 TEST_ASSASSIN_ID = 848957573792137247
-TEST_DB_PATH = 'booze_carriers.db'
+TEST_DB_PATH = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'booze_carriers.db')
+TEST_DB_DUMPS_PATH = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'dumps', 'booze_carriers.sql')
 TEST_BOOZE_UNLOAD_ID = 849570829230014464
 TEST_ADMIN_ID = 818174400997228545
 TEST_SOMMELIER_ID = 849907019502059530
@@ -27,6 +29,16 @@ TEST_CO_ID = 822999970012463154
 TEST_AUX_CO_ID = 849909113776898071
 
 _production = ast.literal_eval(os.environ.get('PTN_BOOZE_BOT', 'False'))
+
+# Check the folder exists
+if not os.path.exists(os.path.dirname(PROD_DB_PATH)):
+    print(f'Folder {os.path.dirname(PROD_DB_PATH)} does not exist, making it now.')
+    os.mkdir(os.path.dirname(PROD_DB_PATH))
+
+# check the dumps folder exists
+if not os.path.exists(os.path.dirname(PROD_DB_DUMPS_PATH)):
+    print(f'Folder {os.path.dirname(PROD_DB_DUMPS_PATH)} does not exist, making it now.')
+    os.mkdir(os.path.dirname(PROD_DB_DUMPS_PATH))
 
 
 # Get the discord token from the local .env file. Deliberately not hosted in the repo or Discord takes the bot down
@@ -118,3 +130,13 @@ def get_discord_booze_unload_channel():
     :rtype: int
     """
     return PROD_BOOZE_UNLOAD_ID if _production else TEST_BOOZE_UNLOAD_ID
+
+
+def get_db_dumps_path():
+    """
+    Returns the path for the database dumps file
+
+    :returns: A string representation of the path
+    :rtype: str
+    """
+    return PROD_DB_DUMPS_PATH if _production else TEST_DB_DUMPS_PATH
