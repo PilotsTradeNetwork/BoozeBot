@@ -30,7 +30,7 @@ class DiscordBotCommands(commands.Cog):
         print(f'{self.bot.user.name} has disconnected from discord server.')
 
     @commands.command(name='ping', help='Ping the bot')
-    @commands.has_role('Carrier Owner')
+    @commands.has_role('Admin')
     async def ping(self, ctx):
         """
         Ping the bot and get a response

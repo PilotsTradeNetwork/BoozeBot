@@ -28,6 +28,7 @@ class Unloading(commands.Cog):
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_aux_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_carrier_owner_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
@@ -63,6 +64,7 @@ class Unloading(commands.Cog):
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_aux_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_carrier_owner_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
                 ]
             },
@@ -84,7 +86,6 @@ class Unloading(commands.Cog):
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_carrier_owner_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
@@ -286,7 +287,6 @@ class Unloading(commands.Cog):
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_carrier_owner_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
