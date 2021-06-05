@@ -12,7 +12,8 @@ import gspread
 from discord.ext.commands import Cog
 
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id
+from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id, \
+    BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP
 from ptn.boozebot.database.database import carrier_db, carriers_conn, dump_database, carrier_db_lock
 
 
@@ -696,3 +697,69 @@ class DatabaseInteraction(Cog):
         )
 
         return await ctx.send(embed=carrier_embed)
+
+    @cog_ext.cog_slash(
+        name="booze_tally",
+        guild_ids=[bot_guild_id()],
+        description="Returns a summary of the stats for the current booze cruise. Restricted to Admin and Sommeliers.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        }
+    )
+    async def tally(self, ctx: SlashContext):
+        """
+        Returns an embed inspired by (cloned from) @CMDR Suiseiseki's b.tally. Provided to keep things in one place
+        is all.
+
+        :param SlashContext ctx: The discord context
+        :return: None
+        """
+        self._update_db()
+        print(f'User {ctx.author} requested the current tally of the cruise stats.')
+
+        # Go get everything out of the database
+        carrier_db.execute(
+            "SELECT * FROM boozecarriers"
+        )
+        all_carrier_data = ([BoozeCarrier(carrier) for carrier in carrier_db.fetchall()])
+
+        carrier_count = len(all_carrier_data)
+        total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
+
+        wine_per_capita = total_wine / RACKHAMS_PEAK_POP
+        wine_per_carrier = total_wine / carrier_count
+        python_loads = total_wine / 280
+
+        total_profit = total_wine * BOOZE_PROFIT_PER_TONNE_WINE
+
+        fleet_carrier_buy_count = total_profit / 5000000000
+
+        print(f'Carrier Count: {carrier_count} - Total Wine: {total_wine:,} - Total Profit: {total_profit:,} - '
+              f'Wine/Carrier: {wine_per_carrier:,.2f} - PythonLoads: {python_loads:,.2f} - '
+              f'Wine/Capita: {wine_per_capita:,.2f} - Carrier Buys: {fleet_carrier_buy_count:,.2f}')
+
+        # Build the embed
+        stat_embed = discord.Embed(
+            title="Pirate Steve's Booze Cruise Tally",
+            description=f'**# of carriers:** {carrier_count}\n'
+                        f'**Profit per ton:** {BOOZE_PROFIT_PER_TONNE_WINE}\n'
+                        f'**Rackham Pop:** {RACKHAMS_PEAK_POP}\n'
+                        f'**Wine per capita:** {wine_per_capita:,.2f}\n'
+                        f'**Wine per carrier:** {wine_per_carrier:,.2f}\n'
+                        f'**Python Loads (280t):** {python_loads:,.2f}\n\n'
+                        f'**Total Wine:** {total_wine}\n'
+                        f'**Total Profit:** {total_profit}\n\n'
+                        f'**# of Fleet Carriers that profit can buy:** {fleet_carrier_buy_count:,.2f}\n\n'
+                        f'[Bringing wine? Sign up here](https://forms.gle/dWugae3M3i76NNVi7)'
+        )
+        stat_embed.set_image(
+            url='https://cdn.discordapp.com/attachments/783783142737182724/849157248923992085/unknown.png'
+        )
+
+        print('Returning embed to user')
+        await ctx.send(embed=stat_embed)
+
