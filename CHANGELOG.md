@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.3
+
+- \#106 - Add a help command that dumps data on what the commands do.
+- \#105 - Mods should be able to run commands also.
+- \#104 - Log and print a message to booze-bot when Pirate Steve connects.
+- \#103 - Added /booze_tally_extra_stats command
+- \#97 - Add some flavour text to booze tally
+- \#94 - Extra logging on database update
+- \#93 - Added support for /booze_tally command
+
 ## 1.0.2
 
 - \#89 - Release 1.0.2
