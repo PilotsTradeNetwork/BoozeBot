@@ -37,10 +37,7 @@ class DatabaseInteraction(Cog):
         for sheet in workbook.worksheets():
             print(sheet.title)
 
-        tracking_sheet = workbook.get_worksheet(1)
-
-        # A JSON form tracking all the records
-        self.records_data = tracking_sheet.get_all_records()
+        self.tracking_sheet = workbook.get_worksheet(1)
         self._update_db()  # On instantiation, go build the DB
 
     @cog_ext.cog_slash(
@@ -91,14 +88,18 @@ class DatabaseInteraction(Cog):
         added_count = 0
         updated_count = 0
         unchanged_count = 0
-        total_carriers = len(self.records_data)
+        # A JSON form tracking all the records
+        records_data = self.tracking_sheet.get_all_records()
+
+        total_carriers = len(records_data)
+        print(f'Updating the database we have: {total_carriers} records found.')
 
         # A list of carrier dicts, containing how often they are in the overall input sheet, populate this to start
         # with. This is a quick and dirty amalgamation of the data. We do this first to avoid unnecessary writes to
         # the database.
 
         carrier_count = []
-        for record in self.records_data:
+        for record in records_data:
             carrier = BoozeCarrier(record)
             if not any(data['carrier_name'] == carrier.carrier_name for data in carrier_count):
                 # if the carrier does not exist, then we need to add it
@@ -701,7 +702,7 @@ class DatabaseInteraction(Cog):
     @cog_ext.cog_slash(
         name="booze_tally",
         guild_ids=[bot_guild_id()],
-        description="Returns a summary of the stats for the current booze cruise. Restricted to Admin and Sommeliers.",
+        description="Returns a summary of the stats for the current booze cruise. Restricted to Admin and Sommelier's.",
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
