@@ -9,7 +9,8 @@ from discord_slash.model import SlashCommandPermissionType
 
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
-    server_admin_role_id, server_carrier_owner_role_id, server_sommelier_role_id, server_aux_carrier_role_id
+    server_admin_role_id, server_carrier_owner_role_id, server_sommelier_role_id, server_aux_carrier_role_id, \
+    server_mod_role_id
 from ptn.boozebot.database.database import carrier_db, carrier_db_lock, carriers_conn
 
 
@@ -29,6 +30,7 @@ class Unloading(commands.Cog):
                 create_permission(server_aux_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_carrier_owner_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
@@ -65,6 +67,7 @@ class Unloading(commands.Cog):
                 create_permission(server_aux_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_carrier_owner_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
                 ]
             },
@@ -86,6 +89,7 @@ class Unloading(commands.Cog):
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
@@ -287,6 +291,7 @@ class Unloading(commands.Cog):
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
