@@ -743,23 +743,34 @@ class DatabaseInteraction(Cog):
               f'Wine/Carrier: {wine_per_carrier:,.2f} - PythonLoads: {python_loads:,.2f} - '
               f'Wine/Capita: {wine_per_capita:,.2f} - Carrier Buys: {fleet_carrier_buy_count:,.2f}')
 
+        flavour_text = 'Heave Ho ye Scurvy Dog\'s! Pirate Steve wants more grog!'
+        if total_wine > 1000000:
+            flavour_text = 'The coffers are looking better, get the Galley\'s filled with wine!'
+        elif total_wine > 2000000:
+            flavour_text = 'Pieces of eight all round! We have a lot of grog. Savvy?'
+        elif total_wine > 3000000:
+            flavour_text = 'Shiver Me Timbers! This sea dog cannot fathom this much grog!'
+
         # Build the embed
         stat_embed = discord.Embed(
             title="Pirate Steve's Booze Cruise Tally",
             description=f'**# of carriers:** {carrier_count}\n'
-                        f'**Profit per ton:** {BOOZE_PROFIT_PER_TONNE_WINE}\n'
-                        f'**Rackham Pop:** {RACKHAMS_PEAK_POP}\n'
+                        f'**Profit per ton:** {BOOZE_PROFIT_PER_TONNE_WINE:,}\n'
+                        f'**Rackham Pop:** {RACKHAMS_PEAK_POP:,}\n'
                         f'**Wine per capita:** {wine_per_capita:,.2f}\n'
                         f'**Wine per carrier:** {wine_per_carrier:,.2f}\n'
                         f'**Python Loads (280t):** {python_loads:,.2f}\n\n'
-                        f'**Total Wine:** {total_wine}\n'
-                        f'**Total Profit:** {total_profit}\n\n'
+                        f'**Total Wine:** {total_wine:,}\n'
+                        f'**Total Profit:** {total_profit:,}\n\n'
                         f'**# of Fleet Carriers that profit can buy:** {fleet_carrier_buy_count:,.2f}\n\n'
+                        f'{flavour_text}\n\n'
                         f'[Bringing wine? Sign up here](https://forms.gle/dWugae3M3i76NNVi7)'
         )
         stat_embed.set_image(
             url='https://cdn.discordapp.com/attachments/783783142737182724/849157248923992085/unknown.png'
         )
+        stat_embed.set_footer(text='This function is a clone of b.tally from CMDR Suiseiseki. Pirate Steve hopes the '
+                                   'values match!')
 
         print('Returning embed to user')
         await ctx.send(embed=stat_embed)
