@@ -187,7 +187,7 @@ class Helper(commands.Cog):
         response_embed = discord.Embed(
             title=f'Baton down the hatches!\nPirate Steve knows the following for: {command}.',
             description=f'**Description**: {method_desc}.\n'
-                        f'**Required Roles**: {" ".join(roles)}.\n'
+                        f'**Required Roles**: {", ".join(roles)}.\n'
                         f'**Params**: '
         )
 
