@@ -119,7 +119,7 @@ class DatabaseInteraction(Cog):
         print(carrier_count)
 
         # First row is the headers, drop them.
-        for record in self.records_data:
+        for record in records_data:
             # Iterate over the records and populate the database as required.
 
             # Check if it is in the database already
