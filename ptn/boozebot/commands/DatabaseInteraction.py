@@ -12,7 +12,8 @@ import gspread
 from discord.ext.commands import Cog
 
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id
+from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id, \
+    BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, server_mod_role_id
 from ptn.boozebot.database.database import carrier_db, carriers_conn, dump_database, carrier_db_lock
 
 
@@ -36,10 +37,7 @@ class DatabaseInteraction(Cog):
         for sheet in workbook.worksheets():
             print(sheet.title)
 
-        tracking_sheet = workbook.get_worksheet(1)
-
-        # A JSON form tracking all the records
-        self.records_data = tracking_sheet.get_all_records()
+        self.tracking_sheet = workbook.get_worksheet(1)
         self._update_db()  # On instantiation, go build the DB
 
     @cog_ext.cog_slash(
@@ -90,14 +88,18 @@ class DatabaseInteraction(Cog):
         added_count = 0
         updated_count = 0
         unchanged_count = 0
-        total_carriers = len(self.records_data)
+        # A JSON form tracking all the records
+        records_data = self.tracking_sheet.get_all_records()
+
+        total_carriers = len(records_data)
+        print(f'Updating the database we have: {total_carriers} records found.')
 
         # A list of carrier dicts, containing how often they are in the overall input sheet, populate this to start
         # with. This is a quick and dirty amalgamation of the data. We do this first to avoid unnecessary writes to
         # the database.
 
         carrier_count = []
-        for record in self.records_data:
+        for record in records_data:
             carrier = BoozeCarrier(record)
             if not any(data['carrier_name'] == carrier.carrier_name for data in carrier_count):
                 # if the carrier does not exist, then we need to add it
@@ -117,7 +119,7 @@ class DatabaseInteraction(Cog):
         print(carrier_count)
 
         # First row is the headers, drop them.
-        for record in self.records_data:
+        for record in records_data:
             # Iterate over the records and populate the database as required.
 
             # Check if it is in the database already
@@ -372,6 +374,7 @@ class DatabaseInteraction(Cog):
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         }
@@ -696,3 +699,186 @@ class DatabaseInteraction(Cog):
         )
 
         return await ctx.send(embed=carrier_embed)
+
+    @cog_ext.cog_slash(
+        name="booze_tally",
+        guild_ids=[bot_guild_id()],
+        description="Returns a summary of the stats for the current booze cruise. Restricted to Admin and Sommelier's.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        }
+    )
+    async def tally(self, ctx: SlashContext):
+        """
+        Returns an embed inspired by (cloned from) @CMDR Suiseiseki's b.tally. Provided to keep things in one place
+        is all.
+
+        :param SlashContext ctx: The discord context
+        :return: None
+        """
+        self._update_db()
+        print(f'User {ctx.author} requested the current tally of the cruise stats.')
+
+        # Go get everything out of the database
+        carrier_db.execute(
+            "SELECT * FROM boozecarriers"
+        )
+        all_carrier_data = ([BoozeCarrier(carrier) for carrier in carrier_db.fetchall()])
+
+        carrier_count = len(all_carrier_data)
+        total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
+
+        wine_per_capita = total_wine / RACKHAMS_PEAK_POP
+        wine_per_carrier = total_wine / carrier_count
+        python_loads = total_wine / 280
+
+        total_profit = total_wine * BOOZE_PROFIT_PER_TONNE_WINE
+
+        fleet_carrier_buy_count = total_profit / 5000000000
+
+        print(f'Carrier Count: {carrier_count} - Total Wine: {total_wine:,} - Total Profit: {total_profit:,} - '
+              f'Wine/Carrier: {wine_per_carrier:,.2f} - PythonLoads: {python_loads:,.2f} - '
+              f'Wine/Capita: {wine_per_capita:,.2f} - Carrier Buys: {fleet_carrier_buy_count:,.2f}')
+
+        flavour_text = 'Heave Ho ye Scurvy Dog\'s! Pirate Steve wants more grog!'
+        if total_wine > 1000000:
+            flavour_text = 'The coffers are looking better, get the Galley\'s filled with wine!'
+        elif total_wine > 2000000:
+            flavour_text = 'Pieces of eight all round! We have a lot of grog. Savvy?'
+        elif total_wine > 3000000:
+            flavour_text = 'Shiver Me Timbers! This sea dog cannot fathom this much grog!'
+
+        # Build the embed
+        stat_embed = discord.Embed(
+            title="Pirate Steve's Booze Cruise Tally",
+            description=f'**# of carriers:** {carrier_count}\n'
+                        f'**Profit per ton:** {BOOZE_PROFIT_PER_TONNE_WINE:,}\n'
+                        f'**Rackham Pop:** {RACKHAMS_PEAK_POP:,}\n'
+                        f'**Wine per capita:** {wine_per_capita:,.2f}\n'
+                        f'**Wine per carrier:** {wine_per_carrier:,.2f}\n'
+                        f'**Python Loads (280t):** {python_loads:,.2f}\n\n'
+                        f'**Total Wine:** {total_wine:,}\n'
+                        f'**Total Profit:** {total_profit:,}\n\n'
+                        f'**# of Fleet Carriers that profit can buy:** {fleet_carrier_buy_count:,.2f}\n\n'
+                        f'{flavour_text}\n\n'
+                        f'[Bringing wine? Sign up here](https://forms.gle/dWugae3M3i76NNVi7)'
+        )
+        stat_embed.set_image(
+            url='https://cdn.discordapp.com/attachments/783783142737182724/849157248923992085/unknown.png'
+        )
+        stat_embed.set_footer(text='This function is a clone of b.tally from CMDR Suiseiseki.\nPirate Steve hopes the '
+                                   'values match!')
+
+        print('Returning embed to user')
+        await ctx.send(embed=stat_embed)
+
+    @cog_ext.cog_slash(
+        name="booze_tally_extra_stats",
+        guild_ids=[bot_guild_id()],
+        description="Returns an set of extra stats for the wine. Restricted to Admin and Sommelier's.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        }
+    )
+    async def extended_tally_stats(self, ctx: SlashContext):
+        """
+        Prints an extended tally stats as requested by RandomGazz.
+
+        :param SlashContext ctx: The discord slash Context
+        :return: None
+        """
+        self._update_db()
+        print(f'User {ctx.author} requested the current extended stats of the cruise.')
+
+        # Go get everything out of the database
+        carrier_db.execute(
+            "SELECT * FROM boozecarriers"
+        )
+        all_carrier_data = ([BoozeCarrier(carrier) for carrier in carrier_db.fetchall()])
+        total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
+
+        total_wine_per_capita = total_wine / RACKHAMS_PEAK_POP
+
+        # Some constants for the data. The figures came from RandomGazz, complain to him if they are wrong.
+        wine_bottles_weight_kg = 1.25
+        wine_bottles_per_tonne = 1000 / wine_bottles_weight_kg
+        wine_bottles_litres_per_tonne = wine_bottles_per_tonne * 0.75
+        wine_bottles_total = total_wine * wine_bottles_per_tonne
+        wine_bottles_litres_total = total_wine * wine_bottles_litres_per_tonne
+        wine_bottles_per_capita = total_wine_per_capita * wine_bottles_per_tonne
+        wine_bottles_litres_per_capita = total_wine_per_capita * wine_bottles_litres_per_tonne
+
+        wine_box_weight_kg = 2.30
+        wine_boxes_per_tonne = 1000 / wine_box_weight_kg
+        wine_boxes_litres_per_tonne = wine_boxes_per_tonne * 2.25
+        wine_boxes_total = wine_boxes_per_tonne * total_wine
+        wine_boxes_litres_total = wine_boxes_litres_per_tonne * total_wine
+        wine_boxes_per_capita = total_wine_per_capita * wine_boxes_per_tonne
+        wine_boxes_litres_per_capita = total_wine_per_capita * wine_boxes_litres_per_tonne
+
+        usa_population = 328200000
+        wine_bottles_per_us_pop = wine_bottles_total / usa_population
+        wine_boxes_per_us_pop = wine_boxes_total / usa_population
+
+        scotland_population = 5454000
+        wine_bottles_per_scot_pop = wine_bottles_total / scotland_population
+        wine_boxes_per_scot_pop = wine_boxes_total / scotland_population
+
+        olympic_swimming_pool_volume = 2500000
+        pools_if_bottles = wine_bottles_litres_total / olympic_swimming_pool_volume
+        pools_if_boxes = wine_boxes_litres_total / olympic_swimming_pool_volume
+
+        london_bus_volume_l = 112.5 * 1000
+        busses_if_bottles = wine_bottles_litres_total / london_bus_volume_l
+        busses_if_boxes = wine_boxes_litres_total / london_bus_volume_l
+
+        # Volume of the statue of liberty
+        statue_liberty = 2500 * 1000
+        statue_liberty_if_bottles = wine_bottles_litres_total / statue_liberty
+        statue_liberty_if_boxes = wine_boxes_litres_total / statue_liberty
+
+        stat_embed = discord.Embed(
+            title='Pirate Steve\'s Extended Booze Comparison Stats',
+            description=f'Current Wine Tonnes: {total_wine:,}\n'
+                        f'Wine per capita (Rackhams): {total_wine_per_capita:,.2f}\n\n'
+                        f'Weight of 1 750ml bottle (kg): {wine_bottles_weight_kg}\n'
+                        f'Wine Bottles per Tonne: {wine_bottles_per_tonne}\n'
+                        f'Wine Bottles Litres per Tonne: {wine_bottles_litres_per_tonne}\n'
+                        f'Wine Bottles Total: {wine_bottles_total:,}\n'
+                        f'Wine Bottles Litres Total: {wine_bottles_litres_total:,.2f}\n'
+                        f'Wine Bottles per capita (Rackhams): {wine_bottles_per_capita:,.2f}\n'
+                        f'Wine Bottles Litres per capita (Rackhams): {wine_bottles_litres_per_capita:,.2f}\n\n'
+                        f'Weight of box wine 2.25L (kg): {wine_box_weight_kg:,.2f}\n'
+                        f'Wine Boxes per Tonne: {wine_boxes_per_tonne:,.2f}\n'
+                        f'Wine Boxes Litre per Tonne: {wine_boxes_litres_per_tonne:,.2f}\n'
+                        f'Wine Boxes Total: {wine_boxes_total:,.2f}\n'
+                        f'Wine Boxes per capita (Rackhams): {wine_boxes_per_capita:,.2f}\n'
+                        f'Wine Boxes Litres per capita (Rackhams): {wine_boxes_litres_per_capita:,.2f}\n\n'
+                        f'USA Population: {usa_population:,}\n'
+                        f'Wine Bottles per capita (:flag_us:): {wine_bottles_per_us_pop:,.2f}\n'
+                        f'Wine Boxes per capita (:flag_us:): {wine_boxes_per_us_pop:,.2f}\n\n'
+                        f'Scotland Population: {scotland_population:,}\n'
+                        f'Wine Bottles per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_bottles_per_scot_pop:,.2f}\n'
+                        f'Wine Boxes per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_boxes_per_scot_pop:,.2f}\n\n'
+                        f'Olympic Swimming Pool Volume (L): {olympic_swimming_pool_volume:,}\n'
+                        f'Olympic Swimming Pools if Bottles of Wine: {pools_if_bottles:,.2f}\n'
+                        f'Olympic Swimming Pools if Boxes of Wine: {pools_if_boxes:,.2f}\n\n'
+                        f'London Bus Volume (L): {london_bus_volume_l:,}\n'
+                        f'London Busses if Bottles of Wine: {busses_if_bottles:,.2f}\n'
+                        f'London Busses if Boxes of Wine: {busses_if_boxes:,.2f}\n\n'
+                        f'Statue of Liberty Volume (L): {statue_liberty:,}\n'                        
+                        f'Statue of Liberty if Bottles of Wine: {statue_liberty_if_bottles:,.2f}\n'
+                        f'Statue of Liberty if Boxes of Wine: {statue_liberty_if_boxes:,.2f}\n\n'
+        )
+        stat_embed.set_footer(text='Stats requested by RandomGazz.\nPirate Steve approves of these stats!')
+        await ctx.send(embed=stat_embed)
