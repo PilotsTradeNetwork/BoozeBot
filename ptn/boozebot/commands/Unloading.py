@@ -223,7 +223,7 @@ class Unloading(commands.Cog):
             market_conditions = 'Open for all.'
 
         # Only in the case of timed openings does a channel make sense.
-        unload_tracking = f' Tracked in {unload_channel}.' if market_type == 'Timed Openings' else ''
+        unload_tracking = f' Tracked in {unload_channel}.' if market_type == 'Timed' else ''
 
         wine_load_embed = discord.Embed(
             title='Wine unload notification.',
@@ -267,7 +267,7 @@ class Unloading(commands.Cog):
                 value='Market unloads will begin shortly.',
                 inline=True
             )
-            embed.set_footer(text='C/O: Try the commands /boozecruiseunload and /boozecruisemarketclosed.')
+            embed.set_footer(text='C/O: Try the commands /wine_helper_market_open and /wine_helper_market_closed.')
             await unloading_channel_id.send(embed=embed)
 
         return await ctx.send(
