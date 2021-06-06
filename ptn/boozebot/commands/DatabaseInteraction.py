@@ -13,7 +13,8 @@ from discord.ext.commands import Cog
 
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id, \
-    BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, server_mod_role_id
+    BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, server_mod_role_id, get_bot_control_channel, \
+    get_sommelier_notification_channel
 from ptn.boozebot.database.database import carrier_db, carriers_conn, dump_database, carrier_db_lock
 
 
@@ -63,7 +64,7 @@ class DatabaseInteraction(Cog):
 
         try:
             result = self._update_db()
-
+            await self.report_invalid_carriers(result)
             embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
             embed.add_field(name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
                                  f'Number of new carriers added: {result["added_count"]:>8}.\n'
@@ -76,6 +77,51 @@ class DatabaseInteraction(Cog):
 
         except ValueError as ex:
             return await ctx.send(str(ex))
+
+    async def report_invalid_carriers(self, result=None):
+        """
+        Reports any invalid carriers to the applicable channels.
+
+        :param dict result: A dict returned from the update_db method
+        :returns: None
+        """
+        if result is None:
+            result = {}
+
+        try:
+            if result['invalid_database_entries']:
+
+                # In case any problem carriers found, mark them up
+                print('Problem: We have invalid carriers!')
+                for problem_carrier in result['invalid_database_entries']:
+                    print(f'This carrier is no longer in the sheet: {problem_carrier}')
+
+                    # Notify the channels so it can be deleted.
+                    booze_bot_channel = bot.get_channel(get_bot_control_channel())
+                    sommelier_notification_channel = bot.get_channel(get_sommelier_notification_channel())
+                    for channel in [booze_bot_channel, sommelier_notification_channel]:
+                        problem_embed = discord.Embed(
+                            title='Avast Ye! Pirate Steve found a missing carrier in the database!',
+                            description=f'This carrier is no longer in the GoogleSheet:\n'
+                                        f'CarrierName: **{problem_carrier.carrier_name}**\n'
+                                        f'ID: **{problem_carrier.carrier_identifier}**\n'
+                                        f'Total Tonnes of Wine: **{problem_carrier.wine_total}** on '
+                                        f'**{problem_carrier.platform}**\n'
+                                        f'Number of trips to the peak: **{problem_carrier.run_count}**\n'
+                                        f'Total Unloads: **{problem_carrier.total_unloads}**\n'
+                                        f'PTN Official: {problem_carrier.ptn_carrier}\n'
+                                        f'Operated by: {problem_carrier.discord_username}'
+                        )
+                        if channel == sommelier_notification_channel:
+                            # Add a notification for the sommelier role
+                            problem_embed.description += f'\n<@&{server_sommelier_role_id()}> please take note.'
+                        problem_embed.set_footer(text='Pirate Steve recommends verifying and then deleting this entry'
+                                                      ' with /booze_delete_carrier')
+                        await channel.send(embed=problem_embed)
+            else:
+                print('No invalid carriers found')
+        except KeyError as e:
+            print(f'Key did not exist in the input: {result} -> {e}')
 
     def _update_db(self):
         """
@@ -105,6 +151,7 @@ class DatabaseInteraction(Cog):
                 # if the carrier does not exist, then we need to add it
                 carrier_dict = {
                     'carrier_name': carrier.carrier_name,
+                    'carrier_id': carrier.carrier_identifier,
                     'run_count': carrier.run_count,
                     'wine_total': carrier.wine_total
                 }
@@ -116,6 +163,10 @@ class DatabaseInteraction(Cog):
                         data['run_count'] += 1
                         data['wine_total'] += carrier.wine_total
 
+        # We use this later to go find all the carriers in the database and ensure they match up and none were removed
+        all_carrier_ids_sheet = [f'{carrier["carrier_id"]}' for carrier in carrier_count]
+
+        print(all_carrier_ids_sheet)
         print(carrier_count)
 
         # First row is the headers, drop them.
@@ -203,6 +254,17 @@ class DatabaseInteraction(Cog):
                 updated_db = True
                 print('Added carrier to the database')
 
+        print(all_carrier_ids_sheet)
+
+        # Now that the records are updated, make sure no carrier was removed - check for anything not matching the
+        # carrier id strings.
+        carrier_db.execute(
+            "SELECT * FROM boozecarriers WHERE carrierid NOT IN ({})".format(
+                ', '.join('?' * len(all_carrier_ids_sheet))
+            ), all_carrier_ids_sheet
+        )
+
+        invalid_datbase_entries = [BoozeCarrier(inv_carrier) for inv_carrier in carrier_db.fetchall()]
         if updated_db:
             # Write the database and then dump the updated SQL
             try:
@@ -218,7 +280,8 @@ class DatabaseInteraction(Cog):
             'added_count': added_count,
             'updated_count': updated_count,
             'unchanged_count': unchanged_count,
-            'total_carriers': total_carriers
+            'total_carriers': total_carriers,
+            'invalid_database_entries': invalid_datbase_entries
         }
 
     @cog_ext.cog_slash(
@@ -234,7 +297,7 @@ class DatabaseInteraction(Cog):
         :returns: An interactive message embed.
         :rtype: Union[discord.Message, dict]
         """
-        self._update_db()
+        await self.report_invalid_carriers(self._update_db())
         print(f'{ctx.author} requested to find the carrier with wine')
         carrier_db.execute(
             "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
@@ -387,7 +450,7 @@ class DatabaseInteraction(Cog):
         :param str carrier_id: The XXX-XXX carrier ID you want to action.
         :returns: None
         """
-        self._update_db()
+        await self.report_invalid_carriers(self._update_db())
         print(f'{ctx.author} wants to forcefully mark the carrier {carrier_id} as unloaded.')
 
         # Check the carrier ID regex
@@ -508,7 +571,7 @@ class DatabaseInteraction(Cog):
         :param bool remaining_wine: True if you only want carriers with wine
         :returns: None
         """
-        self._update_db()
+        await self.report_invalid_carriers(self._update_db())
         print(f'{ctx.author} requested to fine carriers for: {platform} with wine: {remaining_wine}')
 
         if remaining_wine:
@@ -666,7 +729,7 @@ class DatabaseInteraction(Cog):
         ],
     )
     async def find_carrier_by_id(self, ctx: SlashContext, carrier_id: str):
-        self._update_db()
+        await self.report_invalid_carriers(self._update_db())
         print(f'{ctx.author} wants to find a carrier by ID: {carrier_id}.')
 
         # Check the carrier ID regex
@@ -721,7 +784,7 @@ class DatabaseInteraction(Cog):
         :param SlashContext ctx: The discord context
         :return: None
         """
-        self._update_db()
+        await self.report_invalid_carriers(self._update_db())
         print(f'User {ctx.author} requested the current tally of the cruise stats.')
 
         # Go get everything out of the database
@@ -797,7 +860,7 @@ class DatabaseInteraction(Cog):
         :param SlashContext ctx: The discord slash Context
         :return: None
         """
-        self._update_db()
+        await self.report_invalid_carriers(self._update_db())
         print(f'User {ctx.author} requested the current extended stats of the cruise.')
 
         # Go get everything out of the database
@@ -876,9 +939,116 @@ class DatabaseInteraction(Cog):
                         f'London Bus Volume (L): {london_bus_volume_l:,}\n'
                         f'London Busses if Bottles of Wine: {busses_if_bottles:,.2f}\n'
                         f'London Busses if Boxes of Wine: {busses_if_boxes:,.2f}\n\n'
-                        f'Statue of Liberty Volume (L): {statue_liberty:,}\n'                        
+                        f'Statue of Liberty Volume (L): {statue_liberty:,}\n'
                         f'Statue of Liberty if Bottles of Wine: {statue_liberty_if_bottles:,.2f}\n'
                         f'Statue of Liberty if Boxes of Wine: {statue_liberty_if_boxes:,.2f}\n\n'
         )
         stat_embed.set_footer(text='Stats requested by RandomGazz.\nPirate Steve approves of these stats!')
         await ctx.send(embed=stat_embed)
+
+    @cog_ext.cog_slash(
+        name="booze_delete_carrier",
+        guild_ids=[bot_guild_id()],
+        description="Removes a carrier from the database. Admin/Sommelier required.",
+        options=[
+            create_option(
+                name='carrier_id',
+                description='The XXX-XXX ID string for the carrier',
+                option_type=3,
+                required=True
+            )
+        ],
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        }
+    )
+    async def remove_carrier(self, ctx: SlashContext, carrier_id: str):
+        """
+        Removes a carrier entry from the database after confirmation.
+
+        :param SlashContext ctx: The discord slash context.
+        :param str carrier_id: The XXX-XXX carrier ID.
+        :returns: None
+        """
+        print(f'User {ctx.author} wants to remove the carrier with ID {carrier_id} from the database.')
+        # Check the carrier ID regex
+        if not re.match(r"\w{3}-\w{3}", carrier_id):
+            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await ctx.channel.send(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, '
+                                          f'{carrier_id}.')
+
+        # Check if it is in the database already
+        carrier_db.execute(
+            "SELECT * FROM boozecarriers WHERE carrierid = (?)", (f'{carrier_id}',)
+        )
+        # Really only expect a single entry here, unique field and all that
+        carrier_data = BoozeCarrier(carrier_db.fetchone())
+        print(f'Found: {carrier_data}')
+
+        if not carrier_data:
+            print(f'No carrier found for: {carrier_id}')
+            return await ctx.send(f'Avast Ye! No carrier found for: {carrier_id}')
+
+        carrier_embed = discord.Embed(
+            title=f'YARR! Pirate Steve found these details for the input: {carrier_id}',
+            description=f'CarrierName: **{carrier_data.carrier_name}**\n'
+                        f'ID: **{carrier_data.carrier_identifier}**\n'
+                        f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
+                        f'Number of trips to the peak: **{carrier_data.run_count}**\n'
+                        f'Total Unloads: **{carrier_data.total_unloads}**\n'
+                        f'PTN Official: {carrier_data.ptn_carrier}\n'
+                        f'Operated by: {carrier_data.discord_username}'
+        )
+        carrier_embed.set_footer(text='Confirm you want to delete: y/n')
+
+        def check(check_message):
+            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+                   check_message.content.lower() in ["y", "n"]
+
+        # Send the embed
+        message = await ctx.send(embed=carrier_embed)
+
+        try:
+            response = await bot.wait_for("message", check=check, timeout=30)
+            if response.content.lower() == "n":
+                await message.delete()
+                await response.delete()
+                print(f'User {ctx.author} aborted the request delete carrier {carrier_id}.')
+                return await ctx.send(f"Avast Ye! you cancelled the action for deleting {carrier_id}.")
+
+            elif response.content.lower() == "y":
+                try:
+                    await message.delete()
+                    await response.delete()
+                    print(f'User {ctx.author} agreed to delete the carrier: {carrier_id}.')
+
+                    # Go update the object in the database.
+                    try:
+                        carrier_db_lock.acquire()
+                        print(f'Removing the entry ({carrier_id}) from the database.')
+                        carrier_db.execute(
+                            ''' 
+                            DELETE FROM boozecarriers 
+                            WHERE carrierid LIKE (?) 
+                            ''', (f'%{carrier_id}%',)
+                        )
+                        carriers_conn.commit()
+                        print(f'Carrier ({carrier_id}) was removed from the database')
+                    finally:
+                        carrier_db_lock.release()
+
+                    return await ctx.send(f'Fleet carrier: {carrier_id} was removed')
+                except Exception as e:
+                    return ctx.send(f'Something went wrong, go tell the bot team "computer said: {e}"')
+
+        except asyncio.TimeoutError:
+            await message.delete()
+            return await ctx.send("**Cancelled - timed out**")
+
+        await message.delete()
+
