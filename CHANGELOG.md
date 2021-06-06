@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4
+
+- \#7 - Channel broadcast for when PH starts at HIP 58832
+- \#112 - Add logic to remove a carrier
+
 ## 1.0.3
 
 - \#106 - Add a help command that dumps data on what the commands do.

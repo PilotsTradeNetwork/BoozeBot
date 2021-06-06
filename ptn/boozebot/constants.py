@@ -20,8 +20,10 @@ PROD_ADMIN_ID = 800125148971663392
 PROD_SOMMELIER_ID = 838520893181263872
 PROD_CO_ID = 800091463160430654
 PROD_AUX_CO_ID = 839149899596955708
-PROD_BOOZE_BOT_CHANNEL = 841413917468917781
+PROD_BOOZE_BOT_CHANNEL = 841413917468917781  # This is #booze-bot
+PROD_SOMMELIER_NOTIFICATION_CHANNEL = 838520662934683648    # booze cruise admin
 PROD_MOD_ID = 813814494563401780
+PROD_HOLIDAY_ANNOUNCE_CHANNEL_ID = 851110121870196777   # Dread-pirate-steve
 
 # Testing variables
 TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
@@ -35,6 +37,8 @@ TEST_CO_ID = 822999970012463154
 TEST_AUX_CO_ID = 849909113776898071
 TEST_BOOZE_BOT_CHANNEL = 842152343441375283
 TEST_MOD_ID = 818174400997228545
+TEST_HOLIDAY_ANNOUNCE_CHANNEL_ID = 818174236480897058
+TEST_SOMMELIER_NOTIFICATION_CHANNEL = 851095042130051072    # bot command channel
 
 BOOZE_PROFIT_PER_TONNE_WINE = 278000
 RACKHAMS_PEAK_POP = 150000
@@ -167,3 +171,23 @@ def server_mod_role_id():
     :rtype: int
     """
     return PROD_MOD_ID if _production else TEST_MOD_ID
+
+
+def rackhams_holiday_channel():
+    """
+    Returns the channel ID for notficiation of the holiday.
+
+    :return: The channel ID
+    :rtype: int
+    """
+    return PROD_HOLIDAY_ANNOUNCE_CHANNEL_ID if _production else TEST_HOLIDAY_ANNOUNCE_CHANNEL_ID
+
+
+def get_sommelier_notification_channel():
+    """
+    Returns the channel ID for the sommelier notifications.
+
+    :return: The channel ID
+    :rtype: int
+    """
+    return PROD_SOMMELIER_NOTIFICATION_CHANNEL if _production else TEST_SOMMELIER_NOTIFICATION_CHANNEL

@@ -1,6 +1,7 @@
 from ptn.boozebot.commands.DatabaseInteraction import DatabaseInteraction
 from ptn.boozebot.commands.DiscordBotCommands import DiscordBotCommands
 from ptn.boozebot.commands.Helper import Helper
+from ptn.boozebot.commands.PublicHoliday import PublicHoliday
 from ptn.boozebot.commands.Unloading import Unloading
 from ptn.boozebot.constants import bot, TOKEN, _production
 from ptn.boozebot.database.database import build_database_on_startup
@@ -19,6 +20,7 @@ def run():
     bot.add_cog(Unloading())
     bot.add_cog(DatabaseInteraction())
     bot.add_cog(Helper())
+    bot.add_cog(PublicHoliday())
     bot.run(TOKEN)
 
 
