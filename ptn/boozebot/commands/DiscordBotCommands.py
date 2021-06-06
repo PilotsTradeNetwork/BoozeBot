@@ -4,6 +4,7 @@ import sys
 from discord.ext import commands
 from discord_slash.utils.manage_commands import remove_all_commands
 
+from ptn.boozebot.commands.PublicHoliday import PublicHoliday
 from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel
 from ptn.boozebot._metadata import __version__
 
@@ -27,6 +28,8 @@ class DiscordBotCommands(commands.Cog):
         print(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
         bot_channel = self.bot.get_channel(get_bot_control_channel())
         await bot_channel.send(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
+        print('Starting the holiday checker.')
+        PublicHoliday.public_holiday_loop.start()
 
     @commands.Cog.listener()
     async def on_disconnect(self):

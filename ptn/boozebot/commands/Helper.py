@@ -1,6 +1,3 @@
-import json
-import pprint
-
 import discord
 from discord.ext import commands
 from discord_slash import SlashContext, cog_ext
@@ -26,6 +23,14 @@ class Helper(commands.Cog):
                 option_type=3,
                 required=True,
                 choices=[
+                    create_choice(
+                        name="booze_started",
+                        value="booze_started"
+                    ),
+                    create_choice(
+                        name="booze_started_admin_override",
+                        value="booze_started_admin_override"
+                    ),
                     create_choice(
                         name="booze_tally",
                         value="booze_tally"
@@ -125,6 +130,20 @@ class Helper(commands.Cog):
             params = None
             method_desc = 'Forces an update of the booze database.'
             roles = ['Admin', 'Sommelier']
+        elif command == 'booze_started':
+            params = None
+            method_desc = 'Queries the current state of the holiday.'
+            roles = ['Admin', 'Sommelier', 'Mod']
+        elif command == 'booze_started_admin_override':
+            params = [
+                {
+                    'name': 'state',
+                    'type': 'bool',
+                    'description': 'Set the override flag to the provided state'
+                }
+            ]
+            method_desc = 'Forces the parameter flag to the provided value. Overrides the holiday checker if True.'
+            roles = ['Admin', 'Sommelier', 'Mod']
         elif command == 'wine_helper_market_closed':
             params = None
             method_desc = 'Drops a helper embed into the channel for timed market closure.'
@@ -186,7 +205,7 @@ class Helper(commands.Cog):
 
         response_embed = discord.Embed(
             title=f'Baton down the hatches!\nPirate Steve knows the following for: {command}.',
-            description=f'**Description**: {method_desc}.\n'
+            description=f'**Description**: {method_desc}\n'
                         f'**Required Roles**: {", ".join(roles)}.\n'
                         f'**Params**: '
         )
