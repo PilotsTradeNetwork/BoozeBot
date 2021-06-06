@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5
+
+- \#124 - Unloading command never populates channel
+
 ## 1.0.4
 
 - \#7 - Channel broadcast for when PH starts at HIP 58832
