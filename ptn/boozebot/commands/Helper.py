@@ -24,6 +24,10 @@ class Helper(commands.Cog):
                 required=True,
                 choices=[
                     create_choice(
+                        name="booze_delete_carrier",
+                        value="booze_delete_carrier"
+                    ),
+                    create_choice(
                         name="booze_started",
                         value="booze_started"
                     ),
@@ -92,6 +96,16 @@ class Helper(commands.Cog):
         if command == 'booze_tally':
             params = None
             method_desc = 'Logs the current tally of carriers, wine and some basic stats.'
+            roles = ['Admin', 'Mod', 'Sommelier']
+        elif command == 'booze_delete_carrier':
+            params = [
+                {
+                    'name': 'carrier_id',
+                    'type': 'str',
+                    'description': 'The XXX-XXX ID of the carrier you want to look for.'
+                }
+            ]
+            method_desc = 'Removes a carrier from the database.'
             roles = ['Admin', 'Mod', 'Sommelier']
         elif command == 'booze_tally_extra_stats':
             params = None
