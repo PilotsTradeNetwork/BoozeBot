@@ -4,31 +4,35 @@
 
 import requests
 
-def phCheck():
+
+def ph_check():
     params = {
-        'name' : 'Rackham Capital Investments'
+        'name': 'Rackham Capital Investments'
     }
     try:
-        r = requests.get('https://elitebgs.app/api/ebgs/v5/factions',params=params)
+        r = requests.get('https://elitebgs.app/api/ebgs/v5/factions', params=params)
         result = r.json()
     except:
-        return None
+        print('Problem while getting the state - Returning False.')
+        return False
 
     # Search each element in the result
     for element in result['docs']:
         # Search each system in which the faction is present
         for system in element['faction_presence']:
             # If there are no active states in the system, skip to the next system
-            if system['active_states'] == []:
+            if not system['active_states']:
                 continue
             # If there is an active state, look through the active states for a public holiday
             else:
                 for active_states in system['active_states']:
                     # If the system is in public holiday, return True
                     if active_states['state'] == 'publicholiday':
+                        print('PH state matched')
                         return True
                     # If the system is not in public holiday, continue through the loop
                     else:
                         continue
     # Return false if there are no public holiday hits
+    print('PH was not hit - Returning False.')
     return False
