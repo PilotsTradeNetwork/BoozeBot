@@ -791,20 +791,29 @@ class DatabaseInteraction(Cog):
         carrier_db.execute(
             "SELECT * FROM boozecarriers"
         )
-        all_carrier_data = ([BoozeCarrier(carrier) for carrier in carrier_db.fetchall()])
+        all_carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
+        carrier_db.execute(
+            "SELECT * FROM boozecarriers WHERE runtotal > 1"
+        )
+        total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
+        print(f'Carriers with multiple trips: {len(total_carriers_multiple_trips)}.')
 
-        carrier_count = len(all_carrier_data)
+        extra_carrier_count = sum(carrier.run_count -1 for carrier in total_carriers_multiple_trips)
+
+        unique_carrier_count = len(all_carrier_data)
+        total_carriers_inc_multiple_trips = unique_carrier_count + extra_carrier_count
+
         total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
 
         wine_per_capita = total_wine / RACKHAMS_PEAK_POP
-        wine_per_carrier = total_wine / carrier_count
+        wine_per_carrier = total_wine / unique_carrier_count
         python_loads = total_wine / 280
 
         total_profit = total_wine * BOOZE_PROFIT_PER_TONNE_WINE
 
         fleet_carrier_buy_count = total_profit / 5000000000
 
-        print(f'Carrier Count: {carrier_count} - Total Wine: {total_wine:,} - Total Profit: {total_profit:,} - '
+        print(f'Carrier Count: {unique_carrier_count} - Total Wine: {total_wine:,} - Total Profit: {total_profit:,} - '
               f'Wine/Carrier: {wine_per_carrier:,.2f} - PythonLoads: {python_loads:,.2f} - '
               f'Wine/Capita: {wine_per_capita:,.2f} - Carrier Buys: {fleet_carrier_buy_count:,.2f}')
 
@@ -819,7 +828,8 @@ class DatabaseInteraction(Cog):
         # Build the embed
         stat_embed = discord.Embed(
             title="Pirate Steve's Booze Cruise Tally",
-            description=f'**# of carriers:** {carrier_count}\n'
+            description=f'**Total # of Carrier trips:** {total_carriers_inc_multiple_trips}\n'
+                        f'**# of unique Carriers:** {unique_carrier_count}\n'
                         f'**Profit per ton:** {BOOZE_PROFIT_PER_TONNE_WINE:,}\n'
                         f'**Rackham Pop:** {RACKHAMS_PEAK_POP:,}\n'
                         f'**Wine per capita:** {wine_per_capita:,.2f}\n'
