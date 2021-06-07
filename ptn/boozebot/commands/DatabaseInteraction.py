@@ -112,12 +112,12 @@ class DatabaseInteraction(Cog):
                                         f'PTN Official: {problem_carrier.ptn_carrier}\n'
                                         f'Operated by: {problem_carrier.discord_username}'
                         )
-                        if channel == sommelier_notification_channel:
-                            # Add a notification for the sommelier role
-                            problem_embed.description += f'\n<@&{server_sommelier_role_id()}> please take note.'
                         problem_embed.set_footer(text='Pirate Steve recommends verifying and then deleting this entry'
                                                       ' with /booze_delete_carrier')
                         await channel.send(embed=problem_embed)
+                        if channel == sommelier_notification_channel:
+                            # Add a notification for the sommelier role
+                            await channel.send(f'\n<@&{server_sommelier_role_id()}> please take note.')
             else:
                 print('No invalid carriers found')
         except KeyError as e:
