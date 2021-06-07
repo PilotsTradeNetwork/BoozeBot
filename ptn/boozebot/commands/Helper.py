@@ -191,8 +191,8 @@ class Helper(commands.Cog):
                 {
                     'name': 'market_type',
                     'type': 'str',
-                    'description': 'The unload operation for the carrier: Timed (managed markets),'
-                                   ' Squadron & Friends or Fully Open.'
+                    'description': 'The unload operation for the carrier: Timed (managed markets), Squadron, '
+                                   'Squadron & Friends or Fully Open.'
                 },
                 {
                     'name': 'unload_channel',
