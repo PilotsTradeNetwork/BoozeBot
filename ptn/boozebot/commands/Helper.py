@@ -53,7 +53,7 @@ class Helper(commands.Cog):
                     ),
                     create_choice(
                         name="find_wine_carriers_for_platform",
-                        value="fine_wine_carriers_for_platform"
+                        value="find_wine_carriers_for_platform"
                     ),
                     create_choice(
                         name="update_booze_db",
@@ -191,8 +191,8 @@ class Helper(commands.Cog):
                 {
                     'name': 'market_type',
                     'type': 'str',
-                    'description': 'The unload operation for the carrier: Timed (managed markets),'
-                                   ' Squadron & Friends or Fully Open.'
+                    'description': 'The unload operation for the carrier: Timed (managed markets), Squadron, '
+                                   'Squadron & Friends or Fully Open.'
                 },
                 {
                     'name': 'unload_channel',

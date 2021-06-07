@@ -66,6 +66,8 @@ class PublicHoliday(commands.Cog):
                 PublicHoliday.rackhams_holiday_active = True
                 print('Holiday was not ongoing, started now - flag it accordingly')
                 await holiday_announce_channel.send(PublicHoliday.holiday_start_gif)
+            else:
+                print('Holiday already flagged - no need to set it again')
         else:
             print('No PH detected, next check in 15 mins.')
             holiday_announce_channel = bot.get_channel(rackhams_holiday_channel())
