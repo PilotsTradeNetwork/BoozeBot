@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import math
 import os.path
 import re
 
@@ -838,11 +839,11 @@ class DatabaseInteraction(Cog):
                         f'**Profit per ton:** {BOOZE_PROFIT_PER_TONNE_WINE:,}\n'
                         f'**Rackham Pop:** {RACKHAMS_PEAK_POP:,}\n'
                         f'**Wine per capita:** {wine_per_capita:,.2f}\n'
-                        f'**Wine per carrier:** {wine_per_carrier:,.2f}\n'
-                        f'**Python Loads (280t):** {python_loads:,.2f}\n\n'
+                        f'**Wine per carrier:** {math.ceil(wine_per_carrier):,}\n'
+                        f'**Python Loads (280t):** {math.ceil(python_loads):,}\n\n'
                         f'**Total Wine:** {total_wine:,}\n'
                         f'**Total Profit:** {total_profit:,}\n\n'
-                        f'**# of Fleet Carriers that profit can buy:** {fleet_carrier_buy_count:,.2f}\n\n'
+                        f'**# of Fleet Carriers that profit can buy:** {fleet_carrier_buy_count:,}\n\n'
                         f'{flavour_text}\n\n'
                         f'[Bringing wine? Sign up here](https://forms.gle/dWugae3M3i76NNVi7)'
         )
