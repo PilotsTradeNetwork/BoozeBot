@@ -147,8 +147,12 @@ class Unloading(commands.Cog):
                         value="Timed"
                     ),
                     create_choice(
-                        name="Squadron",
+                        name="SquadronOnly",
                         value="Squadron"
+                    ),
+                    create_choice(
+                        name="Squadron-And-Friends",
+                        value="SquadronFriends"
                     ),
                     create_choice(
                         name="Open",
@@ -218,6 +222,8 @@ class Unloading(commands.Cog):
 
         market_conditions = 'Timed Openings'
         if market_type == 'Squadron':
+            market_conditions = f'{carrier_data.platform} Squadron'
+        elif market_type == 'SquadronFriends':
             market_conditions = f'{carrier_data.platform} Squadron and Friends'
         elif market_type == 'Open':
             market_conditions = 'Open for all.'
