@@ -53,7 +53,7 @@ class Helper(commands.Cog):
                     ),
                     create_choice(
                         name="find_wine_carriers_for_platform",
-                        value="fine_wine_carriers_for_platform"
+                        value="find_wine_carriers_for_platform"
                     ),
                     create_choice(
                         name="update_booze_db",

@@ -817,13 +817,18 @@ class DatabaseInteraction(Cog):
               f'Wine/Carrier: {wine_per_carrier:,.2f} - PythonLoads: {python_loads:,.2f} - '
               f'Wine/Capita: {wine_per_capita:,.2f} - Carrier Buys: {fleet_carrier_buy_count:,.2f}')
 
-        flavour_text = 'Heave Ho ye Scurvy Dog\'s! Pirate Steve wants more grog!'
-        if total_wine > 1000000:
-            flavour_text = 'The coffers are looking better, get the Galley\'s filled with wine!'
-        elif total_wine > 2000000:
-            flavour_text = 'Pieces of eight all round! We have a lot of grog. Savvy?'
-        elif total_wine > 3000000:
+        if total_wine > 3000000:
             flavour_text = 'Shiver Me Timbers! This sea dog cannot fathom this much grog!'
+        elif total_wine > 2500000:
+            flavour_text = 'Sink me! We might send them to Davy Jone`s locker.'
+        elif total_wine > 2000000:
+            flavour_text = 'Blimey! Pieces of eight all round! We have a lot of grog. Savvy?'
+        elif total_wine > 1500000:
+            flavour_text = 'The coffers are looking better, get the Galley\'s filled with wine!'
+        elif total_wine > 1000000:
+            flavour_text = 'Yo ho ho we have some grog!'
+        else:
+            flavour_text = 'Heave Ho ye Scurvy Dog\'s! Pirate Steve wants more grog!'
 
         # Build the embed
         stat_embed = discord.Embed(
