@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- \#139 - Add an else clause to the public_holiday_loop
+- \#138 - Check the summation counts match when running extra loads per carrier
+- \#136 - Add a squadron only unload option
+- \#135 - Add a squadron only unload option
+
 ## 1.0.5
 
 - \#124 - Unloading command never populates channel
