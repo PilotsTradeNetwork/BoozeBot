@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import math
 import os.path
 import re
 
@@ -147,7 +148,7 @@ class DatabaseInteraction(Cog):
         carrier_count = []
         for record in records_data:
             carrier = BoozeCarrier(record)
-            if not any(data['carrier_name'] == carrier.carrier_name for data in carrier_count):
+            if not any(data['carrier_id'] == carrier.carrier_identifier for data in carrier_count):
                 # if the carrier does not exist, then we need to add it
                 carrier_dict = {
                     'carrier_name': carrier.carrier_name,
@@ -159,7 +160,7 @@ class DatabaseInteraction(Cog):
             else:
                 # Go append in the stats for this entry then
                 for data in carrier_count:
-                    if data['carrier_name'] == carrier.carrier_name:
+                    if data['carrier_id'] == carrier.carrier_identifier:
                         data['run_count'] += 1
                         data['wine_total'] += carrier.wine_total
 
@@ -191,7 +192,7 @@ class DatabaseInteraction(Cog):
                 # Update the expected values for wine and count to those coming out of the earlier check if they exist
                 for data in carrier_count:
                     # There must be a better solution than this, but this was the simplest path I could see
-                    if data['carrier_name'] == expected_carrier_data.carrier_name:
+                    if data['carrier_id'] == expected_carrier_data.carrier_identifier:
                         expected_carrier_data.wine_total = data['wine_total']
                         expected_carrier_data.run_count = data['run_count']
 
@@ -833,16 +834,16 @@ class DatabaseInteraction(Cog):
         # Build the embed
         stat_embed = discord.Embed(
             title="Pirate Steve's Booze Cruise Tally",
-            description=f'**Total # of Carrier trips:** {total_carriers_inc_multiple_trips}\n'
-                        f'**# of unique Carriers:** {unique_carrier_count}\n'
-                        f'**Profit per ton:** {BOOZE_PROFIT_PER_TONNE_WINE:,}\n'
-                        f'**Rackham Pop:** {RACKHAMS_PEAK_POP:,}\n'
-                        f'**Wine per capita:** {wine_per_capita:,.2f}\n'
-                        f'**Wine per carrier:** {wine_per_carrier:,.2f}\n'
-                        f'**Python Loads (280t):** {python_loads:,.2f}\n\n'
-                        f'**Total Wine:** {total_wine:,}\n'
-                        f'**Total Profit:** {total_profit:,}\n\n'
-                        f'**# of Fleet Carriers that profit can buy:** {fleet_carrier_buy_count:,.2f}\n\n'
+            description=f'**Total # of Carrier trips:** — {total_carriers_inc_multiple_trips:>1}\n'
+                        f'**# of unique Carriers:** — {unique_carrier_count:>24}\n'
+                        f'**Profit per ton:** — {BOOZE_PROFIT_PER_TONNE_WINE:>56,}\n'
+                        f'**Rackham Pop:** — {RACKHAMS_PEAK_POP:>56,}\n'
+                        f'**Wine per capita:** — {wine_per_capita:>56,.2f}\n'
+                        f'**Wine per carrier:** — {math.ceil(wine_per_carrier):>56,}\n'
+                        f'**Python Loads (280t):** — {math.ceil(python_loads):>56,}\n\n'
+                        f'**Total Wine:** — {total_wine:,}\n'
+                        f'**Total Profit:** — {total_profit:,}\n\n'
+                        f'**# of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,}\n\n'
                         f'{flavour_text}\n\n'
                         f'[Bringing wine? Sign up here](https://forms.gle/dWugae3M3i76NNVi7)'
         )
