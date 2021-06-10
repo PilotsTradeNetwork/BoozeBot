@@ -454,6 +454,9 @@ class DatabaseInteraction(Cog):
         await self.report_invalid_carriers(self._update_db())
         print(f'{ctx.author} wants to forcefully mark the carrier {carrier_id} as unloaded.')
 
+        # Cast this to upper case just in case
+        carrier_id = carrier_id.upper()
+
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
             print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
@@ -732,7 +735,8 @@ class DatabaseInteraction(Cog):
     async def find_carrier_by_id(self, ctx: SlashContext, carrier_id: str):
         await self.report_invalid_carriers(self._update_db())
         print(f'{ctx.author} wants to find a carrier by ID: {carrier_id}.')
-
+        # Cast this to upper case just in case
+        carrier_id = carrier_id.upper()
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
             print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
@@ -992,6 +996,9 @@ class DatabaseInteraction(Cog):
         :returns: None
         """
         print(f'User {ctx.author} wants to remove the carrier with ID {carrier_id} from the database.')
+        # Cast this to upper case just in case
+        carrier_id = carrier_id.upper()
+
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
             print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
