@@ -277,8 +277,8 @@ class Unloading(commands.Cog):
             await unloading_channel_id.send(embed=embed)
 
         return await ctx.send(
-            f'Wine unload requested by {ctx.author} for **{carrier_id}** processed successfully. Market: '
-            f'**{market_conditions}**.{unload_tracking}'
+            f'Wine unload requested by {ctx.author} for **{carrier_id}** ({carrier_data.carrier_name}) '
+            f'processed successfully. Market: **{market_conditions}**.{unload_tracking}'
         )
 
     @cog_ext.cog_slash(
