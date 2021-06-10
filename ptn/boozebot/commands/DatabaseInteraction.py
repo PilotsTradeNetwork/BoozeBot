@@ -921,11 +921,6 @@ class DatabaseInteraction(Cog):
         busses_if_bottles = wine_bottles_litres_total / london_bus_volume_l
         busses_if_boxes = wine_boxes_litres_total / london_bus_volume_l
 
-        # Volume of the statue of liberty
-        statue_liberty = 2500 * 1000
-        statue_liberty_if_bottles = wine_bottles_litres_total / statue_liberty
-        statue_liberty_if_boxes = wine_boxes_litres_total / statue_liberty
-
         stat_embed = discord.Embed(
             title='Pirate Steve\'s Extended Booze Comparison Stats',
             description=f'Current Wine Tonnes: {total_wine:,}\n'
@@ -955,9 +950,6 @@ class DatabaseInteraction(Cog):
                         f'London Bus Volume (L): {london_bus_volume_l:,}\n'
                         f'London Busses if Bottles of Wine: {busses_if_bottles:,.2f}\n'
                         f'London Busses if Boxes of Wine: {busses_if_boxes:,.2f}\n\n'
-                        f'Statue of Liberty Volume (L): {statue_liberty:,}\n'
-                        f'Statue of Liberty if Bottles of Wine: {statue_liberty_if_bottles:,.2f}\n'
-                        f'Statue of Liberty if Boxes of Wine: {statue_liberty_if_boxes:,.2f}\n\n'
         )
         stat_embed.set_footer(text='Stats requested by RandomGazz.\nPirate Steve approves of these stats!')
         await ctx.send(embed=stat_embed)
