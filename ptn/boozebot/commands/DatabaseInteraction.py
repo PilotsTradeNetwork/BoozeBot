@@ -16,7 +16,7 @@ from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id, \
     BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, server_mod_role_id, get_bot_control_channel, \
     get_sommelier_notification_channel
-from ptn.boozebot.database.database import carrier_db, carriers_conn, dump_database, carrier_db_lock
+from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn, dump_database, pirate_steve_lock
 
 
 class DatabaseInteraction(Cog):
@@ -175,10 +175,10 @@ class DatabaseInteraction(Cog):
             # Iterate over the records and populate the database as required.
 
             # Check if it is in the database already
-            carrier_db.execute(
+            pirate_steve_db.execute(
                 "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{record["Carrier ID"].upper()}%',)
             )
-            carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
+            carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
             if len(carrier_data) > 1:
                 raise ValueError(f'{len(carrier_data)} carriers are listed with this carrier ID:'
                                  f' {record["Carrier ID"].upper()}. Problem in the DB!')
@@ -205,8 +205,8 @@ class DatabaseInteraction(Cog):
                           f'- Updating')
                     updated_count += 1
                     try:
-                        carrier_db_lock.acquire()
-                        carriers_conn.set_trace_callback(print)
+                        pirate_steve_lock.acquire()
+                        pirate_steve_conn.set_trace_callback(print)
                         data = (
                             expected_carrier_data.carrier_name,
                             expected_carrier_data.carrier_identifier,
@@ -219,16 +219,16 @@ class DatabaseInteraction(Cog):
                             f'%{db_carrier_data.carrier_name}%'
                         )
 
-                        carrier_db.execute(
+                        pirate_steve_db.execute(
                             ''' UPDATE boozecarriers 
                             SET carriername=?, carrierid=?, winetotal=?, platform=?, officialcarrier=?, 
                             discordusername=?, timestamp=?, runtotal=?
                             WHERE carriername LIKE (?) ''', data
                         )
 
-                        carriers_conn.commit()
+                        pirate_steve_conn.commit()
                     finally:
-                        carrier_db_lock.release()
+                        pirate_steve_lock.release()
                 else:
                     print(f'The DB data for {db_carrier_data.carrier_name} is the same as the sheets record - '
                           f'skipping over.')
@@ -240,17 +240,17 @@ class DatabaseInteraction(Cog):
                 print(carrier.to_dictionary())
                 print(f'Carrier {record["Carrier Name"]} is not yet in the database - adding it')
                 try:
-                    carrier_db_lock.acquire()
-                    carrier_db.execute(''' 
+                    pirate_steve_lock.acquire()
+                    pirate_steve_db.execute(''' 
                     INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) 
                     ''', (
                         carrier.carrier_name, carrier.carrier_identifier, carrier.wine_total,
                         carrier.platform, carrier.ptn_carrier, carrier.discord_username,
                         carrier.timestamp, carrier.run_count, carrier.total_unloads
                     )
-                                       )
+                                            )
                 finally:
-                    carrier_db_lock.release()
+                    pirate_steve_lock.release()
 
                 updated_db = True
                 print('Added carrier to the database')
@@ -259,20 +259,20 @@ class DatabaseInteraction(Cog):
 
         # Now that the records are updated, make sure no carrier was removed - check for anything not matching the
         # carrier id strings.
-        carrier_db.execute(
+        pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid NOT IN ({})".format(
                 ', '.join('?' * len(all_carrier_ids_sheet))
             ), all_carrier_ids_sheet
         )
 
-        invalid_datbase_entries = [BoozeCarrier(inv_carrier) for inv_carrier in carrier_db.fetchall()]
+        invalid_datbase_entries = [BoozeCarrier(inv_carrier) for inv_carrier in pirate_steve_db.fetchall()]
         if updated_db:
             # Write the database and then dump the updated SQL
             try:
-                carrier_db_lock.acquire()
-                carriers_conn.commit()
+                pirate_steve_lock.acquire()
+                pirate_steve_conn.commit()
             finally:
-                carrier_db_lock.release()
+                pirate_steve_lock.release()
             dump_database()
             print('Wrote the database and dumped the SQL')
 
@@ -300,10 +300,10 @@ class DatabaseInteraction(Cog):
         """
         await self.report_invalid_carriers(self._update_db())
         print(f'{ctx.author} requested to find the carrier with wine')
-        carrier_db.execute(
+        pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
         )
-        carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
+        carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
         if len(carrier_data) == 0:
             # No carriers remaining
             return await ctx.send('Pirate Steve is sorry, but there are no more carriers with wine remaining.')
@@ -461,11 +461,11 @@ class DatabaseInteraction(Cog):
                                           f'{carrier_id}.')
 
         # Check if it is in the database already
-        carrier_db.execute(
+        pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
         )
         # Really only expect a single entry here, unique field and all that
-        carrier_data = BoozeCarrier(carrier_db.fetchone())
+        carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
 
         carrier_embed = discord.Embed(
             title=f'Argh We found this data for {carrier_id}:',
@@ -496,21 +496,21 @@ class DatabaseInteraction(Cog):
 
                     # Go update the object in the database.
                     try:
-                        carrier_db_lock.acquire()
+                        pirate_steve_lock.acquire()
 
                         data = (
                             f'%{carrier_data.carrier_identifier}%',
                         )
-                        carrier_db.execute(
+                        pirate_steve_db.execute(
                             ''' 
                             UPDATE boozecarriers 
                             SET totalunloads=totalunloads+1
                             WHERE carrierid LIKE (?) 
                             ''', data
                         )
-                        carriers_conn.commit()
+                        pirate_steve_conn.commit()
                     finally:
-                        carrier_db_lock.release()
+                        pirate_steve_lock.release()
 
                     print(f'Database for unloaded forcefully updated by {ctx.author} for {carrier_id}')
                     embed = discord.Embed(
@@ -588,11 +588,11 @@ class DatabaseInteraction(Cog):
             carrier_search = 'platform LIKE (?)'
 
         # Check if it is in the database already
-        carrier_db.execute(
+        pirate_steve_db.execute(
             f"SELECT * FROM boozecarriers WHERE {carrier_search}", data
         )
         # Really only expect a single entry here, unique field and all that
-        carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
+        carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
 
         print(f'Found {len(carrier_data)} carriers matching the search')
 
@@ -740,11 +740,11 @@ class DatabaseInteraction(Cog):
                 f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
 
         # Check if it is in the database already
-        carrier_db.execute(
+        pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid = (?)", (f'{carrier_id}',)
         )
         # Really only expect a single entry here, unique field and all that
-        carrier_data = BoozeCarrier(carrier_db.fetchone())
+        carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
         print(f'Found: {carrier_data}')
 
         if not carrier_data:
@@ -789,14 +789,14 @@ class DatabaseInteraction(Cog):
         print(f'User {ctx.author} requested the current tally of the cruise stats.')
 
         # Go get everything out of the database
-        carrier_db.execute(
+        pirate_steve_db.execute(
             "SELECT * FROM boozecarriers"
         )
-        all_carrier_data = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
-        carrier_db.execute(
+        all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE runtotal > 1"
         )
-        total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in carrier_db.fetchall()]
+        total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
         print(f'Carriers with multiple trips: {len(total_carriers_multiple_trips)}.')
 
         extra_carrier_count = sum(carrier.run_count -1 for carrier in total_carriers_multiple_trips)
@@ -880,10 +880,10 @@ class DatabaseInteraction(Cog):
         print(f'User {ctx.author} requested the current extended stats of the cruise.')
 
         # Go get everything out of the database
-        carrier_db.execute(
+        pirate_steve_db.execute(
             "SELECT * FROM boozecarriers"
         )
-        all_carrier_data = ([BoozeCarrier(carrier) for carrier in carrier_db.fetchall()])
+        all_carrier_data = ([BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()])
         total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
 
         total_wine_per_capita = total_wine / RACKHAMS_PEAK_POP
@@ -999,11 +999,11 @@ class DatabaseInteraction(Cog):
                                           f'{carrier_id}.')
 
         # Check if it is in the database already
-        carrier_db.execute(
+        pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid = (?)", (f'{carrier_id}',)
         )
         # Really only expect a single entry here, unique field and all that
-        carrier_data = BoozeCarrier(carrier_db.fetchone())
+        carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
         print(f'Found: {carrier_data}')
 
         if not carrier_data:
@@ -1045,18 +1045,18 @@ class DatabaseInteraction(Cog):
 
                     # Go update the object in the database.
                     try:
-                        carrier_db_lock.acquire()
+                        pirate_steve_lock.acquire()
                         print(f'Removing the entry ({carrier_id}) from the database.')
-                        carrier_db.execute(
+                        pirate_steve_db.execute(
                             ''' 
                             DELETE FROM boozecarriers 
                             WHERE carrierid LIKE (?) 
                             ''', (f'%{carrier_id}%',)
                         )
-                        carriers_conn.commit()
+                        pirate_steve_conn.commit()
                         print(f'Carrier ({carrier_id}) was removed from the database')
                     finally:
-                        carrier_db_lock.release()
+                        pirate_steve_lock.release()
 
                     return await ctx.send(f'Fleet carrier: {carrier_id} was removed')
                 except Exception as e:

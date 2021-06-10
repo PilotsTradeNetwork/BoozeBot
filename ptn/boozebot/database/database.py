@@ -6,12 +6,12 @@ from ptn.boozebot.constants import get_db_path, get_db_dumps_path
 
 print(f'Starting DB at: {get_db_path()}')
 
-carriers_conn = sqlite3.connect(get_db_path())
-carriers_conn.row_factory = sqlite3.Row
-carrier_db = carriers_conn.cursor()
+pirate_steve_conn = sqlite3.connect(get_db_path())
+pirate_steve_conn.row_factory = sqlite3.Row
+pirate_steve_db = pirate_steve_conn.cursor()
 
 db_sql_store = get_db_dumps_path()
-carrier_db_lock = threading.Lock()
+pirate_steve_lock = threading.Lock()
 
 
 def dump_database():
@@ -21,24 +21,24 @@ def dump_database():
     :returns: None
     """
     with open(db_sql_store, 'w') as f:
-        for line in carriers_conn.iterdump():
+        for line in pirate_steve_conn.iterdump():
             f.write(line)
 
 
 def build_database_on_startup():
     print('Checking whether the booze carriers db exists')
-    carrier_db.execute('''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'boozecarriers' ''')
-    if not bool(carrier_db.fetchone()[0]):
+    pirate_steve_db.execute('''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'boozecarriers' ''')
+    if not bool(pirate_steve_db.fetchone()[0]):
 
         if os.path.exists(db_sql_store):
             # recreate from backup file
             print('Recreating database from backup ...')
             with open(db_sql_store) as f:
                 sql_script = f.read()
-                carrier_db.executescript(sql_script)
+                pirate_steve_db.executescript(sql_script)
         else:
             print('Creating a fresh database')
-            carrier_db.execute('''
+            pirate_steve_db.execute('''
                 CREATE TABLE boozecarriers( 
                     entry INTEGER PRIMARY KEY AUTOINCREMENT,
                     carriername TEXT NOT NULL, 
@@ -56,3 +56,29 @@ def build_database_on_startup():
             print('Database created')
     else:
         print('The booze carrier database already exists')
+
+    print('Checking whether the holiday database db exists')
+    pirate_steve_db.execute(
+        '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'holidaystate' '''
+    )
+    if not bool(pirate_steve_db.fetchone()[0]):
+        print('Creating a fresh holiday database')
+        pirate_steve_db.execute('''
+            CREATE TABLE holidaystate(
+                entry INTEGER PRIMARY KEY AUTOINCREMENT,
+                state BOOL, 
+                timestamp DATETIME
+            ) 
+        ''')
+        # Write some defaults
+        pirate_steve_db.execute('''
+            INSERT INTO holidaystate VALUES(
+                NULL,
+                0,
+                CURRENT_TIMESTAMP
+                ) 
+            ''')
+        pirate_steve_conn.commit()
+        print('Database created')
+    else:
+        print('The holiday state database already exists')
