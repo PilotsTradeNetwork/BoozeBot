@@ -78,6 +78,10 @@ class PublicHoliday(commands.Cog):
                 pirate_steve_conn.commit()
                 print('Holiday was not ongoing, started now - flag it accordingly')
                 await holiday_announce_channel.send(PublicHoliday.holiday_start_gif)
+                await holiday_announce_channel.send(
+                    f'Pirate Steve thinks the folks at Rackhams are partying again. '
+                    f'<@&{server_admin_role_id()}>, <@&{server_sommelier_role_id()}> please take note.'
+                )
             else:
                 print('Holiday already flagged - no need to set it again')
         else:
