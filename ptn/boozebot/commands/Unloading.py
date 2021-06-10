@@ -277,8 +277,8 @@ class Unloading(commands.Cog):
             await unloading_channel_id.send(embed=embed)
 
         return await ctx.send(
-            f'Wine unload requested by {ctx.author} for **{carrier_id}** processed successfully. Market: '
-            f'**{market_conditions}**.{unload_tracking}'
+            f'Wine unload requested by {ctx.author} for **{carrier_data.carrier_name}** ({carrier_id}) '
+            f'processed successfully. Market: **{market_conditions}**.{unload_tracking}'
         )
 
     @cog_ext.cog_slash(
@@ -341,7 +341,7 @@ class Unloading(commands.Cog):
                 pirate_steve_lock.release()
 
             await msg.delete()
-            response = f'Removed the unload notification for {carrier_id}'
+            response = f'Removed the unload notification for {carrier_data.carrier_name} ({carrier_id})'
             print(f'Deleted the carrier discord notification for carrier: {carrier_id}')
         else:
             response = f'Sorry {ctx.author}, we have no carrier unload notification found in the database for ' \
