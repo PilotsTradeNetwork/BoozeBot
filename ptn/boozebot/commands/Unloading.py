@@ -11,7 +11,7 @@ from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
     server_admin_role_id, server_carrier_owner_role_id, server_sommelier_role_id, server_aux_carrier_role_id, \
     server_mod_role_id
-from ptn.boozebot.database.database import carrier_db, carrier_db_lock, carriers_conn
+from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
 
 class Unloading(commands.Cog):
@@ -196,12 +196,12 @@ class Unloading(commands.Cog):
             return await ctx.channel.send(f'Sorry, to run a timed market we need an unload channel, you '
                                           f'provided: {unload_channel}.')
 
-        carrier_db.execute(
+        pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
         )
 
         # We will only get a single entry back here as the carrierid is a unique field.
-        carrier_data = BoozeCarrier(carrier_db.fetchone())
+        carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
         if not carrier_data:
             return await ctx.send(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
 
@@ -247,20 +247,20 @@ class Unloading(commands.Cog):
         print(f'Posted the wine unload alert for {carrier_data.carrier_name} ({carrier_data.carrier_identifier})')
 
         try:
-            carrier_db_lock.acquire()
+            pirate_steve_lock.acquire()
             data = (
                 discord_alert_id,
                 f'%{carrier_id}%'
             )
 
-            carrier_db.execute('''
+            pirate_steve_db.execute('''
                 UPDATE boozecarriers
                 SET discord_unload_in_progress=?, totalunloads=totalunloads+1
                 WHERE carrierid LIKE (?)
             ''', data)
-            carriers_conn.commit()
+            pirate_steve_conn.commit()
         finally:
-            carrier_db_lock.release()
+            pirate_steve_lock.release()
         print(f'Discord alert ID written to database for {carrier_data.carrier_identifier}')
 
         if unload_channel:
@@ -311,12 +311,12 @@ class Unloading(commands.Cog):
             return await ctx.channel.send(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, '
                                           f'{carrier_id}.')
 
-        carrier_db.execute(
+        pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
         )
 
         # We will only get a single entry back here as the carrierid is a unique field.
-        carrier_data = BoozeCarrier(carrier_db.fetchone())
+        carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
         if not carrier_data:
             print(f'No carrier found while searching the DB for: {carrier_id}')
             return await ctx.send(f'Sorry, could not find a carrier for the ID data in DB: {carrier_id}.')
@@ -329,16 +329,16 @@ class Unloading(commands.Cog):
             # Now delete it in the database
 
             try:
-                carrier_db_lock.acquire()
+                pirate_steve_lock.acquire()
                 data = (f'%{carrier_id}%',)
-                carrier_db.execute('''
+                pirate_steve_db.execute('''
                     UPDATE boozecarriers
                     SET discord_unload_in_progress=NULL
                     WHERE carrierid LIKE (?)
                 ''', data)
-                carriers_conn.commit()
+                pirate_steve_conn.commit()
             finally:
-                carrier_db_lock.release()
+                pirate_steve_lock.release()
 
             await msg.delete()
             response = f'Removed the unload notification for {carrier_id}'
