@@ -185,6 +185,9 @@ class Unloading(commands.Cog):
         print(f'User {ctx.author} has flagged a new overall unload operation for carrier: {carrier_id} using unload '
               f'channel: {unload_channel} using timed markets: {market_type}.')
 
+        # Cast this to upper case just in case
+        carrier_id = carrier_id.upper()
+
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
             print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
@@ -304,6 +307,8 @@ class Unloading(commands.Cog):
     )
     async def wine_unloading_complete(self, ctx: SlashContext, carrier_id):
         print(f'Wine unloading complete for {carrier_id} flagged by {ctx.author}.')
+        # Cast this to upper case just in case
+        carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
