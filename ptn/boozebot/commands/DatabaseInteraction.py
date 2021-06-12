@@ -1,5 +1,5 @@
 import asyncio
-import datetime
+from datetime import datetime, timedelta
 import math
 import os.path
 import re
@@ -13,6 +13,7 @@ import gspread
 from discord.ext.commands import Cog
 
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
+from ptn.boozebot.PHcheck import ph_check
 from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id, \
     BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, server_mod_role_id, get_bot_control_channel, \
     get_sommelier_notification_channel
@@ -1067,3 +1068,113 @@ class DatabaseInteraction(Cog):
 
         await message.delete()
 
+    @cog_ext.cog_slash(
+        name="archive_database",
+        guild_ids=[bot_guild_id()],
+        description="Archives the boozedatabase. Admin/Sommelier required.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        }
+    )
+    async def archive_database(self, ctx: SlashContext):
+        print(f'User {ctx.author} requested to archive the database')
+
+        if ph_check():
+            return await ctx.send('Pirate Steve thinks there is a party at Rackhams still. Try again once the grog '
+                                  'runs dry.')
+        get_date_user = await ctx.send('Pirate Steve wants to know when the booze cruise started in DD-MM-YY '
+                                       'format.')
+
+        def check_yes_no(check_message):
+            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+                   check_message.content.lower() in ["y", "n"]
+
+        def check_date(check_message):
+            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+                   re.match(r'\d{2}-\d{2}-\d{2}', check_message.content)
+
+        resp_date = None
+
+        try:
+            response = await bot.wait_for("message", check=check_date, timeout=30)
+            if response:
+                print(f'User response to date is: {response.content}')
+
+                resp_date = datetime.strptime(response.content, '%d-%m-%y').date()
+                today = datetime.now().date()
+
+                if resp_date > today:
+                    return await ctx.send('Pirate steve cant set the holiday date in the future, '
+                                          f'format is DD-MM-YY. Your date input: {response.content}.')
+
+                print(f'Formatted user response to date: {resp_date}')
+
+        except asyncio.TimeoutError:
+            await get_date_user.delete()
+            return await ctx.send("**Waiting for date - timed out**")
+
+        await get_date_user.delete()
+        await response.delete()
+
+        check_embed = discord.Embed(
+            title='Validate the request',
+            description='You have requested to archive the data in the database with the following:\n'
+                        f'**Holiday Start:** {resp_date.strftime("%d-%m-%y")} - '
+                        f'**Holiday End:** {(resp_date + timedelta(days=2)).strftime("%d-%m-%y")}'
+        )
+        check_embed.set_footer(text='Respond with y/n.')
+        sent_embed = await ctx.send(embed=check_embed)
+
+        try:
+            user_response = await bot.wait_for("message", check=check_yes_no, timeout=30)
+            if user_response.content.lower() == "y":
+                print(f'User response to date is: {user_response.content}')
+                await user_response.delete()
+                await sent_embed.delete()
+
+                try:
+                    pirate_steve_lock.acquire()
+                    start_date = resp_date
+                    end_date = resp_date + timedelta(days=2)
+                    data = (
+                        start_date,
+                        end_date,
+                    )
+                    pirate_steve_db.execute('''
+                              INSERT INTO historical (carriername, carrierid, winetotal, platform, 
+                              officialcarrier, discordusername, timestamp, runtotal, totalunloads)
+                              SELECT carriername, carrierid, winetotal, platform, officialcarrier, discordusername, 
+                              timestamp, runtotal, totalunloads
+                              FROM boozecarriers
+                          ''')
+                    # Now that we copied the columns, go update the timestamps for the cruise. This probably could
+                    # be chained into the above statement, but effort to figure the syntax out.
+                    pirate_steve_db.execute('''
+                              UPDATE historical
+                              SET holiday_start=?, holiday_end=?
+                              WHERE holiday_start IS NULL
+                          ''', data)
+                    pirate_steve_conn.commit()
+
+                    print('Removing the values from the current table.')
+                    pirate_steve_db.execute('''
+                        DELETE FROM boozecarriers
+                    ''')
+                    pirate_steve_conn.commit()
+
+                finally:
+                    pirate_steve_lock.release()
+                return await ctx.send(f'Pirate Steve rejigged his memory and saved the booze data starting '
+                                      f'on: {resp_date}!')
+            elif user_response.content.lower() == "n":
+                print(f'User {ctx.author} wants to abort the archive process.')
+                await user_response.delete()
+                await sent_embed.delete()
+                return await ctx.send('You aborted the request to archive the data.')
+
+        except asyncio.TimeoutError:
+            await sent_embed.delete()
+            return await ctx.send("**Waiting for user response - timed out**")
