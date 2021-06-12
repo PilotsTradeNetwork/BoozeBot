@@ -95,7 +95,7 @@ def build_database_on_startup():
                 holiday_start TEXT,
                 holiday_end TEXT,
                 carriername TEXT NOT NULL, 
-                carrierid TEXT UNIQUE,
+                carrierid TEXT,
                 winetotal INT,
                 platform TEXT NOT NULL,
                 officialcarrier BOOLEAN,
