@@ -60,13 +60,18 @@ class DatabaseInteraction(Cog):
         :returns: None
         """
         # The key is part of the URL
-        workbook = self.client.open_by_key(self.worksheet_key)
+        try:
+            self.tracking_sheet = None
+            print(f'Building worksheet with the key: {self.worksheet_key}')
+            workbook = self.client.open_by_key(self.worksheet_key)
 
-        for sheet in workbook.worksheets():
-            print(sheet.title)
+            for sheet in workbook.worksheets():
+                print(sheet.title)
 
-        # Update the tracking sheet object
-        self.tracking_sheet = workbook.get_worksheet(self.worksheet_with_data_id)
+            # Update the tracking sheet object
+            self.tracking_sheet = workbook.get_worksheet(self.worksheet_with_data_id)
+        except gspread.exceptions.APIError as e:
+            print(f'Error reading the worksheet: {e}')
 
     @cog_ext.cog_slash(
         name="update_booze_db",
@@ -1317,8 +1322,8 @@ class DatabaseInteraction(Cog):
         confirm_embed = discord.Embed(
             title='Pirate Steve wants you to confirm the new values.',
             description=f'**New signup URL:** {new_loader_signup_form}\n'
-                        f'**New worksheet key:** {new_worksheet_key + 1}\n'
-                        f'**New worksheet ID:** {new_sheet_id}.',
+                        f'**New worksheet key:** {new_worksheet_key}\n'
+                        f'**New worksheet ID:** {new_sheet_id + 1}.',
         )
         confirm_embed.set_footer(text='Confirm this with y/n.')
 
@@ -1349,8 +1354,22 @@ class DatabaseInteraction(Cog):
                 finally:
                     pirate_steve_lock.release()
 
+                self.worksheet_key = new_worksheet_key
+                self.worksheet_with_data_id = new_sheet_id
+                self.loader_signup_form_url = new_loader_signup_form
+
+                try:
+
+                    # Now go make the new updates to pull the data initially
+                    self._reconfigure_workbook_and_form()
+                    self._update_db()
+
+                except OSError as e:
+                    return await ctx.send(f'Pirate steve reports an error while updating things: {e}. Fix it and try '
+                                          f'again.')
+
                 return await ctx.send('Pirate Steve unfurled out the sails and is now catching the wind with the new '
-                                      'values!')
+                                      'values! Try /update_booze_db to check progress.')
 
             elif user_response.content.lower() == "n":
                 print(f'User {ctx.author} wants to abort the archive process.')
