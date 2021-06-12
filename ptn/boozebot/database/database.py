@@ -82,3 +82,31 @@ def build_database_on_startup():
         print('Database created')
     else:
         print('The holiday state database already exists')
+
+    print('Checking whether the historical database exists')
+    pirate_steve_db.execute(
+        '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'historical' '''
+    )
+    if not bool(pirate_steve_db.fetchone()[0]):
+        print('Creating a fresh historical state database')
+        pirate_steve_db.execute('''
+            CREATE TABLE historical(
+                entry INTEGER PRIMARY KEY AUTOINCREMENT,
+                holiday_start TEXT,
+                holiday_end TEXT,
+                carriername TEXT NOT NULL, 
+                carrierid TEXT,
+                winetotal INT,
+                platform TEXT NOT NULL,
+                officialcarrier BOOLEAN,
+                discordusername TEXT NOT NULL,
+                timestamp DATETIME,
+                runtotal INT,
+                totalunloads INT,
+                discord_unload_in_progress INT
+            ) 
+        ''')
+        pirate_steve_conn.commit()
+        print('Database created')
+    else:
+        print('The historical state database already exists')
