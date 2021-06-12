@@ -107,6 +107,35 @@ def build_database_on_startup():
             ) 
         ''')
         pirate_steve_conn.commit()
-        print('Database created')
+        print('Historical Database created')
     else:
         print('The historical state database already exists')
+
+    print('Checking whether the the input tracking database exists')
+    pirate_steve_db.execute(
+        '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'trackingforms' '''
+    )
+    if not bool(pirate_steve_db.fetchone()[0]):
+        print('Creating a fresh trackingforms  database')
+        pirate_steve_db.execute('''
+                CREATE TABLE trackingforms(
+                    entry INTEGER PRIMARY KEY AUTOINCREMENT,
+                    worksheet_key TEXT UNIQUE,
+                    loader_input_form_url TEXT UNIQUE,
+                    worksheet_with_data_id INT
+                ) 
+            ''')
+        # Some default values in the case we need to make the table. These will need to be set accordingly,
+        # remove this once we have them in place
+        pirate_steve_db.execute('''
+            INSERT INTO trackingforms VALUES(
+                NULL,
+                '1Etk2sZRKKV7LsDVNJ60qrzJs3ZE8Wa99KTv7r6bwgIw',
+                'https://forms.gle/dWugae3M3i76NNVi7',
+                1
+            ) 
+        ''')
+        pirate_steve_conn.commit()
+        print('Forms Database created')
+    else:
+        print('The tracking forms database already exists')

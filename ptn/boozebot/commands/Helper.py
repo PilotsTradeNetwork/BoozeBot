@@ -24,6 +24,14 @@ class Helper(commands.Cog):
                 required=True,
                 choices=[
                     create_choice(
+                        name='booze_archive_database',
+                        value='booze_archive_database'
+                    ),
+                    create_choice(
+                        name='booze_configure_signup_forms',
+                        value='booze_configure_signup_forms'
+                    ),
+                    create_choice(
                         name="booze_delete_carrier",
                         value="booze_delete_carrier"
                     ),
@@ -213,6 +221,15 @@ class Helper(commands.Cog):
             ]
             method_desc = 'Closes a wine unload and removes the notifications.'
             roles = ['Admin', 'Mod', 'Sommelier']
+        elif command == 'booze_archive_database':
+            params = None
+            method_desc = 'Archives the current booze cruise database and drops the data. This is an irreversible ' \
+                          'action.'
+            roles = ['Admin']
+        elif command == 'booze_configure_signup_forms':
+            params = None
+            method_desc = 'Configure the current booze cruise signup forms. Expected to be a google doc (sheet).'
+            roles = ['Admin']
         else:
             print('User did not provide a valid command.')
             return await ctx.send(f'Unknown handling for command: {command}.')
