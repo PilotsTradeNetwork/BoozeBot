@@ -1,5 +1,5 @@
 import asyncio
-import datetime
+from datetime import datetime, timedelta
 import math
 import os.path
 import re
@@ -1067,3 +1067,75 @@ class DatabaseInteraction(Cog):
 
         await message.delete()
 
+    @cog_ext.cog_slash(
+        name="archive_database",
+        guild_ids=[bot_guild_id()],
+        description="Archives the boozedatabase. Admin/Sommelier required.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        }
+    )
+    async def archive_database(self, ctx: SlashContext):
+        print(f'User {ctx.author} requested to archive the database')
+
+        get_date_user = await ctx.send('Pirate Steve wants to know when the booze cruise started in DD-MM-YY '
+                                       'format.')
+
+        def check_yes_no(check_message):
+            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+                   check_message.content.lower() in ["y", "n"]
+
+        def check_date(check_message):
+            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+                   re.match(r'\d{2}-\d{2}-\d{2}', check_message.content)
+
+        resp_date = None
+
+        try:
+            response = await bot.wait_for("message", check=check_date, timeout=30)
+            if response:
+                print(f'User response to date is: {response.content}')
+
+                resp_date = datetime.strptime(response.content, '%d-%m-%y')
+                today = datetime.now()
+
+                if resp_date > today:
+                    return await ctx.send('Pirate steve cant set the holiday date in the future, '
+                                          f'format is DD-MM-YY. Your date gave: {response.content}.')
+
+                print('Formatted user response to date: {}')
+
+        except asyncio.TimeoutError:
+            await get_date_user.delete()
+            return await ctx.send("**Waiting for date - timed out**")
+
+        # TODO: Ask user to confirm the date is correct and to write the database
+        try:
+            pirate_steve_lock.acquire()
+            start_date = resp_date
+            end_date = resp_date + timedelta(days=2)
+            data = (
+                start_date,
+                end_date,
+            )
+            pirate_steve_db.execute('''
+                INSERT INTO historical (carriername, carrierid, winetotal, platform, 
+                officialcarrier, discordusername, timestamp, runtotal, totalunloads)
+                SELECT carriername, carrierid, winetotal, platform, officialcarrier, discordusername, timestamp, 
+                runtotal, totalunloads
+                FROM boozecarriers
+            ''')
+            # Now that we copied the columns, go update the timestamps for the cruise. This probably could be chained
+            # into the above statement, but effort to figure the syntax out.
+            pirate_steve_db.execute('''
+                UPDATE historical
+                SET holiday_start=?, holiday_end=?
+                WHERE holiday_start IS NULL
+            ''', data)
+            pirate_steve_conn.commit()
+        finally:
+            pirate_steve_lock.release()
+        await ctx.send(f'Pirate Steve rejigged his memory and saved the booze data starting on: {resp_date}!')
