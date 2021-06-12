@@ -32,16 +32,41 @@ class DatabaseInteraction(Cog):
             os.path.join(os.path.expanduser('~'), '.ptnboozebot.json'), scope)
 
         # authorize the client sheet
-        client = gspread.authorize(credentials)
+        self.client = gspread.authorize(credentials)
+        self.tracking_sheet = None
 
+        pirate_steve_db.execute(
+            "SELECT * FROM trackingforms"
+        )
+        forms = dict(pirate_steve_db.fetchone())
+
+        self.worksheet_key = forms['worksheet_key']
+
+        # On which sheet is the actual data.
+        self.worksheet_with_data_id = forms['worksheet_with_data_id']
+
+        # input form is the form we have loaders fill in
+        self.loader_signup_form_url = forms['loader_input_form_url']
+
+        self._reconfigure_workbook_and_form()
+
+        self._update_db()  # On instantiation, go build the DB
+
+    def _reconfigure_workbook_and_form(self):
+        """
+        Reconfigures the tracking sheet to the latest version based on the current worksheet key and sheet ID. Called
+        when we update the forms or on startup of the bot.
+
+        :returns: None
+        """
         # The key is part of the URL
-        workbook = client.open_by_key('1Etk2sZRKKV7LsDVNJ60qrzJs3ZE8Wa99KTv7r6bwgIw')
+        workbook = self.client.open_by_key(self.worksheet_key)
 
         for sheet in workbook.worksheets():
             print(sheet.title)
 
-        self.tracking_sheet = workbook.get_worksheet(1)
-        self._update_db()  # On instantiation, go build the DB
+        # Update the tracking sheet object
+        self.tracking_sheet = workbook.get_worksheet(self.worksheet_with_data_id)
 
     @cog_ext.cog_slash(
         name="update_booze_db",
@@ -62,7 +87,7 @@ class DatabaseInteraction(Cog):
         :returns: A discord embed to the user.
         :rtype: None
         """
-        print(f'User {ctx.author} requested to re-populate the database at {datetime.datetime.now()}')
+        print(f'User {ctx.author} requested to re-populate the database at {datetime.now()}')
 
         try:
             result = self._update_db()
@@ -132,6 +157,10 @@ class DatabaseInteraction(Cog):
         :returns:
         :rtype:
         """
+        if not self.tracking_sheet:
+            raise EnvironmentError('Sorry this cannot be ran as we have no form for tracking the wine presently. '
+                                   'Please set a new form first.')
+
         updated_db = False
         added_count = 0
         updated_count = 0
@@ -850,7 +879,7 @@ class DatabaseInteraction(Cog):
                         f'**Total Profit:** — {total_profit:,}\n\n'
                         f'**# of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,}\n\n'
                         f'{flavour_text}\n\n'
-                        f'[Bringing wine? Sign up here](https://forms.gle/dWugae3M3i76NNVi7)'
+                        f'[Bringing wine? Sign up here]({self.loader_signup_form_url})'
         )
         stat_embed.set_image(
             url='https://cdn.discordapp.com/attachments/783783142737182724/849157248923992085/unknown.png'
@@ -1054,6 +1083,7 @@ class DatabaseInteraction(Cog):
                             ''', (f'%{carrier_id}%',)
                         )
                         pirate_steve_conn.commit()
+                        dump_database()
                         print(f'Carrier ({carrier_id}) was removed from the database')
                     finally:
                         pirate_steve_lock.release()
@@ -1069,7 +1099,7 @@ class DatabaseInteraction(Cog):
         await message.delete()
 
     @cog_ext.cog_slash(
-        name="archive_database",
+        name="booze_archive_database",
         guild_ids=[bot_guild_id()],
         description="Archives the boozedatabase. Admin/Sommelier required.",
         permissions={
@@ -1080,6 +1110,13 @@ class DatabaseInteraction(Cog):
         }
     )
     async def archive_database(self, ctx: SlashContext):
+        """
+        Performs the steps to archive the current booze cruise database. Only possible if we are not in a PH
+        currently and if the data has not been archived. Once archived it will be dropped.
+
+        :param SlashContext ctx: The discord slash context.
+        :returns: None
+        """
         print(f'User {ctx.author} requested to archive the database')
 
         if ph_check():
@@ -1164,7 +1201,7 @@ class DatabaseInteraction(Cog):
                         DELETE FROM boozecarriers
                     ''')
                     pirate_steve_conn.commit()
-
+                    dump_database()
                 finally:
                     pirate_steve_lock.release()
                 return await ctx.send(f'Pirate Steve rejigged his memory and saved the booze data starting '
@@ -1178,3 +1215,151 @@ class DatabaseInteraction(Cog):
         except asyncio.TimeoutError:
             await sent_embed.delete()
             return await ctx.send("**Waiting for user response - timed out**")
+
+    @cog_ext.cog_slash(
+        name="booze_configure_signup_forms",
+        guild_ids=[bot_guild_id()],
+        description="Updates the booze cruise signup forms. Admin/Sommelier required.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        }
+    )
+    async def configure_signup_forms(self, ctx: SlashContext):
+        """
+        Reconfigures the signup sheet and the tracking sheet to the new forms. Only usable by an admin.
+
+        :param SlashContext ctx: The discord slash context.
+        :returns: None
+        """
+        print(f'{ctx.author} wants to reconfigure the booze cruise signup forms.')
+
+        # Store the current states just in case we need them
+        original_sheet_id = self.worksheet_with_data_id
+        original_worksheet_key = self.worksheet_key
+        original_loader_signup_form = self.loader_signup_form_url
+
+        new_sheet_id = None
+        new_worksheet_key = None
+        new_loader_signup_form = None
+
+        def check_yes_no(check_message):
+            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+                   check_message.content.lower() in ["y", "n"]
+
+        def check_author(check_message):
+            return check_message.author == ctx.author and check_message.channel == ctx.channel
+
+        def check_id(check_message):
+            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+                   re.match(r'^\d*$', check_message.content)
+
+        # TODO: See if we can add a validation for the URL
+
+        request_loader_signup_form = await ctx.send('Pirate Steve first wants the loader signup form URL.')
+        try:
+            # in this case we do not know the shape of the URL
+            response = await bot.wait_for("message", check=check_author, timeout=30)
+            if response:
+                print(f'We have data: {response.content} for the signup URL.')
+                new_loader_signup_form = response.content
+                await response.delete()
+                await request_loader_signup_form.delete()
+
+        except asyncio.TimeoutError:
+            print('Error getting the response for the google signup form.')
+            await request_loader_signup_form.delete()
+            return await ctx.send('Pirate Steve saw you timed out.')
+
+        request_new_worksheet_key = await ctx.send('Pirate Steve secondly wants the sheet ID for the form. Start '
+                                                   'counting from 1 and Pirate Steve will tell the computer '
+                                                   'accordingly.')
+        try:
+            response = await bot.wait_for("message", check=check_id, timeout=30)
+            if response:
+                print(f'We have data: {response.content} for the worksheet ID.')
+                try:
+                    # user counts 1, 2, 3. Computer 0, 1, 2
+                    new_sheet_id = int(response.content) - 1
+                    if new_sheet_id < 0:
+                        raise ValueError('Error ID is less than 0')
+                except ValueError:
+                    await request_new_worksheet_key.delete()
+                    await response.delete()
+                    return await ctx.send(f'Pirate Steve thinks you do not know what an integer starting from 1 is.'
+                                          f' {response.content}. Start again!')
+
+        except asyncio.TimeoutError:
+            print('Error getting the response for the worksheet key.')
+            await request_new_worksheet_key.delete()
+            return await ctx.send('Pirate Steve saw you timed out on step 2.')
+
+        request_worksheet_id = await ctx.send('Pirate Steve thirdly wants to know the key for the data. The Key is '
+                                              'the long unique string in the URL.')
+        try:
+            # in this case we do not know the shape of the worksheet Key, it is a unique value.
+            response = await bot.wait_for("message", check=check_author, timeout=30)
+            if response:
+                print(f'We have data: {response.content} for the worksheet unique key.')
+                new_worksheet_key = response.content
+                await response.delete()
+                await request_worksheet_id.delete()
+
+        except asyncio.TimeoutError:
+            print('Error getting the response for the worksheet key.')
+            await request_worksheet_id.delete()
+            return await ctx.send('Pirate Steve saw you timed out on step 3.')
+
+        print(f'We received valid data for all points, confirm them with the {ctx.author} it is correct.')
+
+        confirm_embed = discord.Embed(
+            title='Pirate Steve wants you to confirm the new values.',
+            description=f'**New signup URL:** {new_loader_signup_form}\n'
+                        f'**New worksheet key:** {new_worksheet_key + 1}\n'
+                        f'**New worksheet ID:** {new_sheet_id}.',
+        )
+        confirm_embed.set_footer(text='Confirm this with y/n.')
+
+        confirm_details = await ctx.send(embed=confirm_embed)
+
+        try:
+            user_response = await bot.wait_for("message", check=check_yes_no, timeout=30)
+            if user_response.content.lower() == "y":
+                print(f'{ctx.author} confirms to write the database now.')
+                await user_response.delete()
+                await confirm_details.delete()
+
+                try:
+                    pirate_steve_lock.acquire()
+
+                    data = (
+                        new_worksheet_key,
+                        new_loader_signup_form,
+                        new_sheet_id,
+                    )
+                    pirate_steve_db.execute('''
+                        UPDATE trackingforms 
+                        SET worksheet_key=?, loader_input_form_url=?, worksheet_with_data_id=?
+                      ''', data)
+
+                    pirate_steve_conn.commit()
+                    dump_database()
+                finally:
+                    pirate_steve_lock.release()
+
+                return await ctx.send('Pirate Steve unfurled out the sails and is now catching the wind with the new '
+                                      'values!')
+
+            elif user_response.content.lower() == "n":
+                print(f'User {ctx.author} wants to abort the archive process.')
+                await user_response.delete()
+                await confirm_details.delete()
+                return await ctx.send('You aborted the request to update the forms.')
+
+        except asyncio.TimeoutError:
+            print('Error getting the response for the worksheet ID.')
+            await confirm_details.delete()
+            return await ctx.send('Pirate Steve saw you timed out on step 3.')
+
