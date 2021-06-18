@@ -814,27 +814,71 @@ class DatabaseInteraction(Cog):
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
-        }
+        },
+        options=[
+            create_option(
+                name='cruise_select',
+                description='Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is '
+                            'this cruise.',
+                option_type=4,
+                required=False
+            )
+        ],
     )
-    async def tally(self, ctx: SlashContext):
+    async def tally(self, ctx: SlashContext, cruise_select=0):
         """
         Returns an embed inspired by (cloned from) @CMDR Suiseiseki's b.tally. Provided to keep things in one place
         is all.
 
         :param SlashContext ctx: The discord context
+        :param int cruise_select: The cruise you want data on, counts backwards. 0 is this cruise, 1 is the last
+            cruise etc...
         :return: None
         """
         await self.report_invalid_carriers(self._update_db())
-        print(f'User {ctx.author} requested the current tally of the cruise stats.')
+        cruise = 'this' if cruise_select == 0 else f'-{cruise_select}'
+        print(f'User {ctx.author} requested the current tally of the cruise stats for {cruise} cruise.')
+        target_date = None
 
-        # Go get everything out of the database
-        pirate_steve_db.execute(
-            "SELECT * FROM boozecarriers"
-        )
-        all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-        pirate_steve_db.execute(
-            "SELECT * FROM boozecarriers WHERE runtotal > 1"
-        )
+        if cruise_select == 0:
+            # Go get everything out of the database
+            pirate_steve_db.execute(
+                "SELECT * FROM boozecarriers"
+            )
+            all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+            pirate_steve_db.execute(
+                "SELECT * FROM boozecarriers WHERE runtotal > 1"
+            )
+
+        else:
+            # Get the dates in the DB and order them.
+            pirate_steve_db.execute(
+                "SELECT DISTINCT holiday_start FROM historical ORDER by holiday_start DESC"
+            )
+            all_dates = [dict(value) for value in pirate_steve_db.fetchall()]
+
+            if cruise_select > len(all_dates):
+                print('Input for cruise value was out of bounds for the number of cruises recorded in the database.')
+                return await ctx.send(f'Pirate Steve only knows about the last: {len(all_dates)} booze cruises. '
+                                      f'You wanted the -{cruise_select} data.')
+            # Subtract 1 here, we filter the values out of the historical database, so the current cruise is not
+            # there yet
+            target_date = all_dates[cruise_select - 1]['holiday_start']
+            print(f'We have found the following historical cruise dates: {all_dates}')
+            print(f'We are interested in the {cruise} option - {target_date}')
+
+            data = (
+                target_date,
+            )
+            # In this case we want the historical data from the historical database
+            pirate_steve_db.execute(
+                "SELECT * FROM historical WHERE holiday_start = (?)", data
+            )
+            all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+            pirate_steve_db.execute(
+                "SELECT * FROM historical WHERE runtotal > 1 AND holiday_start = (?)", data
+            )
+
         total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
         print(f'Carriers with multiple trips: {len(total_carriers_multiple_trips)}.')
 
@@ -870,9 +914,13 @@ class DatabaseInteraction(Cog):
         else:
             flavour_text = 'Heave Ho ye Scurvy Dog\'s! Pirate Steve wants more grog!'
 
+        date_text = f':\nHistorical Data: [{target_date} - ' \
+                    f'{datetime.strptime(target_date, "%Y-%m-%d").date() + timedelta(days=2)}]' \
+            if target_date else ''
+
         # Build the embed
         stat_embed = discord.Embed(
-            title="Pirate Steve's Booze Cruise Tally",
+            title=f"Pirate Steve's Booze Cruise Tally {date_text}",
             description=f'**Total # of Carrier trips:** — {total_carriers_inc_multiple_trips:>1}\n'
                         f'**# of unique Carriers:** — {unique_carrier_count:>24}\n'
                         f'**Profit per ton:** — {BOOZE_PROFIT_PER_TONNE_WINE:>56,}\n'
