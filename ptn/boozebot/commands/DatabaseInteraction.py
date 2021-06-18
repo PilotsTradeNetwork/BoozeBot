@@ -1209,6 +1209,19 @@ class DatabaseInteraction(Cog):
         await get_date_user.delete()
         await response.delete()
 
+        data = (
+            resp_date,
+        )
+        # Check the date exists in the DB already, if so abort.
+        pirate_steve_db.execute(
+            "SELECT DISTINCT holiday_start FROM historical WHERE holiday_start = (?)", data
+        )
+        if pirate_steve_db.fetchall():
+            print(f'We have a record for this date ({resp_date}) in the historical DB already.')
+            # We found something for that date. stop.
+            return await ctx.send(f'Pirate Steve thinks there is a booze cruise on that day ({resp_date}) '
+                                  f'already recorded. Check your data, and send him for a memory check up.')
+
         check_embed = discord.Embed(
             title='Validate the request',
             description='You have requested to archive the data in the database with the following:\n'
