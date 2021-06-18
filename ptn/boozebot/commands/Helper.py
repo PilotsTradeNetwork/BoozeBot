@@ -102,7 +102,14 @@ class Helper(commands.Cog):
         print(f'User {ctx.author} has requested help for command: {command}')
         # For each value we just populate some data.
         if command == 'booze_tally':
-            params = None
+            params = [
+                {
+                    'name': 'cruise_select',
+                    'type': 'int',
+                    'description': 'An integer value representing the cruise you wish data for. 0 (default) is the '
+                                   'current cruise, 1 the last etc. [Optional]'
+                }
+            ]
             method_desc = 'Logs the current tally of carriers, wine and some basic stats.'
             roles = ['Admin', 'Mod', 'Sommelier']
         elif command == 'booze_delete_carrier':

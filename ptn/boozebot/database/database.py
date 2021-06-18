@@ -92,8 +92,8 @@ def build_database_on_startup():
         pirate_steve_db.execute('''
             CREATE TABLE historical(
                 entry INTEGER PRIMARY KEY AUTOINCREMENT,
-                holiday_start TEXT,
-                holiday_end TEXT,
+                holiday_start DATE,
+                holiday_end DATE,
                 carriername TEXT NOT NULL, 
                 carrierid TEXT,
                 winetotal INT,
