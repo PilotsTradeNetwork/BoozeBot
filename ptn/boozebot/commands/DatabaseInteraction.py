@@ -814,27 +814,55 @@ class DatabaseInteraction(Cog):
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
-        }
+        },
+        options=[
+            create_option(
+                name='cruise_select',
+                description='Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is '
+                            'this cruise.',
+                option_type=4,
+                required=False
+            )
+        ],
     )
-    async def tally(self, ctx: SlashContext):
+    async def tally(self, ctx: SlashContext, cruise_select=0):
         """
         Returns an embed inspired by (cloned from) @CMDR Suiseiseki's b.tally. Provided to keep things in one place
         is all.
 
         :param SlashContext ctx: The discord context
+        :param int cruise_select: The cruise you want data on, counts backwards. 0 is this cruise, 1 is the last
+            cruise etc...
         :return: None
         """
         await self.report_invalid_carriers(self._update_db())
-        print(f'User {ctx.author} requested the current tally of the cruise stats.')
+        cruise = 'this' if cruise_select == 0 else f'-{cruise_select}'
+        print(f'User {ctx.author} requested the current tally of the cruise stats for {cruise} cruise.')
+        if cruise_select == 0:
+            # Go get everything out of the database
+            pirate_steve_db.execute(
+                "SELECT * FROM boozecarriers"
+            )
+            all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+            pirate_steve_db.execute(
+                "SELECT * FROM boozecarriers WHERE runtotal > 1"
+            )
 
-        # Go get everything out of the database
-        pirate_steve_db.execute(
-            "SELECT * FROM boozecarriers"
-        )
-        all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-        pirate_steve_db.execute(
-            "SELECT * FROM boozecarriers WHERE runtotal > 1"
-        )
+        else:
+            # Get the dates in the DB and order them.
+            pirate_steve_db.execute(
+                "SELECT * FROM historical ORDER by holiday_start"
+            )
+
+            # In this case we want the historical data from the historical database
+            pirate_steve_db.execute(
+                "SELECT * FROM historical"
+            )
+            all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+            pirate_steve_db.execute(
+                "SELECT * FROM historical WHERE runtotal > 1"
+            )
+
         total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
         print(f'Carriers with multiple trips: {len(total_carriers_multiple_trips)}.')
 
