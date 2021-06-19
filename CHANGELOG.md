@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.0
+
+- \#147 - Auto updating pinned embed of stats
+- \#159 - Archive should check if the date exists already
+- \#158 - Booze bot should allow querying the historical data
+- \#68 - Ingest a new form from an admin command
+- \#25 - Add historical tracking post-cruise
+- \#152 - Remove Statue of Liberty stats, they match the pools
+- \#117 - Cast user input carrier IDs to uppercase
+- \#118 - Public Holiday system should ping Admins/Mods/Sommeliers/someone
+- \#146 - Changed the order of name and ID
+- \#162 - For load and unload post the carrier name to the channel when summarizing the command
+- \#101 - Align the figures for tally and tally extended
+- \#119 - Cant ping roles in an embed
+
 ## 1.1.0
 
 - \#139 - Add an else clause to the public_holiday_loop
