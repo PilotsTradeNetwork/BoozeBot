@@ -122,6 +122,35 @@ class Helper(commands.Cog):
             ]
             method_desc = 'Removes a carrier from the database.'
             roles = ['Admin', 'Mod', 'Sommelier']
+        elif command == 'booze_pin_message':
+            params = [
+                {
+                    'name': 'message_id',
+                    'type': 'str',
+                    'description': 'The message ID to pin'
+                },
+                {
+                    'name': 'channel_id',
+                    'type': 'str',
+                    'description': 'The channel ID to pin. Optional, uses the current channel if not provided.'
+                }
+            ]
+            method_desc = 'Pins a message to the channel.'
+            roles = ['Admin', 'Mod', 'Sommelier']
+        elif command == 'booze_unpin_all':
+            params = None
+            method_desc = 'Unpins all message for booze bot.'
+            roles = ['Admin', 'Mod', 'Sommelier']
+        elif command == 'booze_unpin_message':
+            params = [
+                {
+                    'name': 'message_id',
+                    'type': 'str',
+                    'description': 'The message ID to pin'
+                }
+            ]
+            method_desc = 'Unpins the specific message for booze bot.'
+            roles = ['Admin', 'Mod', 'Sommelier']
         elif command == 'booze_tally_extra_stats':
             params = None
             method_desc = 'Logs some stats regarding what the volume of wine looks like.'

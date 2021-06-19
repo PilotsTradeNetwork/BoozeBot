@@ -5,6 +5,7 @@ import os.path
 import re
 
 import discord
+from discord.ext import tasks
 from discord_slash import cog_ext, SlashContext
 from discord_slash.model import SlashCommandPermissionType
 from discord_slash.utils.manage_commands import create_permission, create_option, create_choice
@@ -880,9 +881,38 @@ class DatabaseInteraction(Cog):
             )
 
         total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        stat_embed = self.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, target_date)
+
+        await ctx.send(embed=stat_embed)
+
+        # Go update all the pinned embeds also.
+        pirate_steve_db.execute(
+            """SELECT * FROM pinned_messages"""
+        )
+        pins = [dict(value) for value in pirate_steve_db.fetchall()]
+        if pins:
+            print(f'Updating pinned messages: {pins}')
+            for pin in pins:
+                channel = bot.get_channel(pin['channel_id'])
+                # Now go loop over every pin and update it
+                message = await channel.fetch_message(pin['message_id'])
+                await message.edit(embed=stat_embed)
+        else:
+            print('No pinned messages up update')
+
+    def build_stat_embed(self, all_carrier_data, total_carriers_multiple_trips, target_date=None):
+        """
+        Builds the stat embed
+
+        :param [BoozeCarriers] all_carrier_data: The list of all carriers
+        :param [BoozeCarriers] total_carriers_multiple_trips: The list of all carriers making multiple trips
+        :param str target_date: the target date
+        :return: the built embed object
+        :rtype: discord.Embed
+        """
         print(f'Carriers with multiple trips: {len(total_carriers_multiple_trips)}.')
 
-        extra_carrier_count = sum(carrier.run_count -1 for carrier in total_carriers_multiple_trips)
+        extra_carrier_count = sum(carrier.run_count - 1 for carrier in total_carriers_multiple_trips)
 
         unique_carrier_count = len(all_carrier_data)
         total_carriers_inc_multiple_trips = unique_carrier_count + extra_carrier_count
@@ -941,7 +971,220 @@ class DatabaseInteraction(Cog):
                                    'values match!')
 
         print('Returning embed to user')
-        await ctx.send(embed=stat_embed)
+        return stat_embed
+
+    @cog_ext.cog_slash(
+        name="booze_pin_message",
+        guild_ids=[bot_guild_id()],
+        description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        },
+        options=[
+            create_option(
+                name='message_id',
+                description='The message ID to be pinned.',
+                option_type=3,
+                required=True
+            ),
+            create_option(
+                name='channel_id',
+                description='The channel ID to be pinned.',
+                option_type=3,
+                required=False
+            )
+        ],
+    )
+    async def pin_message(self, ctx: SlashContext, message_id, channel_id=None):
+        """
+        Pins the message in the channel.
+
+        :param SlashContext ctx: The discord slash context
+        :param str message_id: The message ID to pin
+        :param str channel_id: The channel ID. Optional, if Not provided uses the current channel.
+        :returns: None
+        """
+        print(f'User {ctx.author} wants to pin the message {message_id} in channel: {channel_id} - {type(channel_id)}')
+        if not channel_id:
+            print(f'No channel ID provided - use the current channel {ctx.channel.id}')
+            channel = ctx.channel
+            channel_id = channel.id
+        else:
+            channel = bot.get_channel(int(channel_id))
+            print(f'Channel is: {channel}')
+
+        message = await channel.fetch_message(message_id)
+        if not message:
+            print(f'Could not find a message for the ID: {message_id} in channel: {channel_id}')
+            return ctx.send(f'Could not find a message for the ID: {message_id} in channel: {channel_id} - '
+                            f'Check they are correct', hidden=True)
+        data = (
+            message_id,
+            channel_id,
+        )
+        try:
+            print('Writing to the DB the message data')
+            pirate_steve_lock.acquire()
+            pirate_steve_db.execute(
+                """INSERT INTO pinned_messages VALUES(NULL, ?, ?)""", data
+            )
+            pirate_steve_conn.commit()
+        finally:
+            pirate_steve_lock.release()
+
+        if not message.pinned:
+            print('Message is not pinned - do it now')
+            await message.pin(reason=f'Pirate Steve pinned on behalf of {ctx.author}')
+            print(f'Message {message_id} was pinned.')
+        else:
+            print('Message is already pinned, no action needed')
+
+        await ctx.send(f'Pirate steve recorded message: {message_id} in channel: {channel_id} for pinned '
+                              f'updating')
+
+    @cog_ext.cog_slash(
+        name="booze_unpin_all",
+        guild_ids=[bot_guild_id()],
+        description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        }
+    )
+    async def clear_all_pinned_message(self, ctx: SlashContext):
+        """
+        Clears all the pinned messages
+
+        :param SlashContext ctx: The discord slash context
+        :returns: None
+        """
+        print(f'User {ctx.author} requested to clear the pinned messages.')
+
+        pirate_steve_db.execute(
+            "SELECT * FROM pinned_messages"
+        )
+        # Get everything
+        all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
+        if all_pins:
+            for pin in all_pins:
+                channel = bot.get_channel(int(pin['channel_id']))
+                message = await channel.fetch_message(pin['message_id'])
+                await message.unpin(reason=f'Pirate Steve unpinned at the request of: {ctx.author}')
+                print(f'Removed pinned message: {pin["message_id"]}.')
+            try:
+                print('Writing to the DB the message data to clear the pins')
+                pirate_steve_lock.acquire()
+                pirate_steve_db.execute(
+                    """DELETE FROM pinned_messages""",
+                )
+                pirate_steve_conn.commit()
+                print('Pinned messages removed')
+            finally:
+                pirate_steve_lock.release()
+            print('Pinned messages removed')
+            await ctx.send('Pirate Steve removed all the pinned stat messages', hidden=True)
+        else:
+            await ctx.send('Pirate Steve has no pinned messages to remove.', hidden=True)
+
+    @cog_ext.cog_slash(
+        name="booze_unpin_message",
+        guild_ids=[bot_guild_id()],
+        description="Unpins a specific message and removes it from the DB. Restricted to Admin and "
+                    "Sommelier's.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        },
+        options=[
+            create_option(
+                name='message_id',
+                description='The message ID to be pinned.',
+                option_type=3,
+                required=True
+            )
+        ]
+    )
+    async def booze_unpin_message(self, ctx: SlashContext, message_id: str):
+        """
+        Clears the pinned embed described by the message_id string.
+
+        :param SlashContext ctx: The discord slash context
+        :param str message_id: The message ID to unpin
+        :returns: None
+        """
+        print(f'User {ctx.author} requested to clear the pinned message {message_id}.')
+
+        pirate_steve_db.execute(
+            "SELECT * FROM pinned_messages WHERE "
+        )
+        # Get everything
+        all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
+        if all_pins:
+            for pin in all_pins:
+                channel = bot.get_channel(int(pin['channel_id']))
+                message = await channel.fetch_message(pin['message_id'])
+                await message.unpin(reason=f'Pirate Steve unpinned at the request of: {ctx.author}')
+                print(f'Removed pinned message: {pin["message_id"]}.')
+            try:
+                print('Writing to the DB the message data to clear the pins')
+                pirate_steve_lock.acquire()
+                pirate_steve_db.execute(
+                    """DELETE FROM pinned_messages""",
+                )
+                pirate_steve_conn.commit()
+                print('Pinned messages removed')
+            finally:
+                pirate_steve_lock.release()
+            print('Pinned messages removed')
+            await ctx.send(f'Pirate Steve removed the pinned stat message for {message_id}', hidden=True)
+        else:
+            await ctx.send(f'Pirate Steve has no pinned messages matching {message_id}.', hidden=True)
+
+    @classmethod
+    @tasks.loop(hours=1)
+    async def periodic_stat_update(cls):
+        """
+        Loops every hour and updates all pinned embeds.
+
+        :returns: None
+        """
+        # Periodic trigger that updates all the stat embeds that are pinned.
+        print('Period trigger of the embed update.')
+        pirate_steve_db.execute(
+            "SELECT * FROM pinned_messages"
+        )
+        # Get everything
+        all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
+        if all_pins:
+            print(f'We have these pins to update: {all_pins}')
+            for pin in all_pins:
+                channel = bot.get_channel(int(pin['channel_id']))
+                message = await channel.fetch_message(pin['message_id'])
+                pirate_steve_db.execute(
+                    "SELECT * FROM boozecarriers"
+                )
+                all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+                pirate_steve_db.execute(
+                    "SELECT * FROM boozecarriers WHERE runtotal > 1"
+                )
+                total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+                stat_embed = cls.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, None)
+                await message.edit(embed=stat_embed)
+        else:
+            print('No pinned messages to update. Check again in an hour.')
 
     @cog_ext.cog_slash(
         name="booze_tally_extra_stats",
