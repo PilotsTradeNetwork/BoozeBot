@@ -9,6 +9,7 @@ from discord_slash.utils.manage_commands import create_permission, create_option
 from ptn.boozebot.PHcheck import ph_check
 from ptn.boozebot.constants import rackhams_holiday_channel, bot, bot_guild_id, server_admin_role_id, \
     server_sommelier_role_id, server_mod_role_id
+from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn
 
 
 class PublicHoliday(commands.Cog):
@@ -61,19 +62,46 @@ class PublicHoliday(commands.Cog):
             if PublicHoliday.admin_override_state:
                 print('Turning off the admin override state for holiday check.')
                 PublicHoliday.admin_override_state = False
-            if not PublicHoliday.rackhams_holiday_active:
-                # Only post it if it is a state change.
-                PublicHoliday.rackhams_holiday_active = True
+
+            # Check if we had a holiday flagged already
+            pirate_steve_db.execute(
+                '''SELECT state FROM holidaystate'''
+            )
+            holiday_sqlite3 = pirate_steve_db.fetchone()
+            holiday_ongoing = bool(dict(holiday_sqlite3).get('state'))
+            print(f'Holiday state from database: {holiday_ongoing}')
+            if not holiday_ongoing:
+
+                pirate_steve_db.execute(
+                    '''UPDATE holidaystate SET state=TRUE, timestamp=CURRENT_TIMESTAMP'''
+                )
+                pirate_steve_conn.commit()
                 print('Holiday was not ongoing, started now - flag it accordingly')
                 await holiday_announce_channel.send(PublicHoliday.holiday_start_gif)
+                await holiday_announce_channel.send(
+                    f'Pirate Steve thinks the folks at Rackhams are partying again. '
+                    f'<@&{server_admin_role_id()}>, <@&{server_sommelier_role_id()}> please take note.'
+                )
             else:
                 print('Holiday already flagged - no need to set it again')
         else:
             print('No PH detected, next check in 15 mins.')
             holiday_announce_channel = bot.get_channel(rackhams_holiday_channel())
-            if PublicHoliday.rackhams_holiday_active:
+
+            # Check if we had a holiday flagged already
+            pirate_steve_db.execute(
+                '''SELECT state FROM holidaystate'''
+            )
+            holiday_sqlite3 = pirate_steve_db.fetchone()
+            holiday_ongoing = bool(dict(holiday_sqlite3).get('state'))
+
+            print(f'Holiday state from database: {holiday_ongoing}')
+            if holiday_ongoing:
+                pirate_steve_db.execute(
+                    '''UPDATE holidaystate SET state=False, timestamp=CURRENT_TIMESTAMP'''
+                )
+                pirate_steve_conn.commit()
                 # Only post it if it is a state change.
-                PublicHoliday.rackhams_holiday_active = False
                 print('Holiday was ongoing, no longer ongoing - flag it accordingly')
                 await holiday_announce_channel.send(PublicHoliday.holiday_ended_gif)
 
