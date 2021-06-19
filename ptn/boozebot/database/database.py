@@ -116,7 +116,7 @@ def build_database_on_startup():
         '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'trackingforms' '''
     )
     if not bool(pirate_steve_db.fetchone()[0]):
-        print('Creating a fresh trackingforms  database')
+        print('Creating a fresh trackingforms database')
         pirate_steve_db.execute('''
                 CREATE TABLE trackingforms(
                     entry INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,3 +139,21 @@ def build_database_on_startup():
         print('Forms Database created')
     else:
         print('The tracking forms database already exists')
+
+    print('Checking whether the the pinned message tracking database exists')
+    pirate_steve_db.execute(
+        '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'pinned_messages' '''
+    )
+    if not bool(pirate_steve_db.fetchone()[0]):
+        print('Creating a fresh pinned_messages database')
+        pirate_steve_db.execute('''
+                CREATE TABLE pinned_messages(
+                    entry INTEGER PRIMARY KEY AUTOINCREMENT,
+                    message_id TEXT UNIQUE,
+                    channel_id TEXT UNIQUE
+                ) 
+            ''')
+        pirate_steve_conn.commit()
+        print('Pinned message Database created')
+    else:
+        print('The pinned message database already exists')
