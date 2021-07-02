@@ -31,7 +31,8 @@ class DiscordBotCommands(commands.Cog):
         await bot_channel.send(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
         print('Starting the holiday checker.')
         PublicHoliday.public_holiday_loop.start()
-        DatabaseInteraction.periodic_stat_update.start()
+        print('Starting the pinned message checker')
+        DatabaseInteraction().periodic_stat_update.start()
 
     @commands.Cog.listener()
     async def on_disconnect(self):
