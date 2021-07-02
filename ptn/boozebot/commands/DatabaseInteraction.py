@@ -1018,7 +1018,7 @@ class DatabaseInteraction(Cog):
             channel = bot.get_channel(int(channel_id))
             print(f'Channel is: {channel}')
 
-        message = await channel.fetch_message(message_id)
+        message = await channel.fetch_message(int(message_id))
         if not message:
             print(f'Could not find a message for the ID: {message_id} in channel: {channel_id}')
             return ctx.send(f'Could not find a message for the ID: {message_id} in channel: {channel_id} - '
@@ -1044,8 +1044,7 @@ class DatabaseInteraction(Cog):
         else:
             print('Message is already pinned, no action needed')
 
-        await ctx.send(f'Pirate steve recorded message: {message_id} in channel: {channel_id} for pinned '
-                              f'updating')
+        await ctx.send(f'Pirate steve recorded message: {message_id} in channel: {channel_id} for pinned updating')
 
     @cog_ext.cog_slash(
         name="booze_unpin_all",
@@ -1153,9 +1152,8 @@ class DatabaseInteraction(Cog):
         else:
             await ctx.send(f'Pirate Steve has no pinned messages matching {message_id}.', hidden=True)
 
-    @classmethod
     @tasks.loop(hours=1)
-    async def periodic_stat_update(cls):
+    async def periodic_stat_update(self):
         """
         Loops every hour and updates all pinned embeds.
 
@@ -1181,7 +1179,7 @@ class DatabaseInteraction(Cog):
                     "SELECT * FROM boozecarriers WHERE runtotal > 1"
                 )
                 total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-                stat_embed = cls.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, None)
+                stat_embed = self.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, None)
                 await message.edit(embed=stat_embed)
         else:
             print('No pinned messages to update. Check again in an hour.')
