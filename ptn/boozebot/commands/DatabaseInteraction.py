@@ -893,9 +893,11 @@ class DatabaseInteraction(Cog):
         if pins:
             print(f'Updating pinned messages: {pins}')
             for pin in pins:
-                channel = bot.get_channel(pin['channel_id'])
+                channel = await bot.fetch_channel(pin['channel_id'])
+                print(f'Channel matched as: {channel} from {pin["channel_id"]}')
                 # Now go loop over every pin and update it
                 message = await channel.fetch_message(pin['message_id'])
+                print(f'Message matched as: {message} from {pin["message_id"]}')
                 await message.edit(embed=stat_embed)
         else:
             print('No pinned messages up update')
