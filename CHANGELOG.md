@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+- \#170 - Fixed the pinned messages not updating
+- \#168 - Fixed some type handling
+
 ## 1.2.0
 
 - \#147 - Auto updating pinned embed of stats
