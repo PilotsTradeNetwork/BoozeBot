@@ -10,7 +10,7 @@ from discord_slash.model import SlashCommandPermissionType
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
     server_admin_role_id, server_carrier_owner_role_id, server_sommelier_role_id, server_aux_carrier_role_id, \
-    server_mod_role_id
+    server_mod_role_id, get_primary_booze_discussions_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
 
@@ -278,6 +278,10 @@ class Unloading(commands.Cog):
             )
             embed.set_footer(text='C/O: Try the commands /wine_helper_market_open and /wine_helper_market_closed.')
             await unloading_channel_id.send(embed=embed)
+
+        # Also post a note into the primary channel to go read the announcements.
+        booze_cruise_chat = bot.get_channel(get_primary_booze_discussions_channel())
+        await booze_cruise_chat.send(f"A new wine unload is in progress. See <#{wine_unload_alert.channel.id}>")
 
         return await ctx.send(
             f'Wine unload requested by {ctx.author} for **{carrier_data.carrier_name}** ({carrier_id}) '
