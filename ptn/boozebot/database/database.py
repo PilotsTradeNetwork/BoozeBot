@@ -27,7 +27,8 @@ def dump_database():
 
 def build_database_on_startup():
     print('Checking whether the booze carriers db exists')
-    pirate_steve_db.execute('''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'boozecarriers' ''')
+    pirate_steve_db.execute(
+        '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'boozecarriers' ''')
     if not bool(pirate_steve_db.fetchone()[0]):
 
         if os.path.exists(db_sql_store):
@@ -50,7 +51,8 @@ def build_database_on_startup():
                     timestamp DATETIME,
                     runtotal INT,
                     totalunloads INT,
-                    discord_unload_in_progress INT
+                    discord_unload_in_progress INT,
+                    user_timezone_in_utc TEXT
                 ) 
             ''')
             print('Database created')
@@ -104,7 +106,7 @@ def build_database_on_startup():
                 runtotal INT,
                 totalunloads INT,
                 discord_unload_in_progress INT,
-                user_timezone_in_utc TEXT,
+                user_timezone_in_utc TEXT
             ) 
         ''')
         pirate_steve_conn.commit()
@@ -158,3 +160,16 @@ def build_database_on_startup():
         print('Pinned message Database created')
     else:
         print('The pinned message database already exists')
+
+    # Check to add any new columns to the database tables.
+    pirate_steve_db.execute('''PRAGMA table_info (boozecarriers)''')
+    result = [dict(col) for col in pirate_steve_db.fetchall()]
+    col_names = [element['name'] for element in result]
+
+    if 'user_timezone_in_utc' not in col_names:
+        print('Adding the user_timezone_in_utc field.')
+        # Go add it
+        pirate_steve_db.execute(
+            '''ALTER TABLE boozecarriers ADD COLUMN user_timezone_in_utc TEXT'''
+        )
+        pirate_steve_conn.commit()
