@@ -1,4 +1,5 @@
 import random
+from datetime import datetime, timedelta
 
 from discord import NotFound
 from discord.ext import commands, tasks
@@ -33,7 +34,9 @@ class PublicHoliday(commands.Cog):
         'https://tenor.com/view/no-no-no-way-never-nuh-uh-gif-14500720',
         'https://tenor.com/view/nope-danny-de-vito-gif-8123780',
         'https://tenor.com/view/steve-carell-no-please-no-gif-5026106',
-        'https://tenor.com/view/timon-lion-king-nope-no-shake-gif-3834543'
+        'https://tenor.com/view/timon-lion-king-nope-no-shake-gif-3834543',
+        'https://tenor.com/view/not-yet-notyet-mace-windu-gif-9797353',
+        'https://tenor.com/view/notyet-no-nuhuh-nope-dikembe-mutombo-gif-4945989',
     ]
     holiday_query_started_gifs = [
         'https://tenor.com/view/the-lion-king-it-is-time-throwing-monkey-elephants-gif-17842868',
@@ -43,6 +46,9 @@ class PublicHoliday(commands.Cog):
         'https://tenor.com/view/chris-farley-running-lets-do-this-excited-its-time-to-go-gif-15610590',
         'https://tenor.com/view/its-go-time-dog-puppy-truck-pug-gif-15921847',
         'https://tenor.com/view/count-adhemar-its-go-time-aknights-tale-knight-stare-gif-11506631',
+        'https://tenor.com/view/yes-sweet-hellyes-pumpit-gif-3532253',
+        'https://tenor.com/view/austin-powers-yeah-baby-excited-gif-5316726',
+        'https://tenor.com/view/lord-of-the-rings-lotr-so-it-begins-begins-beginning-gif-5322326',
     ]
 
     rackhams_holiday_active = False
@@ -168,3 +174,44 @@ class PublicHoliday(commands.Cog):
         print(f'{ctx.author} requested to override the admin holiday state too: {state}.')
         PublicHoliday.admin_override_state = state
         await ctx.send(f'Set the admin holiday flag to: {state}. Check with /booze_started.', hidden=True)
+
+    @cog_ext.cog_slash(
+        name="booze_duration_remaining",
+        guild_ids=[bot_guild_id()],
+        description="Returns roughly how long the holiday has remaining."
+    )
+    async def remaining_time(self, ctx: SlashContext):
+        """
+        Determines the remaining time and returns it to the users.
+
+        :param SlashContext ctx: The discord slash context.
+        :returns: None
+        """
+        print(f'User {ctx.author} wanted to know if the remaining time of the holiday.')
+        if not ph_check():
+            await ctx.send(
+                "Pirate Steve has not detected the holiday state yet, or it is already over.", hidden=True
+            )
+            return
+        print('Holiday ongoing, go figure out how long is left.')
+        # Ok the holiday is ongoing
+        duration_hours = 48
+
+        # Get the starting timestamp
+
+        pirate_steve_db.execute(
+            '''SELECT timestamp FROM holidaystate'''
+        )
+        timestamp = pirate_steve_db.fetchone()
+
+        start_time = datetime.strptime(dict(timestamp).get('timestamp'), '%Y-%m-%d %H:%M:%S')
+        end_time = start_time + timedelta(hours=duration_hours)
+
+        current_time_utc = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        remaining_time = end_time - datetime.strptime(current_time_utc, '%Y-%m-%d %H:%M:%S')
+
+        print(f'End time calculated as: {end_time}. Which is around: {remaining_time} from now')
+
+        await ctx.send(f'Pirate Steve thinks the holiday will end around {end_time} UTC. This should be in '
+                       f'roughly {remaining_time} hours from now, give or take.', hidden=True)
+
