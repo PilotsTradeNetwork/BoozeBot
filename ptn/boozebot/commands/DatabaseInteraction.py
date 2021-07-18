@@ -182,24 +182,30 @@ class DatabaseInteraction(Cog):
         # the database.
 
         carrier_count = []
-        for record in records_data:
-            carrier = BoozeCarrier(record)
-            if not any(data['carrier_id'] == carrier.carrier_identifier for data in carrier_count):
-                # if the carrier does not exist, then we need to add it
-                carrier_dict = {
-                    'carrier_name': carrier.carrier_name,
-                    'carrier_id': carrier.carrier_identifier,
-                    'run_count': carrier.run_count,
-                    'wine_total': carrier.wine_total
-                }
-                carrier_count.append(carrier_dict)
-            else:
-                # Go append in the stats for this entry then
-                for data in carrier_count:
-                    if data['carrier_id'] == carrier.carrier_identifier:
-                        data['run_count'] += 1
-                        data['wine_total'] += carrier.wine_total
-
+        try:
+            for record in records_data:
+                carrier = BoozeCarrier(record)
+                if not any(data['carrier_id'] == carrier.carrier_identifier for data in carrier_count):
+                    # if the carrier does not exist, then we need to add it
+                    carrier_dict = {
+                        'carrier_name': carrier.carrier_name,
+                        'carrier_id': carrier.carrier_identifier,
+                        'run_count': carrier.run_count,
+                        'wine_total': carrier.wine_total
+                    }
+                    carrier_count.append(carrier_dict)
+                else:
+                    # Go append in the stats for this entry then
+                    for data in carrier_count:
+                        if data['carrier_id'] == carrier.carrier_identifier:
+                            data['run_count'] += 1
+                            data['wine_total'] += carrier.wine_total
+        except ValueError as ex:
+            # This is OK, we want to just log the problem and highlight it to be addressed. We do not have a context
+            # here so we cannot actually post anything.
+            print(f'Error while paring the stats into carrier records: {ex}')
+            # Just re-raise this error
+            raise ex
         # We use this later to go find all the carriers in the database and ensure they match up and none were removed
         all_carrier_ids_sheet = [f'{carrier["carrier_id"]}' for carrier in carrier_count]
 
