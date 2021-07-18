@@ -550,7 +550,7 @@ class DatabaseInteraction(Cog):
                         pirate_steve_db.execute(
                             ''' 
                             UPDATE boozecarriers 
-                            SET totalunloads=totalunloads+1
+                            SET totalunloads=totalunloads+1, discord_unload_in_progress=NULL
                             WHERE carrierid LIKE (?) 
                             ''', data
                         )
