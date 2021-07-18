@@ -103,7 +103,8 @@ def build_database_on_startup():
                 timestamp DATETIME,
                 runtotal INT,
                 totalunloads INT,
-                discord_unload_in_progress INT
+                discord_unload_in_progress INT,
+                user_timezone_in_utc TEXT,
             ) 
         ''')
         pirate_steve_conn.commit()

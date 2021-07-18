@@ -56,6 +56,10 @@ class BoozeCarrier:
             # Set to 0 in the case of a carrier name without a total unloads value defined
             self.total_unloads = 0
 
+        # A UTC representation of when the user usually is available. We use UTC as we need a common reference time,
+        # and game time works for that.
+        self.timezone = info_dict.get('user_timezone_in_utc', None)
+
     def to_dictionary(self):
         """
         Formats the carrier data into a dictionary for easy access.
@@ -78,7 +82,7 @@ class BoozeCarrier:
         return 'BoozeCarrier: CarrierName:"{0.carrier_name}" WineTotal:{0.wine_total} ' \
                'CarrierIdentifier:"{0.carrier_identifier}" Platform:{0.platform} PTNCarrier:{0.ptn_carrier} ' \
                'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp} RunCount: {0.run_count} TotalUnloads: ' \
-               '{0.total_unloads} DiscordUnload: {0.discord_unload_notification}"'.format(self)
+               '{0.total_unloads} TimeZone:{0.timezone} DiscordUnload: {0.discord_unload_notification}"'.format(self)
 
     def __bool__(self):
         """
