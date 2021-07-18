@@ -508,8 +508,15 @@ class DatabaseInteraction(Cog):
 
         carrier_embed = discord.Embed(
             title=f'Argh We found this data for {carrier_id}:',
-            description="y/n"
+            description=f'CarrierName: **{carrier_data.carrier_name}**\n'
+                        f'ID: **{carrier_data.carrier_identifier}**\n'
+                        f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
+                        f'Number of trips to the peak: **{carrier_data.run_count}**\n'
+                        f'Total Unloads: **{carrier_data.total_unloads}**\n'
+                        f'PTN Official: {carrier_data.ptn_carrier}\n'
+                        f'Operated by: {carrier_data.discord_username}'
         )
+        carrier_embed.set_footer(text="y/n")
 
         def check(check_message):
             return check_message.author == ctx.author and check_message.channel == ctx.channel and \
@@ -524,7 +531,7 @@ class DatabaseInteraction(Cog):
                 await message.delete()
                 await msg.delete()
                 print(f'User {ctx.author} aborted the request to mark the carrier {carrier_id} as unloaded.')
-                return await ctx.send(f"Arrgh you cancelled the action for marking {carrier_id} "
+                return await ctx.send(f"Argh you cancelled the action for marking {carrier_id} "
                                       f"as forcefully completed.")
 
             elif msg.content.lower() == "y":
