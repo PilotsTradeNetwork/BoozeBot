@@ -1528,6 +1528,8 @@ class DatabaseInteraction(Cog):
                     ''')
                     pirate_steve_conn.commit()
                     dump_database()
+                    # Disable the updates after we commit the changes!
+                    self.update_allowed = False
                 finally:
                     pirate_steve_lock.release()
                 return await ctx.send(f'Pirate Steve rejigged his memory and saved the booze data starting '
