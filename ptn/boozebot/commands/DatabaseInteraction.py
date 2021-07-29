@@ -35,7 +35,7 @@ class DatabaseInteraction(Cog):
         # authorize the client sheet
         self.client = gspread.authorize(credentials)
         self.tracking_sheet = None
-
+        self.update_allowed = True  # This might be better stored somewhere over a reset
         pirate_steve_db.execute(
             "SELECT * FROM trackingforms"
         )
@@ -167,6 +167,10 @@ class DatabaseInteraction(Cog):
             raise EnvironmentError('Sorry this cannot be ran as we have no form for tracking the wine presently. '
                                    'Please set a new form first.')
 
+        elif not self.update_allowed:
+            print('Update not allowed, user has archived the data but not polled the latest set.')
+            return
+
         updated_db = False
         added_count = 0
         updated_count = 0
@@ -182,24 +186,30 @@ class DatabaseInteraction(Cog):
         # the database.
 
         carrier_count = []
-        for record in records_data:
-            carrier = BoozeCarrier(record)
-            if not any(data['carrier_id'] == carrier.carrier_identifier for data in carrier_count):
-                # if the carrier does not exist, then we need to add it
-                carrier_dict = {
-                    'carrier_name': carrier.carrier_name,
-                    'carrier_id': carrier.carrier_identifier,
-                    'run_count': carrier.run_count,
-                    'wine_total': carrier.wine_total
-                }
-                carrier_count.append(carrier_dict)
-            else:
-                # Go append in the stats for this entry then
-                for data in carrier_count:
-                    if data['carrier_id'] == carrier.carrier_identifier:
-                        data['run_count'] += 1
-                        data['wine_total'] += carrier.wine_total
-
+        try:
+            for record in records_data:
+                carrier = BoozeCarrier(record)
+                if not any(data['carrier_id'] == carrier.carrier_identifier for data in carrier_count):
+                    # if the carrier does not exist, then we need to add it
+                    carrier_dict = {
+                        'carrier_name': carrier.carrier_name,
+                        'carrier_id': carrier.carrier_identifier,
+                        'run_count': carrier.run_count,
+                        'wine_total': carrier.wine_total
+                    }
+                    carrier_count.append(carrier_dict)
+                else:
+                    # Go append in the stats for this entry then
+                    for data in carrier_count:
+                        if data['carrier_id'] == carrier.carrier_identifier:
+                            data['run_count'] += 1
+                            data['wine_total'] += carrier.wine_total
+        except ValueError as ex:
+            # This is OK, we want to just log the problem and highlight it to be addressed. We do not have a context
+            # here so we cannot actually post anything.
+            print(f'Error while paring the stats into carrier records: {ex}')
+            # Just re-raise this error
+            raise ex
         # We use this later to go find all the carriers in the database and ensure they match up and none were removed
         all_carrier_ids_sheet = [f'{carrier["carrier_id"]}' for carrier in carrier_count]
 
@@ -278,11 +288,11 @@ class DatabaseInteraction(Cog):
                 try:
                     pirate_steve_lock.acquire()
                     pirate_steve_db.execute(''' 
-                    INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) 
+                    INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?) 
                     ''', (
                         carrier.carrier_name, carrier.carrier_identifier, carrier.wine_total,
                         carrier.platform, carrier.ptn_carrier, carrier.discord_username,
-                        carrier.timestamp, carrier.run_count, carrier.total_unloads
+                        carrier.timestamp, carrier.run_count, carrier.total_unloads, carrier.timezone
                     )
                                             )
                 finally:
@@ -508,8 +518,15 @@ class DatabaseInteraction(Cog):
 
         carrier_embed = discord.Embed(
             title=f'Argh We found this data for {carrier_id}:',
-            description="y/n"
+            description=f'CarrierName: **{carrier_data.carrier_name}**\n'
+                        f'ID: **{carrier_data.carrier_identifier}**\n'
+                        f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
+                        f'Number of trips to the peak: **{carrier_data.run_count}**\n'
+                        f'Total Unloads: **{carrier_data.total_unloads}**\n'
+                        f'PTN Official: {carrier_data.ptn_carrier}\n'
+                        f'Operated by: {carrier_data.discord_username}'
         )
+        carrier_embed.set_footer(text="y/n")
 
         def check(check_message):
             return check_message.author == ctx.author and check_message.channel == ctx.channel and \
@@ -524,7 +541,7 @@ class DatabaseInteraction(Cog):
                 await message.delete()
                 await msg.delete()
                 print(f'User {ctx.author} aborted the request to mark the carrier {carrier_id} as unloaded.')
-                return await ctx.send(f"Arrgh you cancelled the action for marking {carrier_id} "
+                return await ctx.send(f"Argh you cancelled the action for marking {carrier_id} "
                                       f"as forcefully completed.")
 
             elif msg.content.lower() == "y":
@@ -543,7 +560,7 @@ class DatabaseInteraction(Cog):
                         pirate_steve_db.execute(
                             ''' 
                             UPDATE boozecarriers 
-                            SET totalunloads=totalunloads+1
+                            SET totalunloads=totalunloads+1, discord_unload_in_progress=NULL
                             WHERE carrierid LIKE (?) 
                             ''', data
                         )
@@ -1511,6 +1528,8 @@ class DatabaseInteraction(Cog):
                     ''')
                     pirate_steve_conn.commit()
                     dump_database()
+                    # Disable the updates after we commit the changes!
+                    self.update_allowed = False
                 finally:
                     pirate_steve_lock.release()
                 return await ctx.send(f'Pirate Steve rejigged his memory and saved the booze data starting '
@@ -1549,7 +1568,7 @@ class DatabaseInteraction(Cog):
         original_sheet_id = self.worksheet_with_data_id
         original_worksheet_key = self.worksheet_key
         original_loader_signup_form = self.loader_signup_form_url
-
+        self.update_allowed = False
         new_sheet_id = None
         new_worksheet_key = None
         new_loader_signup_form = None
@@ -1578,6 +1597,7 @@ class DatabaseInteraction(Cog):
                 await request_loader_signup_form.delete()
 
         except asyncio.TimeoutError:
+            self.update_allowed = True
             print('Error getting the response for the google signup form.')
             await request_loader_signup_form.delete()
             return await ctx.send('Pirate Steve saw you timed out.')
@@ -1595,6 +1615,7 @@ class DatabaseInteraction(Cog):
                     if new_sheet_id < 0:
                         raise ValueError('Error ID is less than 0')
                 except ValueError:
+                    self.update_allowed = True
                     await request_new_worksheet_key.delete()
                     await response.delete()
                     return await ctx.send(f'Pirate Steve thinks you do not know what an integer starting from 1 is.'
@@ -1603,6 +1624,7 @@ class DatabaseInteraction(Cog):
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet key.')
             await request_new_worksheet_key.delete()
+            self.update_allowed = True
             return await ctx.send('Pirate Steve saw you timed out on step 2.')
 
         request_worksheet_id = await ctx.send('Pirate Steve thirdly wants to know the key for the data. The Key is '
@@ -1619,6 +1641,7 @@ class DatabaseInteraction(Cog):
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet key.')
             await request_worksheet_id.delete()
+            self.update_allowed = True
             return await ctx.send('Pirate Steve saw you timed out on step 3.')
 
         print(f'We received valid data for all points, confirm them with the {ctx.author} it is correct.')
@@ -1661,7 +1684,7 @@ class DatabaseInteraction(Cog):
                 self.worksheet_key = new_worksheet_key
                 self.worksheet_with_data_id = new_sheet_id
                 self.loader_signup_form_url = new_loader_signup_form
-
+                self.update_allowed = True
                 try:
 
                     # Now go make the new updates to pull the data initially
@@ -1669,6 +1692,7 @@ class DatabaseInteraction(Cog):
                     self._update_db()
 
                 except OSError as e:
+                    self.update_allowed = True
                     return await ctx.send(f'Pirate steve reports an error while updating things: {e}. Fix it and try '
                                           f'again.')
 
@@ -1679,10 +1703,12 @@ class DatabaseInteraction(Cog):
                 print(f'User {ctx.author} wants to abort the archive process.')
                 await user_response.delete()
                 await confirm_details.delete()
+                self.update_allowed = True
                 return await ctx.send('You aborted the request to update the forms.')
 
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet ID.')
             await confirm_details.delete()
+            self.update_allowed = True
             return await ctx.send('Pirate Steve saw you timed out on step 3.')
 
