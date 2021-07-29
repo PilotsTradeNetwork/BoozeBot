@@ -288,11 +288,11 @@ class DatabaseInteraction(Cog):
                 try:
                     pirate_steve_lock.acquire()
                     pirate_steve_db.execute(''' 
-                    INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) 
+                    INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?) 
                     ''', (
                         carrier.carrier_name, carrier.carrier_identifier, carrier.wine_total,
                         carrier.platform, carrier.ptn_carrier, carrier.discord_username,
-                        carrier.timestamp, carrier.run_count, carrier.total_unloads
+                        carrier.timestamp, carrier.run_count, carrier.total_unloads, carrier.timezone
                     )
                                             )
                 finally:
