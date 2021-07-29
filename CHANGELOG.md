@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0
+
+- \#192 - Archive command needs to stop the polling sheet
+- \#190 - Fixed find carriers command
+- \#188 - Stop the updating after archive and before new sheet provided
+- \#169 - An invalid carrier ID causes the tally commands to fail
+- \#177 - Add a text notification in the main channel when an unload starts
+- \#179 - Add support for timezone of carriers
+- \#175 - Forcefully marking complete should delete any discord notification if it exists
+- \#178 - Add time remaining command to the holiday
+- \#176 - Forcefully marking as completed shows the wrong embed message
+
 ## 1.2.1
 
 - \#170 - Fixed the pinned messages not updating
