@@ -979,7 +979,7 @@ class DatabaseInteraction(Cog):
                         f'**Python Loads (280t):** — {math.ceil(python_loads):>56,}\n\n'
                         f'**Total Wine:** — {total_wine:,}\n'
                         f'**Total Profit:** — {total_profit:,}\n\n'
-                        f'**# of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,}\n\n'
+                        f'**# of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n'
                         f'{flavour_text}\n\n'
                         f'[Bringing wine? Sign up here]({self.loader_signup_form_url})'
         )
