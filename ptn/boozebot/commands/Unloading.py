@@ -271,8 +271,8 @@ class Unloading(commands.Cog):
             # If we have an unload channel ID, go write a message there also.
             embed.add_field(
                 name=f'Carrier {carrier_data.carrier_name} ({carrier_data.carrier_identifier}).\n'
-                     f'Unloading {carrier_data.wine_total} tonnes of wine with timed openings.\n'
-                     f'Location: {planetary_body}',
+                     f'Unloading {carrier_data.wine_total // carrier_data.run_count} tonnes of wine with timed '
+                     f'openings.\nLocation: {planetary_body}',
                 value='Market unloads will begin shortly.',
                 inline=True
             )
