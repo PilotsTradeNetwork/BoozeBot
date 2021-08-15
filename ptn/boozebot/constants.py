@@ -18,8 +18,7 @@ PROD_DB_DUMPS_PATH = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'dum
 PROD_BOOZE_UNLOAD_ID = 838699587249242162
 PROD_ADMIN_ID = 800125148971663392
 PROD_SOMMELIER_ID = 838520893181263872
-PROD_CO_ID = 800091463160430654
-PROD_AUX_CO_ID = 839149899596955708
+PROD_WINE_CARRIER_ID = 839149899596955708
 PROD_BOOZE_BOT_CHANNEL = 841413917468917781  # This is #booze-bot
 PROD_SOMMELIER_NOTIFICATION_CHANNEL = 838520662934683648    # booze cruise admin
 PROD_MOD_ID = 813814494563401780
@@ -34,8 +33,7 @@ TEST_DB_DUMPS_PATH = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'dum
 TEST_BOOZE_UNLOAD_ID = 849570829230014464
 TEST_ADMIN_ID = 818174400997228545
 TEST_SOMMELIER_ID = 849907019502059530
-TEST_CO_ID = 822999970012463154
-TEST_AUX_CO_ID = 849909113776898071
+TEST_WINE_CARRIER_ID = 849909113776898071
 TEST_BOOZE_BOT_CHANNEL = 842152343441375283
 TEST_MOD_ID = 818174400997228545
 TEST_HOLIDAY_ANNOUNCE_CHANNEL_ID = 818174236480897058
@@ -95,24 +93,14 @@ def server_sommelier_role_id():
     return PROD_SOMMELIER_ID if _production else TEST_SOMMELIER_ID
 
 
-def server_carrier_owner_role_id():
+def server_wine_carrier_role_id():
     """
-    Wrapper that returns the carrier owner role ID
+    Wrapper that returns the wine carrier owner role ID
 
-    :returns: CO role id
+    :returns: Wine co role id
     :rtype: int
     """
-    return PROD_CO_ID if _production else TEST_CO_ID
-
-
-def server_aux_carrier_role_id():
-    """
-    Wrapper that returns the uxilliary carrier owner role ID
-
-    :returns: Aux co role id
-    :rtype: int
-    """
-    return PROD_AUX_CO_ID if _production else TEST_AUX_CO_ID
+    return PROD_WINE_CARRIER_ID if _production else TEST_WINE_CARRIER_ID
 
 
 def bot_guild_id():
