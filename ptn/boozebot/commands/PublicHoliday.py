@@ -178,7 +178,15 @@ class PublicHoliday(commands.Cog):
     @cog_ext.cog_slash(
         name="booze_duration_remaining",
         guild_ids=[bot_guild_id()],
-        description="Returns roughly how long the holiday has remaining."
+        description="Returns roughly how long the holiday has remaining.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        },
     )
     async def remaining_time(self, ctx: SlashContext):
         """
@@ -213,5 +221,5 @@ class PublicHoliday(commands.Cog):
         print(f'End time calculated as: {end_time}. Which is around: {remaining_time} from now')
 
         await ctx.send(f'Pirate Steve thinks the holiday will end around {end_time} UTC. This should be in '
-                       f'roughly {remaining_time} hours from now, give or take.', hidden=True)
+                       f'roughly {remaining_time} hours from now, give or take.')
 
