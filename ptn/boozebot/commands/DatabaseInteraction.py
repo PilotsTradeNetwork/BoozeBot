@@ -335,6 +335,13 @@ class DatabaseInteraction(Cog):
         name="find_carriers_with_wine",
         guild_ids=[bot_guild_id()],
         description="Returns the carriers in the database that are still flagged as having wine remaining.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        },
     )
     async def find_carriers_with_wine(self, ctx: SlashContext):
         """
@@ -618,6 +625,13 @@ class DatabaseInteraction(Cog):
                 required=False
             )
         ],
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        },
     )
     async def find_carriers_for_platform(self, ctx: SlashContext, platform: str, remaining_wine=True):
         """
@@ -936,15 +950,15 @@ class DatabaseInteraction(Cog):
         unique_carrier_count = len(all_carrier_data)
         total_carriers_inc_multiple_trips = unique_carrier_count + extra_carrier_count
 
-        total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
+        total_wine = sum(carrier.wine_total for carrier in all_carrier_data) if all_carrier_data else 0
 
-        wine_per_capita = total_wine / RACKHAMS_PEAK_POP
-        wine_per_carrier = total_wine / unique_carrier_count
-        python_loads = total_wine / 280
+        wine_per_capita = (total_wine / RACKHAMS_PEAK_POP) if total_wine else 0
+        wine_per_carrier = (total_wine / unique_carrier_count) if total_wine else 0
+        python_loads = (total_wine / 280) if total_wine else 0
 
         total_profit = total_wine * BOOZE_PROFIT_PER_TONNE_WINE
 
-        fleet_carrier_buy_count = total_profit / 5000000000
+        fleet_carrier_buy_count = (total_profit / 5000000000) if total_profit else 0
 
         print(f'Carrier Count: {unique_carrier_count} - Total Wine: {total_wine:,} - Total Profit: {total_profit:,} - '
               f'Wine/Carrier: {wine_per_carrier:,.2f} - PythonLoads: {python_loads:,.2f} - '
@@ -979,7 +993,7 @@ class DatabaseInteraction(Cog):
                         f'**Python Loads (280t):** — {math.ceil(python_loads):>56,}\n\n'
                         f'**Total Wine:** — {total_wine:,}\n'
                         f'**Total Profit:** — {total_profit:,}\n\n'
-                        f'**# of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,}\n\n'
+                        f'**# of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n'
                         f'{flavour_text}\n\n'
                         f'[Bringing wine? Sign up here]({self.loader_signup_form_url})'
         )
@@ -1568,6 +1582,9 @@ class DatabaseInteraction(Cog):
         original_sheet_id = self.worksheet_with_data_id
         original_worksheet_key = self.worksheet_key
         original_loader_signup_form = self.loader_signup_form_url
+
+        # track the init value, we reset to this in case of bail out
+        init_update_value = self.update_allowed
         self.update_allowed = False
         new_sheet_id = None
         new_worksheet_key = None
@@ -1585,6 +1602,17 @@ class DatabaseInteraction(Cog):
                    re.match(r'^\d*$', check_message.content)
 
         # TODO: See if we can add a validation for the URL
+
+        # Check the dB is empty first.
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers"
+        )
+        all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        if all_carrier_data:
+            # archive the database first else we will end up in issues
+            return await ctx.send('Pirate Steve has data already for a cruise - go fix his memory by running the '
+                                  'archive '
+                            'command first.')
 
         request_loader_signup_form = await ctx.send('Pirate Steve first wants the loader signup form URL.')
         try:
@@ -1615,7 +1643,7 @@ class DatabaseInteraction(Cog):
                     if new_sheet_id < 0:
                         raise ValueError('Error ID is less than 0')
                 except ValueError:
-                    self.update_allowed = True
+                    self.update_allowed = init_update_value
                     await request_new_worksheet_key.delete()
                     await response.delete()
                     return await ctx.send(f'Pirate Steve thinks you do not know what an integer starting from 1 is.'
@@ -1641,7 +1669,7 @@ class DatabaseInteraction(Cog):
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet key.')
             await request_worksheet_id.delete()
-            self.update_allowed = True
+            self.update_allowed = init_update_value
             return await ctx.send('Pirate Steve saw you timed out on step 3.')
 
         print(f'We received valid data for all points, confirm them with the {ctx.author} it is correct.')
@@ -1692,7 +1720,7 @@ class DatabaseInteraction(Cog):
                     self._update_db()
 
                 except OSError as e:
-                    self.update_allowed = True
+                    self.update_allowed = init_update_value
                     return await ctx.send(f'Pirate steve reports an error while updating things: {e}. Fix it and try '
                                           f'again.')
 
@@ -1703,12 +1731,12 @@ class DatabaseInteraction(Cog):
                 print(f'User {ctx.author} wants to abort the archive process.')
                 await user_response.delete()
                 await confirm_details.delete()
-                self.update_allowed = True
+                self.update_allowed = init_update_value
                 return await ctx.send('You aborted the request to update the forms.')
 
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet ID.')
             await confirm_details.delete()
-            self.update_allowed = True
+            self.update_allowed = init_update_value
             return await ctx.send('Pirate Steve saw you timed out on step 3.')
 
