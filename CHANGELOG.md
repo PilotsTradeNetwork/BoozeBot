@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0
+
+- \#215 - Signup forms should verify the database is empty first
+- \#214 -When nothing in database, return the embed with 0 values
+- \#213 - Update allowed resets in the case of timeouts to True
+- \#210 - Holiday duration remaining changes
+- \#205 - Change Aux and Carrier Owner to the singular role
+- \#200 - Restrict find carriers with wine commands to sommelier team
+- \#201 - Carriers on multiple trips have the wrong unload notification
+
 ## 1.3.0
 
 - \#192 - Archive command needs to stop the polling sheet
