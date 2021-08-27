@@ -1582,6 +1582,9 @@ class DatabaseInteraction(Cog):
         original_sheet_id = self.worksheet_with_data_id
         original_worksheet_key = self.worksheet_key
         original_loader_signup_form = self.loader_signup_form_url
+
+        # track the init value, we reset to this in case of bail out
+        init_update_value = self.update_allowed
         self.update_allowed = False
         new_sheet_id = None
         new_worksheet_key = None
@@ -1629,7 +1632,7 @@ class DatabaseInteraction(Cog):
                     if new_sheet_id < 0:
                         raise ValueError('Error ID is less than 0')
                 except ValueError:
-                    self.update_allowed = True
+                    self.update_allowed = init_update_value
                     await request_new_worksheet_key.delete()
                     await response.delete()
                     return await ctx.send(f'Pirate Steve thinks you do not know what an integer starting from 1 is.'
@@ -1655,7 +1658,7 @@ class DatabaseInteraction(Cog):
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet key.')
             await request_worksheet_id.delete()
-            self.update_allowed = True
+            self.update_allowed = init_update_value
             return await ctx.send('Pirate Steve saw you timed out on step 3.')
 
         print(f'We received valid data for all points, confirm them with the {ctx.author} it is correct.')
@@ -1706,7 +1709,7 @@ class DatabaseInteraction(Cog):
                     self._update_db()
 
                 except OSError as e:
-                    self.update_allowed = True
+                    self.update_allowed = init_update_value
                     return await ctx.send(f'Pirate steve reports an error while updating things: {e}. Fix it and try '
                                           f'again.')
 
@@ -1717,12 +1720,12 @@ class DatabaseInteraction(Cog):
                 print(f'User {ctx.author} wants to abort the archive process.')
                 await user_response.delete()
                 await confirm_details.delete()
-                self.update_allowed = True
+                self.update_allowed = init_update_value
                 return await ctx.send('You aborted the request to update the forms.')
 
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet ID.')
             await confirm_details.delete()
-            self.update_allowed = True
+            self.update_allowed = init_update_value
             return await ctx.send('Pirate Steve saw you timed out on step 3.')
 
