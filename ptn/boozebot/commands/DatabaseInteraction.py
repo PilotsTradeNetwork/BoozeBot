@@ -950,15 +950,15 @@ class DatabaseInteraction(Cog):
         unique_carrier_count = len(all_carrier_data)
         total_carriers_inc_multiple_trips = unique_carrier_count + extra_carrier_count
 
-        total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
+        total_wine = sum(carrier.wine_total for carrier in all_carrier_data) if all_carrier_data else 0
 
-        wine_per_capita = total_wine / RACKHAMS_PEAK_POP
-        wine_per_carrier = total_wine / unique_carrier_count
-        python_loads = total_wine / 280
+        wine_per_capita = (total_wine / RACKHAMS_PEAK_POP) if total_wine else 0
+        wine_per_carrier = (total_wine / unique_carrier_count) if total_wine else 0
+        python_loads = (total_wine / 280) if total_wine else 0
 
         total_profit = total_wine * BOOZE_PROFIT_PER_TONNE_WINE
 
-        fleet_carrier_buy_count = total_profit / 5000000000
+        fleet_carrier_buy_count = (total_profit / 5000000000) if total_profit else 0
 
         print(f'Carrier Count: {unique_carrier_count} - Total Wine: {total_wine:,} - Total Profit: {total_profit:,} - '
               f'Wine/Carrier: {wine_per_carrier:,.2f} - PythonLoads: {python_loads:,.2f} - '
