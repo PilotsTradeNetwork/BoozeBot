@@ -1603,6 +1603,17 @@ class DatabaseInteraction(Cog):
 
         # TODO: See if we can add a validation for the URL
 
+        # Check the dB is empty first.
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers"
+        )
+        all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        if all_carrier_data:
+            # archive the database first else we will end up in issues
+            return await ctx.send('Pirate Steve has data already for a cruise - go fix his memory by running the '
+                                  'archive '
+                            'command first.')
+
         request_loader_signup_form = await ctx.send('Pirate Steve first wants the loader signup form URL.')
         try:
             # in this case we do not know the shape of the URL
