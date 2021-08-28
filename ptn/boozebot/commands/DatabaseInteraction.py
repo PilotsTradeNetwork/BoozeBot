@@ -605,8 +605,16 @@ class DatabaseInteraction(Cog):
                 required=True,
                 choices=[
                     create_choice(
-                        name="PC",
+                        name="PC (All)",
                         value="PC"
+                    ),
+                    create_choice(
+                        name="PC EDH",
+                        value="PC (Horizons Only)"
+                    ),
+                    create_choice(
+                        name="PC EDO",
+                        value="PC (Horizons + Odyssey)"
                     ),
                     create_choice(
                         name="Xbox",
@@ -1611,8 +1619,7 @@ class DatabaseInteraction(Cog):
         if all_carrier_data:
             # archive the database first else we will end up in issues
             return await ctx.send('Pirate Steve has data already for a cruise - go fix his memory by running the '
-                                  'archive '
-                            'command first.')
+                                  'archive command first.')
 
         request_loader_signup_form = await ctx.send('Pirate Steve first wants the loader signup form URL.')
         try:
