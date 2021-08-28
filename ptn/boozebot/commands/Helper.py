@@ -174,7 +174,7 @@ class Helper(commands.Cog):
                 {
                     'name': 'platform',
                     'type': 'str',
-                    'description': 'PC, Xbox or Playstation.'
+                    'description': 'PC (All), PC (Horizons Only), PC (Horizons + Odyssey), Xbox or Playstation.'
                 },
                 {
                     'name': 'with_wine',
