@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- \#204 - Add EDO/EDH platform options
+
 ## 1.4.0
 
 - \#215 - Signup forms should verify the database is empty first
