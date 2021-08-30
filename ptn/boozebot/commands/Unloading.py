@@ -403,4 +403,3 @@ class Unloading(commands.Cog):
             except Exception as e:
                 print(e)
                 await ctx.send(f"Failed adding role to {user}: {e}")
-
