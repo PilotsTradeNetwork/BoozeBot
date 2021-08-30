@@ -363,9 +363,8 @@ class Unloading(commands.Cog):
         options=[
             create_option(
                 name='user',
-                description='An @ mention of the Discord user to receive/remove the role. This can also be ' \
-                            'accomplished using <@ DISCORDID > in developer mode.',
-                option_type=3, # I dunno what this is
+                description='An @ mention of the Discord user to receive/remove the role.',
+                option_type=6, # user
                 required=True
             )
         ],
@@ -380,14 +379,16 @@ class Unloading(commands.Cog):
     )
     async def make_user_wine_carrier(self, ctx: SlashContext, user: discord.Member):
         # set the target role
-        role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id)
+        print(f"Wine Carrier role ID is {server_wine_carrier_role_id()}")
+        role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id())
+        print(f"Wine Carrier role name is {role.name}")
 
         if role in user.roles:
             # toggle off
             print(f"{user} is a Wine Carrier, removing the role.")
             try:
                 await user.remove_roles(role)
-                response = f"{user.name} no longer has the Wine Hauler role."
+                response = f"{user.name} no longer has the Wine Carrier role."
                 return await ctx.send(content=response)
             except Exception as e:
                 print(e)
@@ -398,7 +399,7 @@ class Unloading(commands.Cog):
             try:
                 await user.add_roles(role)
                 print(f"Added Wine Hauler role to {user}")
-                response = f"{user.name} now has the Wine Hauler role."
+                response = f"{user.name} now has the Wine Carrier role."
                 return await ctx.send(content=response)
             except Exception as e:
                 print(e)
