@@ -357,7 +357,7 @@ class Unloading(commands.Cog):
 
         return await ctx.send(content=response)
     @cog_ext.cog_slash(
-        name='make_wine_carrier',
+        name='Make_Wine_Carrier',
         guild_ids=[bot_guild_id()],
         description='Toggle user\'s Wine Carrier role. Admin/Sommelier role required.',
         options=[
@@ -378,7 +378,7 @@ class Unloading(commands.Cog):
             ]
         },
     )
-    async def wine_unloading_complete(self, ctx: SlashContext, user: discord.Member):
+    async def make_user_wine_carrier(self, ctx: SlashContext, user: discord.Member):
         # set the target role
         role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id)
 
