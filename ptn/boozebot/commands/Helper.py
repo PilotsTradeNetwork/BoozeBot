@@ -86,6 +86,10 @@ class Helper(commands.Cog):
                     create_choice(
                         name="wine_unload_complete",
                         value="wine_unload_complete"
+                    ),
+                    create_choice(
+                        name="make_wine_carrier",
+                        value="make_wine_carrier"
                     )
                 ]
             ),
@@ -266,6 +270,16 @@ class Helper(commands.Cog):
             params = None
             method_desc = 'Configure the current booze cruise signup forms. Expected to be a google doc (sheet).'
             roles = ['Admin']
+        elif command == 'make_wine_carrier':
+            params = [
+                {
+                    'name': 'user',
+                    'type': 'user',
+                    'description': 'An @ mention of the user to receive or remove the role.'
+                }
+            ]
+            method_desc = 'Toggles a user\'s wine carrier status.'
+            roles = ['Admin', 'Sommelier', 'Mod']
         else:
             print('User did not provide a valid command.')
             return await ctx.send(f'Unknown handling for command: {command}.')
