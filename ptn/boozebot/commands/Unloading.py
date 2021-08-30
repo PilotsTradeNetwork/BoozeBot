@@ -356,6 +356,7 @@ class Unloading(commands.Cog):
             print(f'No discord alert found for carrier, {carrier_id}. It likely ran an untracked market.')
 
         return await ctx.send(content=response)
+
     @cog_ext.cog_slash(
         name='Make_Wine_Carrier',
         guild_ids=[bot_guild_id()],
@@ -378,6 +379,7 @@ class Unloading(commands.Cog):
         },
     )
     async def make_user_wine_carrier(self, ctx: SlashContext, user: discord.Member):
+        print(f"make_wine_carrier called by {ctx.author} in {ctx.channel} for {user}")
         # set the target role
         print(f"Wine Carrier role ID is {server_wine_carrier_role_id()}")
         role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id())
