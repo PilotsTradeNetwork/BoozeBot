@@ -274,7 +274,7 @@ class Helper(commands.Cog):
             params = [
                 {
                     'name': 'user',
-                    'type': 'str',
+                    'type': 'user',
                     'description': 'An @ mention of the user to receive or remove the role.'
                 }
             ]
