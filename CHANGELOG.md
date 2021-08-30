@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2
+
+- \#227 - Sommelier command to toggle Wine Carrier role from a user
+
 ## 1.4.1
 
 - \#204 - Add EDO/EDH platform options
