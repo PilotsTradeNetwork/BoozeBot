@@ -390,7 +390,7 @@ class Unloading(commands.Cog):
             print(f"{user} is a Wine Carrier, removing the role.")
             try:
                 await user.remove_roles(role)
-                response = f"{user.name} no longer has the Wine Carrier role."
+                response = f"{user.display_name} no longer has the Wine Carrier role."
                 return await ctx.send(content=response)
             except Exception as e:
                 print(e)
@@ -401,7 +401,7 @@ class Unloading(commands.Cog):
             try:
                 await user.add_roles(role)
                 print(f"Added Wine Hauler role to {user}")
-                response = f"{user.name} now has the Wine Carrier role."
+                response = f"{user.display_name} now has the Wine Carrier role."
                 return await ctx.send(content=response)
             except Exception as e:
                 print(e)
