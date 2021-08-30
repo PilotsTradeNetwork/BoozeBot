@@ -356,3 +356,53 @@ class Unloading(commands.Cog):
             print(f'No discord alert found for carrier, {carrier_id}. It likely ran an untracked market.')
 
         return await ctx.send(content=response)
+
+    @cog_ext.cog_slash(
+        name='Make_Wine_Carrier',
+        guild_ids=[bot_guild_id()],
+        description='Toggle user\'s Wine Carrier role. Admin/Sommelier role required.',
+        options=[
+            create_option(
+                name='user',
+                description='An @ mention of the Discord user to receive/remove the role.',
+                option_type=6, # user
+                required=True
+            )
+        ],
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        },
+    )
+    async def make_user_wine_carrier(self, ctx: SlashContext, user: discord.Member):
+        print(f"make_wine_carrier called by {ctx.author} in {ctx.channel} for {user}")
+        # set the target role
+        print(f"Wine Carrier role ID is {server_wine_carrier_role_id()}")
+        role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id())
+        print(f"Wine Carrier role name is {role.name}")
+
+        if role in user.roles:
+            # toggle off
+            print(f"{user} is a Wine Carrier, removing the role.")
+            try:
+                await user.remove_roles(role)
+                response = f"{user.name} no longer has the Wine Carrier role."
+                return await ctx.send(content=response)
+            except Exception as e:
+                print(e)
+                await ctx.send(f"Failed removing role from {user}: {e}")
+        else:
+            # toggle on
+            print(f"{user} is not a Wine Carrier, adding the role.")
+            try:
+                await user.add_roles(role)
+                print(f"Added Wine Hauler role to {user}")
+                response = f"{user.name} now has the Wine Carrier role."
+                return await ctx.send(content=response)
+            except Exception as e:
+                print(e)
+                await ctx.send(f"Failed adding role to {user}: {e}")
