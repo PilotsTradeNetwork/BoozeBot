@@ -1423,7 +1423,7 @@ class DatabaseInteraction(Cog):
                     finally:
                         pirate_steve_lock.release()
 
-                    return await ctx.send(f'Fleet carrier: {carrier_id} was removed')
+                    return await ctx.send(f'Fleet carrier: {carrier_id} for user: {carrier_data.discord_username} was removed')
                 except Exception as e:
                     return ctx.send(f'Something went wrong, go tell the bot team "computer said: {e}"')
 
