@@ -6,6 +6,8 @@ from discord_slash import SlashContext, cog_ext
 from discord_slash.utils.manage_commands import create_option, create_choice
 from discord_slash.utils.manage_commands import create_permission
 from discord_slash.model import SlashCommandPermissionType
+from discord_slash.context import MenuContext
+from discord_slash.model import ContextMenuType
 
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
@@ -357,28 +359,20 @@ class Unloading(commands.Cog):
 
         return await ctx.send(content=response)
 
-    @cog_ext.cog_slash(
+    @cog_ext.cog_context_menu(
+        target=ContextMenuType.USER,
         name='Make_Wine_Carrier',
         guild_ids=[bot_guild_id()],
-        description='Toggle user\'s Wine Carrier role. Admin/Sommelier role required.',
-        options=[
-            create_option(
-                name='user',
-                description='An @ mention of the Discord user to receive/remove the role.',
-                option_type=6, # user
-                required=True
-            )
-        ],
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
     )
-    async def make_user_wine_carrier(self, ctx: SlashContext, user: discord.Member):
+    async def make_user_wine_carrier(self, ctx: MenuContext):
+        # discord_slash has no way to set permissions for context menu commands so we'll check to see if user is a sommelier ourselves
+        # if not we send them a discreet nope and back out
+        somm_role = discord.utils.get(ctx.guild.roles, id=server_sommelier_role_id())
+        if not somm_role in ctx.author.roles:
+            return await ctx.send("Sorry, you must be a Sommelier to use this interaction.", hidden=True)
+
+        user = ctx.target_author
+
         print(f"make_wine_carrier called by {ctx.author} in {ctx.channel} for {user}")
         # set the target role
         print(f"Wine Carrier role ID is {server_wine_carrier_role_id()}")
@@ -406,3 +400,4 @@ class Unloading(commands.Cog):
             except Exception as e:
                 print(e)
                 await ctx.send(f"Failed adding role to {user}: {e}")
+
