@@ -37,6 +37,14 @@ class PublicHoliday(commands.Cog):
         'https://tenor.com/view/timon-lion-king-nope-no-shake-gif-3834543',
         'https://tenor.com/view/not-yet-notyet-mace-windu-gif-9797353',
         'https://tenor.com/view/notyet-no-nuhuh-nope-dikembe-mutombo-gif-4945989',
+        'https://tenor.com/view/no-not-yet-butters-stotch-south-park-s8e11-quest-for-ratings-gif-22281857',
+        'https://tenor.com/view/waiting-house-md-dr-house-hugh-laurie-gif-5289550',
+        'https://tenor.com/view/doctor-house-yes-no-agreed-gif-11933192',
+        'https://tenor.com/view/doctor-strange-nope-no-benedict-cumberbatch-close-book-gif-13612586',
+        'https://tenor.com/view/doctor-who-david-tennant-10th-doctor-hold-on-wait-a-minute-gif-17141817',
+        'https://tenor.com/view/david-tennant-doctor-who-no-i-dont-know-gif-7261849',
+        'https://tenor.com/view/no-nooo-nope-eat-fingerwag-gif-4880183',
+        'https://tenor.com/view/baby-yoda-um-nope-gif-18367579',
     ]
     holiday_query_started_gifs = [
         'https://tenor.com/view/the-lion-king-it-is-time-throwing-monkey-elephants-gif-17842868',
@@ -49,6 +57,13 @@ class PublicHoliday(commands.Cog):
         'https://tenor.com/view/yes-sweet-hellyes-pumpit-gif-3532253',
         'https://tenor.com/view/austin-powers-yeah-baby-excited-gif-5316726',
         'https://tenor.com/view/lord-of-the-rings-lotr-so-it-begins-begins-beginning-gif-5322326',
+        'https://tenor.com/view/yes-dog-indeed-nod-gif-10818519',
+        'https://tenor.com/view/ron-pearlman-the-goon-yes-yep-anchorman-gif-12449331',
+        'https://tenor.com/view/monkey-ape-dance-dancing-orangutan-gif-15714845',
+        'https://tenor.com/view/clapping-applause-clap-yes-yeah-gif-16616022',
+        'https://tenor.com/view/hell-yeah-snoop-dogg-dance-moves-gif-17527488',
+        'https://tenor.com/view/baby-dancing-oh-yeah-hell-yeah-dance-gif-17100703',
+        'https://tenor.com/view/thor-ragnarok-yes-thor-thor3-happy-excited-gif-15710556',
     ]
 
     rackhams_holiday_active = False
