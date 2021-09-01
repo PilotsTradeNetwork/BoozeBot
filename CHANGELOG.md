@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.3
+
+- \#236 - New gifs
+- \#232 - Change response user.name to user.display_name for make_wine_carrier
+- \#226 - Fleet carrier delete should log back the user
+
+Moar gifs!
+
 ## 1.4.2
 
 - \#227 - Sommelier command to toggle Wine Carrier role from a user
