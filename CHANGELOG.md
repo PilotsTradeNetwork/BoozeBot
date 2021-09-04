@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.4
+
+- \#241 - More gifs
+
 ## 1.4.3
 
 - \#236 - New gifs
