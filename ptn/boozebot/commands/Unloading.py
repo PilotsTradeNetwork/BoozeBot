@@ -180,8 +180,8 @@ class Unloading(commands.Cog):
         :returns: A message to the user
         :rtype: Union[discord.Message, dict]
         """
-        print(f'User {ctx.author} has flagged a new overall unload operation for carrier: {carrier_id} using unload '
-              f'channel: {unload_channel} using timed markets: {market_type}.')
+        print(f'User {ctx.author} has requested a new wine unload operation for carrier: {carrier_id} around the '
+              f'body: {planetary_body} using unload channel: {unload_channel} using market type: {market_type}.')
 
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
@@ -197,13 +197,17 @@ class Unloading(commands.Cog):
             return await ctx.channel.send(f'Sorry, to run a timed market we need an unload channel, you '
                                           f'provided: {unload_channel}.')
 
+        pirate_steve_lock.acquire()
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
         )
 
         # We will only get a single entry back here as the carrierid is a unique field.
         carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
+        pirate_steve_lock.release()
+
         if not carrier_data:
+            print(f'We failed to find the carrier: {carrier_id} in the database.')
             return await ctx.send(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
 
         wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
