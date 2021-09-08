@@ -252,7 +252,6 @@ class DatabaseInteraction(Cog):
                     updated_count += 1
                     try:
                         pirate_steve_lock.acquire()
-                        pirate_steve_conn.set_trace_callback(print)
                         data = (
                             expected_carrier_data.carrier_name,
                             expected_carrier_data.carrier_identifier,
