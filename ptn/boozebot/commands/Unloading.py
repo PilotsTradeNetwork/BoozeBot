@@ -10,7 +10,7 @@ from discord_slash.model import SlashCommandPermissionType
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
     server_admin_role_id, server_sommelier_role_id, server_wine_carrier_role_id, \
-    server_mod_role_id, get_primary_booze_discussions_channel
+    server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
 
@@ -239,7 +239,9 @@ class Unloading(commands.Cog):
                         f'*{planetary_body}**.'
                         f'\n Market Conditions: **{market_conditions}**.{unload_tracking}'
         )
-        wine_load_embed.set_footer(text='Please react with 💯 once completed.')
+        fc_complete = bot.get_emoji(get_fc_complete_id())
+        wine_load_embed.set_footer(text=f'Please react with this emoji once completed.',
+                                   icon_url=f'https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1')
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
         await message_send.delete()
         # Get the discord alert ID and drop it into the database
