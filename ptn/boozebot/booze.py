@@ -6,6 +6,8 @@ from ptn.boozebot.commands.Unloading import Unloading
 from ptn.boozebot.constants import bot, TOKEN, _production
 from ptn.boozebot.database.database import build_database_on_startup
 
+from ptn.boozebot.commands.MimicSteve import MimicSteve
+
 print(f'Booze bot is connecting against production: {_production}.')
 
 
@@ -21,6 +23,7 @@ def run():
     bot.add_cog(DatabaseInteraction())
     bot.add_cog(Helper())
     bot.add_cog(PublicHoliday())
+    bot.add_cog(MimicSteve())
     bot.run(TOKEN)
 
 
