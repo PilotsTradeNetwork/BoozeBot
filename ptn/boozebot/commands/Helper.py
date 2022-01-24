@@ -92,8 +92,8 @@ class Helper(commands.Cog):
                         value="make_wine_carrier"
                     ),
                     create_choice(
-                        name="steve_said",
-                        value="steve_said"
+                        name="steve_says",
+                        value="steve_says"
                     )
                 ]
             ),
@@ -284,7 +284,7 @@ class Helper(commands.Cog):
             ]
             method_desc = 'Toggles a user\'s wine carrier status.'
             roles = ['Admin', 'Sommelier', 'Mod']
-        elif command == 'steve_said':
+        elif command == 'steve_says':
             params = [
                 {
                     'name': 'message',
