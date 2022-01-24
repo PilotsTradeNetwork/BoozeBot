@@ -90,6 +90,10 @@ class Helper(commands.Cog):
                     create_choice(
                         name="make_wine_carrier",
                         value="make_wine_carrier"
+                    ),
+                    create_choice(
+                        name="steve_said",
+                        value="steve_said"
                     )
                 ]
             ),
@@ -274,11 +278,26 @@ class Helper(commands.Cog):
             params = [
                 {
                     'name': 'user',
-                    'type': 'user',
+                    'type': 'str',
                     'description': 'An @ mention of the user to receive or remove the role.'
                 }
             ]
             method_desc = 'Toggles a user\'s wine carrier status.'
+            roles = ['Admin', 'Sommelier', 'Mod']
+        elif command == 'steve_said':
+            params = [
+                {
+                    'name': 'message',
+                    'type': 'str',
+                    'description': 'A message to send as Pirate Steve.'
+                },
+                {
+                    'name': 'send_channel',
+                    'type': 'str',
+                    'description': 'The channel to send the message in.'
+                }
+            ]
+            method_desc = 'Sends a message as Pirate Steve'
             roles = ['Admin', 'Sommelier', 'Mod']
         else:
             print('User did not provide a valid command.')
