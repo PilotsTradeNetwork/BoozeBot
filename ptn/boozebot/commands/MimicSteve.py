@@ -1,3 +1,5 @@
+import re
+
 import discord
 from discord.ext import commands
 from discord_slash import cog_ext, SlashContext
@@ -15,7 +17,7 @@ class MimicSteve(commands.Cog):
     """
 
     @cog_ext.cog_slash(
-        name='Steve_Said',
+        name='Steve_Says',
         guild_ids=[bot_guild_id()],
         description='Send a message as PirateSteve.',
         options=[
@@ -62,7 +64,29 @@ class MimicSteve(commands.Cog):
             return await ctx.send(f'Sorry, you can only run this command out of: {restricted_channel}.', hidden=True)
 
         channel = bot.get_channel(int(send_channel.replace('#', '').replace('<', '').replace('>', '')))
-        print(f'Channel resolved into: {channel}')
+        print(f'Channel resolved into: {channel}. Checking for any potential use names to be resolved.')
+
+        possible_id = None
+        # Try to resolve any @<int> to a user
+        for word in message.split():
+            if word.startswith('@'):
+                try:
+                    print(f'Potential user id found: {word}.')
+                    # this might be a user ID, int convert it
+                    possible_id = int(re.search(r'\d+', word).group())
+
+                    # Ok this was in fact an int, try to see if it resolves to a discord user
+                    member = await bot.fetch_user(possible_id)
+                    print(f'Member determined as: {member}')
+
+                    message = message.replace(word, f'<@{member.id}>')
+                    print(f'New message is: {message}')
+                except discord.errors.NotFound as ex:
+                    print(f'Potential user string "{possible_id if possible_id else word}" is invalid: {ex}. Continuing '
+                          f'on as-is')
+                except ValueError as ex:
+                    # Ok continue on anyway and send it as-is
+                    print(f'Error converting the word: {word}. {ex}')
 
         response = f'{message}'
         msg = await channel.send(content=response)
