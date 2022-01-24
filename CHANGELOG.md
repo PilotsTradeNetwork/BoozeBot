@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1
+
+- \#266 - Updated to support parsing for a user ID in the steve_said message.
+  - Steve_Said is now Steve_Says.
+
 ## 1.5.0
 
 - \#246 - Updated the 100% reaction
