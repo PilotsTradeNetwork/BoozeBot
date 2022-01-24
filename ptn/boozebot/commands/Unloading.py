@@ -10,7 +10,7 @@ from discord_slash.model import SlashCommandPermissionType
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
     server_admin_role_id, server_sommelier_role_id, server_wine_carrier_role_id, \
-    server_mod_role_id, get_primary_booze_discussions_channel
+    server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
 
@@ -180,8 +180,8 @@ class Unloading(commands.Cog):
         :returns: A message to the user
         :rtype: Union[discord.Message, dict]
         """
-        print(f'User {ctx.author} has flagged a new overall unload operation for carrier: {carrier_id} using unload '
-              f'channel: {unload_channel} using timed markets: {market_type}.')
+        print(f'User {ctx.author} has requested a new wine unload operation for carrier: {carrier_id} around the '
+              f'body: {planetary_body} using unload channel: {unload_channel} using market type: {market_type}.')
 
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
@@ -197,13 +197,17 @@ class Unloading(commands.Cog):
             return await ctx.channel.send(f'Sorry, to run a timed market we need an unload channel, you '
                                           f'provided: {unload_channel}.')
 
+        pirate_steve_lock.acquire()
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
         )
 
         # We will only get a single entry back here as the carrierid is a unique field.
         carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
+        pirate_steve_lock.release()
+
         if not carrier_data:
+            print(f'We failed to find the carrier: {carrier_id} in the database.')
             return await ctx.send(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
 
         wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
@@ -239,7 +243,9 @@ class Unloading(commands.Cog):
                         f'*{planetary_body}**.'
                         f'\n Market Conditions: **{market_conditions}**.{unload_tracking}'
         )
-        wine_load_embed.set_footer(text='Please react with 💯 once completed.')
+        fc_complete = bot.get_emoji(get_fc_complete_id())
+        wine_load_embed.set_footer(text=f'Please react with this emoji once completed.',
+                                   icon_url=f'https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1')
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
         await message_send.delete()
         # Get the discord alert ID and drop it into the database

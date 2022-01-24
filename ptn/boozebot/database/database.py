@@ -9,6 +9,7 @@ print(f'Starting DB at: {get_db_path()}')
 pirate_steve_conn = sqlite3.connect(get_db_path())
 pirate_steve_conn.row_factory = sqlite3.Row
 pirate_steve_db = pirate_steve_conn.cursor()
+pirate_steve_conn.set_trace_callback(print)
 
 db_sql_store = get_db_dumps_path()
 pirate_steve_lock = threading.Lock()

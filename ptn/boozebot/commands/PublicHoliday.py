@@ -69,6 +69,8 @@ class PublicHoliday(commands.Cog):
         'https://tenor.com/view/daddys-home2-daddys-home2gifs-jon-lithgow-reunion-waiting-gif-9683398',
         'https://tenor.com/view/im-waiting-daffy-duck-impatient-gif-16985061',
         'https://tenor.com/view/library-books-what-time-is-it-you-are-late-waiting-gif-14235077',
+        'https://tenor.com/view/dogs-no-wine-pets-boss-dog-youre-cut-off-gif-11385245',
+        'https://tenor.com/view/nope-no-starwars-obiwan-gif-16946630'
     ]
     holiday_query_started_gifs = [
         'https://tenor.com/view/the-lion-king-it-is-time-throwing-monkey-elephants-gif-17842868',
