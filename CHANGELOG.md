@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.0
+
+- \#246 - Updated the 100% reaction
+- \#248 - More logging on failure to find carrier during unload
+- \#252 - Added new gifs
+- \#254 - More gifs
+- \#256 - Added steve said command
+- \#260 - Help text for steve said
+
 ## 1.4.4
 
 - \#241 - More gifs
