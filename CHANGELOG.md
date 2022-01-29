@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.2
+
+- \#269 - Use a new channel for Steve says triggers
+- \#255 - Acknowledge simple Hi messages 
+
 ## 1.5.1
 
 - \#266 - Updated to support parsing for a user ID in the steve_said message.
