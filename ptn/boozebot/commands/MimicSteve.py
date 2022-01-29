@@ -7,7 +7,7 @@ from discord_slash.model import SlashCommandPermissionType
 from discord_slash.utils.manage_commands import create_option, create_permission
 
 from ptn.boozebot.constants import bot_guild_id, server_admin_role_id, server_sommelier_role_id, server_mod_role_id, \
-    bot, get_sommelier_notification_channel
+    bot, get_sommelier_notification_channel, get_steve_says_channel
 
 
 class MimicSteve(commands.Cog):
@@ -55,8 +55,8 @@ class MimicSteve(commands.Cog):
         """
         print(f'User {ctx.author} has requested to send the message {message} as PirateSteve in: {send_channel}.')
 
-        # Check we are in the designated mission channel, if not go no farther.
-        restricted_channel = bot.get_channel(get_sommelier_notification_channel())
+        # Check we are in the designated steve_says channel, if not go no farther.
+        restricted_channel = bot.get_channel(get_steve_says_channel())
 
         if ctx.channel != restricted_channel:
             # problem, wrong channel, no progress
