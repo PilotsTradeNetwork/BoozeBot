@@ -1,4 +1,5 @@
 import os
+import random
 import sys
 
 from discord.ext import commands
@@ -6,7 +7,7 @@ from discord_slash.utils.manage_commands import remove_all_commands
 
 from ptn.boozebot.commands.DatabaseInteraction import DatabaseInteraction
 from ptn.boozebot.commands.PublicHoliday import PublicHoliday
-from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel
+from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel, get_primary_booze_discussions_channel
 from ptn.boozebot._metadata import __version__
 
 
@@ -33,6 +34,25 @@ class DiscordBotCommands(commands.Cog):
         PublicHoliday.public_holiday_loop.start()
         print('Starting the pinned message checker')
         DatabaseInteraction().periodic_stat_update.start()
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if message.channel.id == get_primary_booze_discussions_channel():
+            if self.bot.user.mentioned_in(message) and message.author != self.bot.user:
+
+                print(f'{message.author} mentioned PirateSteve.')
+
+                # list of responses
+                responses = [
+                    f'Yarrr, <@{message.author.id}>, you summoned me?',
+                    'https://tenor.com/view/hello-there-baby-yoda-mandolorian-hello-gif-20136589',
+                    'https://tenor.com/view/hello-sexy-hi-hello-mr-bean-gif-13830351',
+                    'https://tenor.com/view/hello-whale-there-hi-gif-5551502',
+                    'https://tenor.com/view/funny-animals-gif-13669907'
+                ]
+                await message.channel.send(
+                    random.choice(responses), reference=message
+                )
 
     @commands.Cog.listener()
     async def on_disconnect(self):
