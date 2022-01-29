@@ -30,7 +30,7 @@ setup(
     author='Graeme Cruickshank',
     url='',
     install_requires=[
-        'discord',
+        'discord.py',
         'discord-py-slash-command',
         'google-api-python-client',
         'gspread',
