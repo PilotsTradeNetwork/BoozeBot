@@ -166,7 +166,7 @@ class Helper(commands.Cog):
         elif command == 'find_carriers_with_wine':
             params = None
             method_desc = 'Returns all the remaining carriers with wine to unload.'
-            roles = ['Admin', 'Mod', 'Sommelier']
+            roles = ['Admin', 'Mod', 'Sommelier', 'WineCarrier']
         elif command == 'find_carriers_by_id':
             params = [
                 {
@@ -191,7 +191,7 @@ class Helper(commands.Cog):
                 },
             ]
             method_desc = 'Find carriers for the platform.'
-            roles = ['Admin', 'Mod', 'Sommelier']
+            roles = ['Admin', 'Mod', 'Sommelier', 'WineCarrier']
         elif command == 'update_booze_db':
             params = None
             method_desc = 'Forces an update of the booze database.'
@@ -213,11 +213,11 @@ class Helper(commands.Cog):
         elif command == 'wine_helper_market_closed':
             params = None
             method_desc = 'Drops a helper embed into the channel for timed market closure.'
-            roles = ['Admin', 'Mod', 'Sommelier', 'Carrier Owner', 'Auxiliary Carrier Owner']
+            roles = ['Admin', 'Mod', 'Sommelier', 'Wine Carrier']
         elif command == 'wine_helper_market_open':
             params = None
             method_desc = 'Drops a helper embed into the channel for timed market unloading'
-            roles = ['Admin', 'Mod', 'Sommelier', 'Carrier Owner', 'Auxiliary Carrier Owner']
+            roles = ['Admin', 'Mod', 'Sommelier', 'Wine Carrier']
         elif command == 'wine_mark_completed_forcefully':
             params = [
                 {
@@ -254,7 +254,7 @@ class Helper(commands.Cog):
                 }
             ]
             method_desc = 'Creates a wine unload notification post'
-            roles = ['Admin', 'Mod', 'Sommelier']
+            roles = ['Admin', 'Mod', 'Sommelier', 'Wine Carrier']
         elif command == 'wine_unload_complete':
             params = [
                 {
@@ -264,7 +264,7 @@ class Helper(commands.Cog):
                 }
             ]
             method_desc = 'Closes a wine unload and removes the notifications.'
-            roles = ['Admin', 'Mod', 'Sommelier']
+            roles = ['Admin', 'Mod', 'Sommelier', 'Wine Carrier']
         elif command == 'booze_archive_database':
             params = None
             method_desc = 'Archives the current booze cruise database and drops the data. This is an irreversible ' \
