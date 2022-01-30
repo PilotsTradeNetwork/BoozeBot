@@ -97,7 +97,7 @@ class DatabaseInteraction(Cog):
 
         try:
             result = self._update_db()
-            await self.report_invalid_carriers(result)
+            await self.report_new_and_invalid_carriers(result)
             embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
             embed.add_field(name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
                                  f'Number of new carriers added: {result["added_count"]:>8}.\n'
@@ -111,7 +111,7 @@ class DatabaseInteraction(Cog):
         except ValueError as ex:
             return await ctx.send(str(ex))
 
-    async def report_invalid_carriers(self, result=None):
+    async def report_new_and_invalid_carriers(self, result=None):
         """
         Reports any invalid carriers to the applicable channels.
 
@@ -156,6 +156,15 @@ class DatabaseInteraction(Cog):
         except KeyError as e:
             print(f'Key did not exist in the input: {result} -> {e}')
 
+        if result['new_signups']:
+            for signup in result["new_signups"]:
+                print('New signed up carriers found.')
+                # loop over the new signups and print them out
+                sommelier_notification_channel = bot.get_channel(get_sommelier_notification_channel())
+                await sommelier_notification_channel.send(embed=signup)
+        else:
+            print('No new signed up carriers detected')
+
     def _update_db(self):
         """
         Private method to wrap the DB update commands.
@@ -177,6 +186,7 @@ class DatabaseInteraction(Cog):
         unchanged_count = 0
         # A JSON form tracking all the records
         records_data = self.tracking_sheet.get_all_records()
+        new_signups = []    # type: list[discord.Embed]
 
         total_carriers = len(records_data)
         print(f'Updating the database we have: {total_carriers} records found.')
@@ -300,6 +310,16 @@ class DatabaseInteraction(Cog):
                 updated_db = True
                 print('Added carrier to the database')
 
+                # Post the notification to the Admin channel
+
+                embed = discord.Embed(title=f'New WineCarrier signed up!')
+                embed.add_field(
+                    name=f"Owner: {carrier.discord_username}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                    value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                    inline=False
+                )
+                new_signups.append(embed)
+
         print(all_carrier_ids_sheet)
 
         # Now that the records are updated, make sure no carrier was removed - check for anything not matching the
@@ -327,7 +347,8 @@ class DatabaseInteraction(Cog):
             'updated_count': updated_count,
             'unchanged_count': unchanged_count,
             'total_carriers': total_carriers,
-            'invalid_database_entries': invalid_datbase_entries
+            'invalid_database_entries': invalid_datbase_entries,
+            'new_signups': new_signups
         }
 
     @cog_ext.cog_slash(
@@ -351,7 +372,7 @@ class DatabaseInteraction(Cog):
         :returns: An interactive message embed.
         :rtype: Union[discord.Message, dict]
         """
-        await self.report_invalid_carriers(self._update_db())
+        await self.report_new_and_invalid_carriers(self._update_db())
         print(f'{ctx.author} requested to find the carrier with wine')
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
@@ -504,7 +525,7 @@ class DatabaseInteraction(Cog):
         :param str carrier_id: The XXX-XXX carrier ID you want to action.
         :returns: None
         """
-        await self.report_invalid_carriers(self._update_db())
+        await self.report_new_and_invalid_carriers(self._update_db())
         print(f'{ctx.author} wants to forcefully mark the carrier {carrier_id} as unloaded.')
 
         # Cast this to upper case just in case
@@ -651,7 +672,7 @@ class DatabaseInteraction(Cog):
         :param bool remaining_wine: True if you only want carriers with wine
         :returns: None
         """
-        await self.report_invalid_carriers(self._update_db())
+        await self.report_new_and_invalid_carriers(self._update_db())
         print(f'{ctx.author} requested to fine carriers for: {platform} with wine: {remaining_wine}')
 
         if remaining_wine:
@@ -809,7 +830,7 @@ class DatabaseInteraction(Cog):
         ],
     )
     async def find_carrier_by_id(self, ctx: SlashContext, carrier_id: str):
-        await self.report_invalid_carriers(self._update_db())
+        await self.report_new_and_invalid_carriers(self._update_db())
         print(f'{ctx.author} wants to find a carrier by ID: {carrier_id}.')
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
@@ -876,7 +897,7 @@ class DatabaseInteraction(Cog):
             cruise etc...
         :return: None
         """
-        await self.report_invalid_carriers(self._update_db())
+        await self.report_new_and_invalid_carriers(self._update_db())
         cruise = 'this' if cruise_select == 0 else f'-{cruise_select}'
         print(f'User {ctx.author} requested the current tally of the cruise stats for {cruise} cruise.')
         target_date = None
@@ -1246,7 +1267,7 @@ class DatabaseInteraction(Cog):
         :param SlashContext ctx: The discord slash Context
         :return: None
         """
-        await self.report_invalid_carriers(self._update_db())
+        await self.report_new_and_invalid_carriers(self._update_db())
         print(f'User {ctx.author} requested the current extended stats of the cruise.')
 
         # Go get everything out of the database
