@@ -2,6 +2,8 @@ import os
 import random
 import sys
 
+import discord
+from discord import Activity, ActivityType
 from discord.ext import commands
 from discord_slash.utils.manage_commands import remove_all_commands
 
@@ -34,6 +36,9 @@ class DiscordBotCommands(commands.Cog):
         PublicHoliday.public_holiday_loop.start()
         print('Starting the pinned message checker')
         DatabaseInteraction().periodic_stat_update.start()
+        await self.bot.change_presence(
+            activity=discord.Game(name='with the Sidewinders at Rackhams Peak.')
+        )
 
     @commands.Cog.listener()
     async def on_message(self, message):
