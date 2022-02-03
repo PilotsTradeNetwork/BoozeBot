@@ -37,7 +37,7 @@ class DiscordBotCommands(commands.Cog):
         print('Starting the pinned message checker')
         DatabaseInteraction().periodic_stat_update.start()
         await self.bot.change_presence(
-            activity=discord.Game(name='with the Sidewinders at Rackhams Peak.')
+            activity=discord.Activity(type=3, name='the Sidewinders landing at Rackhams Peak.')
         )
 
     @commands.Cog.listener()
