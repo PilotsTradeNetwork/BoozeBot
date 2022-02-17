@@ -82,12 +82,13 @@ class Unloading(commands.Cog):
     @cog_ext.cog_slash(
         name='Wine_Unload',
         guild_ids=[bot_guild_id()],
-        description='Posts a new wine unloading notification for a specific carrier. Admin/Sommelier role required.',
+        description='Posts a new unload notice for a carrier. Admin/Sommelier/WineCarrier role required.',
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
@@ -309,6 +310,7 @@ class Unloading(commands.Cog):
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
