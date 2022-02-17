@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.0
+
+- \#281 - Added bot presence
+- \#234 - If a new entry is detected, post to let the Sommeliers know
+- \#277 - Allow WineCarrier to use find and unload commands
+
 ## 1.5.2
 
 - \#269 - Use a new channel for Steve says triggers
