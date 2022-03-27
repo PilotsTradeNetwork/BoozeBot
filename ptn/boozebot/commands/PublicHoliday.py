@@ -151,25 +151,44 @@ class PublicHoliday(commands.Cog):
             else:
                 print('Holiday already flagged - no need to set it again')
         else:
-            print('No PH detected, next check in 15 mins.')
-            holiday_announce_channel = bot.get_channel(rackhams_holiday_channel())
 
-            # Check if we had a holiday flagged already
+            # Check if the 48 hours have expired first, to avoid scenarios of the HTTP request failing and turning
+            # off an ongoing holiday.
+
             pirate_steve_db.execute(
-                '''SELECT state FROM holidaystate'''
+                '''SELECT timestamp FROM holidaystate'''
             )
-            holiday_sqlite3 = pirate_steve_db.fetchone()
-            holiday_ongoing = bool(dict(holiday_sqlite3).get('state'))
+            timestamp = pirate_steve_db.fetchone()
 
-            print(f'Holiday state from database: {holiday_ongoing}')
-            if holiday_ongoing:
+            start_time = datetime.strptime(dict(timestamp).get('timestamp'), '%Y-%m-%d %H:%M:%S')
+            end_time = start_time + timedelta(hours=48)
+
+            current_time_utc = datetime.strptime(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S')
+            print('No PH detected, next check in 15 mins.')
+
+            if current_time_utc > end_time:
+                # Current time is after the end time, go turn the checks off.
+                print('Holiday duration expired, turning the check off.')
+                holiday_announce_channel = bot.get_channel(rackhams_holiday_channel())
+
+                # Check if we had a holiday flagged already
                 pirate_steve_db.execute(
-                    '''UPDATE holidaystate SET state=False, timestamp=CURRENT_TIMESTAMP'''
+                    '''SELECT state FROM holidaystate'''
                 )
-                pirate_steve_conn.commit()
-                # Only post it if it is a state change.
-                print('Holiday was ongoing, no longer ongoing - flag it accordingly')
-                await holiday_announce_channel.send(PublicHoliday.holiday_ended_gif)
+                holiday_sqlite3 = pirate_steve_db.fetchone()
+                holiday_ongoing = bool(dict(holiday_sqlite3).get('state'))
+
+                print(f'Holiday state from database: {holiday_ongoing}')
+                if holiday_ongoing:
+                    pirate_steve_db.execute(
+                        '''UPDATE holidaystate SET state=False, timestamp=CURRENT_TIMESTAMP'''
+                    )
+                    pirate_steve_conn.commit()
+                    # Only post it if it is a state change.
+                    print('Holiday was ongoing, no longer ongoing - flag it accordingly')
+                    await holiday_announce_channel.send(PublicHoliday.holiday_ended_gif)
+            else:
+                print(f'Holiday has not yet expired, due at: {end_time}. Ignoring the check result for now.')
 
     @cog_ext.cog_slash(
         name="booze_started",
