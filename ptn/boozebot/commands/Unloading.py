@@ -182,7 +182,11 @@ class Unloading(commands.Cog):
         :rtype: Union[discord.Message, dict]
         """
         print(f'User {ctx.author} has requested a new wine unload operation for carrier: {carrier_id} around the '
-              f'body: {planetary_body} using unload channel: {unload_channel} using market type: {market_type}.')
+              f'body: {planetary_body} using unload channel: "{unload_channel}" using market type: {market_type}.')
+
+        if unload_channel:
+            # Some users have messed this up, strip any whitespace to avoid double printing.
+            unload_channel = unload_channel.strip()
 
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()

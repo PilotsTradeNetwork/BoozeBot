@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.2
+
+- \#297 - Gate the unload channel harder
+- \#293 - Allow sommeliers to archive cruises
+- \#291 - When holiday detection fails it returns false
+
 ## 1.6.1
 
 - \#286 Move unloads from #announcements to #wine-cellar-unloading
