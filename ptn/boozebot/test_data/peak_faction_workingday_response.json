@@ -1,0 +1,43 @@
+{
+  "docs": [
+    {
+      "_id": "5fdb711085099d57f77e445b",
+      "name_lower": "rackham capital investments",
+      "__v": 0,
+      "allegiance": "independent",
+      "government": "corporate",
+      "name": "Rackham Capital Investments",
+      "eddb_id": 77335,
+      "faction_presence": [
+        {
+          "system_name": "HIP 58832",
+          "system_name_lower": "hip 58832",
+          "system_id": "5fdb711085099d57f77e4458",
+          "state": "none",
+          "influence": 1,
+          "happiness": "$faction_happinessband2;",
+          "active_states": [],
+          "pending_states": [],
+          "recovering_states": [
+            {
+              "state": "publicholiday",
+              "trend": 0
+            }
+          ],
+          "conflicts": [],
+          "updated_at": "2022-06-03T19:08:56.000Z"
+        }
+      ],
+      "updated_at": "2022-06-03T19:08:56.000Z"
+    }
+  ],
+  "total": 1,
+  "limit": 10,
+  "page": 1,
+  "pages": 1,
+  "pagingCounter": 1,
+  "hasPrevPage": false,
+  "hasNextPage": false,
+  "prevPage": null,
+  "nextPage": null
+}
