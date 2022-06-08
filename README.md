@@ -33,4 +33,10 @@ All commands are in hierarchical format, so the higher roles can run everything 
   representing it.
 - `find_wine_carriers_for_platform <platform> <with-wine: bool>` - Returns all the carriers for the platform with 
   wine, or all carriers for the platform in total.
-  
+
+# Tech Notes
+
+Run all tests with
+```bash
+python -m unittest discover
+```

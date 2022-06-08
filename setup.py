@@ -1,5 +1,6 @@
 import io
 import os
+import unittest
 from pathlib import Path
 from importlib import util
 
@@ -21,6 +22,10 @@ spec.loader.exec_module(metadata)
 # load up the description field
 with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
+
+def booze_bot_test_suite():
+    test_loader = unittest.TestLoader()
+    return test_loader.discover('tests', pattern='test_*.py')
 
 setup(
     name=f'{NAMESPACE}.{COMPONENT}',
@@ -44,7 +49,7 @@ setup(
         ],
     },
     license='MIT',
-    keyworkd='PTN',
+    keyword='PTN',
     project_urls={
         "Source": "https://github.com/PilotsTradeNetwork/BoozeBot",
     },

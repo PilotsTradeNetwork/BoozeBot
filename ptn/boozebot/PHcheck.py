@@ -5,7 +5,7 @@
 import requests
 
 
-def ph_check():
+def ph_check() -> bool:
     params = {
         'name': 'Rackham Capital Investments'
     }
@@ -30,9 +30,7 @@ def ph_check():
                     if active_states['state'] == 'publicholiday':
                         print('PH state matched')
                         return True
-                    # If the system is not in public holiday, continue through the loop
-                    else:
-                        continue
+
     # Return false if there are no public holiday hits
     print('PH was not hit - Returning False.')
     return False
