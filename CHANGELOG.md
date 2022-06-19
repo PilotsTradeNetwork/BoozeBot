@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.4
+
+- \#316 - Fix database update to use carrier ID as unique constraint
+
 ## 1.6.3
 
 - \#311 - Log the carrier causing database update to fail
