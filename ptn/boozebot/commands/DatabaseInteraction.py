@@ -280,7 +280,7 @@ class DatabaseInteraction(Cog):
                             ''' UPDATE boozecarriers 
                             SET carriername=?, carrierid=?, winetotal=?, platform=?, officialcarrier=?, 
                             discordusername=?, timestamp=?, runtotal=?
-                            WHERE carrierid = (?) ''', data
+                            WHERE carrierid LIKE (?) ''', data
                         )
 
                         pirate_steve_conn.commit()
