@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.3
+
+- \#311 - Log the carrier causing database update to fail
+- \#302 - Sommeliers can’t configure new cruise forms
+
 ## 1.6.2
 
 - \#297 - Gate the unload channel harder
