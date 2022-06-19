@@ -272,14 +272,15 @@ class DatabaseInteraction(Cog):
                             expected_carrier_data.discord_username,
                             expected_carrier_data.timestamp,
                             expected_carrier_data.run_count,
-                            f'%{db_carrier_data.carrier_name}%'
+                            f'%{db_carrier_data.carrier_identifier}%'
                         )
 
+                        # Use the carrier ID as the constraint match here, it is unique.
                         pirate_steve_db.execute(
                             ''' UPDATE boozecarriers 
                             SET carriername=?, carrierid=?, winetotal=?, platform=?, officialcarrier=?, 
                             discordusername=?, timestamp=?, runtotal=?
-                            WHERE carriername LIKE (?) ''', data
+                            WHERE carrierid LIKE (?) ''', data
                         )
 
                         pirate_steve_conn.commit()
