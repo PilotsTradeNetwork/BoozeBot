@@ -1,4 +1,5 @@
 import asyncio
+import sqlite3
 from datetime import datetime, timedelta
 import math
 import os.path
@@ -282,6 +283,11 @@ class DatabaseInteraction(Cog):
                         )
 
                         pirate_steve_conn.commit()
+                    except sqlite3.IntegrityError as ex:
+                        print(f'WARNING: {ex}')
+                        print(f'Error updating the carrier data in the db for: {expected_carrier_data}')
+                        # just re-raise this to break out, we need the log message for debugging
+                        raise ex
                     finally:
                         pirate_steve_lock.release()
                 else:
