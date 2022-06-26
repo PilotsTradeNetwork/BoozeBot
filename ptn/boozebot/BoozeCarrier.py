@@ -30,13 +30,9 @@ class BoozeCarrier:
 
         self.platform = info_dict.get("Carrier Owner's Platform", None) or info_dict.get('platform', None)
 
-        # Assume we have a carrier name, then this is a False object, else None
-        self.ptn_carrier = None if not self.carrier_name else False
-
-        # This is a bit of a pain, but it is easier to read than embedding them.
-        if info_dict.get('Carrier Affiliation', None) == 'P.T.N. Official Carrier' or \
-                info_dict.get('officialcarrier', None):
-            self.ptn_carrier = True
+        # We no longer track whether a carrier is associated with PTN in an official capacity or not. Since the DB
+        # still contains this field, set it to False for now and phase it out
+        self.ptn_carrier = False
 
         self.discord_username = info_dict.get('Discord Username', None) or info_dict.get('discordusername', None)
         self.timestamp = info_dict.get('Timestamp', None) or info_dict.get('timestamp', None)
@@ -80,7 +76,7 @@ class BoozeCarrier:
         :rtype: str
         """
         return 'BoozeCarrier: CarrierName:"{0.carrier_name}" WineTotal:{0.wine_total} ' \
-               'CarrierIdentifier:"{0.carrier_identifier}" Platform:{0.platform} PTNCarrier:{0.ptn_carrier} ' \
+               'CarrierIdentifier:"{0.carrier_identifier}" Platform:{0.platform} ' \
                'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp} RunCount: {0.run_count} TotalUnloads: ' \
                '{0.total_unloads} TimeZone:{0.timezone} DiscordUnload: {0.discord_unload_notification}"'.format(self)
 
