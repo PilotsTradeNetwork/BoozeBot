@@ -10,7 +10,7 @@ from discord_slash.model import SlashCommandPermissionType
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
     server_admin_role_id, server_sommelier_role_id, server_wine_carrier_role_id, \
-    server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id
+    server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
 
@@ -377,7 +377,23 @@ class Unloading(commands.Cog):
             create_option(
                 name='user',
                 description='An @ mention of the Discord user to receive/remove the role.',
-                option_type=6, # user
+                option_type=6,  # user
+                required=True
+            ),
+            create_option(
+                name='set_role',
+                description='The role to add/remove from the user.',
+                choices=[
+                    create_choice(
+                        name="Carrier",
+                        value="Wine Carrier"
+                    ),
+                    create_choice(
+                        name="Tanker",
+                        value="Wine Tanker"
+                    )
+                ],
+                option_type=3,  # String - look into using 8 'Role' see how we can cache that here
                 required=True
             )
         ],
@@ -390,31 +406,41 @@ class Unloading(commands.Cog):
             ]
         },
     )
-    async def make_user_wine_carrier(self, ctx: SlashContext, user: discord.Member):
-        print(f"make_wine_carrier called by {ctx.author} in {ctx.channel} for {user}")
+    async def make_user_wine_carrier(self, ctx: SlashContext, user: discord.Member, set_role: str):
+        print(f"make_wine_carrier called by {ctx.author} in {ctx.channel} for {user} to set the role: {set_role}")
         # set the target role
-        print(f"Wine Carrier role ID is {server_wine_carrier_role_id()}")
-        role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id())
+
+        # TODO: Enumerate this
+        if set_role == 'Wine Carrier':
+            role_id = server_wine_carrier_role_id()
+        elif set_role == 'Wine Tanker':
+            role_id = server_wine_tanker_role_id()
+        else:
+            print(f'Unknown role: {set_role}')
+            return await ctx.send(f'Unable to process the role" {set_role}. Report this problem.')
+
+        print(f"{set_role} role ID is {role_id}")
+        role = discord.utils.get(ctx.guild.roles, id=role_id)
         print(f"Wine Carrier role name is {role.name}")
 
         if role in user.roles:
             # toggle off
-            print(f"{user} is a Wine Carrier, removing the role.")
+            print(f"{user} is a {set_role} already, removing the role.")
             try:
                 await user.remove_roles(role)
-                response = f"{user.display_name} no longer has the Wine Carrier role."
+                response = f"{user.display_name} no longer has the {set_role} role."
                 return await ctx.send(content=response)
             except Exception as e:
                 print(e)
-                await ctx.send(f"Failed removing role from {user}: {e}")
+                await ctx.send(f"Failed removing role {set_role} from {user}: {e}")
         else:
             # toggle on
-            print(f"{user} is not a Wine Carrier, adding the role.")
+            print(f"{user} is not a {set_role}, adding the role.")
             try:
                 await user.add_roles(role)
                 print(f"Added Wine Hauler role to {user}")
-                response = f"{user.display_name} now has the Wine Carrier role."
+                response = f"{user.display_name} now has the {set_role} role."
                 return await ctx.send(content=response)
             except Exception as e:
                 print(e)
-                await ctx.send(f"Failed adding role to {user}: {e}")
+                await ctx.send(f"Failed adding role {set_role} to {user}: {e}")
