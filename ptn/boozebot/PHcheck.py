@@ -12,8 +12,9 @@ def ph_check() -> bool:
     try:
         r = requests.get('https://elitebgs.app/api/ebgs/v5/factions', params=params)
         result = r.json()
-    except:
+    except Exception as e:
         print('Problem while getting the state - Returning False.')
+        print(e)
         return False
 
     # Search each element in the result
