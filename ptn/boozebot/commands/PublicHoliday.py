@@ -294,11 +294,8 @@ class PublicHoliday(commands.Cog):
         start_time = datetime.strptime(dict(timestamp).get('timestamp'), '%Y-%m-%d %H:%M:%S')
         end_time = start_time + timedelta(hours=duration_hours)
 
-        current_time_utc = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        remaining_time = end_time - datetime.strptime(current_time_utc, '%Y-%m-%d %H:%M:%S')
+        print(f'End time calculated as: {end_time}. Which is epoch of: {end_time.strftime("%s")}')
 
-        print(f'End time calculated as: {end_time}. Which is around: {remaining_time} from now')
-
-        await ctx.send(f'Pirate Steve thinks the holiday will end around {end_time} UTC. This should be in '
-                       f'roughly {remaining_time} hours from now, give or take.')
+        await ctx.send(f'Pirate Steve thinks the holiday will end around <t:{end_time.strftime("%s")}> [local '
+                       f'timezone].')
 
