@@ -280,6 +280,11 @@ class Helper(commands.Cog):
                     'name': 'user',
                     'type': 'str',
                     'description': 'An @ mention of the user to receive or remove the role.'
+                },
+                {
+                    'name': 'set_role',
+                    'type': 'str',
+                    'description': 'The role to add or remove (Carrier/Tanker).'
                 }
             ]
             method_desc = 'Toggles a user\'s wine carrier status.'
