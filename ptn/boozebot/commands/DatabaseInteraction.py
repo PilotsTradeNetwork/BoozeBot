@@ -143,7 +143,6 @@ class DatabaseInteraction(Cog):
                                         f'**{problem_carrier.platform}**\n'
                                         f'Number of trips to the peak: **{problem_carrier.run_count}**\n'
                                         f'Total Unloads: **{problem_carrier.total_unloads}**\n'
-                                        f'PTN Official: {problem_carrier.ptn_carrier}\n'
                                         f'Operated by: {problem_carrier.discord_username}'
                         )
                         problem_embed.set_footer(text='Pirate Steve recommends verifying and then deleting this entry'
@@ -558,7 +557,6 @@ class DatabaseInteraction(Cog):
                         f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
                         f'Number of trips to the peak: **{carrier_data.run_count}**\n'
                         f'Total Unloads: **{carrier_data.total_unloads}**\n'
-                        f'PTN Official: {carrier_data.ptn_carrier}\n'
                         f'Operated by: {carrier_data.discord_username}'
         )
         carrier_embed.set_footer(text="y/n")
@@ -866,7 +864,6 @@ class DatabaseInteraction(Cog):
                         f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
                         f'Number of trips to the peak: **{carrier_data.run_count}**\n'
                         f'Total Unloads: **{carrier_data.total_unloads}**\n'
-                        f'PTN Official: {carrier_data.ptn_carrier}\n'
                         f'Operated by: {carrier_data.discord_username}'
         )
 
@@ -1410,7 +1407,6 @@ class DatabaseInteraction(Cog):
                         f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
                         f'Number of trips to the peak: **{carrier_data.run_count}**\n'
                         f'Total Unloads: **{carrier_data.total_unloads}**\n'
-                        f'PTN Official: {carrier_data.ptn_carrier}\n'
                         f'Operated by: {carrier_data.discord_username}'
         )
         carrier_embed.set_footer(text='Confirm you want to delete: y/n')
