@@ -222,6 +222,11 @@ class Unloading(commands.Cog):
                 int(unload_channel.replace('#', '').replace('<', '').replace('>', ''))
             )
 
+            if unloading_channel_id == wine_alert_channel:
+                print('Unload channel for timed market is the same as the wine alert channel. Problem!')
+                return await ctx.send('You cannot use the alert channel for timed unloads. Talk with a sommelier to '
+                                      'arrange a channel for this activity.')
+
         if carrier_data.discord_unload_notification:
             print(f'Sorry, carrier {carrier_data.carrier_identifier} is already on a wine unload.')
             return await ctx.send(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is '
