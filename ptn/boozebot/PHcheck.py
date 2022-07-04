@@ -5,15 +5,16 @@
 import requests
 
 
-def ph_check():
+def ph_check() -> bool:
     params = {
         'name': 'Rackham Capital Investments'
     }
     try:
         r = requests.get('https://elitebgs.app/api/ebgs/v5/factions', params=params)
         result = r.json()
-    except:
+    except Exception as e:
         print('Problem while getting the state - Returning False.')
+        print(e)
         return False
 
     # Search each element in the result
@@ -30,9 +31,7 @@ def ph_check():
                     if active_states['state'] == 'publicholiday':
                         print('PH state matched')
                         return True
-                    # If the system is not in public holiday, continue through the loop
-                    else:
-                        continue
+
     # Return false if there are no public holiday hits
     print('PH was not hit - Returning False.')
     return False
