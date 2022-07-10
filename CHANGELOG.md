@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.7.0
+
+- \#324 - Add wine tanker unload commands
+- \#308 - Add ability to grant wine_tanker role
+- \#321 - Duration remaining should use the timestamp
+- \#307 - Remove PTN Official/Other check
+- \#310 - minor cosmetic change: remove the 'else continue'
+
+New commands added:
+
+- `/tanker_unload <carrier-id> <system name> <planetary body>` will post up an unloading notification to 
+`#tanks-for-the-wine`.  For now unloads are cleared with the same command as wine unloads (`/wine_unloading_complete`).
+- 
+Command syntax changes:
+- `/make_wine_carrier` has a new parameter added the role, which has the options for `tanker` or `carrier` to grant 
+  the necessary discord roles.
+
+Others:
+
+- Duration remaining should now provide a user time zone friendly response.
+
 ## 1.6.4
 
 - \#316 - Fix database update to use carrier ID as unique constraint
