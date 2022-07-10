@@ -321,6 +321,7 @@ class Unloading(commands.Cog):
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(get_wine_tanker_role(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
