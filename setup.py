@@ -44,7 +44,7 @@ setup(
         ],
     },
     license='MIT',
-    keyworkd='PTN',
+    keyword='PTN',
     project_urls={
         "Source": "https://github.com/PilotsTradeNetwork/BoozeBot",
     },

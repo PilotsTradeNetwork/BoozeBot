@@ -26,7 +26,8 @@ PROD_MOD_ID = 813814494563401780
 PROD_HOLIDAY_ANNOUNCE_CHANNEL_ID = 851110121870196777   # Dread-pirate-steve
 PROD_BOOZE_CRUISE_CHAT_CHANNEL = 819295547289501736     # Booze-Cruise
 PROD_FC_COMPLETE_ID = 878216234653605968
-
+PROD_WINE_TANKER_ID = 978321720630980658
+PROD_TANKER_UNLOAD_CHANNEL_ID = 987972565735727124
 
 # Testing variables
 TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
@@ -44,6 +45,8 @@ TEST_HOLIDAY_ANNOUNCE_CHANNEL_ID = 818174236480897058
 TEST_SOMMELIER_NOTIFICATION_CHANNEL = 851095042130051072    # bot command channel
 TEST_BOOZE_CRUISE_CHAT_CHANNEL = 818174236480897058         # General
 TEST_FC_COMPLETE_ID = 884673510067286076
+TEST_WINE_TANKER_ID = 990601307771506708
+TEST_TANKER_UNLOAD_CHANNEL_ID = 995714783678570566
 
 BOOZE_PROFIT_PER_TONNE_WINE = 278000
 RACKHAMS_PEAK_POP = 150000
@@ -106,6 +109,16 @@ def server_wine_carrier_role_id():
     :rtype: int
     """
     return PROD_WINE_CARRIER_ID if _production else TEST_WINE_CARRIER_ID
+
+
+def server_wine_tanker_role_id():
+    """
+    Wrapper that returns the wine tanker owner role ID
+
+    :returns: Wine tanker role id
+    :rtype: int
+    """
+    return PROD_WINE_TANKER_ID if _production else TEST_WINE_TANKER_ID
 
 
 def bot_guild_id():
@@ -216,3 +229,23 @@ def get_steve_says_channel():
     :rtype: int
     """
     return PROD_STEVE_SAYS_CHANNEL if _production else TEST_STEVE_SAYS_CHANNEL
+
+
+def get_wine_tanker_role():
+    """
+    Returns the wine tanker role ID
+
+    :return: The role ID
+    :rtype: int
+    """
+    return PROD_WINE_TANKER_ID if _production else TEST_WINE_TANKER_ID
+
+
+def get_discord_tanker_unload_channel():
+    """
+    Gets the tanker unload channel noticifaction
+
+    :return: The channel ID
+    :rtype: int
+    """
+    return PROD_TANKER_UNLOAD_CHANNEL_ID if _production else TEST_TANKER_UNLOAD_CHANNEL_ID
