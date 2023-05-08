@@ -119,7 +119,7 @@ class Helper(commands.Cog):
                 }
             ]
             method_desc = 'Logs the current tally of carriers, wine and some basic stats.'
-            roles = ['Admin', 'Mod', 'Sommelier']
+            roles = ['Admin', 'Mod', 'Sommelier', 'Connoisseur']
         elif command == 'booze_delete_carrier':
             params = [
                 {
@@ -195,11 +195,11 @@ class Helper(commands.Cog):
         elif command == 'update_booze_db':
             params = None
             method_desc = 'Forces an update of the booze database.'
-            roles = ['Admin', 'Sommelier']
+            roles = ['Admin', 'Sommelier', 'Connoisseur']
         elif command == 'booze_started':
             params = None
             method_desc = 'Queries the current state of the holiday.'
-            roles = ['Admin', 'Sommelier', 'Mod']
+            roles = ['Admin', 'Sommelier', 'Mod', 'Connoisseur']
         elif command == 'booze_started_admin_override':
             params = [
                 {

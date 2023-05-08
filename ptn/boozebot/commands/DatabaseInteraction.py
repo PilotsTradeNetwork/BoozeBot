@@ -18,7 +18,7 @@ from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.PHcheck import ph_check
 from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id, \
     BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, server_mod_role_id, get_bot_control_channel, \
-    get_sommelier_notification_channel, server_wine_carrier_role_id
+    get_sommelier_notification_channel, server_wine_carrier_role_id, server_connoisseur_role_id
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn, dump_database, pirate_steve_lock
 
 
@@ -78,11 +78,12 @@ class DatabaseInteraction(Cog):
     @cog_ext.cog_slash(
         name="update_booze_db",
         guild_ids=[bot_guild_id()],
-        description="Populates the booze cruise database from the updated google sheet. Admin/Sommelier role required.",
+        description="Populates the booze cruise database from the updated google sheet. Admin/Sommelier/Connoisseur role required.",
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
@@ -872,11 +873,12 @@ class DatabaseInteraction(Cog):
     @cog_ext.cog_slash(
         name="booze_tally",
         guild_ids=[bot_guild_id()],
-        description="Returns a summary of the stats for the current booze cruise. Restricted to Admin and Sommelier's.",
+        description="Returns a summary of the stats for the current booze cruise. Restricted to Admin, Sommeliers, and Connoisseurs.",
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
