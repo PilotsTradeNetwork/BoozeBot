@@ -18,6 +18,7 @@ PROD_DB_DUMPS_PATH = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'dum
 PROD_BOOZE_UNLOAD_ID = 932918003639648306   # Was 838699587249242162 booze-cruise-announcements
 PROD_ADMIN_ID = 800125148971663392
 PROD_SOMMELIER_ID = 838520893181263872
+PROD_CONNOISSEUR_ID = 1105144902645448915
 PROD_WINE_CARRIER_ID = 839149899596955708
 PROD_BOOZE_BOT_CHANNEL = 841413917468917781  # This is #booze-bot
 PROD_STEVE_SAYS_CHANNEL = 937024914572070922  # This is #steve-says
@@ -37,6 +38,7 @@ TEST_DB_DUMPS_PATH = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'dum
 TEST_BOOZE_UNLOAD_ID = 849570829230014464
 TEST_ADMIN_ID = 818174400997228545
 TEST_SOMMELIER_ID = 849907019502059530
+TEST_CONNOISSEUR_ID = 1105144147582656663
 TEST_WINE_CARRIER_ID = 849909113776898071
 TEST_BOOZE_BOT_CHANNEL = 842152343441375283
 TEST_STEVE_SAYS_CHANNEL = 937026057188552745  # This is #steve-says
@@ -99,6 +101,16 @@ def server_sommelier_role_id():
     :rtype: int
     """
     return PROD_SOMMELIER_ID if _production else TEST_SOMMELIER_ID
+
+
+def server_connoisseur_role_id():
+    """
+    Wrapper that returns the sommelier role ID
+
+    :returns: Sommelier role id
+    :rtype: int
+    """
+    return PROD_CONNOISSEUR_ID if _production else TEST_CONNOISSEUR_ID
 
 
 def server_wine_carrier_role_id():
