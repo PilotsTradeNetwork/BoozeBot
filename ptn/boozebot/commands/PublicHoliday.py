@@ -9,7 +9,7 @@ from discord_slash.utils.manage_commands import create_permission, create_option
 
 from ptn.boozebot.PHcheck import ph_check
 from ptn.boozebot.constants import rackhams_holiday_channel, bot, bot_guild_id, server_admin_role_id, \
-    server_sommelier_role_id, server_mod_role_id
+    server_sommelier_role_id, server_mod_role_id, server_connoisseur_role_id
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn
 
 
@@ -198,6 +198,7 @@ class PublicHoliday(commands.Cog):
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
@@ -262,6 +263,7 @@ class PublicHoliday(commands.Cog):
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
