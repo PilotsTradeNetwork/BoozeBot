@@ -162,7 +162,7 @@ class Helper(commands.Cog):
         elif command == 'booze_tally_extra_stats':
             params = None
             method_desc = 'Logs some stats regarding what the volume of wine looks like.'
-            roles = ['Admin', 'Mod', 'Sommelier']
+            roles = ['Admin', 'Mod', 'Sommelier', 'Connoisseur']
         elif command == 'find_carriers_with_wine':
             params = None
             method_desc = 'Returns all the remaining carriers with wine to unload.'
@@ -288,7 +288,7 @@ class Helper(commands.Cog):
                 }
             ]
             method_desc = 'Toggles a user\'s wine carrier status.'
-            roles = ['Admin', 'Sommelier', 'Mod']
+            roles = ['Admin', 'Sommelier', 'Connoisseur', 'Mod']
         elif command == 'steve_says':
             params = [
                 {
