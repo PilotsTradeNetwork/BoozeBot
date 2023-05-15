@@ -306,7 +306,7 @@ class Unloading(commands.Cog):
     @cog_ext.cog_slash(
         name='Wine_Unload_Complete',
         guild_ids=[bot_guild_id()],
-        description='Removes any trade channel notification for unloading wine. Admin/Sommelier role required.',
+        description='Removes any trade channel notification for unloading wine. Admin/Sommelier/Connoisseur/Wine Carrier role required.',
         options=[
             create_option(
                 name='carrier_id',
