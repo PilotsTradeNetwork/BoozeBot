@@ -1256,12 +1256,13 @@ class DatabaseInteraction(Cog):
     @cog_ext.cog_slash(
         name="booze_tally_extra_stats",
         guild_ids=[bot_guild_id()],
-        description="Returns an set of extra stats for the wine. Restricted to Admin and Sommelier's.",
+        description="Returns an set of extra stats for the wine. Restricted to Admin, Sommeliers, and Connoisseurs.",
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         }
