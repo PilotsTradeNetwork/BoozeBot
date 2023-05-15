@@ -379,7 +379,7 @@ class Unloading(commands.Cog):
     @cog_ext.cog_slash(
         name='Make_Wine_Carrier',
         guild_ids=[bot_guild_id()],
-        description='Toggle user\'s Wine Carrier role. Admin/Sommelier role required.',
+        description='Toggle user\'s Wine Carrier role. Admin/Sommelier/Connoisseur role required.',
         options=[
             create_option(
                 name='user',
@@ -394,11 +394,12 @@ class Unloading(commands.Cog):
                     create_choice(
                         name="Carrier",
                         value="Wine Carrier"
-                    ),
-                    create_choice(
-                        name="Tanker",
-                        value="Wine Tanker"
                     )
+                    #Disabling Tankers as we don't use these anymore
+                    #create_choice(
+                    #    name="Tanker",
+                    #    value="Wine Tanker"
+                    #)
                 ],
                 option_type=3,  # String - look into using 8 'Role' see how we can cache that here
                 required=True
@@ -409,6 +410,7 @@ class Unloading(commands.Cog):
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
@@ -420,8 +422,9 @@ class Unloading(commands.Cog):
         # TODO: Enumerate this
         if set_role == 'Wine Carrier':
             role_id = server_wine_carrier_role_id()
-        elif set_role == 'Wine Tanker':
-            role_id = server_wine_tanker_role_id()
+        #Removing Wine Tankers as we don't use them anymore
+        #elif set_role == 'Wine Tanker':
+        #    role_id = server_wine_tanker_role_id()
         else:
             print(f'Unknown role: {set_role}')
             return await ctx.send(f'Unable to process the role" {set_role}. Report this problem.')
