@@ -9,7 +9,7 @@ from discord_slash.model import SlashCommandPermissionType
 
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
-    server_admin_role_id, server_sommelier_role_id, server_wine_carrier_role_id, \
+    server_admin_role_id, server_sommelier_role_id, server_connoisseur_role_id, server_wine_carrier_role_id, \
     server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id, \
     get_wine_tanker_role, get_discord_tanker_unload_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
@@ -306,7 +306,7 @@ class Unloading(commands.Cog):
     @cog_ext.cog_slash(
         name='Wine_Unload_Complete',
         guild_ids=[bot_guild_id()],
-        description='Removes any trade channel notification for unloading wine. Admin/Sommelier/Connoisseur/Wine Carrier role required.',
+        description='Removes any trade channel notification for unloading wine. Somm/Conn/Wine Carrier role required.',
         options=[
             create_option(
                 name='carrier_id',
