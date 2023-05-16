@@ -92,6 +92,10 @@ class Helper(commands.Cog):
                         value="make_wine_carrier"
                     ),
                     create_choice(
+                        name="remove_wine_carrier",
+                        value="remove_wine_carrier"
+                    ),
+                    create_choice(
                         name="steve_says",
                         value="steve_says"
                     ),
@@ -287,15 +291,20 @@ class Helper(commands.Cog):
                 {
                     'name': 'user',
                     'type': 'str',
-                    'description': 'An @ mention of the user to receive or remove the role.'
-                },
-                {
-                    'name': 'set_role',
-                    'type': 'str',
-                    'description': 'The role to add or remove (Carrier/Tanker).'
+                    'description': 'An @ mention of the user to receive the role.'
                 }
             ]
-            method_desc = 'Toggles a user\'s wine carrier status.'
+            method_desc = 'Gives the user the Wine Carrier role and sends them a welcome message.'
+            roles = ['Admin', 'Sommelier', 'Connoisseur', 'Mod']
+        elif command == 'remove_wine_carrier':
+            params = [
+                {
+                    'name': 'user',
+                    'type': 'str',
+                    'description': 'An @ mention of the user to remove the role.'
+                }
+            ]
+            method_desc = 'Removes the Wine Carrier role from a user.'
             roles = ['Admin', 'Sommelier', 'Connoisseur', 'Mod']
         elif command == 'steve_says':
             params = [
