@@ -405,39 +405,7 @@ class Unloading(commands.Cog):
     async def make_wine_carrier(self, ctx: SlashContext, user: discord.Member):
         print(f"make_wine_carrier called by {ctx.author} in {ctx.channel} for {user} to set the Wine Carrier role")
 
-        await wine_carrier_toggle_lock.acquire()
-
-        # set the target role
-        wc_role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id())
-        print(f"Wine Carrier role name is {wc_role.name}")
-
-        if wc_role in user.roles:
-            print(f"{user} is already a {wc_role.name}, doing nothing.")
-            wine_carrier_toggle_lock.release()
-            return await ctx.send(f"User is already a {wc_role.name}", hidden=True)
-        else:
-            # toggle on
-            print(f"{user} is not a {wc_role.name}, adding the role.")
-            try:
-                await user.add_roles(wc_role)
-                print(f"Added Wine Hauler role to {user}")
-                response = f"{user.display_name} now has the {wc_role.name} role."
-
-                # Open the file in read mode.
-                with open("wine_carrier_welcome.txt", "r") as file:
-                    wine_welcome_message = file.read() # read contents to variable
-                    wine_channel = bot.get_channel(get_wine_carrier_channel())
-                    embed = discord.Embed(description=wine_welcome_message)
-                    embed.set_thumbnail(url="https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless")
-                    await wine_channel.send(f"<@{user.id}>", embed=embed)
-
-                    wine_carrier_toggle_lock.release()
-
-                return await ctx.send(content=response)
-            except Exception as e:
-                print(e)
-                await ctx.send(f"Failed adding role {wc_role.name} to {user}: {e}")
-                wine_carrier_toggle_lock.release()
+        await make_user_wine_carrier(ctx, user)
 
 
     @cog_ext.cog_context_menu(
@@ -445,7 +413,7 @@ class Unloading(commands.Cog):
         name='Make Wine Carrier',
         guild_ids=[bot_guild_id()],
     )
-    async def make_user_wine_carrier(self, ctx: MenuContext):
+    async def make_contextuser_wine_carrier(self, ctx: MenuContext):
         # discord_slash has no way to set permissions for context menu commands so we'll check to see if user is a sommelier ourselves
         # if not we send them a discreet nope and back out
         somm_role = discord.utils.get(ctx.guild.roles, id=server_sommelier_role_id())
@@ -457,42 +425,7 @@ class Unloading(commands.Cog):
 
         user = ctx.target_author
 
-        # put a lock in so multiple users can't accidentally hit it at the same time and cause chaos
-        await wine_carrier_toggle_lock.acquire()
-
-        print(f"make__user_wine_carrier called by {ctx.author} in {ctx.channel} for {user} to get the Wine Carrier role")
-        # set the target role
-
-        wc_role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id())
-        print(f"Wine Carrier role name is {wc_role.name}")
-
-        if wc_role in user.roles:
-            print(f"{user} is already a {wc_role.name}, doing nothing.")
-            wine_carrier_toggle_lock.release()
-            return await ctx.send(f"User is already a {wc_role.name}", hidden=True)
-        else:
-            # give the user the role
-            print(f"{user} is not a {wc_role.name}, adding the role.")
-            try:
-                await user.add_roles(wc_role)
-                print(f"Added Wine Carrier role to {user}")
-                response = f"{user.display_name} now has the {wc_role.name} role."
-
-                # Open the file in read mode.
-                with open("wine_carrier_welcome.txt", "r") as file:
-                    wine_welcome_message = file.read() # read contents to variable
-                    wine_channel = bot.get_channel(get_wine_carrier_channel())
-                    embed = discord.Embed(description=wine_welcome_message)
-                    embed.set_thumbnail(url="https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless")
-                    await wine_channel.send(f"<@{user.id}>", embed=embed)
-
-                    wine_carrier_toggle_lock.release()
-
-                return await ctx.send(content=response)
-            except Exception as e:
-                print(e)
-                await ctx.send(f"Failed adding role {wc_role.name} to {user}: {e}")
-                wine_carrier_toggle_lock.release()
+        await make_user_wine_carrier(ctx, user)
 
 
     @cog_ext.cog_slash(
@@ -528,7 +461,7 @@ class Unloading(commands.Cog):
         print(f"Wine Carrier role name is {wc_role.name}")
 
 
-        if not wc_role in user.roles:
+        if wc_role in user.roles:
             # remove role
             print(f"{user} is a {wc_role.name}, removing the role.")
             try:
@@ -664,3 +597,40 @@ class Unloading(commands.Cog):
         )
 
     # TODO: Make a separate unload command once we know what the tracking process will be.
+
+# function shared by make_wine_carrier and make_contextuser_wine_carrier
+async def make_user_wine_carrier(ctx, user):
+
+    await wine_carrier_toggle_lock.acquire()
+
+    # set the target role
+    wc_role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id())
+    print(f"Wine Carrier role name is {wc_role.name}")
+
+    if wc_role in user.roles:
+        print(f"{user} is already a {wc_role.name}, doing nothing.")
+        wine_carrier_toggle_lock.release()
+        return await ctx.send(f"User is already a {wc_role.name}", hidden=True)
+    else:
+        # toggle on
+        print(f"{user} is not a {wc_role.name}, adding the role.")
+        try:
+            await user.add_roles(wc_role)
+            print(f"Added Wine Hauler role to {user}")
+            response = f"{user.display_name} now has the {wc_role.name} role."
+
+            # Open the file in read mode.
+            with open("wine_carrier_welcome.txt", "r") as file:
+                wine_welcome_message = file.read() # read contents to variable
+                wine_channel = bot.get_channel(get_wine_carrier_channel())
+                embed = discord.Embed(description=wine_welcome_message)
+                embed.set_thumbnail(url="https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless")
+                await wine_channel.send(f"<@{user.id}>", embed=embed)
+
+                wine_carrier_toggle_lock.release()
+
+            return await ctx.send(content=response)
+        except Exception as e:
+            print(e)
+            await ctx.send(f"Failed adding role {wc_role.name} to {user}: {e}")
+            wine_carrier_toggle_lock.release()
