@@ -29,6 +29,8 @@ PROD_BOOZE_CRUISE_CHAT_CHANNEL = 819295547289501736     # Booze-Cruise
 PROD_FC_COMPLETE_ID = 878216234653605968
 PROD_WINE_TANKER_ID = 978321720630980658
 PROD_TANKER_UNLOAD_CHANNEL_ID = 987972565735727124
+PROD_BC_PUBLIC_CHANNEL_IDS = [838699587249242162, 849460909273120856, 932918003639648306, 819295547289501736, 837764138692378634, 849249916676603944, 1078840174227763301, 1079384804098854972]
+# booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
 
 # Testing variables
 TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
@@ -49,6 +51,8 @@ TEST_BOOZE_CRUISE_CHAT_CHANNEL = 818174236480897058         # General
 TEST_FC_COMPLETE_ID = 884673510067286076
 TEST_WINE_TANKER_ID = 990601307771506708
 TEST_TANKER_UNLOAD_CHANNEL_ID = 995714783678570566
+TEST_BC_PUBLIC_CHANNEL_IDS = [1107757218318782586, 1107757285817712721, 1107757340381425768, 1107757384069288056, 1107757418517110955, 1107757456517505055, 1107757490940153956, 1107757548779601940]
+# booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
 
 BOOZE_PROFIT_PER_TONNE_WINE = 278000
 RACKHAMS_PEAK_POP = 150000
@@ -261,3 +265,12 @@ def get_discord_tanker_unload_channel():
     :rtype: int
     """
     return PROD_TANKER_UNLOAD_CHANNEL_ID if _production else TEST_TANKER_UNLOAD_CHANNEL_ID
+
+def get_public_channel_list():
+    """
+    Gets the list of public BC channels
+
+    :return: The channel IDs
+    :rtype: list, int
+    """
+    return PROD_BC_PUBLIC_CHANNEL_IDS if _production else TEST_BC_PUBLIC_CHANNEL_IDS

@@ -78,7 +78,7 @@ class DatabaseInteraction(Cog):
     @cog_ext.cog_slash(
         name="update_booze_db",
         guild_ids=[bot_guild_id()],
-        description="Populates the booze cruise database from the updated google sheet. Admin/Sommelier/Connoisseur role required.",
+        description="Populates the booze cruise database from the updated google sheet. Somm/Conn role required.",
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
@@ -873,7 +873,7 @@ class DatabaseInteraction(Cog):
     @cog_ext.cog_slash(
         name="booze_tally",
         guild_ids=[bot_guild_id()],
-        description="Returns a summary of the stats for the current booze cruise. Restricted to Admin, Sommeliers, and Connoisseurs.",
+        description="Returns a summary of the stats for the current booze cruise. Restricted to Somms and Connoisseurs.",
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
