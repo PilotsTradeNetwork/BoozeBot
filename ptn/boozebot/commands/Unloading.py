@@ -1,19 +1,22 @@
 import re
-
+import asyncio
 import discord
 from discord.ext import commands
 from discord_slash import SlashContext, cog_ext
 from discord_slash.utils.manage_commands import create_option, create_choice
 from discord_slash.utils.manage_commands import create_permission
-from discord_slash.model import SlashCommandPermissionType
+from discord_slash.model import SlashCommandPermissionType, ContextMenuType
+from discord_slash.context import MenuContext
 
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
-    server_admin_role_id, server_sommelier_role_id, server_wine_carrier_role_id, \
+    server_admin_role_id, server_sommelier_role_id, server_connoisseur_role_id, server_wine_carrier_role_id, \
     server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id, \
-    get_wine_tanker_role, get_discord_tanker_unload_channel
+    get_wine_tanker_role, get_discord_tanker_unload_channel, get_wine_carrier_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
+# lock for wine carrier toggle
+wine_carrier_toggle_lock = asyncio.Lock()
 
 class Unloading(commands.Cog):
     def __init__(self):
@@ -306,7 +309,7 @@ class Unloading(commands.Cog):
     @cog_ext.cog_slash(
         name='Wine_Unload_Complete',
         guild_ids=[bot_guild_id()],
-        description='Removes any trade channel notification for unloading wine. Admin/Sommelier role required.',
+        description='Removes any trade channel notification for unloading wine. Somm/Conn/Wine Carrier role required.',
         options=[
             create_option(
                 name='carrier_id',
@@ -379,78 +382,102 @@ class Unloading(commands.Cog):
     @cog_ext.cog_slash(
         name='Make_Wine_Carrier',
         guild_ids=[bot_guild_id()],
-        description='Toggle user\'s Wine Carrier role. Admin/Sommelier role required.',
+        description='Give user the Wine Carrier role. Admin/Sommelier/Connoisseur role required.',
         options=[
             create_option(
                 name='user',
-                description='An @ mention of the Discord user to receive/remove the role.',
+                description='An @ mention of the Discord user to receive the role.',
                 option_type=6,  # user
                 required=True
-            ),
-            create_option(
-                name='set_role',
-                description='The role to add/remove from the user.',
-                choices=[
-                    create_choice(
-                        name="Carrier",
-                        value="Wine Carrier"
-                    ),
-                    create_choice(
-                        name="Tanker",
-                        value="Wine Tanker"
-                    )
-                ],
-                option_type=3,  # String - look into using 8 'Role' see how we can cache that here
-                required=True
             )
+            
         ],
         permissions={
             bot_guild_id(): [
                 create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
                 create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
             ]
         },
     )
-    async def make_user_wine_carrier(self, ctx: SlashContext, user: discord.Member, set_role: str):
-        print(f"make_wine_carrier called by {ctx.author} in {ctx.channel} for {user} to set the role: {set_role}")
+    async def make_wine_carrier(self, ctx: SlashContext, user: discord.Member):
+        print(f"make_wine_carrier called by {ctx.author} in {ctx.channel} for {user} to set the Wine Carrier role")
+
+        await make_user_wine_carrier(ctx, user)
+
+
+    @cog_ext.cog_context_menu(
+        target=ContextMenuType.USER,
+        name='Make Wine Carrier',
+        guild_ids=[bot_guild_id()],
+    )
+    async def make_contextuser_wine_carrier(self, ctx: MenuContext):
+        # discord_slash has no way to set permissions for context menu commands so we'll check to see if user is a sommelier ourselves
+        # if not we send them a discreet nope and back out
+        somm_role = discord.utils.get(ctx.guild.roles, id=server_sommelier_role_id())
+        conn_role = discord.utils.get(ctx.guild.roles, id=server_connoisseur_role_id())
+
+        if not somm_role in ctx.author.roles and not conn_role in ctx.author.roles:
+            print("User does not have permission to use this command")
+            return await ctx.send("Sorry, you must be a Sommelier or Connoisseur to use this interaction.", hidden=True)
+
+        user = ctx.target_author
+
+        await make_user_wine_carrier(ctx, user)
+
+
+    @cog_ext.cog_slash(
+        name='Remove_Wine_Carrier',
+        guild_ids=[bot_guild_id()],
+        description='Removes the Wine Carrier role from a user. Admin/Sommelier/Connoisseur role required.',
+        options=[
+            create_option(
+                name='user',
+                description='An @ mention of the Discord user to remove the role.',
+                option_type=6,  # user
+                required=True
+            )
+            
+        ],
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        },
+    )
+    async def remove_wine_carrier(self, ctx: SlashContext, user: discord.Member):
+        print(f"remove_wine_carrier called by {ctx.author} in {ctx.channel} for {user} to remove the Wine Carrier role")
+
+        await wine_carrier_toggle_lock.acquire()
+
         # set the target role
+        wc_role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id())
+        print(f"Wine Carrier role name is {wc_role.name}")
 
-        # TODO: Enumerate this
-        if set_role == 'Wine Carrier':
-            role_id = server_wine_carrier_role_id()
-        elif set_role == 'Wine Tanker':
-            role_id = server_wine_tanker_role_id()
-        else:
-            print(f'Unknown role: {set_role}')
-            return await ctx.send(f'Unable to process the role" {set_role}. Report this problem.')
 
-        print(f"{set_role} role ID is {role_id}")
-        role = discord.utils.get(ctx.guild.roles, id=role_id)
-        print(f"Wine Carrier role name is {role.name}")
-
-        if role in user.roles:
-            # toggle off
-            print(f"{user} is a {set_role} already, removing the role.")
+        if wc_role in user.roles:
+            # remove role
+            print(f"{user} is a {wc_role.name}, removing the role.")
             try:
-                await user.remove_roles(role)
-                response = f"{user.display_name} no longer has the {set_role} role."
+                await user.remove_roles(wc_role)
+                response = f"{user.display_name} no longer has the {wc_role.name} role."
+                wine_carrier_toggle_lock.release()
                 return await ctx.send(content=response)
             except Exception as e:
                 print(e)
-                await ctx.send(f"Failed removing role {set_role} from {user}: {e}")
+                await ctx.send(f"Failed removing role {wc_role.name} from {user}: {e}")
+                wine_carrier_toggle_lock.release()
         else:
-            # toggle on
-            print(f"{user} is not a {set_role}, adding the role.")
-            try:
-                await user.add_roles(role)
-                print(f"Added Wine Hauler role to {user}")
-                response = f"{user.display_name} now has the {set_role} role."
-                return await ctx.send(content=response)
-            except Exception as e:
-                print(e)
-                await ctx.send(f"Failed adding role {set_role} to {user}: {e}")
+            print("User is not a wine carrier, doing nothing.")
+            wine_carrier_toggle_lock.release()
+            return await ctx.send(f"User is not a {wc_role.name}", hidden=True)
+
 
     @cog_ext.cog_slash(
         name='tanker_unload',
@@ -570,3 +597,40 @@ class Unloading(commands.Cog):
         )
 
     # TODO: Make a separate unload command once we know what the tracking process will be.
+
+# function shared by make_wine_carrier and make_contextuser_wine_carrier
+async def make_user_wine_carrier(ctx, user):
+
+    await wine_carrier_toggle_lock.acquire()
+
+    # set the target role
+    wc_role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id())
+    print(f"Wine Carrier role name is {wc_role.name}")
+
+    if wc_role in user.roles:
+        print(f"{user} is already a {wc_role.name}, doing nothing.")
+        wine_carrier_toggle_lock.release()
+        return await ctx.send(f"User is already a {wc_role.name}", hidden=True)
+    else:
+        # toggle on
+        print(f"{user} is not a {wc_role.name}, adding the role.")
+        try:
+            await user.add_roles(wc_role)
+            print(f"Added Wine Hauler role to {user}")
+            response = f"{user.display_name} now has the {wc_role.name} role."
+
+            # Open the file in read mode.
+            with open("wine_carrier_welcome.txt", "r") as file:
+                wine_welcome_message = file.read() # read contents to variable
+                wine_channel = bot.get_channel(get_wine_carrier_channel())
+                embed = discord.Embed(description=wine_welcome_message)
+                embed.set_thumbnail(url="https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless")
+                await wine_channel.send(f"<@{user.id}>", embed=embed)
+
+                wine_carrier_toggle_lock.release()
+
+            return await ctx.send(content=response)
+        except Exception as e:
+            print(e)
+            await ctx.send(f"Failed adding role {wc_role.name} to {user}: {e}")
+            wine_carrier_toggle_lock.release()

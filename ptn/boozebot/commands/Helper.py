@@ -92,8 +92,20 @@ class Helper(commands.Cog):
                         value="make_wine_carrier"
                     ),
                     create_choice(
+                        name="remove_wine_carrier",
+                        value="remove_wine_carrier"
+                    ),
+                    create_choice(
                         name="steve_says",
                         value="steve_says"
+                    ),
+                    create_choice(
+                        name="booze_channels_open",
+                        value="booze_channels_open"
+                    ),
+                    create_choice(
+                        name="booze_channels_close",
+                        value="booze_channels_close"
                     )
                 ]
             ),
@@ -162,7 +174,7 @@ class Helper(commands.Cog):
         elif command == 'booze_tally_extra_stats':
             params = None
             method_desc = 'Logs some stats regarding what the volume of wine looks like.'
-            roles = ['Admin', 'Mod', 'Sommelier']
+            roles = ['Admin', 'Mod', 'Sommelier', 'Connoisseur']
         elif command == 'find_carriers_with_wine':
             params = None
             method_desc = 'Returns all the remaining carriers with wine to unload.'
@@ -279,16 +291,21 @@ class Helper(commands.Cog):
                 {
                     'name': 'user',
                     'type': 'str',
-                    'description': 'An @ mention of the user to receive or remove the role.'
-                },
-                {
-                    'name': 'set_role',
-                    'type': 'str',
-                    'description': 'The role to add or remove (Carrier/Tanker).'
+                    'description': 'An @ mention of the user to receive the role.'
                 }
             ]
-            method_desc = 'Toggles a user\'s wine carrier status.'
-            roles = ['Admin', 'Sommelier', 'Mod']
+            method_desc = 'Gives the user the Wine Carrier role and sends them a welcome message.'
+            roles = ['Admin', 'Sommelier', 'Connoisseur', 'Mod']
+        elif command == 'remove_wine_carrier':
+            params = [
+                {
+                    'name': 'user',
+                    'type': 'str',
+                    'description': 'An @ mention of the user to remove the role.'
+                }
+            ]
+            method_desc = 'Removes the Wine Carrier role from a user.'
+            roles = ['Admin', 'Sommelier', 'Connoisseur', 'Mod']
         elif command == 'steve_says':
             params = [
                 {
@@ -303,6 +320,14 @@ class Helper(commands.Cog):
                 }
             ]
             method_desc = 'Sends a message as Pirate Steve'
+            roles = ['Admin', 'Sommelier', 'Mod']
+        elif command == 'booze_channels_open':
+            params = None
+            method_desc = 'Opens all public-facing Booze Cruise channels.'
+            roles = ['Admin', 'Sommelier', 'Mod']
+        elif command == 'booze_channels_close':
+            params = None
+            method_desc = 'Closes (hides) all public-facing Booze Cruise channels.'
             roles = ['Admin', 'Sommelier', 'Mod']
         else:
             print('User did not provide a valid command.')
