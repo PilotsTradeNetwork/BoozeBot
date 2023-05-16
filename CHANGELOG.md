@@ -1,12 +1,25 @@
 # Changelog
 
-## 1.7.2
+## 1.8.0
 
 - \#346 - Update description for wine_unload_complete
-- \#348 - Open/close public channels command
 - \#354 - Move wine carrier signup notification
-- \#355 - More Connoisseur commands
+- \#355 - Added Connoisseur to more commands
 - \#362 - Slash descriptions cannot exceed 100 characters
+
+New commands added:
+
+- \#347 - Remove all wine carriers command - `/clear_booze_roles` - removes Hitchhiker and Wine Carrier roles from all users
+- \#348 - Open/close public channels command - `/booze_channels_open` and `/booze_channels_close` to remove/set the @everyone=False override for viewing public-facing channels
+- \#364 - Separated `/make_wine_carrier` into `/make_wine_carrier` and `/remove_wine_carrier` commands
+- \#365 - New wine carrier welcome message - added `/set_wine_carrier_welcome`, writes user input to a text file `wine_carrier_welcome.txt`
+- \#367 - Context menu command added for making wine carriers
+- All variants of `make_wine_carrier` now send `wine_carrier_welcome.txt` to the wine-carriers-chat channel with a mention for the target user
+
+Command syntax changes:
+
+- `/make_wine_carrier` obsolete role choice parameter removed
+
 
 ## 1.7.1
 
