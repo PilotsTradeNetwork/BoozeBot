@@ -120,36 +120,34 @@ class Cleaner(commands.Cog):
         print(f'User {ctx.author} requested clearing all Booze related roles in channel: {ctx.channel}.')
 
         guild = bot.get_guild(bot_guild_id())
-        role_id = server_wine_carrier_role_id()
-        role = discord.utils.get(ctx.guild.roles, id=role_id)
-        count = 0
-        try:
-            for member in guild.members:
-                if role in member.roles:
-                    try:
-                        await member.remove_roles(role)
-                        count += 1
-                    except Exception as e:
-                        print(e)
-                        await ctx.send(f"Unable to remove { role } from { member }")
-            await ctx.send(f'Successfully removed { count } users from the Wine Carrier role.')
-        except Exception as e:
-            print(e)
-            await ctx.send('Clear roles command failed.  Contact admin.')
 
-        count = 0
-        role_id = server_hitchhiker_role_id()
-        role = discord.utils.get(ctx.guild.roles, id=role_id)
+        wine_role_id = server_wine_carrier_role_id()
+        wine_role = discord.utils.get(ctx.guild.roles, id=wine_role_id)
+
+        hitch_role_id = server_hitchhiker_role_id()
+        hitch_role = discord.utils.get(ctx.guild.roles, id=hitch_role_id)
+
+        wine_count = 0
+        hitch_count = 0
+        await ctx.send(f'This may take a minute...')
         try:
             for member in guild.members:
-                if role in member.roles:
+                if wine_role in member.roles:
                     try:
-                        await member.remove_roles(role)
-                        count += 1
+                        await member.remove_roles(wine_role)
+                        wine_count += 1
                     except Exception as e:
                         print(e)
-                        await ctx.send(f"Unable to remove { role } from { member }")
-            await ctx.send(f'Successfully removed { count } users from the Hitchhiker role.')
+                        await ctx.send(f"Unable to remove { wine_role } from { member }")
+                if hitch_role in member.roles:
+                    try:
+                        await member.remove_roles(hitch_role)
+                        hitch_count += 1
+                    except Exception as e:
+                        print(e)
+                        await ctx.send(f"Unable to remove { hitch_role } from { member }")
+            await ctx.send(f'Successfully removed { hitch_count } users from the Hitchhiker role.')
+            await ctx.send(f'Successfully removed { wine_count } users from the Wine Carrier role.')
         except Exception as e:
             print(e)
             await ctx.send('Clear roles command failed.  Contact admin.')
