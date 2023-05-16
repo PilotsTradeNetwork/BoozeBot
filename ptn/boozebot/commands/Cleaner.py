@@ -38,22 +38,28 @@ class Cleaner(commands.Cog):
         Command to open public channels. Generates a message in the channel that it ran in.
 
         :param SlashContext ctx: The discord slash context.
-        :returns: A discord embed with some emoji's
+        :returns: A discord embed
         """
         print(f'User {ctx.author} requested BC channel opening in channel: {ctx.channel}.')
 
         ids_list = get_public_channel_list()
-        opened_channel_link_list = ["<#" + str(item) + ">" for item in ids_list]
+        guild = bot.get_guild(bot_guild_id())
 
-        embed = discord.Embed(title='Avast! We\'re ready to set sail!')
-        for item in opened_channel_link_list:
-            embed.add_field(name="Opened", value=item, inline=False)
+        embed = discord.Embed()
 
-        await ctx.send(embed=embed)
+        for id in ids_list:
+            channel = bot.get_channel(id)
+            try:
+                await channel.set_permissions(guild.default_role, view_channel=None) # less confusing alias for read_messages
+                embed.add_field(name="Opened", value="<#" + str(id) +">", inline=False)
+            except Exception as e:
+                embed.add_field(name="FAILED to open", value="<#" + str(id) + f">: {e}", inline=False)
+
+        await ctx.send(f"<@&{server_sommelier_role_id()}> Avast! We\'re ready to set sail!", embed=embed)
 
 
     @cog_ext.cog_slash(
-        name="Booze_Channels_Closen",
+        name="Booze_Channels_Close",
         guild_ids=[bot_guild_id()],
         description="Opens the Booze Cruise channels to the public.",
         permissions={
@@ -67,18 +73,24 @@ class Cleaner(commands.Cog):
     )
     async def booze_channels_close(self, ctx: SlashContext):
         """
-        Command to open public channels. Generates a message in the channel that it ran in.
+        Command to close public channels. Generates a message in the channel that it ran in.
 
         :param SlashContext ctx: The discord slash context.
-        :returns: A discord embed with some emoji's
+        :returns: A discord embed
         """
-        print(f'User {ctx.author} requested BC channel opening in channel: {ctx.channel}.')
+        print(f'User {ctx.author} requested BC channel closing in channel: {ctx.channel}.')
 
         ids_list = get_public_channel_list()
-        opened_channel_link_list = ["<#" + str(item) + ">" for item in ids_list]
+        guild = bot.get_guild(bot_guild_id())
 
-        embed = discord.Embed(title='That\'s the end of that, me hearties!')
-        for item in opened_channel_link_list:
-            embed.add_field(name="Closed", value=item, inline=False)
+        embed = discord.Embed()
 
-        await ctx.send(embed=embed)
+        for id in ids_list:
+            channel = bot.get_channel(id)
+            try:
+                await channel.set_permissions(guild.default_role, view_channel=False) # less confusing alias for read_messages
+                embed.add_field(name="Closed", value="<#" + str(id) +">", inline=False)
+            except Exception as e:
+                embed.add_field(name="FAILED to close", value="<#" + str(id) + f">: {e}", inline=False)
+
+        await ctx.send(f"<@&{server_sommelier_role_id()}> That\'s the end of that, me hearties.", embed=embed)
