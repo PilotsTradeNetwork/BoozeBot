@@ -125,7 +125,9 @@ class Cleaner(commands.Cog):
                 wine_welcome_message = file.read()
                 await ctx.send(f"Existing message: ```\n{wine_welcome_message}\n```")
 
-        await ctx.send("Please enter your new message now.")
+        response_timeout = 20
+
+        await ctx.send(f"<@{ctx.author.id}> your next message in this channel will be used as the new welcome message, or wait {response_timeout} seconds to cancel.")
 
         def check(response):
             return response.author == ctx.author and response.channel == ctx.channel
@@ -133,16 +135,19 @@ class Cleaner(commands.Cog):
         try:
             # process the response
             print("Waiting for user response...")
-            message = await bot.wait_for("message", check=check, timeout=60)
+            message = await bot.wait_for("message", check=check, timeout=response_timeout)
 
         except asyncio.TimeoutError:
             print("No valid response detected")
-            await ctx.send("No valid response detected.")
+            return await ctx.send("No valid response detected.")
 
-        # Now try to replace the contents
-        print("Setting welcome message from user input")
-        with open("wine_carrier_welcome.txt", "w") as wine_welcome_txt_file:
-            wine_welcome_txt_file.write(message.content)
-            embed = discord.Embed(description=message.content)
-            embed.set_thumbnail(url="https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless")
-            await ctx.send("New Wine Carrier welcome message set:", embed=embed)
+        if message:
+            # Now try to replace the contents
+            print("Setting welcome message from user input")
+            with open("wine_carrier_welcome.txt", "w") as wine_welcome_txt_file:
+                wine_welcome_txt_file.write(message.content)
+                embed = discord.Embed(description=message.content)
+                embed.set_thumbnail(url="https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless")
+                await ctx.send("New Wine Carrier welcome message set:", embed=embed)
+        else:
+            return
