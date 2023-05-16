@@ -94,6 +94,14 @@ class Helper(commands.Cog):
                     create_choice(
                         name="steve_says",
                         value="steve_says"
+                    ),
+                    create_choice(
+                        name="booze_channels_open",
+                        value="booze_channels_open"
+                    ),
+                    create_choice(
+                        name="booze_channels_close",
+                        value="booze_channels_close"
                     )
                 ]
             ),
@@ -303,6 +311,14 @@ class Helper(commands.Cog):
                 }
             ]
             method_desc = 'Sends a message as Pirate Steve'
+            roles = ['Admin', 'Sommelier', 'Mod']
+        elif command == 'booze_channels_open':
+            params = None
+            method_desc = 'Opens all public-facing Booze Cruise channels.'
+            roles = ['Admin', 'Sommelier', 'Mod']
+        elif command == 'booze_channels_close':
+            params = None
+            method_desc = 'Closes (hides) all public-facing Booze Cruise channels.'
             roles = ['Admin', 'Sommelier', 'Mod']
         else:
             print('User did not provide a valid command.')
