@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.7.2
+
+- \#346 - Update description for wine_unload_complete
+- \#348 - Open/close public channels command
+- \#354 - Move wine carrier signup notification
+- \#355 - More Connoisseur commands
+- \#362 - Slash descriptions cannot exceed 100 characters
+
+## 1.7.1
+
+- \#351 - Add permissions for Connoisseurs
+
+Others:
+
+- Containerized Booze Bot for deployment on portainer
+
 ## 1.7.0
 
 - \#324 - Add wine tanker unload commands
