@@ -36,7 +36,8 @@ setup(
         'gspread',
         'oauth2client',
         'requests',
-        'python-dotenv'
+        'python-dotenv',
+        'asyncio'
     ],
     entry_points={
         'console_scripts': [

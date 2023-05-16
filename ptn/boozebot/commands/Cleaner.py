@@ -1,4 +1,6 @@
 import discord
+import os
+import asyncio
 from discord.ext import commands
 from discord_slash import SlashContext, cog_ext
 from discord_slash.utils.manage_commands import create_option, create_choice
@@ -94,3 +96,58 @@ class Cleaner(commands.Cog):
                 embed.add_field(name="FAILED to close", value="<#" + str(id) + f">: {e}", inline=False)
 
         await ctx.send(f"<@&{server_sommelier_role_id()}> That\'s the end of that, me hearties.", embed=embed)
+
+    @cog_ext.cog_slash(
+        name="Set_Wine_Carrier_Welcome",
+        guild_ids=[bot_guild_id()],
+        description="Sets the welcome message sent to Wine Carriers.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        },
+    )
+    async def set_wine_carrier_welcome(self, ctx: SlashContext):
+        """
+        Command to set/edit the wine carrier welcome message. Generates a message in the channel that it ran in.
+
+        :param SlashContext ctx: The discord slash context.
+        :returns: A discord embed
+        """
+        print(f'User {ctx.author} is changing the wine carrier welcome message in {ctx.channel}.')
+
+        # send the existing message (if there is one) so the user has a copy
+        if os.path.isfile("wine_carrier_welcome.txt"):
+            with open("wine_carrier_welcome.txt", "r") as file:
+                wine_welcome_message = file.read()
+                await ctx.send(f"Existing message: ```\n{wine_welcome_message}\n```")
+
+        response_timeout = 20
+
+        await ctx.send(f"<@{ctx.author.id}> your next message in this channel will be used as the new welcome message, or wait {response_timeout} seconds to cancel.")
+
+        def check(response):
+            return response.author == ctx.author and response.channel == ctx.channel
+
+        try:
+            # process the response
+            print("Waiting for user response...")
+            message = await bot.wait_for("message", check=check, timeout=response_timeout)
+
+        except asyncio.TimeoutError:
+            print("No valid response detected")
+            return await ctx.send("No valid response detected.")
+
+        if message:
+            # Now try to replace the contents
+            print("Setting welcome message from user input")
+            with open("wine_carrier_welcome.txt", "w") as wine_welcome_txt_file:
+                wine_welcome_txt_file.write(message.content)
+                embed = discord.Embed(description=message.content)
+                embed.set_thumbnail(url="https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless")
+                await ctx.send("New Wine Carrier welcome message set:", embed=embed)
+        else:
+            return
