@@ -12,7 +12,7 @@ from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, ge
     server_admin_role_id, server_sommelier_role_id, server_connoisseur_role_id, server_wine_carrier_role_id, \
     server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id, \
     get_wine_tanker_role, get_discord_tanker_unload_channel, \
-    get_public_channel_list
+    get_public_channel_list, server_hitchhiker_role_id
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
 
@@ -98,6 +98,61 @@ class Cleaner(commands.Cog):
         await ctx.send(f"<@&{server_sommelier_role_id()}> That\'s the end of that, me hearties.", embed=embed)
 
     @cog_ext.cog_slash(
+        name="Clear_Booze_Roles",
+        guild_ids=[bot_guild_id()],
+        description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution.",
+        permissions={
+            bot_guild_id(): [
+                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+            ]
+        },
+    )
+    async def clear_booze_roles(self, ctx: SlashContext):
+        """
+        Command to reset the Wine Carrier and Hitchhiker roles to have no members. Generates a message in the channel that it ran in.
+
+        :param SlashContext ctx: The discord slash context.
+        :returns: A discord embed
+        """
+        print(f'User {ctx.author} requested clearing all Booze related roles in channel: {ctx.channel}.')
+
+        guild = bot.get_guild(bot_guild_id())
+
+        wine_role_id = server_wine_carrier_role_id()
+        wine_role = discord.utils.get(ctx.guild.roles, id=wine_role_id)
+
+        hitch_role_id = server_hitchhiker_role_id()
+        hitch_role = discord.utils.get(ctx.guild.roles, id=hitch_role_id)
+
+        wine_count = 0
+        hitch_count = 0
+        await ctx.send(f'This may take a minute...')
+        try:
+            for member in guild.members:
+                if wine_role in member.roles:
+                    try:
+                        await member.remove_roles(wine_role)
+                        wine_count += 1
+                    except Exception as e:
+                        print(e)
+                        await ctx.send(f"Unable to remove { wine_role } from { member }")
+                if hitch_role in member.roles:
+                    try:
+                        await member.remove_roles(hitch_role)
+                        hitch_count += 1
+                    except Exception as e:
+                        print(e)
+                        await ctx.send(f"Unable to remove { hitch_role } from { member }")
+            await ctx.send(f'Successfully removed { hitch_count } users from the Hitchhiker role.')
+            await ctx.send(f'Successfully removed { wine_count } users from the Wine Carrier role.')
+        except Exception as e:
+            print(e)
+            await ctx.send('Clear roles command failed.  Contact admin.')
+
+    @cog_ext.cog_slash(
         name="Set_Wine_Carrier_Welcome",
         guild_ids=[bot_guild_id()],
         description="Sets the welcome message sent to Wine Carriers.",
@@ -117,6 +172,7 @@ class Cleaner(commands.Cog):
         :param SlashContext ctx: The discord slash context.
         :returns: A discord embed
         """
+
         print(f'User {ctx.author} is changing the wine carrier welcome message in {ctx.channel}.')
 
         # send the existing message (if there is one) so the user has a copy
