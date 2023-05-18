@@ -12,7 +12,7 @@ from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
     server_admin_role_id, server_sommelier_role_id, server_connoisseur_role_id, server_wine_carrier_role_id, \
     server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id, \
-    get_wine_tanker_role, get_discord_tanker_unload_channel, get_wine_carrier_channel
+    get_wine_tanker_role, get_discord_tanker_unload_channel, get_wine_carrier_channel, get_steve_says_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
 # lock for wine carrier toggle
@@ -602,7 +602,7 @@ class Unloading(commands.Cog):
 async def make_user_wine_carrier(ctx, user):
 
     await wine_carrier_toggle_lock.acquire()
-
+    channel = bot.get_channel(get_steve_says_channel())
     # set the target role
     wc_role = discord.utils.get(ctx.guild.roles, id=server_wine_carrier_role_id())
     print(f"Wine Carrier role name is {wc_role.name}")
@@ -628,9 +628,10 @@ async def make_user_wine_carrier(ctx, user):
                 await wine_channel.send(f"<@{user.id}>", embed=embed)
 
                 wine_carrier_toggle_lock.release()
-
-            return await ctx.send(content=response)
+                
+                await channel.send(content=response)
+            return await ctx.send(content=response, hidden=True)
         except Exception as e:
             print(e)
-            await ctx.send(f"Failed adding role {wc_role.name} to {user}: {e}")
+            await ctx.send(f"Failed adding role {wc_role.name} to {user}: {e}", hidden=True)
             wine_carrier_toggle_lock.release()
