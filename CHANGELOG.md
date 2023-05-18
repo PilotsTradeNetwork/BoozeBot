@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.1
+
+- \#371 - Make Wine Carrier Click only display output to user and not whole channel
+
 ## 1.8.0
 
 - \#346 - Update description for wine_unload_complete
@@ -19,7 +23,6 @@ New commands added:
 Command syntax changes:
 
 - `/make_wine_carrier` obsolete role choice parameter removed
-
 
 ## 1.7.1
 
