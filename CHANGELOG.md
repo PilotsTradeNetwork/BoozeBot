@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.2
+
+- \#375 - Fix original permission overwrites being reset by `/booze_channels_open` and `/booze_channels_close`
+
 ## 1.8.1
 
 - \#371 - Make Wine Carrier Click only display output to user and not whole channel
