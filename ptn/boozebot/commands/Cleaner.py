@@ -52,7 +52,9 @@ class Cleaner(commands.Cog):
         for id in ids_list:
             channel = bot.get_channel(id)
             try:
-                await channel.set_permissions(guild.default_role, view_channel=None) # less confusing alias for read_messages
+                overwrite = channel.overwrites_for(guild.default_role)
+                overwrite.view_channel = None # less confusing alias for read_messages
+                await channel.set_permissions(guild.default_role, overwrite=overwrite)
                 embed.add_field(name="Opened", value="<#" + str(id) +">", inline=False)
             except Exception as e:
                 embed.add_field(name="FAILED to open", value="<#" + str(id) + f">: {e}", inline=False)
@@ -90,7 +92,9 @@ class Cleaner(commands.Cog):
         for id in ids_list:
             channel = bot.get_channel(id)
             try:
-                await channel.set_permissions(guild.default_role, view_channel=False) # less confusing alias for read_messages
+                overwrite = channel.overwrites_for(guild.default_role)
+                overwrite.view_channel = False # less confusing alias for read_messages
+                await channel.set_permissions(guild.default_role, overwrite=overwrite)
                 embed.add_field(name="Closed", value="<#" + str(id) +">", inline=False)
             except Exception as e:
                 embed.add_field(name="FAILED to close", value="<#" + str(id) + f">: {e}", inline=False)
