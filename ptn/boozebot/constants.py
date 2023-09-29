@@ -58,7 +58,7 @@ TEST_TANKER_UNLOAD_CHANNEL_ID = 995714783678570566
 TEST_BC_PUBLIC_CHANNEL_IDS = [1107757218318782586, 1107757285817712721, 1107757340381425768, 1107757384069288056, 1107757418517110955, 1107757456517505055, 1107757490940153956, 1107757548779601940]
 # booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
 
-BOOZE_PROFIT_PER_TONNE_WINE = 278000
+BOOZE_PROFIT_PER_TONNE_WINE = 256752
 RACKHAMS_PEAK_POP = 150000
 
 _production = ast.literal_eval(os.environ.get('PTN_BOOZE_BOT', 'False'))
