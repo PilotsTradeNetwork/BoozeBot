@@ -136,4 +136,4 @@ dmypy.json
 # local data
 
 /ptn/boozebot/booze_carriers.db
-wine_carrier_welcome.txt
+ptn/boozebot/wine_carrier_welcome.txt

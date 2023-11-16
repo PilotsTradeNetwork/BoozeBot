@@ -1,24 +1,31 @@
 import asyncio
-import sqlite3
-from datetime import datetime, timedelta
 import math
 import os.path
 import re
+import sqlite3
+from datetime import datetime, timedelta
+from typing import List
 
 import discord
-from discord.ext import tasks
-from discord_slash import cog_ext, SlashContext
-from discord_slash.model import SlashCommandPermissionType
-from discord_slash.utils.manage_commands import create_permission, create_option, create_choice
-from oauth2client.service_account import ServiceAccountCredentials
 import gspread
+from discord import app_commands
+from discord.app_commands import describe
+from discord.ext import tasks
 from discord.ext.commands import Cog
+# from discord_slash import cog_ext, SlashContext
+# from discord_slash.model import SlashCommandPermissionType
+# from discord_slash.utils.manage_commands import create_permission, create_option, create_choice
+from oauth2client.service_account import ServiceAccountCredentials
 
+import ptn.boozebot.constants as constants
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.PHcheck import ph_check
-from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id, \
-    BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, server_mod_role_id, get_bot_control_channel, \
-    get_sommelier_notification_channel, server_wine_carrier_role_id, server_connoisseur_role_id
+from ptn.boozebot.bot import bot
+from ptn.boozebot.commands.ErrorHandler import on_app_command_error
+from ptn.boozebot.commands.Helper import check_roles
+from ptn.boozebot.constants import server_sommelier_role_id, \
+    BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, get_bot_control_channel, \
+    get_sommelier_notification_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn, dump_database, pirate_steve_lock
 
 
@@ -53,6 +60,17 @@ class DatabaseInteraction(Cog):
         self._reconfigure_workbook_and_form()
 
         self._update_db()  # On instantiation, go build the DB
+        self.bot = bot
+        self.summon_message_ids = {}
+
+    def cog_load(self):
+        tree = self.bot.tree
+        self._old_tree_error = tree.on_error
+        tree.on_error = on_app_command_error
+
+    def cog_unload(self):
+        tree = self.bot.tree
+        tree.on_error = self._old_tree_error
 
     def _reconfigure_workbook_and_form(self):
         """
@@ -75,27 +93,30 @@ class DatabaseInteraction(Cog):
         except gspread.exceptions.APIError as e:
             print(f'Error reading the worksheet: {e}')
 
-    @cog_ext.cog_slash(
-        name="update_booze_db",
-        guild_ids=[bot_guild_id()],
-        description="Populates the booze cruise database from the updated google sheet. Somm/Conn role required.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-    )
-    async def user_update_database_from_googlesheets(self, ctx: SlashContext):
+    # @cog_ext.cog_slash(
+    #     name="update_booze_db",
+    #     guild_ids=[bot_guild_id()],
+    #     description="Populates the booze cruise database from the updated google sheet. Somm/Conn role required.",
+    #     permissions={
+    #         bot_guild_id(): [
+    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #         ]
+    #     },
+    # )
+    @app_commands.command(name="update_booze_db",
+                          description="Populates the booze cruise database from the updated google sheet. Somm/Conn role required.")
+    @check_roles(constants.conn_plus_roles)
+    async def user_update_database_from_googlesheets(self, interaction: discord.Interaction):
         """
         Slash command for updating the database from the GoogleSheet.
 
         :returns: A discord embed to the user.
         :rtype: None
         """
-        print(f'User {ctx.author} requested to re-populate the database at {datetime.now()}')
+        print(f'User {interaction.user.display_name} requested to re-populate the database at {datetime.now()}')
 
         try:
             result = self._update_db()
@@ -108,10 +129,10 @@ class DatabaseInteraction(Cog):
                             value='Pirate Steve hope he got this right.',
                             inline=False)
 
-            return await ctx.send(embed=embed)
+            return await interaction.response.send_message(embed=embed)
 
         except ValueError as ex:
-            return await ctx.send(str(ex))
+            return await interaction.response.send_message(str(ex))
 
     async def report_new_and_invalid_carriers(self, result=None):
         """
@@ -187,7 +208,7 @@ class DatabaseInteraction(Cog):
         unchanged_count = 0
         # A JSON form tracking all the records
         records_data = self.tracking_sheet.get_all_records()
-        new_signups = []    # type: list[discord.Embed]
+        new_signups = []  # type: list[discord.Embed]
 
         total_carriers = len(records_data)
         print(f'Updating the database we have: {total_carriers} records found.')
@@ -358,36 +379,40 @@ class DatabaseInteraction(Cog):
             'new_signups': new_signups
         }
 
-    @cog_ext.cog_slash(
-        name="find_carriers_with_wine",
-        guild_ids=[bot_guild_id()],
-        description="Returns the carriers in the database that are still flagged as having wine remaining.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-    )
-    async def find_carriers_with_wine(self, ctx: SlashContext):
+    # @cog_ext.cog_slash(
+    #    name="find_carriers_with_wine",
+    #    guild_ids=[bot_guild_id()],
+    #    description="Returns the carriers in the database that are still flagged as having wine remaining.",
+    #    permissions={
+    #        bot_guild_id(): [
+    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #        ]
+    #    },
+    # )
+    @app_commands.command(name="find_carriers_with_wine",
+                          description="Returns the carriers in the database that are still flagged as having wine remaining.")
+    @check_roles(constants.somm_plus_roles)
+    async def find_carriers_with_wine(self, interaction: discord.Interaction):
         """
         Returns an interactive list of all the carriers with wine that has not yet been unloaded.
 
-        :param SlashContext ctx: The discord slash context
+        :param Interaction interaction: The discord interaction
         :returns: An interactive message embed.
         :rtype: Union[discord.Message, dict]
         """
         await self.report_new_and_invalid_carriers(self._update_db())
-        print(f'{ctx.author} requested to find the carrier with wine')
+        print(f'{interaction.user.display_name} requested to find the carrier with wine')
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
         )
         carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
         if len(carrier_data) == 0:
             # No carriers remaining
-            return await ctx.send('Pirate Steve is sorry, but there are no more carriers with wine remaining.')
+            return await interaction.response.send_message(
+                'Pirate Steve is sorry, but there are no more carriers with wine remaining.')
 
         # Else we have wine left
 
@@ -405,7 +430,7 @@ class DatabaseInteraction(Cog):
             """
             Validates the user response
             """
-            return user == ctx.author and str(react.emoji) in ["◀️", "▶️"]
+            return user == interaction.user and str(react.emoji) in ["◀️", "▶️"]
 
         pages = [page for page in chunk(carrier_data)]
         max_pages = len(pages)
@@ -426,7 +451,8 @@ class DatabaseInteraction(Cog):
             )
 
         # Now go send it and wait on a reaction
-        message = await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
+        message = await interaction.original_response()
 
         # From page 0 we can only go forwards
         await message.add_reaction("▶️")
@@ -436,7 +462,7 @@ class DatabaseInteraction(Cog):
                 reaction, user = await bot.wait_for('reaction_add', timeout=60, check=validate_response)
                 if str(reaction.emoji) == "▶️" and current_page != max_pages:
 
-                    print(f'{ctx.author} requested to go forward a page.')
+                    print(f'{interaction.user.display_name} requested to go forward a page.')
                     current_page += 1  # Forward a page
                     new_embed = discord.Embed(
                         title=f"{len(carrier_data)} Carriers left with wine in the database. Page:{current_page}"
@@ -450,7 +476,7 @@ class DatabaseInteraction(Cog):
                             inline=False
                         )
 
-                    await message.edit(embed=new_embed)
+                    await interaction.edit_original_response(embed=new_embed)
 
                     # Ok now we can go back, check if we can also go forwards still
                     if current_page == max_pages:
@@ -460,7 +486,7 @@ class DatabaseInteraction(Cog):
                     await message.add_reaction("◀️")
 
                 elif str(reaction.emoji) == "◀️" and current_page > 1:
-                    print(f'{ctx.author} requested to go back a page.')
+                    print(f'{interaction.user.display_name} requested to go back a page.')
                     current_page -= 1  # Go back a page
 
                     new_embed = discord.Embed(
@@ -480,7 +506,7 @@ class DatabaseInteraction(Cog):
                             inline=False
                         )
 
-                    await message.edit(embed=new_embed)
+                    await interaction.edit_original_response(embed=new_embed)
                     # Ok now we can go forwards, check if we can also go backwards still
                     if current_page == 1:
                         await message.clear_reaction("◀️")
@@ -490,59 +516,65 @@ class DatabaseInteraction(Cog):
                 else:
                     # It should be impossible to hit this part, but lets gate it just in case.
                     print(
-                        f'HAL9000 error: {ctx.author} ended in a random state while trying to handle: {reaction.emoji} '
+                        f'HAL9000 error: {interaction.user.display_name} ended in a random state while trying to handle: {reaction.emoji} '
                         f'and on page: {current_page}.')
                     # HAl-9000 error response.
-                    error_embed = discord.Embed(title=f"I'm sorry {ctx.author}, I'm afraid I can't do that.")
-                    await message.edit(embed=error_embed)
+                    error_embed = discord.Embed(
+                        title=f"I'm sorry {interaction.user.display_name}, I'm afraid I can't do that.")
+                    await interaction.edit_original_response(embed=error_embed)
                     await message.remove_reaction(reaction, user)
 
             except asyncio.TimeoutError:
-                print(f'Timeout hit during carrier request by: {ctx.author}')
-                await ctx.send(
-                    f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
-                return await message.delete()
+                print(f'Timeout hit during carrier request by: {interaction.user.display_name}')
+                await interaction.followup.send(
+                    f'Closed the active carrier list request from: {interaction.user.display_name} due to no input in 60 seconds.')
+                return await interaction.delete_original_response()
 
-    @cog_ext.cog_slash(
-        name="wine_mark_completed_forcefully",
-        guild_ids=[bot_guild_id()],
-        description="Forcefully marks a carrier in the database as unload completed. Admin/Sommelier required.",
-        options=[
-            create_option(
-                name='carrier_id',
-                description='The XXX-XXX ID string for the carrier',
-                option_type=3,
-                required=True
-            )
-        ],
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def wine_mark_completed_forcefully(self, ctx: SlashContext, carrier_id):
+    # @cog_ext.cog_slash(
+    #     name="wine_mark_completed_forcefully",
+    #     guild_ids=[bot_guild_id()],
+    #     description="Forcefully marks a carrier in the database as unload completed. Admin/Sommelier required.",
+    #     options=[
+    #         create_option(
+    #             name='carrier_id',
+    #             description='The XXX-XXX ID string for the carrier',
+    #             option_type=3,
+    #             required=True
+    #         )
+    #     ],
+    #     permissions={
+    #         bot_guild_id(): [
+    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #         ]
+    #     }
+    # )
+    @app_commands.command(name="wine_mark_completed_forcefully",
+                          description="Forcefully marks a carrier in the database as unload completed. Admin/Sommelier required.")
+    @check_roles(constants.somm_plus_roles)
+    async def wine_mark_completed_forcefully(self, interaction: discord.Interaction, carrier_id: str):
         """
         Forcefully marks a carrier as completed an unload. Ideally will never be used.
 
-        :param SlashContext ctx: The discord slash context.
+        :param Interaction interaction: The discord slash context.
         :param str carrier_id: The XXX-XXX carrier ID you want to action.
         :returns: None
         """
         await self.report_new_and_invalid_carriers(self._update_db())
-        print(f'{ctx.author} wants to forcefully mark the carrier {carrier_id} as unloaded.')
+        print(f'{interaction.user.display_name} wants to forcefully mark the carrier {carrier_id} as unloaded.')
 
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
-            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await ctx.channel.send(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, '
-                                          f'{carrier_id}.')
+            print(
+                f'{interaction.user.display_name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await interaction.channel.send(
+                f'{interaction.user.display_name}, the carrier ID was invalid, XXX-XXX expected received, '
+                f'{carrier_id}.')
 
         # Check if it is in the database already
         pirate_steve_db.execute(
@@ -563,26 +595,27 @@ class DatabaseInteraction(Cog):
         carrier_embed.set_footer(text="y/n")
 
         def check(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
-                   check_message.content.lower() in ["y", "n"]
+            return check_message.author == interaction.user.display_name and check_message.channel == interaction.channel and \
+                check_message.content.lower() in ["y", "n"]
 
         # Send the embed
-        message = await ctx.send(embed=carrier_embed)
+        message = await interaction.response.send_message(embed=carrier_embed)
 
         try:
             msg = await bot.wait_for("message", check=check, timeout=30)
             if msg.content.lower() == "n":
                 await message.delete()
                 await msg.delete()
-                print(f'User {ctx.author} aborted the request to mark the carrier {carrier_id} as unloaded.')
-                return await ctx.send(f"Argh you cancelled the action for marking {carrier_id} "
-                                      f"as forcefully completed.")
+                print(
+                    f'User {interaction.user.display_name} aborted the request to mark the carrier {carrier_id} as unloaded.')
+                return await interaction.followup.send(f"Argh you cancelled the action for marking {carrier_id} "
+                                                       f"as forcefully completed.")
 
             elif msg.content.lower() == "y":
                 try:
                     await message.delete()
                     await msg.delete()
-                    print(f'User {ctx.author} agreed to mark the carrier {carrier_id} as unloaded.')
+                    print(f'User {interaction.user.display_name} agreed to mark the carrier {carrier_id} as unloaded.')
 
                     # Go update the object in the database.
                     try:
@@ -602,7 +635,8 @@ class DatabaseInteraction(Cog):
                     finally:
                         pirate_steve_lock.release()
 
-                    print(f'Database for unloaded forcefully updated by {ctx.author} for {carrier_id}')
+                    print(
+                        f'Database for unloaded forcefully updated by {interaction.user.display_name} for {carrier_id}')
                     embed = discord.Embed(
                         description=f"Fleet carrier {carrier_data.carrier_name} marked as unloaded.",
                     )
@@ -610,76 +644,85 @@ class DatabaseInteraction(Cog):
                         name=f'Runs Made: {carrier_data.run_count}',
                         value=f'Unloads Completed: {carrier_data.total_unloads}'
                     )
-                    return await ctx.send(embed=embed)
+                    return await interaction.followup.send(embed=embed)
                 except Exception as e:
-                    return ctx.send(f'Something went wrong, go tell the bot team "computer said: {e}"')
+                    return interaction.followup.send(f'Something went wrong, go tell the bot team "computer said: {e}"')
 
         except asyncio.TimeoutError:
             await message.delete()
-            return await ctx.send("**Cancelled - timed out**")
+            return await interaction.followup.send("**Cancelled - timed out**")
 
         await message.delete()
 
-    @cog_ext.cog_slash(
-        name="find_wine_carriers_for_platform",
-        guild_ids=[bot_guild_id()],
-        description="Returns the carriers in the database for the platform.",
-        options=[
-            create_option(
-                name='platform',
-                description='The platform the carrier operates on.',
-                option_type=3,
-                required=True,
-                choices=[
-                    create_choice(
-                        name="PC (All)",
-                        value="PC"
-                    ),
-                    create_choice(
-                        name="PC EDH",
-                        value="PC (Horizons Only)"
-                    ),
-                    create_choice(
-                        name="PC EDO",
-                        value="PC (Horizons + Odyssey)"
-                    ),
-                    create_choice(
-                        name="Xbox",
-                        value="Xbox"
-                    ),
-                    create_choice(
-                        name="Playstation",
-                        value="Playstation"
-                    ),
-                ]
-            ),
-            create_option(
-                name='remaining_wine',
-                description='True if you only want carriers with wine, else False. Default True',
-                option_type=5,
-                required=False
-            )
-        ],
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
+    # @cog_ext.cog_slash(
+    #    name="find_wine_carriers_for_platform",
+    #    guild_ids=[bot_guild_id()],
+    #    description="Returns the carriers in the database for the platform.",
+    #    options=[
+    #        create_option(
+    #            name='platform',
+    #            description='The platform the carrier operates on.',
+    #            option_type=3,
+    #            required=True,
+    #            choices=[
+    #                create_choice(
+    #                    name="PC (All)",
+    #                    value="PC"
+    #                ),
+    #                create_choice(
+    #                    name="PC EDH",
+    #                    value="PC (Horizons Only)"
+    #                ),
+    #                create_choice(
+    #                    name="PC EDO",
+    #                    value="PC (Horizons + Odyssey)"
+    #                ),
+    #                create_choice(
+    #                    name="Xbox",
+    #                    value="Xbox"
+    #                ),
+    #                create_choice(
+    #                    name="Playstation",
+    #                    value="Playstation"
+    #                ),
+    #            ]
+    #        ),
+    #        create_option(
+    #            name='remaining_wine',
+    #            description='True if you only want carriers with wine, else False. Default True',
+    #            option_type=5,
+    #            required=False
+    #        )
+    #    ],
+    #    permissions={
+    #        bot_guild_id(): [
+    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #        ]
+    #    },
+    # )
+    # TODO: Is this still relevant?
+    @app_commands.command(name="find_wine_carriers_for_platform",
+                          description="Returns the carriers in the database for the platform.")
+    @describe(
+        platform='The platform the carrier operates on.',
+        remaining_wine='True if you only want carriers with wine, else False. Default True'
     )
-    async def find_carriers_for_platform(self, ctx: SlashContext, platform: str, remaining_wine=True):
+    @check_roles(constants.wine_carrier_plus_roles)
+    async def find_carriers_for_platform(self, interaction: discord.Interaction, platform: str,
+                                         remaining_wine: bool = True):
         """
         Find carriers for the specified platform.
 
-        :param SlashContext ctx: The discord SlashContext.
+        :param Interaction interaction: The discord SlashContext.
         :param str platform: The platform to search for.
         :param bool remaining_wine: True if you only want carriers with wine
         :returns: None
         """
         await self.report_new_and_invalid_carriers(self._update_db())
-        print(f'{ctx.author} requested to fine carriers for: {platform} with wine: {remaining_wine}')
+        print(f'{interaction.user.display_name} requested to fine carriers for: {platform} with wine: {remaining_wine}')
 
         if remaining_wine:
             data = (
@@ -704,8 +747,8 @@ class DatabaseInteraction(Cog):
 
         if not carrier_data:
             print(f'Did not find a carrier matching the condition: {carrier_search}.')
-            return await ctx.send(f'Could not find a carrier matching the inputs: {platform}, '
-                                  f'with wine: {remaining_wine}')
+            return await interaction.response.send_message(f'Could not find a carrier matching the inputs: {platform}, '
+                                                           f'with wine: {remaining_wine}')
 
         def chunk(chunk_list, max_size=10):
             """
@@ -721,7 +764,7 @@ class DatabaseInteraction(Cog):
             """
             Validates the user response
             """
-            return user == ctx.author and str(react.emoji) in ["◀️", "▶️"]
+            return user == interaction.user.display_name and str(react.emoji) in ["◀️", "▶️"]
 
         pages = [page for page in chunk(carrier_data)]
         max_pages = len(pages)
@@ -743,7 +786,7 @@ class DatabaseInteraction(Cog):
             )
 
         # Now go send it and wait on a reaction
-        message = await ctx.send(embed=embed)
+        message = await interaction.response.send_message(embed=embed)
 
         # From page 0 we can only go forwards
         await message.add_reaction("▶️")
@@ -753,7 +796,7 @@ class DatabaseInteraction(Cog):
                 reaction, user = await bot.wait_for('reaction_add', timeout=60, check=validate_response)
                 if str(reaction.emoji) == "▶️" and current_page != max_pages:
 
-                    print(f'{ctx.author} requested to go forward a page.')
+                    print(f'{interaction.user.display_name} requested to go forward a page.')
                     current_page += 1  # Forward a page
                     new_embed = discord.Embed(
                         title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. Page"
@@ -778,7 +821,7 @@ class DatabaseInteraction(Cog):
                     await message.add_reaction("◀️")
 
                 elif str(reaction.emoji) == "◀️" and current_page > 1:
-                    print(f'{ctx.author} requested to go back a page.')
+                    print(f'{interaction.user.display_name} requested to go back a page.')
                     current_page -= 1  # Go back a page
 
                     new_embed = discord.Embed(
@@ -809,42 +852,64 @@ class DatabaseInteraction(Cog):
                 else:
                     # It should be impossible to hit this part, but lets gate it just in case.
                     print(
-                        f'HAL9001 error: {ctx.author} ended in a random state while trying to handle: {reaction.emoji} '
+                        f'HAL9001 error: {interaction.user.display_name} ended in a random state while trying to handle: {reaction.emoji} '
                         f'and on page: {current_page}.')
                     # HAl-9000 error response.
-                    error_embed = discord.Embed(title=f"I'm sorry {ctx.author}, I'm afraid I can't do that.")
+                    error_embed = discord.Embed(
+                        title=f"I'm sorry {interaction.user.display_name}, I'm afraid I can't do that.")
                     await message.edit(embed=error_embed)
                     await message.remove_reaction(reaction, user)
 
             except asyncio.TimeoutError:
-                print(f'Timeout hit during carrier request by: {ctx.author}')
-                await ctx.send(
-                    f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
+                print(f'Timeout hit during carrier request by: {interaction.user.display_name}')
+                await interaction.response.send_message(
+                    f'Closed the active carrier list request from: {interaction.user.display_name} due to no input in 60 seconds.')
                 return await message.delete()
 
-    @cog_ext.cog_slash(
-        name="find_wine_carrier_by_id",
-        guild_ids=[bot_guild_id()],
-        description="Returns the carriers in the database for the ID.",
-        options=[
-            create_option(
-                name='carrier_id',
-                description='The XXX-XXX ID string for the carrier',
-                option_type=3,
-                required=True
-            )
-        ],
-    )
-    async def find_carrier_by_id(self, ctx: SlashContext, carrier_id: str):
+    @find_carriers_for_platform.autocomplete('platform')
+    async def platform_autocomplete(self,
+                                    interaction: discord.Interaction,
+                                    current: str
+                                    ) -> List[discord.app_commands.commands.Choice[str]]:
+        platform_choices = [
+            app_commands.Choice(name="PC (All)", value="PC"),
+            app_commands.Choice(name="PC EDH", value="PC (Horizons Only)"),
+            app_commands.Choice(name="PC EDO", value="PC (Horizons + Odyssey)"),
+            app_commands.Choice(name="Xbox", value="Xbox"),
+            app_commands.Choice(name="Playstation", value="Playstation"),
+        ]
+        return [
+            choice for choice in platform_choices if current.lower() in choice.name.lower()
+        ]
+
+    # @cog_ext.cog_slash(
+    #    name="find_wine_carrier_by_id",
+    #    guild_ids=[bot_guild_id()],
+    #    description="Returns the carriers in the database for the ID.",
+    #    options=[
+    #        create_option(
+    #            name='carrier_id',
+    #            description='The XXX-XXX ID string for the carrier',
+    #            option_type=3,
+    #            required=True
+    #        )
+    #    ],
+    # )
+
+    @app_commands.command(name="find_wine_carrier_by_id",
+                          description="Returns the carriers in the database for the ID.")
+    @describe(carrier_id='The XXX-XXX ID string for the carrier')
+    async def find_carrier_by_id(self, interaction: discord.Interaction, carrier_id: str):
         await self.report_new_and_invalid_carriers(self._update_db())
-        print(f'{ctx.author} wants to find a carrier by ID: {carrier_id}.')
+        print(f'{interaction.user.display_name} wants to find a carrier by ID: {carrier_id}.')
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
-            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await ctx.channel.send(
-                f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            print(
+                f'{interaction.user.display_name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await interaction.channel.send(
+                f'{interaction.user.display_name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
 
         # Check if it is in the database already
         pirate_steve_db.execute(
@@ -856,7 +921,7 @@ class DatabaseInteraction(Cog):
 
         if not carrier_data:
             print(f'No carrier found for: {carrier_id}')
-            return await ctx.send(f'No carrier found for: {carrier_id}')
+            return await interaction.response.send_message(f'No carrier found for: {carrier_id}')
 
         carrier_embed = discord.Embed(
             title=f'YARR! Found carrier details for the input: {carrier_id}',
@@ -868,44 +933,51 @@ class DatabaseInteraction(Cog):
                         f'Operated by: {carrier_data.discord_username}'
         )
 
-        return await ctx.send(embed=carrier_embed)
+        return await interaction.response.send_message(embed=carrier_embed)
 
-    @cog_ext.cog_slash(
-        name="booze_tally",
-        guild_ids=[bot_guild_id()],
-        description="Returns a summary of the stats for the current booze cruise. Restricted to Somms and Connoisseurs.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-        options=[
-            create_option(
-                name='cruise_select',
-                description='Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is '
-                            'this cruise.',
-                option_type=4,
-                required=False
-            )
-        ],
-    )
-    async def tally(self, ctx: SlashContext, cruise_select=0):
+    # @cog_ext.cog_slash(
+    #    name="booze_tally",
+    #    guild_ids=[bot_guild_id()],
+    #    description="Returns a summary of the stats for the current booze cruise. Restricted to Somms and Connoisseurs.",
+    #    permissions={
+    #        bot_guild_id(): [
+    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #        ]
+    #    },
+    #    options=[
+    #        create_option(
+    #            name='cruise_select',
+    #            description='Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is '
+    #                        'this cruise.',
+    #            option_type=4,
+    #            required=False
+    #        )
+    #    ],
+    # )
+
+    @app_commands.command(name="booze_tally",
+                          description="Returns a summary of the stats for the current booze cruise. Restricted to Somms and Connoisseurs.")
+    @check_roles(constants.conn_plus_roles)
+    @describe(cruise_select='Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is '
+                            'this cruise.')
+    async def tally(self, interaction: discord.Interaction, cruise_select: int = 0):
         """
         Returns an embed inspired by (cloned from) @CMDR Suiseiseki's b.tally. Provided to keep things in one place
         is all.
 
-        :param SlashContext ctx: The discord context
+        :param Interaction interaction: The discord context
         :param int cruise_select: The cruise you want data on, counts backwards. 0 is this cruise, 1 is the last
             cruise etc...
         :return: None
         """
         await self.report_new_and_invalid_carriers(self._update_db())
         cruise = 'this' if cruise_select == 0 else f'-{cruise_select}'
-        print(f'User {ctx.author} requested the current tally of the cruise stats for {cruise} cruise.')
+        print(
+            f'User {interaction.user.display_name} requested the current tally of the cruise stats for {cruise} cruise.')
         target_date = None
 
         if cruise_select == 0:
@@ -927,8 +999,9 @@ class DatabaseInteraction(Cog):
 
             if cruise_select > len(all_dates):
                 print('Input for cruise value was out of bounds for the number of cruises recorded in the database.')
-                return await ctx.send(f'Pirate Steve only knows about the last: {len(all_dates)} booze cruises. '
-                                      f'You wanted the -{cruise_select} data.')
+                return await interaction.response.send_message(
+                    f'Pirate Steve only knows about the last: {len(all_dates)} booze cruises. '
+                    f'You wanted the -{cruise_select} data.')
             # Subtract 1 here, we filter the values out of the historical database, so the current cruise is not
             # there yet
             target_date = all_dates[cruise_select - 1]['holiday_start']
@@ -950,7 +1023,7 @@ class DatabaseInteraction(Cog):
         total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
         stat_embed = self.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, target_date)
 
-        await ctx.send(embed=stat_embed)
+        await interaction.response.send_message(embed=stat_embed)
 
         # Go update all the pinned embeds also.
         pirate_steve_db.execute(
@@ -1042,46 +1115,52 @@ class DatabaseInteraction(Cog):
         print('Returning embed to user')
         return stat_embed
 
-    @cog_ext.cog_slash(
-        name="booze_pin_message",
-        guild_ids=[bot_guild_id()],
-        description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-        options=[
-            create_option(
-                name='message_id',
-                description='The message ID to be pinned.',
-                option_type=3,
-                required=True
-            ),
-            create_option(
-                name='channel_id',
-                description='The channel ID to be pinned.',
-                option_type=3,
-                required=False
-            )
-        ],
-    )
-    async def pin_message(self, ctx: SlashContext, message_id, channel_id=None):
+    # @cog_ext.cog_slash(
+    #     name="booze_pin_message",
+    #     guild_ids=[bot_guild_id()],
+    #     description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.",
+    #     permissions={
+    #         bot_guild_id(): [
+    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #         ]
+    #     },
+    #     options=[
+    #         create_option(
+    #             name='message_id',
+    #             description='The message ID to be pinned.',
+    #             option_type=3,
+    #             required=True
+    #         ),
+    #         create_option(
+    #             name='channel_id',
+    #             description='The channel ID to be pinned.',
+    #             option_type=3,
+    #             required=False
+    #         )
+    #     ],
+    # )
+    # TODO: Still relevent
+    @app_commands.command(name="booze_pin_message",
+                          description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.")
+    @check_roles(constants.somm_plus_roles)
+    @describe(message_id='The message ID to be pinned.', channel_id='The channel ID to be pinned.')
+    async def pin_message(self, interaction: discord.Interaction, message_id: str, channel_id: str = None):
         """
         Pins the message in the channel.
 
-        :param SlashContext ctx: The discord slash context
+        :param Interaction interaction: The discord slash context
         :param str message_id: The message ID to pin
         :param str channel_id: The channel ID. Optional, if Not provided uses the current channel.
         :returns: None
         """
-        print(f'User {ctx.author} wants to pin the message {message_id} in channel: {channel_id} - {type(channel_id)}')
+        print(
+            f'User {interaction.user.display_name} wants to pin the message {message_id} in channel: {channel_id} - {type(channel_id)}')
         if not channel_id:
-            print(f'No channel ID provided - use the current channel {ctx.channel.id}')
-            channel = ctx.channel
+            print(f'No channel ID provided - use the current channel {interaction.channel.id}')
+            channel = interaction.channel
             channel_id = channel.id
         else:
             channel = bot.get_channel(int(channel_id))
@@ -1090,8 +1169,9 @@ class DatabaseInteraction(Cog):
         message = await channel.fetch_message(int(message_id))
         if not message:
             print(f'Could not find a message for the ID: {message_id} in channel: {channel_id}')
-            return ctx.send(f'Could not find a message for the ID: {message_id} in channel: {channel_id} - '
-                            f'Check they are correct', hidden=True)
+            return interaction.response.send_message(
+                f'Could not find a message for the ID: {message_id} in channel: {channel_id} - '
+                f'Check they are correct', hidden=True)
         data = (
             message_id,
             channel_id,
@@ -1108,34 +1188,39 @@ class DatabaseInteraction(Cog):
 
         if not message.pinned:
             print('Message is not pinned - do it now')
-            await message.pin(reason=f'Pirate Steve pinned on behalf of {ctx.author}')
+            await message.pin(reason=f'Pirate Steve pinned on behalf of {interaction.user.display_name}')
             print(f'Message {message_id} was pinned.')
         else:
             print('Message is already pinned, no action needed')
 
-        await ctx.send(f'Pirate steve recorded message: {message_id} in channel: {channel_id} for pinned updating')
+        await interaction.response.send_message(
+            f'Pirate steve recorded message: {message_id} in channel: {channel_id} for pinned updating')
 
-    @cog_ext.cog_slash(
-        name="booze_unpin_all",
-        guild_ids=[bot_guild_id()],
-        description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def clear_all_pinned_message(self, ctx: SlashContext):
+    # @cog_ext.cog_slash(
+    #     name="booze_unpin_all",
+    #     guild_ids=[bot_guild_id()],
+    #     description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.",
+    #     permissions={
+    #         bot_guild_id(): [
+    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #         ]
+    #     }
+    # )
+    # TODO: Still relevant?
+    @app_commands.command(name="booze_unpin_all",
+                          description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.")
+    @check_roles(constants.somm_plus_roles)
+    async def clear_all_pinned_message(self, interaction: discord.Interaction):
         """
         Clears all the pinned messages
 
-        :param SlashContext ctx: The discord slash context
+        :param Interaction interaction: The discord slash context
         :returns: None
         """
-        print(f'User {ctx.author} requested to clear the pinned messages.')
+        print(f'User {interaction.user.display_name} requested to clear the pinned messages.')
 
         pirate_steve_db.execute(
             "SELECT * FROM pinned_messages"
@@ -1146,7 +1231,7 @@ class DatabaseInteraction(Cog):
             for pin in all_pins:
                 channel = bot.get_channel(int(pin['channel_id']))
                 message = await channel.fetch_message(pin['message_id'])
-                await message.unpin(reason=f'Pirate Steve unpinned at the request of: {ctx.author}')
+                await message.unpin(reason=f'Pirate Steve unpinned at the request of: {interaction.user.display_name}')
                 print(f'Removed pinned message: {pin["message_id"]}.')
             try:
                 print('Writing to the DB the message data to clear the pins')
@@ -1159,41 +1244,48 @@ class DatabaseInteraction(Cog):
             finally:
                 pirate_steve_lock.release()
             print('Pinned messages removed')
-            await ctx.send('Pirate Steve removed all the pinned stat messages', hidden=True)
+            await interaction.response.send_message('Pirate Steve removed all the pinned stat messages', hidden=True)
         else:
-            await ctx.send('Pirate Steve has no pinned messages to remove.', hidden=True)
+            await interaction.response.send_message('Pirate Steve has no pinned messages to remove.', hidden=True)
 
-    @cog_ext.cog_slash(
-        name="booze_unpin_message",
-        guild_ids=[bot_guild_id()],
-        description="Unpins a specific message and removes it from the DB. Restricted to Admin and "
-                    "Sommelier's.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-        options=[
-            create_option(
-                name='message_id',
-                description='The message ID to be pinned.',
-                option_type=3,
-                required=True
-            )
-        ]
-    )
-    async def booze_unpin_message(self, ctx: SlashContext, message_id: str):
+    # @cog_ext.cog_slash(
+    #    name="booze_unpin_message",
+    #    guild_ids=[bot_guild_id()],
+    #    description="Unpins a specific message and removes it from the DB. Restricted to Admin and "
+    #                "Sommelier's.",
+    #    permissions={
+    #        bot_guild_id(): [
+    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #        ]
+    #    },
+    #    options=[
+    #        create_option(
+    #            name='message_id',
+    #            description='The message ID to be pinned.',
+    #            option_type=3,
+    #            required=True
+    #        )
+    #    ]
+    # )
+
+    # TODO: Still relevant
+    @app_commands.command(name="booze_unpin_message",
+                          description="Unpins a specific message and removes it from the DB. Restricted to Admin and "
+                                      "Sommelier's.")
+    @check_roles(constants.somm_plus_roles)
+    @describe(message_id='The message ID to be pinned.')
+    async def booze_unpin_message(self, interaction: discord.Interaction, message_id: str):
         """
         Clears the pinned embed described by the message_id string.
 
-        :param SlashContext ctx: The discord slash context
+        :param Interaction interaction: The discord slash context
         :param str message_id: The message ID to unpin
         :returns: None
         """
-        print(f'User {ctx.author} requested to clear the pinned message {message_id}.')
+        print(f'User {interaction.user.display_name} requested to clear the pinned message {message_id}.')
 
         pirate_steve_db.execute(
             "SELECT * FROM pinned_messages WHERE "
@@ -1204,7 +1296,7 @@ class DatabaseInteraction(Cog):
             for pin in all_pins:
                 channel = bot.get_channel(int(pin['channel_id']))
                 message = await channel.fetch_message(pin['message_id'])
-                await message.unpin(reason=f'Pirate Steve unpinned at the request of: {ctx.author}')
+                await message.unpin(reason=f'Pirate Steve unpinned at the request of: {interaction.user.display_name}')
                 print(f'Removed pinned message: {pin["message_id"]}.')
             try:
                 print('Writing to the DB the message data to clear the pins')
@@ -1217,9 +1309,11 @@ class DatabaseInteraction(Cog):
             finally:
                 pirate_steve_lock.release()
             print('Pinned messages removed')
-            await ctx.send(f'Pirate Steve removed the pinned stat message for {message_id}', hidden=True)
+            await interaction.response.send_message(f'Pirate Steve removed the pinned stat message for {message_id}',
+                                                    hidden=True)
         else:
-            await ctx.send(f'Pirate Steve has no pinned messages matching {message_id}.', hidden=True)
+            await interaction.response.send_message(f'Pirate Steve has no pinned messages matching {message_id}.',
+                                                    hidden=True)
 
     @tasks.loop(hours=1)
     async def periodic_stat_update(self):
@@ -1253,29 +1347,32 @@ class DatabaseInteraction(Cog):
         else:
             print('No pinned messages to update. Check again in an hour.')
 
-    @cog_ext.cog_slash(
-        name="booze_tally_extra_stats",
-        guild_ids=[bot_guild_id()],
-        description="Returns an set of extra stats for the wine. Restricted to Admin, Sommeliers, and Connoisseurs.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def extended_tally_stats(self, ctx: SlashContext):
+    # @cog_ext.cog_slash(
+    #    name="booze_tally_extra_stats",
+    #    guild_ids=[bot_guild_id()],
+    #    description="Returns an set of extra stats for the wine. Restricted to Admin, Sommeliers, and Connoisseurs.",
+    #    permissions={
+    #        bot_guild_id(): [
+    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
+    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #        ]
+    #    }
+    # )
+    @app_commands.command(name="booze_tally_extra_stats",
+                          description="Returns an set of extra stats for the wine. Restricted to Admin, Sommeliers, and Connoisseurs.")
+    @check_roles(constants.conn_plus_roles)
+    async def extended_tally_stats(self, interaction: discord.Interaction):
         """
         Prints an extended tally stats as requested by RandomGazz.
 
-        :param SlashContext ctx: The discord slash Context
+        :param Interaction interaction: The discord slash Context
         :return: None
         """
         await self.report_new_and_invalid_carriers(self._update_db())
-        print(f'User {ctx.author} requested the current extended stats of the cruise.')
+        print(f'User {interaction.user.display_name} requested the current extended stats of the cruise.')
 
         # Go get everything out of the database
         pirate_steve_db.execute(
@@ -1350,46 +1447,53 @@ class DatabaseInteraction(Cog):
                         f'London Busses if Boxes of Wine: {busses_if_boxes:,.2f}\n\n'
         )
         stat_embed.set_footer(text='Stats requested by RandomGazz.\nPirate Steve approves of these stats!')
-        await ctx.send(embed=stat_embed)
+        await interaction.response.send_message(embed=stat_embed)
 
-    @cog_ext.cog_slash(
-        name="booze_delete_carrier",
-        guild_ids=[bot_guild_id()],
-        description="Removes a carrier from the database. Admin/Sommelier required.",
-        options=[
-            create_option(
-                name='carrier_id',
-                description='The XXX-XXX ID string for the carrier',
-                option_type=3,
-                required=True
-            )
-        ],
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def remove_carrier(self, ctx: SlashContext, carrier_id: str):
+    # @cog_ext.cog_slash(
+    #     name="booze_delete_carrier",
+    #     guild_ids=[bot_guild_id()],
+    #     description="Removes a carrier from the database. Admin/Sommelier required.",
+    #     options=[
+    #         create_option(
+    #             name='carrier_id',
+    #             description='The XXX-XXX ID string for the carrier',
+    #             option_type=3,
+    #             required=True
+    #         )
+    #     ],
+    #     permissions={
+    #         bot_guild_id(): [
+    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #         ]
+    #     }
+    # )
+    @app_commands.command(name="booze_delete_carrier",
+                          description="Removes a carrier from the database. Admin/Sommelier required.")
+    @check_roles(constants.somm_plus_roles)
+    @describe(carrier_id='The XXX-XXX ID string for the carrier')
+    async def remove_carrier(self, interaction: discord.Interaction, carrier_id: str):
         """
         Removes a carrier entry from the database after confirmation.
 
-        :param SlashContext ctx: The discord slash context.
+        :param Interaction interaction: The discord slash context.
         :param str carrier_id: The XXX-XXX carrier ID.
         :returns: None
         """
-        print(f'User {ctx.author} wants to remove the carrier with ID {carrier_id} from the database.')
+        print(
+            f'User {interaction.user.display_name} wants to remove the carrier with ID {carrier_id} from the database.')
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
-            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await ctx.channel.send(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, '
-                                          f'{carrier_id}.')
+            print(
+                f'{interaction.user.display_name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await interaction.channel.send(
+                f'{interaction.user.display_name}, the carrier ID was invalid, XXX-XXX expected received, '
+                f'{carrier_id}.')
 
         # Check if it is in the database already
         pirate_steve_db.execute(
@@ -1401,7 +1505,7 @@ class DatabaseInteraction(Cog):
 
         if not carrier_data:
             print(f'No carrier found for: {carrier_id}')
-            return await ctx.send(f'Avast Ye! No carrier found for: {carrier_id}')
+            return await interaction.response.send_message(f'Avast Ye! No carrier found for: {carrier_id}')
 
         carrier_embed = discord.Embed(
             title=f'YARR! Pirate Steve found these details for the input: {carrier_id}',
@@ -1415,25 +1519,27 @@ class DatabaseInteraction(Cog):
         carrier_embed.set_footer(text='Confirm you want to delete: y/n')
 
         def check(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
-                   check_message.content.lower() in ["y", "n"]
+            return check_message.author == interaction.user and check_message.channel == interaction.channel and \
+                check_message.content.lower() in ["y", "n"]
 
         # Send the embed
-        message = await ctx.send(embed=carrier_embed)
+        await interaction.response.send_message(embed=carrier_embed)
+        message = await interaction.original_response()
 
         try:
             response = await bot.wait_for("message", check=check, timeout=30)
             if response.content.lower() == "n":
                 await message.delete()
                 await response.delete()
-                print(f'User {ctx.author} aborted the request delete carrier {carrier_id}.')
-                return await ctx.send(f"Avast Ye! you cancelled the action for deleting {carrier_id}.")
+                print(f'User {interaction.user.display_name} aborted the request delete carrier {carrier_id}.')
+                return await interaction.followup.send(
+                    f"Avast Ye! you cancelled the action for deleting {carrier_id}.")
 
             elif response.content.lower() == "y":
                 try:
-                    await message.delete()
+                    await interaction.delete_original_response()
                     await response.delete()
-                    print(f'User {ctx.author} agreed to delete the carrier: {carrier_id}.')
+                    print(f'User {interaction.user.display_name} agreed to delete the carrier: {carrier_id}.')
 
                     # Go update the object in the database.
                     try:
@@ -1451,51 +1557,58 @@ class DatabaseInteraction(Cog):
                     finally:
                         pirate_steve_lock.release()
 
-                    return await ctx.send(f'Fleet carrier: {carrier_id} for user: {carrier_data.discord_username} was removed')
+                    return await interaction.followup.send(
+                        f'Fleet carrier: {carrier_id} for user: {carrier_data.discord_username} was removed')
                 except Exception as e:
-                    return ctx.send(f'Something went wrong, go tell the bot team "computer said: {e}"')
+                    return interaction.followup.send(
+                        f'Something went wrong, go tell the bot team "computer said: {e}"')
 
         except asyncio.TimeoutError:
             await message.delete()
-            return await ctx.send("**Cancelled - timed out**")
+            return await interaction.followup.send("**Cancelled - timed out**")
 
         await message.delete()
 
-    @cog_ext.cog_slash(
-        name="booze_archive_database",
-        guild_ids=[bot_guild_id()],
-        description="Archives the boozedatabase. Admin/Sommelier required.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def archive_database(self, ctx: SlashContext):
+    # @cog_ext.cog_slash(
+    #     name="booze_archive_database",
+    #     guild_ids=[bot_guild_id()],
+    #     description="Archives the boozedatabase. Admin/Sommelier required.",
+    #     permissions={
+    #         bot_guild_id(): [
+    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #         ]
+    #     }
+    # )
+    @app_commands.command(name="booze_archive_database",
+                          description="Archives the boozedatabase. Admin/Sommelier required.")
+    @check_roles(constants.somm_plus_roles)  # TODO: Update to Admin/Somm only
+    async def archive_database(self, interaction: discord.Interaction):
         """
         Performs the steps to archive the current booze cruise database. Only possible if we are not in a PH
         currently and if the data has not been archived. Once archived it will be dropped.
 
-        :param SlashContext ctx: The discord slash context.
+        :param Interaction interaction: The discord slash context.
         :returns: None
         """
-        print(f'User {ctx.author} requested to archive the database')
+        print(f'User {interaction.user.display_name} requested to archive the database')
 
         if ph_check():
-            return await ctx.send('Pirate Steve thinks there is a party at Rackhams still. Try again once the grog '
-                                  'runs dry.')
-        get_date_user = await ctx.send('Pirate Steve wants to know when the booze cruise started in DD-MM-YY '
-                                       'format.')
+            return await interaction.response.send_message(
+                'Pirate Steve thinks there is a party at Rackhams still. Try again once the grog '
+                'runs dry.')
+        get_date_user = await interaction.response.send_message(
+            'Pirate Steve wants to know when the booze cruise started in DD-MM-YY '
+            'format.')
 
         def check_yes_no(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
-                   check_message.content.lower() in ["y", "n"]
+            return check_message.author == interaction.user.display_name and check_message.channel == interaction.channel and \
+                check_message.content.lower() in ["y", "n"]
 
         def check_date(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
-                   re.match(r'\d{2}-\d{2}-\d{2}', check_message.content)
+            return check_message.author == interaction.user.display_name and check_message.channel == interaction.channel and \
+                re.match(r'\d{2}-\d{2}-\d{2}', check_message.content)
 
         resp_date = None
 
@@ -1508,14 +1621,15 @@ class DatabaseInteraction(Cog):
                 today = datetime.now().date()
 
                 if resp_date > today:
-                    return await ctx.send('Pirate steve cant set the holiday date in the future, '
-                                          f'format is DD-MM-YY. Your date input: {response.content}.')
+                    return await interaction.response.send_message(
+                        'Pirate steve cant set the holiday date in the future, '
+                        f'format is DD-MM-YY. Your date input: {response.content}.')
 
                 print(f'Formatted user response to date: {resp_date}')
 
         except asyncio.TimeoutError:
             await get_date_user.delete()
-            return await ctx.send("**Waiting for date - timed out**")
+            return await interaction.response.send_message("**Waiting for date - timed out**")
 
         await get_date_user.delete()
         await response.delete()
@@ -1530,8 +1644,9 @@ class DatabaseInteraction(Cog):
         if pirate_steve_db.fetchall():
             print(f'We have a record for this date ({resp_date}) in the historical DB already.')
             # We found something for that date. stop.
-            return await ctx.send(f'Pirate Steve thinks there is a booze cruise on that day ({resp_date}) '
-                                  f'already recorded. Check your data, and send him for a memory check up.')
+            return await interaction.response.send_message(
+                f'Pirate Steve thinks there is a booze cruise on that day ({resp_date}) '
+                f'already recorded. Check your data, and send him for a memory check up.')
 
         check_embed = discord.Embed(
             title='Validate the request',
@@ -1540,7 +1655,7 @@ class DatabaseInteraction(Cog):
                         f'**Holiday End:** {(resp_date + timedelta(days=2)).strftime("%d-%m-%y")}'
         )
         check_embed.set_footer(text='Respond with y/n.')
-        sent_embed = await ctx.send(embed=check_embed)
+        sent_embed = await interaction.response.send_message(embed=check_embed)
 
         try:
             user_response = await bot.wait_for("message", check=check_yes_no, timeout=30)
@@ -1583,38 +1698,42 @@ class DatabaseInteraction(Cog):
                     self.update_allowed = False
                 finally:
                     pirate_steve_lock.release()
-                return await ctx.send(f'Pirate Steve rejigged his memory and saved the booze data starting '
-                                      f'on: {resp_date}!')
+                return await interaction.response.send_message(
+                    f'Pirate Steve rejigged his memory and saved the booze data starting '
+                    f'on: {resp_date}!')
             elif user_response.content.lower() == "n":
-                print(f'User {ctx.author} wants to abort the archive process.')
+                print(f'User {interaction.user.display_name} wants to abort the archive process.')
                 await user_response.delete()
                 await sent_embed.delete()
-                return await ctx.send('You aborted the request to archive the data.')
+                return await interaction.response.send_message('You aborted the request to archive the data.')
 
         except asyncio.TimeoutError:
             await sent_embed.delete()
-            return await ctx.send("**Waiting for user response - timed out**")
+            return await interaction.response.send_message("**Waiting for user response - timed out**")
 
-    @cog_ext.cog_slash(
-        name="booze_configure_signup_forms",
-        guild_ids=[bot_guild_id()],
-        description="Updates the booze cruise signup forms. Admin/Sommelier required.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def configure_signup_forms(self, ctx: SlashContext):
+    # @cog_ext.cog_slash(
+    #     name="booze_configure_signup_forms",
+    #     guild_ids=[bot_guild_id()],
+    #     description="Updates the booze cruise signup forms. Admin/Sommelier required.",
+    #     permissions={
+    #         bot_guild_id(): [
+    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #         ]
+    #     }
+    # )
+    @app_commands.command(name="booze_configure_signup_forms",
+                          description="Updates the booze cruise signup forms. Admin/Sommelier required.")
+    @check_roles(constants.somm_plus_roles)  # TODO: Update to Admin/Somm Only
+    async def configure_signup_forms(self, interaction: discord.Interaction):
         """
         Reconfigures the signup sheet and the tracking sheet to the new forms. Only usable by an admin.
 
-        :param SlashContext ctx: The discord slash context.
+        :param Interaction interaction: The discord slash context.
         :returns: None
         """
-        print(f'{ctx.author} wants to reconfigure the booze cruise signup forms.')
+        print(f'{interaction.user.display_name} wants to reconfigure the booze cruise signup forms.')
 
         # Store the current states just in case we need them
         original_sheet_id = self.worksheet_with_data_id
@@ -1629,15 +1748,15 @@ class DatabaseInteraction(Cog):
         new_loader_signup_form = None
 
         def check_yes_no(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
-                   check_message.content.lower() in ["y", "n"]
+            return check_message.author == interaction.user.display_name and check_message.channel == interaction.channel and \
+                check_message.content.lower() in ["y", "n"]
 
         def check_author(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel
+            return check_message.author == interaction.user.display_name and check_message.channel == interaction.channel
 
         def check_id(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
-                   re.match(r'^\d*$', check_message.content)
+            return check_message.author == interaction.user.display_name and check_message.channel == interaction.channel and \
+                re.match(r'^\d*$', check_message.content)
 
         # TODO: See if we can add a validation for the URL
 
@@ -1648,10 +1767,12 @@ class DatabaseInteraction(Cog):
         all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
         if all_carrier_data:
             # archive the database first else we will end up in issues
-            return await ctx.send('Pirate Steve has data already for a cruise - go fix his memory by running the '
-                                  'archive command first.')
+            return await interaction.response.send_message(
+                'Pirate Steve has data already for a cruise - go fix his memory by running the '
+                'archive command first.')
 
-        request_loader_signup_form = await ctx.send('Pirate Steve first wants the loader signup form URL.')
+        request_loader_signup_form = await interaction.response.send_message(
+            'Pirate Steve first wants the loader signup form URL.')
         try:
             # in this case we do not know the shape of the URL
             response = await bot.wait_for("message", check=check_author, timeout=30)
@@ -1665,11 +1786,12 @@ class DatabaseInteraction(Cog):
             self.update_allowed = True
             print('Error getting the response for the google signup form.')
             await request_loader_signup_form.delete()
-            return await ctx.send('Pirate Steve saw you timed out.')
+            return await interaction.response.send_message('Pirate Steve saw you timed out.')
 
-        request_new_worksheet_key = await ctx.send('Pirate Steve secondly wants the sheet ID for the form. Start '
-                                                   'counting from 1 and Pirate Steve will tell the computer '
-                                                   'accordingly.')
+        request_new_worksheet_key = await interaction.response.send_message(
+            'Pirate Steve secondly wants the sheet ID for the form. Start '
+            'counting from 1 and Pirate Steve will tell the computer '
+            'accordingly.')
         try:
             response = await bot.wait_for("message", check=check_id, timeout=30)
             if response:
@@ -1683,17 +1805,19 @@ class DatabaseInteraction(Cog):
                     self.update_allowed = init_update_value
                     await request_new_worksheet_key.delete()
                     await response.delete()
-                    return await ctx.send(f'Pirate Steve thinks you do not know what an integer starting from 1 is.'
-                                          f' {response.content}. Start again!')
+                    return await interaction.response.send_message(
+                        f'Pirate Steve thinks you do not know what an integer starting from 1 is.'
+                        f' {response.content}. Start again!')
 
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet key.')
             await request_new_worksheet_key.delete()
             self.update_allowed = True
-            return await ctx.send('Pirate Steve saw you timed out on step 2.')
+            return await interaction.response.send_message('Pirate Steve saw you timed out on step 2.')
 
-        request_worksheet_id = await ctx.send('Pirate Steve thirdly wants to know the key for the data. The Key is '
-                                              'the long unique string in the URL.')
+        request_worksheet_id = await interaction.response.send_message(
+            'Pirate Steve thirdly wants to know the key for the data. The Key is '
+            'the long unique string in the URL.')
         try:
             # in this case we do not know the shape of the worksheet Key, it is a unique value.
             response = await bot.wait_for("message", check=check_author, timeout=30)
@@ -1707,9 +1831,10 @@ class DatabaseInteraction(Cog):
             print('Error getting the response for the worksheet key.')
             await request_worksheet_id.delete()
             self.update_allowed = init_update_value
-            return await ctx.send('Pirate Steve saw you timed out on step 3.')
+            return await interaction.response.send_message('Pirate Steve saw you timed out on step 3.')
 
-        print(f'We received valid data for all points, confirm them with the {ctx.author} it is correct.')
+        print(
+            f'We received valid data for all points, confirm them with the {interaction.user.display_name} it is correct.')
 
         confirm_embed = discord.Embed(
             title='Pirate Steve wants you to confirm the new values.',
@@ -1719,12 +1844,12 @@ class DatabaseInteraction(Cog):
         )
         confirm_embed.set_footer(text='Confirm this with y/n.')
 
-        confirm_details = await ctx.send(embed=confirm_embed)
+        confirm_details = await interaction.response.send_message(embed=confirm_embed)
 
         try:
             user_response = await bot.wait_for("message", check=check_yes_no, timeout=30)
             if user_response.content.lower() == "y":
-                print(f'{ctx.author} confirms to write the database now.')
+                print(f'{interaction.user.display_name} confirms to write the database now.')
                 await user_response.delete()
                 await confirm_details.delete()
 
@@ -1758,22 +1883,23 @@ class DatabaseInteraction(Cog):
 
                 except OSError as e:
                     self.update_allowed = init_update_value
-                    return await ctx.send(f'Pirate steve reports an error while updating things: {e}. Fix it and try '
-                                          f'again.')
+                    return await interaction.response.send_message(
+                        f'Pirate steve reports an error while updating things: {e}. Fix it and try '
+                        f'again.')
 
-                return await ctx.send('Pirate Steve unfurled out the sails and is now catching the wind with the new '
-                                      'values! Try /update_booze_db to check progress.')
+                return await interaction.response.send_message(
+                    'Pirate Steve unfurled out the sails and is now catching the wind with the new '
+                    'values! Try /update_booze_db to check progress.')
 
             elif user_response.content.lower() == "n":
-                print(f'User {ctx.author} wants to abort the archive process.')
+                print(f'User {interaction.user.display_name} wants to abort the archive process.')
                 await user_response.delete()
                 await confirm_details.delete()
                 self.update_allowed = init_update_value
-                return await ctx.send('You aborted the request to update the forms.')
+                return await interaction.response.send_message('You aborted the request to update the forms.')
 
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet ID.')
             await confirm_details.delete()
             self.update_allowed = init_update_value
-            return await ctx.send('Pirate Steve saw you timed out on step 3.')
-
+            return await interaction.response.send_message('Pirate Steve saw you timed out on step 3.')

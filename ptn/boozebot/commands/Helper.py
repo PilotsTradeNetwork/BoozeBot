@@ -1,117 +1,164 @@
-import discord
-from discord.ext import commands
-from discord_slash import SlashContext, cog_ext
-from discord_slash.utils.manage_commands import create_option, create_choice
+from typing import List
 
-from ptn.boozebot.constants import bot_guild_id
+import discord
+from discord import app_commands
+from discord.app_commands import describe
+from discord.ext import commands
+from ptn.boozebot.bot import bot
+# from discord_slash import SlashContext, cog_ext
+# from discord_slash.utils.manage_commands import create_option, create_choice
+
+from ptn.boozebot.commands.ErrorHandler import CommandRoleError, on_app_command_error
+from ptn.boozebot.constants import bot_guild_id, server_admin_role_id, server_mod_role_id
+
+
+@bot.listen()
+async def on_command_error(ctx, error):
+    print(error)
+    if isinstance(error, commands.BadArgument):
+        message = f'Bad argument: {error}'
+
+    elif isinstance(error, commands.CommandNotFound):
+        message = f"Sorry, were you talking to me? I don't know that command."
+
+    elif isinstance(error, commands.MissingRequiredArgument):
+        message = f"Sorry, that didn't work.\n• Check you've included all required arguments." \
+                  "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation" \
+                  " marks are of the same type, i.e. all straight or matching open/close smartquotes."
+
+    elif isinstance(error, commands.MissingPermissions):
+        message = 'Sorry, you\'re missing the required permission for this command.'
+
+    elif isinstance(error, commands.MissingAnyRole):
+        message = f'You require one of the following roles to use this command:\n<@&{server_admin_role_id()}> • <@&{server_mod_role_id()}>'
+
+    else:
+        message = f'Sorry, that didn\'t work: {error}'
+
+    embed = discord.Embed(description=f"❌ {message}")
+    await ctx.send(embed=embed)
 
 
 class Helper(commands.Cog):
-
     """
     This class is a collection of helper commands for the booze bot
     """
 
-    @cog_ext.cog_slash(
-        name='pirate_steve_help',
-        guild_ids=[bot_guild_id()],
-        description='Returns some information for each command.',
-        options=[
-            create_option(
-                name='command',
-                description='The command you want help with',
-                option_type=3,
-                required=True,
-                choices=[
-                    create_choice(
-                        name='booze_archive_database',
-                        value='booze_archive_database'
-                    ),
-                    create_choice(
-                        name='booze_configure_signup_forms',
-                        value='booze_configure_signup_forms'
-                    ),
-                    create_choice(
-                        name="booze_delete_carrier",
-                        value="booze_delete_carrier"
-                    ),
-                    create_choice(
-                        name="booze_started",
-                        value="booze_started"
-                    ),
-                    create_choice(
-                        name="booze_started_admin_override",
-                        value="booze_started_admin_override"
-                    ),
-                    create_choice(
-                        name="booze_tally",
-                        value="booze_tally"
-                    ),
-                    create_choice(
-                        name="booze_tally_extra_stats",
-                        value="booze_tally_extra_stats"
-                    ),
-                    create_choice(
-                        name="find_carriers_with_wine",
-                        value="find_carriers_with_wine"
-                    ),
-                    create_choice(
-                        name="find_carriers_by_id",
-                        value="find_carriers_by_id"
-                    ),
-                    create_choice(
-                        name="find_wine_carriers_for_platform",
-                        value="find_wine_carriers_for_platform"
-                    ),
-                    create_choice(
-                        name="update_booze_db",
-                        value="update_booze_db"
-                    ),
-                    create_choice(
-                        name="wine_helper_market_closed",
-                        value="wine_helper_market_closed"
-                    ),
-                    create_choice(
-                        name="wine_helper_market_open",
-                        value="wine_helper_market_open"
-                    ),
-                    create_choice(
-                        name="wine_mark_completed_forcefully",
-                        value="wine_mark_completed_forcefully"
-                    ),
-                    create_choice(
-                        name="wine_unload",
-                        value="wine_unload"
-                    ),
-                    create_choice(
-                        name="wine_unload_complete",
-                        value="wine_unload_complete"
-                    ),
-                    create_choice(
-                        name="make_wine_carrier",
-                        value="make_wine_carrier"
-                    ),
-                    create_choice(
-                        name="remove_wine_carrier",
-                        value="remove_wine_carrier"
-                    ),
-                    create_choice(
-                        name="steve_says",
-                        value="steve_says"
-                    ),
-                    create_choice(
-                        name="booze_channels_open",
-                        value="booze_channels_open"
-                    ),
-                    create_choice(
-                        name="booze_channels_close",
-                        value="booze_channels_close"
-                    )
-                ]
-            ),
-        ]
-    )
-    async def get_help(self, ctx: SlashContext, command: str):
+    def __init__(self, bot: commands.Cog):
+        self.bot = bot
+        self.summon_message_ids = {}
+
+    def cog_load(self):
+        tree = self.bot.tree
+        self._old_tree_error = tree.on_error
+        tree.on_error = on_app_command_error
+
+    def cog_unload(self):
+        tree = self.bot.tree
+        tree.on_error = self._old_tree_error
+
+    # @cog_ext.cog_slash(
+    #     name='pirate_steve_help',
+    #     guild_ids=[bot_guild_id()],
+    #     description='Returns some information for each command.',
+    #     options=[
+    #         create_option(
+    #             name='command',
+    #             description='The command you want help with',
+    #             option_type=3,
+    #             required=True,
+    #             choices=[
+    #                 create_choice(
+    #                     name='booze_archive_database',
+    #                     value='booze_archive_database'
+    #                 ),
+    #                 create_choice(
+    #                     name='booze_configure_signup_forms',
+    #                     value='booze_configure_signup_forms'
+    #                 ),
+    #                 create_choice(
+    #                     name="booze_delete_carrier",
+    #                     value="booze_delete_carrier"
+    #                 ),
+    #                 create_choice(
+    #                     name="booze_started",
+    #                     value="booze_started"
+    #                 ),
+    #                 create_choice(
+    #                     name="booze_started_admin_override",
+    #                     value="booze_started_admin_override"
+    #                 ),
+    #                 create_choice(
+    #                     name="booze_tally",
+    #                     value="booze_tally"
+    #                 ),
+    #                 create_choice(
+    #                     name="booze_tally_extra_stats",
+    #                     value="booze_tally_extra_stats"
+    #                 ),
+    #                 create_choice(
+    #                     name="find_carriers_with_wine",
+    #                     value="find_carriers_with_wine"
+    #                 ),
+    #                 create_choice(
+    #                     name="find_carriers_by_id",
+    #                     value="find_carriers_by_id"
+    #                 ),
+    #                 create_choice(
+    #                     name="find_wine_carriers_for_platform",
+    #                     value="find_wine_carriers_for_platform"
+    #                 ),
+    #                 create_choice(
+    #                     name="update_booze_db",
+    #                     value="update_booze_db"
+    #                 ),
+    #                 create_choice(
+    #                     name="wine_helper_market_closed",
+    #                     value="wine_helper_market_closed"
+    #                 ),
+    #                 create_choice(
+    #                     name="wine_helper_market_open",
+    #                     value="wine_helper_market_open"
+    #                 ),
+    #                 create_choice(
+    #                     name="wine_mark_completed_forcefully",
+    #                     value="wine_mark_completed_forcefully"
+    #                 ),
+    #                 create_choice(
+    #                     name="wine_unload",
+    #                     value="wine_unload"
+    #                 ),
+    #                 create_choice(
+    #                     name="wine_unload_complete",
+    #                     value="wine_unload_complete"
+    #                 ),
+    #                 create_choice(
+    #                     name="make_wine_carrier",
+    #                     value="make_wine_carrier"
+    #                 ),
+    #                 create_choice(
+    #                     name="remove_wine_carrier",
+    #                     value="remove_wine_carrier"
+    #                 ),
+    #                 create_choice(
+    #                     name="steve_says",
+    #                     value="steve_says"
+    #                 ),
+    #                 create_choice(
+    #                     name="booze_channels_open",
+    #                     value="booze_channels_open"
+    #                 ),
+    #                 create_choice(
+    #                     name="booze_channels_close",
+    #                     value="booze_channels_close"
+    #                 )
+    #             ]
+    #         ),
+    #     ]
+    # )
+    @app_commands.command(name='pirate_steve_help', description='Returns some information for each command.')
+    @describe(command='The command you want help with')
+    async def get_help(self, interaction: discord.Interaction, command: str):
         """
         Returns a help context message privately to the user.
 
@@ -119,7 +166,7 @@ class Helper(commands.Cog):
         :param command:
         :returns: None
         """
-        print(f'User {ctx.author} has requested help for command: {command}')
+        print(f'User {interaction.user.display_name} has requested help for command: {command}')
         # For each value we just populate some data.
         if command == 'booze_tally':
             params = [
@@ -331,7 +378,7 @@ class Helper(commands.Cog):
             roles = ['Admin', 'Sommelier', 'Mod']
         else:
             print('User did not provide a valid command.')
-            return await ctx.send(f'Unknown handling for command: {command}.')
+            return await interaction.response.send_message(f'Unknown handling for command: {command}.')
 
         response_embed = discord.Embed(
             title=f'Baton down the hatches!\nPirate Steve knows the following for: {command}.',
@@ -353,5 +400,84 @@ class Helper(commands.Cog):
             # In the case of no params, just append None to the description.
             response_embed.description += 'None.'
 
-        print(f"Returning the response to: {ctx.author}")
-        await ctx.send(embed=response_embed, hidden=True)
+        print(f"Returning the response to: {interaction.user.display_name}")
+        await interaction.response.send_message(embed=response_embed, ephemeral=True)
+
+    @get_help.autocomplete('command')
+    async def booze_operation_autocomplete(
+            self,
+            interaction: discord.Interaction,
+            current: str
+    ) -> List[app_commands.Choice[str]]:
+        booze_operations = [
+            'booze_archive_database',
+            'booze_configure_signup_forms',
+            'booze_delete_carrier',
+            'booze_started',
+            'booze_started_admin_override',
+            'booze_tally',
+            'booze_tally_extra_stats',
+            'find_carriers_with_wine',
+            'find_carriers_by_id',
+            'find_wine_carriers_for_platform',
+            'update_booze_db',
+            'wine_helper_market_closed',
+            'wine_helper_market_open',
+            'wine_mark_completed_forcefully',
+            'wine_unload',
+            'wine_unload_complete',
+            'make_wine_carrier',
+            'remove_wine_carrier',
+            'steve_says',
+            'booze_channels_open',
+            'booze_channels_close',
+        ]
+        return [
+            app_commands.Choice(name=operation, value=operation)
+            for operation in booze_operations if current.lower() in operation.lower()
+        ]
+
+
+# 3 functions for verifying roles
+def get_role(ctx, id):  # takes a Discord role ID and returns the role object
+    role = discord.utils.get(ctx.guild.roles, id=id)
+    return role
+
+
+async def checkroles_actual(interaction: discord.Interaction, permitted_role_ids):
+    try:
+        """
+        Check if the user has at least one of the permitted roles to run a command
+        """
+        print(f"checkroles called.")
+        author_roles = interaction.user.roles
+        permitted_roles = [get_role(interaction, role) for role in permitted_role_ids]
+        # print(author_roles)
+        # print(permitted_roles)
+        permission = True if any(x in permitted_roles for x in author_roles) else False
+        # print(f'Permission: {permission}')
+        return permission, permitted_roles
+    except Exception as e:
+        print(e)
+    return permission
+
+
+def check_roles(permitted_role_ids):
+    async def checkroles(interaction: discord.Interaction):
+        permission, permitted_roles = await checkroles_actual(interaction, permitted_role_ids)
+        print("Inherited permission from checkroles")
+        if not permission:  # raise our custom error to notify the user gracefully
+            role_list = []
+            for role in permitted_role_ids:
+                role_list.append(f'<@&{role}> ')
+                formatted_role_list = " • ".join(role_list)
+            try:
+                raise CommandRoleError(permitted_roles, formatted_role_list)
+            except CommandRoleError as e:
+                print(e)
+                raise
+        return permission
+
+    return app_commands.check(checkroles)
+
+    return app_commands.check(checkroles)

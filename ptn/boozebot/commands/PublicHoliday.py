@@ -1,22 +1,40 @@
 import random
 from datetime import datetime, timedelta
 
-from discord import NotFound
+import discord
+from discord import NotFound, app_commands
 from discord.ext import commands, tasks
-from discord_slash import cog_ext, SlashContext
-from discord_slash.model import SlashCommandPermissionType
-from discord_slash.utils.manage_commands import create_permission, create_option
+
+from ptn.boozebot import constants
+# from discord_slash import cog_ext, SlashContext
+# from discord_slash.model import SlashCommandPermissionType
+# from discord_slash.utils.manage_commands import create_permission, create_option
 
 from ptn.boozebot.PHcheck import ph_check
-from ptn.boozebot.constants import rackhams_holiday_channel, bot, bot_guild_id, server_admin_role_id, \
+from ptn.boozebot.commands.ErrorHandler import on_app_command_error
+from ptn.boozebot.commands.Helper import check_roles
+from ptn.boozebot.constants import rackhams_holiday_channel, bot_guild_id, server_admin_role_id, \
     server_sommelier_role_id, server_mod_role_id, server_connoisseur_role_id
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn
-
+from ptn.boozebot.bot import bot
 
 class PublicHoliday(commands.Cog):
     """
     The public holiday state checker mechanism for booze bot.
     """
+
+    def __init__(self, bot: commands.Cog):
+        self.bot = bot
+        self.summon_message_ids = {}
+
+    def cog_load(self):
+        tree = self.bot.tree
+        self._old_tree_error = tree.on_error
+        tree.on_error = on_app_command_error
+
+    def cog_unload(self):
+        tree = self.bot.tree
+        tree.on_error = self._old_tree_error
 
     admin_override_state = False
     holiday_start_gif = 'https://tenor.com/view/jim-carrey-ace-ventura-driving-its-show-time-cool-gif-12905775'
@@ -190,22 +208,24 @@ class PublicHoliday(commands.Cog):
             else:
                 print(f'Holiday has not yet expired, due at: {end_time}. Ignoring the check result for now.')
 
-    @cog_ext.cog_slash(
-        name="booze_started",
-        guild_ids=[bot_guild_id()],
-        description="Returns a GIF for whether the holiday has started.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def holiday_query(self, ctx: SlashContext):
-        print(f'User {ctx.author} wanted to know if the holiday has started.')
+    # @cog_ext.cog_slash(
+    #     name="booze_started",
+    #     guild_ids=[bot_guild_id()],
+    #     description="Returns a GIF for whether the holiday has started.",
+    #     permissions={
+    #         bot_guild_id(): [
+    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #         ]
+    #     }
+    # )
+    @app_commands.command(name="booze_started", description="Returns a GIF for whether the holiday has started.")
+    @check_roles(constants.conn_plus_roles)
+    async def holiday_query(self, interaction: discord.Interaction):
+        print(f'User {interaction.user.display_name} wanted to know if the holiday has started.')
         gif = None
 
         if ph_check() or PublicHoliday.admin_override_state:
@@ -215,71 +235,75 @@ class PublicHoliday(commands.Cog):
                 print('Rackhams holiday check says yep.')
             try:
                 gif = random.choice(PublicHoliday.holiday_query_started_gifs)
-                await ctx.send(random.choice(PublicHoliday.holiday_query_started_gifs))
+                await interaction.response.send_message(random.choice(PublicHoliday.holiday_query_started_gifs))
             except NotFound:
                 print(f'Problem sending the GIF for: {gif}.')
-                await ctx.send('Pirate Steve could not parse the gif. Try again and tell Kutu to check the log.')
+                await interaction.response.send_message('Pirate Steve could not parse the gif. Try again and tell Kutu to check the log.')
         else:
             try:
                 gif = random.choice(PublicHoliday.holiday_query_not_started_gifs)
                 print('Rackhams holiday check says no.')
-                await ctx.send(gif)
+                await interaction.response.send_message(gif)
             except NotFound:
                 print(f'Problem sending the GIF for: {gif}.')
-                await ctx.send('Pirate Steve could not parse the gif. Try again and tell Kutu to check the log.')
+                await interaction.response.send_message('Pirate Steve could not parse the gif. Try again and tell Kutu to check the log.')
 
-    @cog_ext.cog_slash(
-        name="booze_started_admin_override",
-        guild_ids=[bot_guild_id()],
-        description="Overrides the holiday admin flag. Used to set the holiday state before the polling API catches "
-                    "it.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-        options=[
-            create_option(
-                name='state',
-                description='True or False to override the holiday check flag.',
-                option_type=5,
-                required=True
-            )
-        ],
-    )
-    async def admin_override_holiday_state(self, ctx: SlashContext, state: bool):
-        print(f'{ctx.author} requested to override the admin holiday state too: {state}.')
+    # @cog_ext.cog_slash(
+    #     name="booze_started_admin_override",
+    #     guild_ids=[bot_guild_id()],
+    #     description="Overrides the holiday admin flag. Used to set the holiday state before the polling API catches "
+    #                 "it.",
+    #     permissions={
+    #         bot_guild_id(): [
+    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #         ]
+    #     },
+    #     options=[
+    #         create_option(
+    #             name='state',
+    #             description='True or False to override the holiday check flag.',
+    #             option_type=5,
+    #             required=True
+    #         )
+    #     ],
+    # )
+    @app_commands.command(name="booze_started_admin_override", description="Overrides the holiday admin flag. Used to set the holiday state before the polling API catches "
+                     "it.")
+    async def admin_override_holiday_state(self, interaction: discord.Interaction, state: bool):
+        print(f'{interaction.user.display_name} requested to override the admin holiday state too: {state}.')
         PublicHoliday.admin_override_state = state
-        await ctx.send(f'Set the admin holiday flag to: {state}. Check with /booze_started.', hidden=True)
+        await interaction.response.send_message(f'Set the admin holiday flag to: {state}. Check with /booze_started.', ephemeral=True)
 
-    @cog_ext.cog_slash(
-        name="booze_duration_remaining",
-        guild_ids=[bot_guild_id()],
-        description="Returns roughly how long the holiday has remaining.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-    )
-    async def remaining_time(self, ctx: SlashContext):
+    # @cog_ext.cog_slash(
+    #     name="booze_duration_remaining",
+    #     guild_ids=[bot_guild_id()],
+    #     description="Returns roughly how long the holiday has remaining.",
+    #     permissions={
+    #         bot_guild_id(): [
+    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
+    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
+    #         ]
+    #     },
+    # )
+    @app_commands.command(name="booze_duration_remaining", description="Returns roughly how long the holiday has remaining.")
+    @check_roles(constants.conn_plus_roles)
+    async def remaining_time(self, interaction: discord.Interaction):
         """
         Determines the remaining time and returns it to the users.
 
         :param SlashContext ctx: The discord slash context.
         :returns: None
         """
-        print(f'User {ctx.author} wanted to know if the remaining time of the holiday.')
+        print(f'User {interaction.user.display_name} wanted to know if the remaining time of the holiday.')
         if not ph_check():
-            await ctx.send(
-                "Pirate Steve has not detected the holiday state yet, or it is already over.", hidden=True
+            await interaction.response.send_message(
+                "Pirate Steve has not detected the holiday state yet, or it is already over.", ephemeral=True
             )
             return
         print('Holiday ongoing, go figure out how long is left.')
@@ -298,6 +322,6 @@ class PublicHoliday(commands.Cog):
 
         print(f'End time calculated as: {end_time}. Which is epoch of: {end_time.strftime("%s")}')
 
-        await ctx.send(f'Pirate Steve thinks the holiday will end around <t:{end_time.strftime("%s")}> [local '
+        await interaction.response.send_message(f'Pirate Steve thinks the holiday will end around <t:{end_time.strftime("%s")}> [local '
                        f'timezone].')
 
