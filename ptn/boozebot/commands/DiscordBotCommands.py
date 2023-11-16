@@ -5,13 +5,41 @@ import sys
 import discord
 from discord import Activity, ActivityType
 from discord.ext import commands
-from discord_slash.utils.manage_commands import remove_all_commands
+# from discord_slash.utils.manage_commands import remove_all_commands
 
 from ptn.boozebot.commands.DatabaseInteraction import DatabaseInteraction
+from ptn.boozebot.commands.ErrorHandler import on_app_command_error
 from ptn.boozebot.commands.PublicHoliday import PublicHoliday
-from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel, get_primary_booze_discussions_channel
+from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel, get_primary_booze_discussions_channel, \
+    server_admin_role_id, server_mod_role_id
 from ptn.boozebot._metadata import __version__
+from ptn.boozebot.bot import bot
 
+@bot.listen()
+async def on_command_error(ctx, error):
+    print(error)
+    if isinstance(error, commands.BadArgument):
+        message = f'Bad argument: {error}'
+
+    elif isinstance(error, commands.CommandNotFound):
+        message = f"Sorry, were you talking to me? I don't know that command."
+
+    elif isinstance(error, commands.MissingRequiredArgument):
+        message = f"Sorry, that didn't work.\n• Check you've included all required arguments." \
+                  "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation" \
+                  " marks are of the same type, i.e. all straight or matching open/close smartquotes."
+
+    elif isinstance(error, commands.MissingPermissions):
+        message = 'Sorry, you\'re missing the required permission for this command.'
+
+    elif isinstance(error, commands.MissingAnyRole):
+        message = f'You require one of the following roles to use this command:\n<@&{server_admin_role_id()}> • <@&{server_mod_role_id()}>'
+
+    else:
+        message = f'Sorry, that didn\'t work: {error}'
+
+    embed = discord.Embed(description=f"❌ {message}")
+    await ctx.send(embed=embed)
 
 class DiscordBotCommands(commands.Cog):
     def __init__(self, bot):
@@ -21,6 +49,16 @@ class DiscordBotCommands(commands.Cog):
         :param discord.ext.commands.Bot bot: The discord bot object
         """
         self.bot = bot
+        self.summon_message_ids = {}
+
+    def cog_load(self):
+        tree = self.bot.tree
+        self._old_tree_error = tree.on_error
+        tree.on_error = on_app_command_error
+
+    def cog_unload(self):
+        tree = self.bot.tree
+        tree.on_error = self._old_tree_error
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -85,7 +123,7 @@ class DiscordBotCommands(commands.Cog):
         :returns: None
         """
         print(f'User {ctx.author} requested to exit')
-        await remove_all_commands(self.bot.user.id, TOKEN, [bot_guild_id()])
+        await (self.bot.user.id, TOKEN, [bot_guild_id()])
         await ctx.send(f"Ahoy! k thx bye")
         await sys.exit("User requested exit.")
 
