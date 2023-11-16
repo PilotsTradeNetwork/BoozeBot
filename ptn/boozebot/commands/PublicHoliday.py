@@ -18,32 +18,6 @@ from ptn.boozebot.constants import rackhams_holiday_channel, bot_guild_id, serve
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn
 from ptn.boozebot.bot import bot
 
-@bot.listen()
-async def on_command_error(ctx, error):
-    print(error)
-    if isinstance(error, commands.BadArgument):
-        message = f'Bad argument: {error}'
-
-    elif isinstance(error, commands.CommandNotFound):
-        message = f"Sorry, were you talking to me? I don't know that command."
-
-    elif isinstance(error, commands.MissingRequiredArgument):
-        message = f"Sorry, that didn't work.\n• Check you've included all required arguments." \
-                  "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation" \
-                  " marks are of the same type, i.e. all straight or matching open/close smartquotes."
-
-    elif isinstance(error, commands.MissingPermissions):
-        message = 'Sorry, you\'re missing the required permission for this command.'
-
-    elif isinstance(error, commands.MissingAnyRole):
-        message = f'You require one of the following roles to use this command:\n<@&{server_admin_role_id()}> • <@&{server_mod_role_id()}>'
-
-    else:
-        message = f'Sorry, that didn\'t work: {error}'
-
-    embed = discord.Embed(description=f"❌ {message}")
-    await ctx.send(embed=embed)
-
 class PublicHoliday(commands.Cog):
     """
     The public holiday state checker mechanism for booze bot.

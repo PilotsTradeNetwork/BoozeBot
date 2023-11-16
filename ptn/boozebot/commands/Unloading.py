@@ -1,5 +1,5 @@
-import re
 import asyncio
+import re
 from typing import List
 
 import discord
@@ -8,50 +8,24 @@ from discord.app_commands import describe
 from discord.ext import commands
 
 from ptn.boozebot import constants
+from ptn.boozebot.BoozeCarrier import BoozeCarrier
+from ptn.boozebot.bot import bot
+from ptn.boozebot.commands.ErrorHandler import on_app_command_error
+from ptn.boozebot.commands.Helper import check_roles
+from ptn.boozebot.constants import get_custom_assassin_id, get_discord_booze_unload_channel, \
+    server_sommelier_role_id, server_connoisseur_role_id, server_wine_carrier_role_id, \
+    get_primary_booze_discussions_channel, get_fc_complete_id, get_discord_tanker_unload_channel, \
+    get_wine_carrier_channel, get_steve_says_channel
+from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
+
 # from discord_slash import SlashContext, cog_ext
 # from discord_slash.utils.manage_commands import create_option, create_choice
 # from discord_slash.utils.manage_commands import create_permission
 # from discord_slash.model import SlashCommandPermissionType, ContextMenuType
 # from discord_slash.context import MenuContext
 
-from ptn.boozebot.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.commands.ErrorHandler import on_app_command_error
-from ptn.boozebot.commands.Helper import check_roles
-from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, get_discord_booze_unload_channel, \
-    server_admin_role_id, server_sommelier_role_id, server_connoisseur_role_id, server_wine_carrier_role_id, \
-    server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id, \
-    get_wine_tanker_role, get_discord_tanker_unload_channel, get_wine_carrier_channel, get_steve_says_channel
-from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
-from ptn.boozebot.bot import bot
-
 # lock for wine carrier toggle
 wine_carrier_toggle_lock = asyncio.Lock()
-
-@bot.listen()
-async def on_command_error(ctx, error):
-    print(error)
-    if isinstance(error, commands.BadArgument):
-        message = f'Bad argument: {error}'
-
-    elif isinstance(error, commands.CommandNotFound):
-        message = f"Sorry, were you talking to me? I don't know that command."
-
-    elif isinstance(error, commands.MissingRequiredArgument):
-        message = f"Sorry, that didn't work.\n• Check you've included all required arguments." \
-                  "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation" \
-                  " marks are of the same type, i.e. all straight or matching open/close smartquotes."
-
-    elif isinstance(error, commands.MissingPermissions):
-        message = 'Sorry, you\'re missing the required permission for this command.'
-
-    elif isinstance(error, commands.MissingAnyRole):
-        message = f'You require one of the following roles to use this command:\n<@&{server_admin_role_id()}> • <@&{server_mod_role_id()}>'
-
-    else:
-        message = f'Sorry, that didn\'t work: {error}'
-
-    embed = discord.Embed(description=f"❌ {message}")
-    await ctx.send(embed=embed)
 
 class Unloading(commands.Cog):
     def __init__(self, bot: commands.Cog):
@@ -101,7 +75,8 @@ class Unloading(commands.Cog):
                         inline=True)
         embed.set_footer(text='All 3 emoji counts should match by the end or Pirate Steve will be unhappy. 🏴‍☠')
 
-        message = await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed)
+        message = await interaction.original_response()
         await message.add_reaction('🛬')
         await message.add_reaction(f'<:Assassin:{str(get_custom_assassin_id())}>')
         await message.add_reaction('🍷')
@@ -130,7 +105,8 @@ class Unloading(commands.Cog):
         embed.add_field(name='Go fight the sidewinder for the landing pad.',
                         value='Hopefully you got some booty, now go get your doubloons!')
         embed.set_footer(text='Notified by your friendly neighbourhood pirate bot.')
-        message = await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed)
+        message = await interaction.original_response()
         await message.add_reaction('🏴‍☠️')
 
     # @cog_ext.cog_slash(
@@ -714,7 +690,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
     if wc_role in user.roles:
         print(f"{user} is already a {wc_role.name}, doing nothing.")
         wine_carrier_toggle_lock.release()
-        return await interaction.response.send_message(f"User is already a {wc_role.name}", hidden=True)
+        return await interaction.response.send_message(f"User is already a {wc_role.name}", ephemeral=True)
     else:
         # toggle on
         print(f"{user} is not a {wc_role.name}, adding the role.")
@@ -724,7 +700,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
             response = f"{user.display_name} now has the {wc_role.name} role."
 
             # Open the file in read mode.
-            with open("wine_carrier_welcome.txt", "r") as file:
+            with open("../wine_carrier_welcome.txt", "r") as file:
                 wine_welcome_message = file.read()  # read contents to variable
                 wine_channel = bot.get_channel(get_wine_carrier_channel())
                 embed = discord.Embed(description=wine_welcome_message)
@@ -735,10 +711,10 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
                 wine_carrier_toggle_lock.release()
 
                 await channel.send(content=response)
-            return await interaction.response.send_message(content=response, hidden=True)
+            return await interaction.response.send_message(content=response, ephemeral=True)
         except Exception as e:
             print(e)
-            await interaction.response.send_message(f"Failed adding role {wc_role.name} to {user}: {e}", hidden=True)
+            await interaction.response.send_message(f"Failed adding role {wc_role.name} to {user}: {e}", ephemeral=True)
             wine_carrier_toggle_lock.release()
 
 

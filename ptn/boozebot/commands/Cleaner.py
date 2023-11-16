@@ -22,39 +22,6 @@ from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, p
 from ptn.boozebot.bot import bot
 from ptn.boozebot.commands.ErrorHandler import on_app_command_error, on_generic_error, CustomError
 
-"""
-A primitive global error handler for text commands.
-
-returns: error message to user and log
-"""
-
-
-@bot.listen()
-async def on_command_error(ctx, error):
-    print(error)
-    if isinstance(error, commands.BadArgument):
-        message = f'Bad argument: {error}'
-
-    elif isinstance(error, commands.CommandNotFound):
-        message = f"Sorry, were you talking to me? I don't know that command."
-
-    elif isinstance(error, commands.MissingRequiredArgument):
-        message = f"Sorry, that didn't work.\n• Check you've included all required arguments." \
-                  "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation" \
-                  " marks are of the same type, i.e. all straight or matching open/close smartquotes."
-
-    elif isinstance(error, commands.MissingPermissions):
-        message = 'Sorry, you\'re missing the required permission for this command.'
-
-    elif isinstance(error, commands.MissingAnyRole):
-        message = f'You require one of the following roles to use this command:\n<@&{server_admin_role_id()}> • <@&{server_mod_role_id()}>'
-
-    else:
-        message = f'Sorry, that didn\'t work: {error}'
-
-    embed = discord.Embed(description=f"❌ {message}")
-    await ctx.send(embed=embed)
-
 class Cleaner(commands.Cog):
     def __init__(self, bot: commands.Cog):
         self.bot = bot
@@ -93,6 +60,11 @@ class Cleaner(commands.Cog):
         """
         print(f'User {interaction.user.display_name} requested BC channel opening in channel: {interaction.channel.name}'
               f'({interaction.channel.id}).')
+        embed = discord.Embed(
+            description='Opening booze channels...'
+        )
+        # For timeout
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
         ids_list = get_public_channel_list()
         guild = interaction.guild
@@ -108,7 +80,8 @@ class Cleaner(commands.Cog):
             except Exception as e:
                 embed.add_field(name="FAILED to open", value="<#" + str(id) + f">: {e}", inline=False)
 
-        await interaction.response.send_message(f"<@&{server_sommelier_role_id()}> Avast! We\'re ready to set sail!", embed=embed)
+        await interaction.delete_original_response()
+        await interaction.followup.send(f"<@&{server_sommelier_role_id()}> Avast! We\'re ready to set sail!", embed=embed)
 
 
 
@@ -242,17 +215,19 @@ class Cleaner(commands.Cog):
         print(f'User {interaction.user.display_name} is changing the wine carrier welcome message in {interaction.channel}.')
 
         # send the existing message (if there is one) so the user has a copy
-        if os.path.isfile("wine_carrier_welcome.txt"):
-            with open("wine_carrier_welcome.txt", "r") as file:
+        if os.path.isfile("../wine_carrier_welcome.txt"):
+            with open("../wine_carrier_welcome.txt", "r") as file:
                 wine_welcome_message = file.read()
                 await interaction.response.send_message(f"Existing message: ```\n{wine_welcome_message}\n```")
 
         response_timeout = 20
-
-        await interaction.response.send_message(f"<@{interaction.user.id}> your next message in this channel will be used as the new welcome message, or wait {response_timeout} seconds to cancel.")
-
+        try:
+            await interaction.response.send_message(f"<@{interaction.user.id}> your next message in this channel will be used as the new welcome message, or wait {response_timeout} seconds to cancel.")
+        except:
+            await interaction.followup.send(
+                f"<@{interaction.user.id}> your next message in this channel will be used as the new welcome message, or wait {response_timeout} seconds to cancel.")
         def check(response):
-            return response.author == interaction.user.display_name and response.channel == interaction.channel
+            return response.author == interaction.user and response.channel == interaction.channel
 
         try:
             # process the response
@@ -261,16 +236,16 @@ class Cleaner(commands.Cog):
 
         except asyncio.TimeoutError:
             print("No valid response detected")
-            return await interaction.response.send_message("No valid response detected.")
+            return await interaction.followup.send("No valid response detected.")
 
         if message:
             # Now try to replace the contents
             print("Setting welcome message from user input")
-            with open("wine_carrier_welcome.txt", "w") as wine_welcome_txt_file:
+            with open("../wine_carrier_welcome.txt", "w") as wine_welcome_txt_file:
                 wine_welcome_txt_file.write(message.content)
                 embed = discord.Embed(description=message.content)
                 embed.set_thumbnail(url="https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless")
-                await interaction.response.send_message("New Wine Carrier welcome message set:", embed=embed)
+                await interaction.followup.send("New Wine Carrier welcome message set:", embed=embed)
         else:
             return
 

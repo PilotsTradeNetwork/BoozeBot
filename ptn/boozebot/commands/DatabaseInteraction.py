@@ -1,58 +1,32 @@
 import asyncio
-import sqlite3
-from datetime import datetime, timedelta
 import math
 import os.path
 import re
+import sqlite3
+from datetime import datetime, timedelta
 from typing import List
 
 import discord
+import gspread
 from discord import app_commands
-from discord.app_commands import commands, describe
-from discord.ext import tasks, commands
+from discord.app_commands import describe
+from discord.ext import tasks
+from discord.ext.commands import Cog
 # from discord_slash import cog_ext, SlashContext
 # from discord_slash.model import SlashCommandPermissionType
 # from discord_slash.utils.manage_commands import create_permission, create_option, create_choice
 from oauth2client.service_account import ServiceAccountCredentials
-import gspread
-from discord.ext.commands import Cog
 
-from ptn.boozebot.BoozeCarrier import BoozeCarrier
 import ptn.boozebot.constants as constants
+from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.PHcheck import ph_check
+from ptn.boozebot.bot import bot
 from ptn.boozebot.commands.ErrorHandler import on_app_command_error
 from ptn.boozebot.commands.Helper import check_roles
-from ptn.boozebot.constants import bot_guild_id, server_admin_role_id, server_sommelier_role_id, \
-    BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, server_mod_role_id, get_bot_control_channel, \
-    get_sommelier_notification_channel, server_wine_carrier_role_id, server_connoisseur_role_id
-from ptn.boozebot.bot import bot
+from ptn.boozebot.constants import server_sommelier_role_id, \
+    BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, get_bot_control_channel, \
+    get_sommelier_notification_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn, dump_database, pirate_steve_lock
-
-@bot.listen()
-async def on_command_error(ctx, error):
-    print(error)
-    if isinstance(error, commands.BadArgument):
-        message = f'Bad argument: {error}'
-
-    elif isinstance(error, commands.CommandNotFound):
-        message = f"Sorry, were you talking to me? I don't know that command."
-
-    elif isinstance(error, commands.MissingRequiredArgument):
-        message = f"Sorry, that didn't work.\n• Check you've included all required arguments." \
-                  "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation" \
-                  " marks are of the same type, i.e. all straight or matching open/close smartquotes."
-
-    elif isinstance(error, commands.MissingPermissions):
-        message = 'Sorry, you\'re missing the required permission for this command.'
-
-    elif isinstance(error, commands.MissingAnyRole):
-        message = f'You require one of the following roles to use this command:\n<@&{server_admin_role_id()}> • <@&{server_mod_role_id()}>'
-
-    else:
-        message = f'Sorry, that didn\'t work: {error}'
-
-    embed = discord.Embed(description=f"❌ {message}")
-    await ctx.send(embed=embed)
 
 
 class DatabaseInteraction(Cog):
@@ -477,7 +451,8 @@ class DatabaseInteraction(Cog):
             )
 
         # Now go send it and wait on a reaction
-        message = await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed)
+        message = await interaction.original_response()
 
         # From page 0 we can only go forwards
         await message.add_reaction("▶️")
@@ -501,7 +476,7 @@ class DatabaseInteraction(Cog):
                             inline=False
                         )
 
-                    await message.edit(embed=new_embed)
+                    await interaction.edit_original_response(embed=new_embed)
 
                     # Ok now we can go back, check if we can also go forwards still
                     if current_page == max_pages:
@@ -531,7 +506,7 @@ class DatabaseInteraction(Cog):
                             inline=False
                         )
 
-                    await message.edit(embed=new_embed)
+                    await interaction.edit_original_response(embed=new_embed)
                     # Ok now we can go forwards, check if we can also go backwards still
                     if current_page == 1:
                         await message.clear_reaction("◀️")
@@ -546,14 +521,14 @@ class DatabaseInteraction(Cog):
                     # HAl-9000 error response.
                     error_embed = discord.Embed(
                         title=f"I'm sorry {interaction.user.display_name}, I'm afraid I can't do that.")
-                    await message.edit(embed=error_embed)
+                    await interaction.edit_original_response(embed=error_embed)
                     await message.remove_reaction(reaction, user)
 
             except asyncio.TimeoutError:
                 print(f'Timeout hit during carrier request by: {interaction.user.display_name}')
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f'Closed the active carrier list request from: {interaction.user.display_name} due to no input in 60 seconds.')
-                return await message.delete()
+                return await interaction.delete_original_response()
 
     # @cog_ext.cog_slash(
     #     name="wine_mark_completed_forcefully",
@@ -1167,6 +1142,7 @@ class DatabaseInteraction(Cog):
     #         )
     #     ],
     # )
+    # TODO: Still relevent
     @app_commands.command(name="booze_pin_message",
                           description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.")
     @check_roles(constants.somm_plus_roles)
@@ -1233,6 +1209,7 @@ class DatabaseInteraction(Cog):
     #         ]
     #     }
     # )
+    # TODO: Still relevant?
     @app_commands.command(name="booze_unpin_all",
                           description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.")
     @check_roles(constants.somm_plus_roles)
@@ -1293,6 +1270,8 @@ class DatabaseInteraction(Cog):
     #        )
     #    ]
     # )
+
+    # TODO: Still relevant
     @app_commands.command(name="booze_unpin_message",
                           description="Unpins a specific message and removes it from the DB. Restricted to Admin and "
                                       "Sommelier's.")
@@ -1540,11 +1519,12 @@ class DatabaseInteraction(Cog):
         carrier_embed.set_footer(text='Confirm you want to delete: y/n')
 
         def check(check_message):
-            return check_message.author == interaction.user.display_name and check_message.channel == interaction.channel and \
+            return check_message.author == interaction.user and check_message.channel == interaction.channel and \
                 check_message.content.lower() in ["y", "n"]
 
         # Send the embed
-        message = await interaction.response.send_message(embed=carrier_embed)
+        await interaction.response.send_message(embed=carrier_embed)
+        message = await interaction.original_response()
 
         try:
             response = await bot.wait_for("message", check=check, timeout=30)
@@ -1552,12 +1532,12 @@ class DatabaseInteraction(Cog):
                 await message.delete()
                 await response.delete()
                 print(f'User {interaction.user.display_name} aborted the request delete carrier {carrier_id}.')
-                return await interaction.response.send_message(
+                return await interaction.followup.send(
                     f"Avast Ye! you cancelled the action for deleting {carrier_id}.")
 
             elif response.content.lower() == "y":
                 try:
-                    await message.delete()
+                    await interaction.delete_original_response()
                     await response.delete()
                     print(f'User {interaction.user.display_name} agreed to delete the carrier: {carrier_id}.')
 
@@ -1577,15 +1557,15 @@ class DatabaseInteraction(Cog):
                     finally:
                         pirate_steve_lock.release()
 
-                    return await interaction.response.send_message(
+                    return await interaction.followup.send(
                         f'Fleet carrier: {carrier_id} for user: {carrier_data.discord_username} was removed')
                 except Exception as e:
-                    return interaction.response.send_message(
+                    return interaction.followup.send(
                         f'Something went wrong, go tell the bot team "computer said: {e}"')
 
         except asyncio.TimeoutError:
             await message.delete()
-            return await interaction.response.send_message("**Cancelled - timed out**")
+            return await interaction.followup.send("**Cancelled - timed out**")
 
         await message.delete()
 

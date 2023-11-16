@@ -401,7 +401,7 @@ class Helper(commands.Cog):
             response_embed.description += 'None.'
 
         print(f"Returning the response to: {interaction.user.display_name}")
-        await interaction.user.send_message(embed=response_embed, ephemeral=True)
+        await interaction.response.send_message(embed=response_embed, ephemeral=True)
 
     @get_help.autocomplete('command')
     async def booze_operation_autocomplete(
