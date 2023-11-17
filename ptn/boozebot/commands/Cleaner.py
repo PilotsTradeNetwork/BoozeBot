@@ -1,26 +1,19 @@
-import discord
-import os
 import asyncio
+import os
 
+# import discord
+import discord
 from discord import app_commands
 from discord.ext import commands
-# from discord_slash import SlashContext, cog_ext
-# from discord_slash.utils.manage_commands import create_option, create_choice
-# from discord_slash.utils.manage_commands import create_permission
-# from discord_slash.model import SlashCommandPermissionType
 
+# local imports
 import ptn.boozebot.constants as constants
-
-from ptn.boozebot.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.commands.Helper import check_roles
-from ptn.boozebot.constants import bot_guild_id, get_custom_assassin_id, get_discord_booze_unload_channel, \
-    server_admin_role_id, server_sommelier_role_id, server_connoisseur_role_id, server_wine_carrier_role_id, \
-    server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id, \
-    get_wine_tanker_role, get_discord_tanker_unload_channel, \
-    get_public_channel_list, server_hitchhiker_role_id
-from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 from ptn.boozebot.bot import bot
-from ptn.boozebot.commands.ErrorHandler import on_app_command_error, on_generic_error, CustomError
+from ptn.boozebot.commands.ErrorHandler import on_app_command_error
+from ptn.boozebot.commands.Helper import check_roles
+from ptn.boozebot.constants import bot_guild_id, server_sommelier_role_id, server_wine_carrier_role_id, \
+    get_public_channel_list, server_hitchhiker_role_id
+
 
 class Cleaner(commands.Cog):
     def __init__(self, bot: commands.Cog):
@@ -36,19 +29,6 @@ class Cleaner(commands.Cog):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
 
-    #@cog_ext.cog_slash(
-    #    name="Booze_Channels_Open",
-    #    guild_ids=[bot_guild_id()],
-    #    description="Opens the Booze Cruise channels to the public.",
-    #    permissions={
-    #        bot_guild_id(): [
-    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #        ]
-    #    },
-    #)
     @app_commands.command(name='booze_channels_open')
     @check_roles(constants.somm_plus_roles)
     async def booze_channels_open(self, interaction: discord.Interaction):
@@ -83,23 +63,6 @@ class Cleaner(commands.Cog):
         await interaction.delete_original_response()
         await interaction.followup.send(f"<@&{server_sommelier_role_id()}> Avast! We\'re ready to set sail!", embed=embed)
 
-
-
-
-    # @cog_ext.cog_slash(
-    #     name="Booze_Channels_Close",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Opens the Booze Cruise channels to the public.",
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    # )
-    
     @app_commands.command(name="booze_channels_close", description="Opens the Booze Cruise channels to the public.")
     @check_roles(constants.somm_plus_roles)
     async def booze_channels_close(self, interaction: discord.Interaction):
@@ -128,19 +91,6 @@ class Cleaner(commands.Cog):
 
         await interaction.response.send_message(f"<@&{server_sommelier_role_id()}> That\'s the end of that, me hearties.", embed=embed)
 
-    # @cog_ext.cog_slash(
-    #     name="Clear_Booze_Roles",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution.",
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    # )
     @app_commands.command(name="clear_booze_roles", description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution.")
     @check_roles(constants.somm_plus_roles)
     async def clear_booze_roles(self, interaction: discord.Interaction):
@@ -189,19 +139,6 @@ class Cleaner(commands.Cog):
             print(e)
             await interaction.followup.send('Clear roles command failed.  Contact admin.')
 
-    # @cog_ext.cog_slash(
-    #     name="Set_Wine_Carrier_Welcome",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Sets the welcome message sent to Wine Carriers.",
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    # )
     @app_commands.command(name="set_wine_carrier_welcome", description="Sets the welcome message sent to Wine Carriers.")
     @check_roles(constants.somm_plus_roles)
     async def set_wine_carrier_welcome(self, interaction: discord.Interaction):

@@ -33,33 +33,6 @@ class MimicSteve(commands.Cog):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
 
-    # @cog_ext.cog_slash(
-    #     name='Steve_Says',
-    #     guild_ids=[bot_guild_id()],
-    #     description='Send a message as PirateSteve.',
-    #     options=[
-    #         create_option(
-    #             name='message',
-    #             description='The message to send',
-    #             option_type=3,
-    #             required=True
-    #         ),
-    #         create_option(
-    #             name='send_channel',
-    #             description='The channel to send the message in',
-    #             option_type=3,
-    #             required=True
-    #         )
-    #     ],
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    # )
     @app_commands.command(name='steve_says', description='Send a message as PirateSteve.')
     @describe(message='The message to send', send_channel='The channel to send the message in')
     async def impersonate_steve(self, interaction: discord.Interaction, message: str, send_channel: str):

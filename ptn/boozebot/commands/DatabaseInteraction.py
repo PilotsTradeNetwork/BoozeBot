@@ -6,17 +6,17 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import List
 
-import discord
 import gspread
+
+# import discord
+import discord
 from discord import app_commands
 from discord.app_commands import describe
 from discord.ext import tasks
 from discord.ext.commands import Cog
-# from discord_slash import cog_ext, SlashContext
-# from discord_slash.model import SlashCommandPermissionType
-# from discord_slash.utils.manage_commands import create_permission, create_option, create_choice
 from oauth2client.service_account import ServiceAccountCredentials
 
+# local imports
 import ptn.boozebot.constants as constants
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.PHcheck import ph_check
@@ -27,7 +27,6 @@ from ptn.boozebot.constants import server_sommelier_role_id, \
     BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, get_bot_control_channel, \
     get_sommelier_notification_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn, dump_database, pirate_steve_lock
-
 
 class DatabaseInteraction(Cog):
 
@@ -93,19 +92,6 @@ class DatabaseInteraction(Cog):
         except gspread.exceptions.APIError as e:
             print(f'Error reading the worksheet: {e}')
 
-    # @cog_ext.cog_slash(
-    #     name="update_booze_db",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Populates the booze cruise database from the updated google sheet. Somm/Conn role required.",
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    # )
     @app_commands.command(name="update_booze_db",
                           description="Populates the booze cruise database from the updated google sheet. Somm/Conn role required.")
     @check_roles(constants.conn_plus_roles)
@@ -379,19 +365,6 @@ class DatabaseInteraction(Cog):
             'new_signups': new_signups
         }
 
-    # @cog_ext.cog_slash(
-    #    name="find_carriers_with_wine",
-    #    guild_ids=[bot_guild_id()],
-    #    description="Returns the carriers in the database that are still flagged as having wine remaining.",
-    #    permissions={
-    #        bot_guild_id(): [
-    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #        ]
-    #    },
-    # )
     @app_commands.command(name="find_carriers_with_wine",
                           description="Returns the carriers in the database that are still flagged as having wine remaining.")
     @check_roles(constants.somm_plus_roles)
@@ -530,27 +503,6 @@ class DatabaseInteraction(Cog):
                     f'Closed the active carrier list request from: {interaction.user.display_name} due to no input in 60 seconds.')
                 return await interaction.delete_original_response()
 
-    # @cog_ext.cog_slash(
-    #     name="wine_mark_completed_forcefully",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Forcefully marks a carrier in the database as unload completed. Admin/Sommelier required.",
-    #     options=[
-    #         create_option(
-    #             name='carrier_id',
-    #             description='The XXX-XXX ID string for the carrier',
-    #             option_type=3,
-    #             required=True
-    #         )
-    #     ],
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     }
-    # )
     @app_commands.command(name="wine_mark_completed_forcefully",
                           description="Forcefully marks a carrier in the database as unload completed. Admin/Sommelier required.")
     @check_roles(constants.somm_plus_roles)
@@ -652,57 +604,6 @@ class DatabaseInteraction(Cog):
             await message.delete()
             return await interaction.followup.send("**Cancelled - timed out**")
 
-        await message.delete()
-
-    # @cog_ext.cog_slash(
-    #    name="find_wine_carriers_for_platform",
-    #    guild_ids=[bot_guild_id()],
-    #    description="Returns the carriers in the database for the platform.",
-    #    options=[
-    #        create_option(
-    #            name='platform',
-    #            description='The platform the carrier operates on.',
-    #            option_type=3,
-    #            required=True,
-    #            choices=[
-    #                create_choice(
-    #                    name="PC (All)",
-    #                    value="PC"
-    #                ),
-    #                create_choice(
-    #                    name="PC EDH",
-    #                    value="PC (Horizons Only)"
-    #                ),
-    #                create_choice(
-    #                    name="PC EDO",
-    #                    value="PC (Horizons + Odyssey)"
-    #                ),
-    #                create_choice(
-    #                    name="Xbox",
-    #                    value="Xbox"
-    #                ),
-    #                create_choice(
-    #                    name="Playstation",
-    #                    value="Playstation"
-    #                ),
-    #            ]
-    #        ),
-    #        create_option(
-    #            name='remaining_wine',
-    #            description='True if you only want carriers with wine, else False. Default True',
-    #            option_type=5,
-    #            required=False
-    #        )
-    #    ],
-    #    permissions={
-    #        bot_guild_id(): [
-    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #        ]
-    #    },
-    # )
     # TODO: Is this still relevant?
     @app_commands.command(name="find_wine_carriers_for_platform",
                           description="Returns the carriers in the database for the platform.")
@@ -882,20 +783,6 @@ class DatabaseInteraction(Cog):
             choice for choice in platform_choices if current.lower() in choice.name.lower()
         ]
 
-    # @cog_ext.cog_slash(
-    #    name="find_wine_carrier_by_id",
-    #    guild_ids=[bot_guild_id()],
-    #    description="Returns the carriers in the database for the ID.",
-    #    options=[
-    #        create_option(
-    #            name='carrier_id',
-    #            description='The XXX-XXX ID string for the carrier',
-    #            option_type=3,
-    #            required=True
-    #        )
-    #    ],
-    # )
-
     @app_commands.command(name="find_wine_carrier_by_id",
                           description="Returns the carriers in the database for the ID.")
     @describe(carrier_id='The XXX-XXX ID string for the carrier')
@@ -934,30 +821,6 @@ class DatabaseInteraction(Cog):
         )
 
         return await interaction.response.send_message(embed=carrier_embed)
-
-    # @cog_ext.cog_slash(
-    #    name="booze_tally",
-    #    guild_ids=[bot_guild_id()],
-    #    description="Returns a summary of the stats for the current booze cruise. Restricted to Somms and Connoisseurs.",
-    #    permissions={
-    #        bot_guild_id(): [
-    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #        ]
-    #    },
-    #    options=[
-    #        create_option(
-    #            name='cruise_select',
-    #            description='Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is '
-    #                        'this cruise.',
-    #            option_type=4,
-    #            required=False
-    #        )
-    #    ],
-    # )
 
     @app_commands.command(name="booze_tally",
                           description="Returns a summary of the stats for the current booze cruise. Restricted to Somms and Connoisseurs.")
@@ -1115,34 +978,7 @@ class DatabaseInteraction(Cog):
         print('Returning embed to user')
         return stat_embed
 
-    # @cog_ext.cog_slash(
-    #     name="booze_pin_message",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.",
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    #     options=[
-    #         create_option(
-    #             name='message_id',
-    #             description='The message ID to be pinned.',
-    #             option_type=3,
-    #             required=True
-    #         ),
-    #         create_option(
-    #             name='channel_id',
-    #             description='The channel ID to be pinned.',
-    #             option_type=3,
-    #             required=False
-    #         )
-    #     ],
-    # )
-    # TODO: Still relevent
+    # TODO: Still relevant?
     @app_commands.command(name="booze_pin_message",
                           description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.")
     @check_roles(constants.somm_plus_roles)
@@ -1196,19 +1032,6 @@ class DatabaseInteraction(Cog):
         await interaction.response.send_message(
             f'Pirate steve recorded message: {message_id} in channel: {channel_id} for pinned updating')
 
-    # @cog_ext.cog_slash(
-    #     name="booze_unpin_all",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.",
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     }
-    # )
     # TODO: Still relevant?
     @app_commands.command(name="booze_unpin_all",
                           description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.")
@@ -1248,30 +1071,7 @@ class DatabaseInteraction(Cog):
         else:
             await interaction.response.send_message('Pirate Steve has no pinned messages to remove.', hidden=True)
 
-    # @cog_ext.cog_slash(
-    #    name="booze_unpin_message",
-    #    guild_ids=[bot_guild_id()],
-    #    description="Unpins a specific message and removes it from the DB. Restricted to Admin and "
-    #                "Sommelier's.",
-    #    permissions={
-    #        bot_guild_id(): [
-    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #        ]
-    #    },
-    #    options=[
-    #        create_option(
-    #            name='message_id',
-    #            description='The message ID to be pinned.',
-    #            option_type=3,
-    #            required=True
-    #        )
-    #    ]
-    # )
-
-    # TODO: Still relevant
+    # TODO: Still relevant?
     @app_commands.command(name="booze_unpin_message",
                           description="Unpins a specific message and removes it from the DB. Restricted to Admin and "
                                       "Sommelier's.")
@@ -1347,20 +1147,6 @@ class DatabaseInteraction(Cog):
         else:
             print('No pinned messages to update. Check again in an hour.')
 
-    # @cog_ext.cog_slash(
-    #    name="booze_tally_extra_stats",
-    #    guild_ids=[bot_guild_id()],
-    #    description="Returns an set of extra stats for the wine. Restricted to Admin, Sommeliers, and Connoisseurs.",
-    #    permissions={
-    #        bot_guild_id(): [
-    #            create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-    #            create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #        ]
-    #    }
-    # )
     @app_commands.command(name="booze_tally_extra_stats",
                           description="Returns an set of extra stats for the wine. Restricted to Admin, Sommeliers, and Connoisseurs.")
     @check_roles(constants.conn_plus_roles)
@@ -1449,27 +1235,6 @@ class DatabaseInteraction(Cog):
         stat_embed.set_footer(text='Stats requested by RandomGazz.\nPirate Steve approves of these stats!')
         await interaction.response.send_message(embed=stat_embed)
 
-    # @cog_ext.cog_slash(
-    #     name="booze_delete_carrier",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Removes a carrier from the database. Admin/Sommelier required.",
-    #     options=[
-    #         create_option(
-    #             name='carrier_id',
-    #             description='The XXX-XXX ID string for the carrier',
-    #             option_type=3,
-    #             required=True
-    #         )
-    #     ],
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     }
-    # )
     @app_commands.command(name="booze_delete_carrier",
                           description="Removes a carrier from the database. Admin/Sommelier required.")
     @check_roles(constants.somm_plus_roles)
@@ -1569,18 +1334,6 @@ class DatabaseInteraction(Cog):
 
         await message.delete()
 
-    # @cog_ext.cog_slash(
-    #     name="booze_archive_database",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Archives the boozedatabase. Admin/Sommelier required.",
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     }
-    # )
     @app_commands.command(name="booze_archive_database",
                           description="Archives the boozedatabase. Admin/Sommelier required.")
     @check_roles(constants.somm_plus_roles)  # TODO: Update to Admin/Somm only
@@ -1711,18 +1464,6 @@ class DatabaseInteraction(Cog):
             await sent_embed.delete()
             return await interaction.response.send_message("**Waiting for user response - timed out**")
 
-    # @cog_ext.cog_slash(
-    #     name="booze_configure_signup_forms",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Updates the booze cruise signup forms. Admin/Sommelier required.",
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     }
-    # )
     @app_commands.command(name="booze_configure_signup_forms",
                           description="Updates the booze cruise signup forms. Admin/Sommelier required.")
     @check_roles(constants.somm_plus_roles)  # TODO: Update to Admin/Somm Only

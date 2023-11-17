@@ -6,8 +6,7 @@ Our custom global error handler for the bot. v1 is directly imported from MAB
 Dependends on: constants
 """
 
-
-# import discord.py
+# import discord
 import discord
 from discord import Interaction, app_commands
 from discord.app_commands import AppCommandError
@@ -17,7 +16,7 @@ from discord.ext import commands
 import ptn.boozebot.constants as constants
 from ptn.boozebot.constants import get_bot_control_channel
 from ptn.boozebot.bot import bot
-# custom errors
+
 
 @bot.listen()
 async def on_command_error(ctx, error):

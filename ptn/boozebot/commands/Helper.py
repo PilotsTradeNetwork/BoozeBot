@@ -1,42 +1,13 @@
 from typing import List
 
+# import discord
 import discord
 from discord import app_commands
 from discord.app_commands import describe
 from discord.ext import commands
-from ptn.boozebot.bot import bot
-# from discord_slash import SlashContext, cog_ext
-# from discord_slash.utils.manage_commands import create_option, create_choice
 
+# local imports
 from ptn.boozebot.commands.ErrorHandler import CommandRoleError, on_app_command_error
-from ptn.boozebot.constants import bot_guild_id, server_admin_role_id, server_mod_role_id
-
-
-@bot.listen()
-async def on_command_error(ctx, error):
-    print(error)
-    if isinstance(error, commands.BadArgument):
-        message = f'Bad argument: {error}'
-
-    elif isinstance(error, commands.CommandNotFound):
-        message = f"Sorry, were you talking to me? I don't know that command."
-
-    elif isinstance(error, commands.MissingRequiredArgument):
-        message = f"Sorry, that didn't work.\n• Check you've included all required arguments." \
-                  "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation" \
-                  " marks are of the same type, i.e. all straight or matching open/close smartquotes."
-
-    elif isinstance(error, commands.MissingPermissions):
-        message = 'Sorry, you\'re missing the required permission for this command.'
-
-    elif isinstance(error, commands.MissingAnyRole):
-        message = f'You require one of the following roles to use this command:\n<@&{server_admin_role_id()}> • <@&{server_mod_role_id()}>'
-
-    else:
-        message = f'Sorry, that didn\'t work: {error}'
-
-    embed = discord.Embed(description=f"❌ {message}")
-    await ctx.send(embed=embed)
 
 
 class Helper(commands.Cog):
@@ -57,105 +28,6 @@ class Helper(commands.Cog):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
 
-    # @cog_ext.cog_slash(
-    #     name='pirate_steve_help',
-    #     guild_ids=[bot_guild_id()],
-    #     description='Returns some information for each command.',
-    #     options=[
-    #         create_option(
-    #             name='command',
-    #             description='The command you want help with',
-    #             option_type=3,
-    #             required=True,
-    #             choices=[
-    #                 create_choice(
-    #                     name='booze_archive_database',
-    #                     value='booze_archive_database'
-    #                 ),
-    #                 create_choice(
-    #                     name='booze_configure_signup_forms',
-    #                     value='booze_configure_signup_forms'
-    #                 ),
-    #                 create_choice(
-    #                     name="booze_delete_carrier",
-    #                     value="booze_delete_carrier"
-    #                 ),
-    #                 create_choice(
-    #                     name="booze_started",
-    #                     value="booze_started"
-    #                 ),
-    #                 create_choice(
-    #                     name="booze_started_admin_override",
-    #                     value="booze_started_admin_override"
-    #                 ),
-    #                 create_choice(
-    #                     name="booze_tally",
-    #                     value="booze_tally"
-    #                 ),
-    #                 create_choice(
-    #                     name="booze_tally_extra_stats",
-    #                     value="booze_tally_extra_stats"
-    #                 ),
-    #                 create_choice(
-    #                     name="find_carriers_with_wine",
-    #                     value="find_carriers_with_wine"
-    #                 ),
-    #                 create_choice(
-    #                     name="find_carriers_by_id",
-    #                     value="find_carriers_by_id"
-    #                 ),
-    #                 create_choice(
-    #                     name="find_wine_carriers_for_platform",
-    #                     value="find_wine_carriers_for_platform"
-    #                 ),
-    #                 create_choice(
-    #                     name="update_booze_db",
-    #                     value="update_booze_db"
-    #                 ),
-    #                 create_choice(
-    #                     name="wine_helper_market_closed",
-    #                     value="wine_helper_market_closed"
-    #                 ),
-    #                 create_choice(
-    #                     name="wine_helper_market_open",
-    #                     value="wine_helper_market_open"
-    #                 ),
-    #                 create_choice(
-    #                     name="wine_mark_completed_forcefully",
-    #                     value="wine_mark_completed_forcefully"
-    #                 ),
-    #                 create_choice(
-    #                     name="wine_unload",
-    #                     value="wine_unload"
-    #                 ),
-    #                 create_choice(
-    #                     name="wine_unload_complete",
-    #                     value="wine_unload_complete"
-    #                 ),
-    #                 create_choice(
-    #                     name="make_wine_carrier",
-    #                     value="make_wine_carrier"
-    #                 ),
-    #                 create_choice(
-    #                     name="remove_wine_carrier",
-    #                     value="remove_wine_carrier"
-    #                 ),
-    #                 create_choice(
-    #                     name="steve_says",
-    #                     value="steve_says"
-    #                 ),
-    #                 create_choice(
-    #                     name="booze_channels_open",
-    #                     value="booze_channels_open"
-    #                 ),
-    #                 create_choice(
-    #                     name="booze_channels_close",
-    #                     value="booze_channels_close"
-    #                 )
-    #             ]
-    #         ),
-    #     ]
-    # )
     @app_commands.command(name='pirate_steve_help', description='Returns some information for each command.')
     @describe(command='The command you want help with')
     async def get_help(self, interaction: discord.Interaction, command: str):
@@ -477,7 +349,5 @@ def check_roles(permitted_role_ids):
                 print(e)
                 raise
         return permission
-
-    return app_commands.check(checkroles)
 
     return app_commands.check(checkroles)

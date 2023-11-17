@@ -2,21 +2,19 @@ import os
 import random
 import sys
 
+# import discord
 import discord
-from discord import Activity, ActivityType
 from discord.ext import commands
 
+# local discord
 from ptn.boozebot import constants
-# from discord_slash.utils.manage_commands import remove_all_commands
-
+from ptn.boozebot._metadata import __version__
+from ptn.boozebot.bot import bot
 from ptn.boozebot.commands.DatabaseInteraction import DatabaseInteraction
 from ptn.boozebot.commands.ErrorHandler import on_app_command_error
 from ptn.boozebot.commands.Helper import check_roles
 from ptn.boozebot.commands.PublicHoliday import PublicHoliday
-from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel, get_primary_booze_discussions_channel, \
-    server_admin_role_id, server_mod_role_id
-from ptn.boozebot._metadata import __version__
-from ptn.boozebot.bot import bot
+from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel, get_primary_booze_discussions_channel
 
 class DiscordBotCommands(commands.Cog):
     def __init__(self, bot):

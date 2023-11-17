@@ -2,11 +2,13 @@ import asyncio
 import re
 from typing import List
 
+# import discord
 import discord
 from discord import app_commands
 from discord.app_commands import describe
 from discord.ext import commands
 
+# local imports
 from ptn.boozebot import constants
 from ptn.boozebot.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.bot import bot
@@ -17,12 +19,6 @@ from ptn.boozebot.constants import get_custom_assassin_id, get_discord_booze_unl
     get_primary_booze_discussions_channel, get_fc_complete_id, get_discord_tanker_unload_channel, \
     get_wine_carrier_channel, get_steve_says_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
-
-# from discord_slash import SlashContext, cog_ext
-# from discord_slash.utils.manage_commands import create_option, create_choice
-# from discord_slash.utils.manage_commands import create_permission
-# from discord_slash.model import SlashCommandPermissionType, ContextMenuType
-# from discord_slash.context import MenuContext
 
 # lock for wine carrier toggle
 wine_carrier_toggle_lock = asyncio.Lock()
@@ -41,20 +37,6 @@ class Unloading(commands.Cog):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
 
-    # @cog_ext.cog_slash(
-    #     name="Wine_Helper_Market_Open",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Creates a new unloading helper operation in this channel.",
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    # )
     @app_commands.command(name="wine_helper_market_open",
                           description="Creates a new unloading helper operation in this channel.")
     @check_roles(constants.wine_carrier_plus_roles)
@@ -81,20 +63,6 @@ class Unloading(commands.Cog):
         await message.add_reaction(f'<:Assassin:{str(get_custom_assassin_id())}>')
         await message.add_reaction('🍷')
 
-    # @cog_ext.cog_slash(
-    #     name="Wine_Helper_Market_Closed",
-    #     guild_ids=[bot_guild_id()],
-    #     description="Sends a message to indicate you have closed your market. Command sent in active channel.",
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #             ]
-    #         },
-    #     )
     @app_commands.command(name="wine_helper_market_closed",
                           description="Sends a message to indicate you have closed your market. Command sent in active channel.")
     @check_roles(constants.wine_carrier_plus_roles)
@@ -109,94 +77,6 @@ class Unloading(commands.Cog):
         message = await interaction.original_response()
         await message.add_reaction('🏴‍☠️')
 
-    # @cog_ext.cog_slash(
-    #     name='Wine_Unload',
-    #     guild_ids=[bot_guild_id()],
-    #     description='Posts a new unload notice for a carrier. Admin/Sommelier/WineCarrier role required.',
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    #     options=[
-    #         create_option(
-    #             name='carrier_id',
-    #             description='The XXX-XXX ID string for the carrier',
-    #             option_type=3,
-    #             required=True
-    #         ),
-    #         create_option(
-    #             name='planetary_body',
-    #             description='A string representing the location of the carrier, ie Star, P1, P2',
-    #             option_type=3,
-    #             required=True,
-    #             choices=[
-    #                 create_choice(
-    #                     name="Star",
-    #                     value="Star"
-    #                 ),
-    #                 create_choice(
-    #                     name="Planet 1",
-    #                     value="Planet 1"
-    #                 ),
-    #                 create_choice(
-    #                     name="Planet 2",
-    #                     value="Planet 2"
-    #                 ),
-    #                 create_choice(
-    #                     name="Planet 3",
-    #                     value="Planet 3"
-    #                 ),
-    #                 create_choice(
-    #                     name="Planet 4",
-    #                     value="Planet 4"
-    #                 ),
-    #                 create_choice(
-    #                     name="Planet 5",
-    #                     value="Planet 5"
-    #                 ),
-    #                 create_choice(
-    #                     name="Planet 6",
-    #                     value="Planet 6"
-    #                 )
-    #             ]
-    #         ),
-    #         create_option(
-    #             name='market_type',
-    #             description='The market conditions for the carrier',
-    #             option_type=3,
-    #             required=True,
-    #             choices=[
-    #                 create_choice(
-    #                     name="TimedMarkets",
-    #                     value="Timed"
-    #                 ),
-    #                 create_choice(
-    #                     name="SquadronOnly",
-    #                     value="Squadron"
-    #                 ),
-    #                 create_choice(
-    #                     name="Squadron-And-Friends",
-    #                     value="SquadronFriends"
-    #                 ),
-    #                 create_choice(
-    #                     name="Open",
-    #                     value="Open"
-    #                 )
-    #             ]
-    #         ),
-    #         create_option(
-    #             name='unload_channel',
-    #             description='The discord channel #xxx which the carrier will run timed unloads in',
-    #             option_type=3,
-    #             required=False
-    #         ),
-    #     ]
-    # )
     @app_commands.command(name='wine_unload',
                           description='Posts a new unload notice for a carrier. Admin/Sommelier/WineCarrier role required.')
     @check_roles(constants.wine_carrier_plus_roles)
@@ -385,29 +265,6 @@ class Unloading(commands.Cog):
             for name, value in market_types if current.lower() in name.lower()
         ]
 
-    # @cog_ext.cog_slash(
-    #     name='Wine_Unload_Complete',
-    #     guild_ids=[bot_guild_id()],
-    #     description='Removes any trade channel notification for unloading wine. Somm/Conn/Wine Carrier role required.',
-    #     options=[
-    #         create_option(
-    #             name='carrier_id',
-    #             description='The XXX-XXX ID string for the carrier',
-    #             option_type=3,
-    #             required=True
-    #         )
-    #     ],
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(get_wine_tanker_role(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    # )
     @app_commands.command(name='wine_unload_complete',
                           description='Removes any trade channel notification for unloading wine. Somm/Conn/Wine Carrier role required.')
     @check_roles(constants.wine_carrier_plus_roles)
@@ -464,29 +321,6 @@ class Unloading(commands.Cog):
 
         return await interaction.response.send_message(content=response)
 
-    # @cog_ext.cog_slash(
-    #     name='Make_Wine_Carrier',
-    #     guild_ids=[bot_guild_id()],
-    #     description='Give user the Wine Carrier role. Admin/Sommelier/Connoisseur role required.',
-    #     options=[
-    #         create_option(
-    #             name='user',
-    #             description='An @ mention of the Discord user to receive the role.',
-    #             option_type=6,  # user
-    #             required=True
-    #         )
-    #
-    #     ],
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    # )
     @app_commands.command(name='make_wine_carrier',
                           description='Give user the Wine Carrier role. Admin/Sommelier/Connoisseur role required.')
     @check_roles(constants.conn_plus_roles)
@@ -496,29 +330,6 @@ class Unloading(commands.Cog):
 
         await make_user_wine_carrier(interaction, member)
 
-    # @cog_ext.cog_slash(
-    #     name='Remove_Wine_Carrier',
-    #     guild_ids=[bot_guild_id()],
-    #     description='Removes the Wine Carrier role from a user. Admin/Sommelier/Connoisseur role required.',
-    #     options=[
-    #         create_option(
-    #             name='user',
-    #             description='An @ mention of the Discord user to remove the role.',
-    #             option_type=6,  # user
-    #             required=True
-    #         )
-    #
-    #     ],
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    # )
     @app_commands.command(name='remove_wine_carrier',
                           description='Removes the Wine Carrier role from a user. Admin/Sommelier/Connoisseur role required.')
     @check_roles(constants.conn_plus_roles)
@@ -549,40 +360,6 @@ class Unloading(commands.Cog):
             wine_carrier_toggle_lock.release()
             return await interaction.response.send_message(f"User is not a {wc_role.name}", hidden=True)
 
-    # @cog_ext.cog_slash(
-    #     name='tanker_unload',
-    #     guild_ids=[bot_guild_id()],
-    #     description='Posts a new tanker unload notice for a carrier. Admin/Sommelier/WineTanker role required.',
-    #     permissions={
-    #         bot_guild_id(): [
-    #             create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(get_wine_tanker_role(), SlashCommandPermissionType.ROLE, True),
-    #             create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-    #         ]
-    #     },
-    #     options=[
-    #         create_option(
-    #             name='carrier_id',
-    #             description='The XXX-XXX ID string for the carrier',
-    #             option_type=3,
-    #             required=True
-    #         ),
-    #         create_option(
-    #             name='system_name',
-    #             description='The system the carrier is present in.',
-    #             option_type=3,
-    #             required=True
-    #         ),
-    #         create_option(
-    #             name='planetary_body',
-    #             description='A string representing the location of the carrier, ie Star, P1, P2',
-    #             option_type=3,
-    #             required=True,
-    #         ),
-    #     ]
-    # )
     # TODO: Still relevant?
     @app_commands.command(name='tanker_unload',
                           description='Posts a new tanker unload notice for a carrier. Admin/Sommelier/WineTanker role required.')
@@ -719,13 +496,6 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
 
 
 @app_commands.context_menu(name='Make Wine Carrier')
+@check_roles(constants.conn_plus_roles)
 async def make_contextuser_wine_carrier(interaction: discord.Interaction, user: discord.Member):
-    # discord_slash has no way to set permissions for context menu commands so we'll check to see if user is a sommelier ourselves
-    # if not we send them a discreet nope and back out
-    somm_role = discord.utils.get(interaction.guild.roles, id=server_sommelier_role_id())
-    conn_role = discord.utils.get(interaction.guild.roles, id=server_connoisseur_role_id())
-    if not somm_role in interaction.user.roles and not conn_role in interaction.user.roles:
-        print("User does not have permission to use this command")
-        return await interaction.response.send_message(
-            "Sorry, you must be a Sommelier or Connoisseur to use this interaction.", hidden=True)
     await make_user_wine_carrier(interaction, user)
