@@ -38,10 +38,13 @@ async def on_command_error(ctx, error):
     elif isinstance(error, commands.MissingAnyRole):
         message = f'You require one of the following roles to use this command:\n<@&{constants.server_admin_role_id()}> • <@&{constants.server_mod_role_id()}>'
 
+    elif isinstance(error, commands.MissingRole):
+        message = f'You require the role <@&{constants.server_admin_role_id()}> to run this command.'
+
     else:
         message = f'Sorry, that didn\'t work: {error}'
 
-    embed = discord.Embed(description=f"❌ {message}")
+    embed = discord.Embed(description=f"❌ {message}", color=constants.EMBED_COLOUR_ERROR)
     await ctx.send(embed=embed)
 class CommandChannelError(app_commands.CheckFailure): # channel check error
     def __init__(self, permitted_channel, formatted_channel_list):
