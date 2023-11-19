@@ -2,16 +2,17 @@ import os
 import random
 import sys
 
+# import discord
 import discord
-from discord import Activity, ActivityType
 from discord.ext import commands
-from discord_slash.utils.manage_commands import remove_all_commands
 
+# local discord
+from ptn.boozebot._metadata import __version__
+from ptn.boozebot.bot import bot
 from ptn.boozebot.commands.DatabaseInteraction import DatabaseInteraction
+from ptn.boozebot.commands.ErrorHandler import on_app_command_error
 from ptn.boozebot.commands.PublicHoliday import PublicHoliday
 from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel, get_primary_booze_discussions_channel
-from ptn.boozebot._metadata import __version__
-
 
 class DiscordBotCommands(commands.Cog):
     def __init__(self, bot):
@@ -21,6 +22,16 @@ class DiscordBotCommands(commands.Cog):
         :param discord.ext.commands.Bot bot: The discord bot object
         """
         self.bot = bot
+        self.summon_message_ids = {}
+
+    def cog_load(self):
+        tree = self.bot.tree
+        self._old_tree_error = tree.on_error
+        tree.on_error = on_app_command_error
+
+    def cog_unload(self):
+        tree = self.bot.tree
+        tree.on_error = self._old_tree_error
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -85,29 +96,9 @@ class DiscordBotCommands(commands.Cog):
         :returns: None
         """
         print(f'User {ctx.author} requested to exit')
-        await remove_all_commands(self.bot.user.id, TOKEN, [bot_guild_id()])
+        await (self.bot.user.id, TOKEN, [bot_guild_id()])
         await ctx.send(f"Ahoy! k thx bye")
         await sys.exit("User requested exit.")
-
-    @commands.Cog.listener()
-    async def on_command_error(self, ctx, error):
-        """
-        A listener that fires off on a particular error case.
-
-        :param discord.ext.commands.Context ctx: The discord context object
-        :param discord.ext.commands.errors error: The error object
-        :returns: None
-        """
-        if isinstance(error, commands.BadArgument):
-            await ctx.send('**Bad argument!**')
-        elif isinstance(error, commands.CommandNotFound):
-            await ctx.send("**Invalid command.**")
-        elif isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send('**Please include all required parameters.** Use b.help <command> for details.')
-        elif isinstance(error, commands.MissingPermissions):
-            await ctx.send('**You must be a Carrier Owner to use this command.**')
-        else:
-            await ctx.send(f"Sorry, that didn't work. Check your syntax and permissions, error: {error}")
 
     @commands.command(name='update', help="Restarts the bot.")
     @commands.has_role('Admin')
@@ -129,3 +120,17 @@ class DiscordBotCommands(commands.Cog):
         """
         print(f'User {ctx.author} requested the version: {__version__}.')
         await ctx.send(f"Avast Ye Landlubber! {self.bot.user.name} is on version: {__version__}.")
+
+    @commands.command(name='sync', help='Synchronise modbot interactions with server')
+    @commands.has_role('Admin')
+    async def sync(self, ctx):
+        print(f"Interaction sync called from {ctx.author.display_name}")
+        async with ctx.typing():
+            try:
+                bot.tree.copy_global_to(guild=ctx.guild)
+                await bot.tree.sync(guild=ctx.guild)
+                print("Synchronised bot tree.")
+                await ctx.send("Synchronised bot tree.")
+            except Exception as e:
+                print(f"Tree sync failed: {e}.")
+                return await ctx.send(f"Failed to sync bot tree: {e}")
