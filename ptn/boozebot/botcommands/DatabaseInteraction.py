@@ -1,37 +1,67 @@
+"""
+Cog for all the commands that interact with the database
+
+"""
+
+# libraries
 import asyncio
 import sqlite3
 from datetime import datetime, timedelta
 import math
 import os.path
 import re
-
-import discord
-from discord.ext import tasks
-from discord_slash import cog_ext, SlashContext
-from discord_slash.model import SlashCommandPermissionType
-from discord_slash.utils.manage_commands import create_permission, create_option, create_choice
-from oauth2client.service_account import ServiceAccountCredentials
 import gspread
-from discord.ext.commands import Cog
+from oauth2client.service_account import ServiceAccountCredentials
 
-from ptn.boozebot.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.PHcheck import ph_check
+# discord.py
+import discord
+from discord.app_commands import Group, describe, Choice
+from discord.ext import commands, tasks
+from discord import app_commands, NotFound
+
+# local constants
 from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, server_sommelier_role_id, \
     BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, server_mod_role_id, get_bot_control_channel, \
-    get_sommelier_notification_channel, server_wine_carrier_role_id, server_connoisseur_role_id
+    get_steve_says_channel, server_wine_carrier_role_id, server_connoisseur_role_id, get_wine_carrier_channel, \
+    GOOGLE_OAUTH_CREDENTIALS_PATH
+
+# local classes
+from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
+
+# local modules
+from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
+from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn, dump_database, pirate_steve_lock
+from ptn.boozebot.modules.PHcheck import ph_check
 
+"""
+DATABASE INTERACTION COMMANDS
+    
+/update_booze_db - admin/mod/somm/conn
+/find_carriers_with_wine - admin/mod/somm/conn/wine carrier
+/wine_mark_completed_forcefully - admin/mod/somm
+/find_wine_carriers_for_platform - admin/mod/somm/conn/wine carrier
+/find_wine_carrier_by_id - admin/mod/somm/conn/wine carrier
+/booze_tally - admin/mod/somm/conn
+/booze_pin_message - admin/mod/somm
+/booze_unpin_all - admin/mod/somm
+/booze_unpin_message - admin/mod/somm
+/booze_tally_extra_stats - admin/mod/somm/conn
+/booze_delete_carrier - admin/mod/somm
+/booze_archive_database - admin/mod/somm/conn
+/booze_configure_signup_forms - admin/mod/somm/conn
+"""
 
-class DatabaseInteraction(Cog):
-
-    def __init__(self):
+class DatabaseInteraction(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
-        if not os.path.join(os.path.expanduser('~'), '.ptnboozebot.json'):
+        if not os.path.exists(GOOGLE_OAUTH_CREDENTIALS_PATH):
             raise EnvironmentError('Cannot find the booze cruise json file.')
 
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            os.path.join(os.path.expanduser('~'), '.ptnboozebot.json'), scope)
+        credentials = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_OAUTH_CREDENTIALS_PATH, scope)
 
         # authorize the client sheet
         self.client = gspread.authorize(credentials)
@@ -54,6 +84,19 @@ class DatabaseInteraction(Cog):
 
         self._update_db()  # On instantiation, go build the DB
 
+    # custom global error handler
+    # attaching the handler when the cog is loaded
+    # and storing the old handler
+    def cog_load(self):
+        tree = self.bot.tree
+        self._old_tree_error = tree.on_error
+        tree.on_error = on_app_command_error
+
+    # detaching the handler when the cog is unloaded
+    def cog_unload(self):
+        tree = self.bot.tree
+        tree.on_error = self._old_tree_error
+        
     def _reconfigure_workbook_and_form(self):
         """
         Reconfigures the tracking sheet to the latest version based on the current worksheet key and sheet ID. Called
@@ -74,98 +117,8 @@ class DatabaseInteraction(Cog):
             self.tracking_sheet = workbook.get_worksheet(self.worksheet_with_data_id)
         except gspread.exceptions.APIError as e:
             print(f'Error reading the worksheet: {e}')
-
-    @cog_ext.cog_slash(
-        name="update_booze_db",
-        guild_ids=[bot_guild_id()],
-        description="Populates the booze cruise database from the updated google sheet. Somm/Conn role required.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-    )
-    async def user_update_database_from_googlesheets(self, ctx: SlashContext):
-        """
-        Slash command for updating the database from the GoogleSheet.
-
-        :returns: A discord embed to the user.
-        :rtype: None
-        """
-        print(f'User {ctx.author} requested to re-populate the database at {datetime.now()}')
-
-        try:
-            result = self._update_db()
-            await self.report_new_and_invalid_carriers(result)
-            embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
-            embed.add_field(name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
-                                 f'Number of new carriers added: {result["added_count"]:>8}.\n'
-                                 f'Number of carriers amended: {result["updated_count"]:>11}.\n'
-                                 f'Number of carriers unchanged: {result["unchanged_count"]:>7}.',
-                            value='Pirate Steve hope he got this right.',
-                            inline=False)
-
-            return await ctx.send(embed=embed)
-
-        except ValueError as ex:
-            return await ctx.send(str(ex))
-
-    async def report_new_and_invalid_carriers(self, result=None):
-        """
-        Reports any invalid carriers to the applicable channels.
-
-        :param dict result: A dict returned from the update_db method
-        :returns: None
-        """
-        if result is None:
-            result = {}
-
-        try:
-            if result['invalid_database_entries']:
-
-                # In case any problem carriers found, mark them up
-                print('Problem: We have invalid carriers!')
-                for problem_carrier in result['invalid_database_entries']:
-                    print(f'This carrier is no longer in the sheet: {problem_carrier}')
-
-                    # Notify the channels so it can be deleted.
-                    booze_bot_channel = bot.get_channel(get_bot_control_channel())
-                    sommelier_notification_channel = bot.get_channel(get_sommelier_notification_channel())
-                    for channel in [booze_bot_channel, sommelier_notification_channel]:
-                        problem_embed = discord.Embed(
-                            title='Avast Ye! Pirate Steve found a missing carrier in the database!',
-                            description=f'This carrier is no longer in the GoogleSheet:\n'
-                                        f'CarrierName: **{problem_carrier.carrier_name}**\n'
-                                        f'ID: **{problem_carrier.carrier_identifier}**\n'
-                                        f'Total Tonnes of Wine: **{problem_carrier.wine_total}** on '
-                                        f'**{problem_carrier.platform}**\n'
-                                        f'Number of trips to the peak: **{problem_carrier.run_count}**\n'
-                                        f'Total Unloads: **{problem_carrier.total_unloads}**\n'
-                                        f'Operated by: {problem_carrier.discord_username}'
-                        )
-                        problem_embed.set_footer(text='Pirate Steve recommends verifying and then deleting this entry'
-                                                      ' with /booze_delete_carrier')
-                        await channel.send(embed=problem_embed)
-                        if channel == sommelier_notification_channel:
-                            # Add a notification for the sommelier role
-                            await channel.send(f'\n<@&{server_sommelier_role_id()}> please take note.')
-            else:
-                print('No invalid carriers found')
-        except KeyError as e:
-            print(f'Key did not exist in the input: {result} -> {e}')
-
-        if result['new_signups']:
-            for signup in result["new_signups"]:
-                print('New signed up carriers found.')
-                # loop over the new signups and print them out
-                sommelier_notification_channel = bot.get_channel(get_sommelier_notification_channel())
-                await sommelier_notification_channel.send(embed=signup)
-        else:
-            print('No new signed up carriers detected')
-
+            
+        
     def _update_db(self):
         """
         Private method to wrap the DB update commands.
@@ -337,7 +290,7 @@ class DatabaseInteraction(Cog):
             ), all_carrier_ids_sheet
         )
 
-        invalid_datbase_entries = [BoozeCarrier(inv_carrier) for inv_carrier in pirate_steve_db.fetchall()]
+        invalid_database_entries = [BoozeCarrier(inv_carrier) for inv_carrier in pirate_steve_db.fetchall()]
         if updated_db:
             # Write the database and then dump the updated SQL
             try:
@@ -354,631 +307,73 @@ class DatabaseInteraction(Cog):
             'updated_count': updated_count,
             'unchanged_count': unchanged_count,
             'total_carriers': total_carriers,
-            'invalid_database_entries': invalid_datbase_entries,
+            'invalid_database_entries': invalid_database_entries,
             'new_signups': new_signups
         }
-
-    @cog_ext.cog_slash(
-        name="find_carriers_with_wine",
-        guild_ids=[bot_guild_id()],
-        description="Returns the carriers in the database that are still flagged as having wine remaining.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-    )
-    async def find_carriers_with_wine(self, ctx: SlashContext):
+        
+    async def report_new_and_invalid_carriers(self, result=None):
         """
-        Returns an interactive list of all the carriers with wine that has not yet been unloaded.
+        Reports any invalid carriers to the applicable channels.
 
-        :param SlashContext ctx: The discord slash context
-        :returns: An interactive message embed.
-        :rtype: Union[discord.Message, dict]
-        """
-        await self.report_new_and_invalid_carriers(self._update_db())
-        print(f'{ctx.author} requested to find the carrier with wine')
-        pirate_steve_db.execute(
-            "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
-        )
-        carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-        if len(carrier_data) == 0:
-            # No carriers remaining
-            return await ctx.send('Pirate Steve is sorry, but there are no more carriers with wine remaining.')
-
-        # Else we have wine left
-
-        def chunk(chunk_list, max_size=10):
-            """
-            Take an input list, and an expected max_size.
-
-            :returns: A chunked list that is yielded back to the caller
-            :rtype: iterator
-            """
-            for i in range(0, len(chunk_list), max_size):
-                yield chunk_list[i:i + max_size]
-
-        def validate_response(react, user):
-            """
-            Validates the user response
-            """
-            return user == ctx.author and str(react.emoji) in ["◀️", "▶️"]
-
-        pages = [page for page in chunk(carrier_data)]
-        max_pages = len(pages)
-        current_page = 1
-
-        embed = discord.Embed(
-            title=f"{len(carrier_data)} Carriers left with wine in the database. Page: #{current_page} of {max_pages}"
-        )
-        count = 0  # Track the overall count for all carriers
-
-        # Go populate page 0 by default
-        for carrier in pages[0]:
-            count += 1
-            embed.add_field(
-                name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                inline=False
-            )
-
-        # Now go send it and wait on a reaction
-        message = await ctx.send(embed=embed)
-
-        # From page 0 we can only go forwards
-        await message.add_reaction("▶️")
-        # 60 seconds time out gets raised by Asyncio
-        while True:
-            try:
-                reaction, user = await bot.wait_for('reaction_add', timeout=60, check=validate_response)
-                if str(reaction.emoji) == "▶️" and current_page != max_pages:
-
-                    print(f'{ctx.author} requested to go forward a page.')
-                    current_page += 1  # Forward a page
-                    new_embed = discord.Embed(
-                        title=f"{len(carrier_data)} Carriers left with wine in the database. Page:{current_page}"
-                    )
-                    for carrier in pages[current_page - 1]:
-                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
-                        count += 1
-                        new_embed.add_field(
-                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                            inline=False
-                        )
-
-                    await message.edit(embed=new_embed)
-
-                    # Ok now we can go back, check if we can also go forwards still
-                    if current_page == max_pages:
-                        await message.clear_reaction("▶️")
-
-                    await message.remove_reaction(reaction, user)
-                    await message.add_reaction("◀️")
-
-                elif str(reaction.emoji) == "◀️" and current_page > 1:
-                    print(f'{ctx.author} requested to go back a page.')
-                    current_page -= 1  # Go back a page
-
-                    new_embed = discord.Embed(
-                        title=f"{len(carrier_data)} Carriers left with wine in the database. Page:{current_page}"
-                    )
-                    # Start by counting back however many carriers are in the current page, minus the new page, that way
-                    # when we start a 3rd page we don't end up in problems
-                    count -= len(pages[current_page - 1])
-                    count -= len(pages[current_page])
-
-                    for carrier in pages[current_page - 1]:
-                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
-                        count += 1
-                        new_embed.add_field(
-                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                            inline=False
-                        )
-
-                    await message.edit(embed=new_embed)
-                    # Ok now we can go forwards, check if we can also go backwards still
-                    if current_page == 1:
-                        await message.clear_reaction("◀️")
-
-                    await message.remove_reaction(reaction, user)
-                    await message.add_reaction("▶️")
-                else:
-                    # It should be impossible to hit this part, but lets gate it just in case.
-                    print(
-                        f'HAL9000 error: {ctx.author} ended in a random state while trying to handle: {reaction.emoji} '
-                        f'and on page: {current_page}.')
-                    # HAl-9000 error response.
-                    error_embed = discord.Embed(title=f"I'm sorry {ctx.author}, I'm afraid I can't do that.")
-                    await message.edit(embed=error_embed)
-                    await message.remove_reaction(reaction, user)
-
-            except asyncio.TimeoutError:
-                print(f'Timeout hit during carrier request by: {ctx.author}')
-                await ctx.send(
-                    f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
-                return await message.delete()
-
-    @cog_ext.cog_slash(
-        name="wine_mark_completed_forcefully",
-        guild_ids=[bot_guild_id()],
-        description="Forcefully marks a carrier in the database as unload completed. Admin/Sommelier required.",
-        options=[
-            create_option(
-                name='carrier_id',
-                description='The XXX-XXX ID string for the carrier',
-                option_type=3,
-                required=True
-            )
-        ],
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def wine_mark_completed_forcefully(self, ctx: SlashContext, carrier_id):
-        """
-        Forcefully marks a carrier as completed an unload. Ideally will never be used.
-
-        :param SlashContext ctx: The discord slash context.
-        :param str carrier_id: The XXX-XXX carrier ID you want to action.
+        :param dict result: A dict returned from the update_db method
         :returns: None
         """
-        await self.report_new_and_invalid_carriers(self._update_db())
-        print(f'{ctx.author} wants to forcefully mark the carrier {carrier_id} as unloaded.')
-
-        # Cast this to upper case just in case
-        carrier_id = carrier_id.upper()
-
-        # Check the carrier ID regex
-        if not re.match(r"\w{3}-\w{3}", carrier_id):
-            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await ctx.channel.send(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, '
-                                          f'{carrier_id}.')
-
-        # Check if it is in the database already
-        pirate_steve_db.execute(
-            "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
-        )
-        # Really only expect a single entry here, unique field and all that
-        carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
-
-        carrier_embed = discord.Embed(
-            title=f'Argh We found this data for {carrier_id}:',
-            description=f'CarrierName: **{carrier_data.carrier_name}**\n'
-                        f'ID: **{carrier_data.carrier_identifier}**\n'
-                        f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
-                        f'Number of trips to the peak: **{carrier_data.run_count}**\n'
-                        f'Total Unloads: **{carrier_data.total_unloads}**\n'
-                        f'Operated by: {carrier_data.discord_username}'
-        )
-        carrier_embed.set_footer(text="y/n")
-
-        def check(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
-                   check_message.content.lower() in ["y", "n"]
-
-        # Send the embed
-        message = await ctx.send(embed=carrier_embed)
+        if result is None:
+            result = {}
 
         try:
-            msg = await bot.wait_for("message", check=check, timeout=30)
-            if msg.content.lower() == "n":
-                await message.delete()
-                await msg.delete()
-                print(f'User {ctx.author} aborted the request to mark the carrier {carrier_id} as unloaded.')
-                return await ctx.send(f"Argh you cancelled the action for marking {carrier_id} "
-                                      f"as forcefully completed.")
+            if result['invalid_database_entries']:
 
-            elif msg.content.lower() == "y":
-                try:
-                    await message.delete()
-                    await msg.delete()
-                    print(f'User {ctx.author} agreed to mark the carrier {carrier_id} as unloaded.')
+                # In case any problem carriers found, mark them up
+                print('Problem: We have invalid carriers!')
+                for problem_carrier in result['invalid_database_entries']:
+                    print(f'This carrier is no longer in the sheet: {problem_carrier}')
 
-                    # Go update the object in the database.
-                    try:
-                        pirate_steve_lock.acquire()
-
-                        data = (
-                            f'%{carrier_data.carrier_identifier}%',
+                    # Notify the channels so it can be deleted.
+                    booze_bot_channel = bot.get_channel(get_bot_control_channel())
+                    sommelier_notification_channel = bot.get_channel(get_steve_says_channel())
+                    for channel in [booze_bot_channel, sommelier_notification_channel]:
+                        problem_embed = discord.Embed(
+                            title='Avast Ye! Pirate Steve found a missing carrier in the database!',
+                            description=f'This carrier is no longer in the GoogleSheet:\n'
+                                        f'CarrierName: **{problem_carrier.carrier_name}**\n'
+                                        f'ID: **{problem_carrier.carrier_identifier}**\n'
+                                        f'Total Tonnes of Wine: **{problem_carrier.wine_total}** on '
+                                        f'**{problem_carrier.platform}**\n'
+                                        f'Number of trips to the peak: **{problem_carrier.run_count}**\n'
+                                        f'Total Unloads: **{problem_carrier.total_unloads}**\n'
+                                        f'Operated by: {problem_carrier.discord_username}'
                         )
-                        pirate_steve_db.execute(
-                            ''' 
-                            UPDATE boozecarriers 
-                            SET totalunloads=totalunloads+1, discord_unload_in_progress=NULL
-                            WHERE carrierid LIKE (?) 
-                            ''', data
-                        )
-                        pirate_steve_conn.commit()
-                    finally:
-                        pirate_steve_lock.release()
+                        problem_embed.set_footer(text='Pirate Steve recommends verifying and then deleting this entry'
+                                                      ' with /booze_delete_carrier')
+                        #await channel.send(embed=problem_embed)
+                        #if channel == sommelier_notification_channel:
+                        #    # Add a notification for the sommelier role
+                        #    await channel.send(f'\n<@&{server_sommelier_role_id()}> please take note.')
+            else:
+                print('No invalid carriers found')
+        except KeyError as e:
+            print(f'Key did not exist in the input: {result} -> {e}')
 
-                    print(f'Database for unloaded forcefully updated by {ctx.author} for {carrier_id}')
-                    embed = discord.Embed(
-                        description=f"Fleet carrier {carrier_data.carrier_name} marked as unloaded.",
-                    )
-                    embed.add_field(
-                        name=f'Runs Made: {carrier_data.run_count}',
-                        value=f'Unloads Completed: {carrier_data.total_unloads}'
-                    )
-                    return await ctx.send(embed=embed)
-                except Exception as e:
-                    return ctx.send(f'Something went wrong, go tell the bot team "computer said: {e}"')
-
-        except asyncio.TimeoutError:
-            await message.delete()
-            return await ctx.send("**Cancelled - timed out**")
-
-        await message.delete()
-
-    @cog_ext.cog_slash(
-        name="find_wine_carriers_for_platform",
-        guild_ids=[bot_guild_id()],
-        description="Returns the carriers in the database for the platform.",
-        options=[
-            create_option(
-                name='platform',
-                description='The platform the carrier operates on.',
-                option_type=3,
-                required=True,
-                choices=[
-                    create_choice(
-                        name="PC (All)",
-                        value="PC"
-                    ),
-                    create_choice(
-                        name="PC EDH",
-                        value="PC (Horizons Only)"
-                    ),
-                    create_choice(
-                        name="PC EDO",
-                        value="PC (Horizons + Odyssey)"
-                    ),
-                    create_choice(
-                        name="Xbox",
-                        value="Xbox"
-                    ),
-                    create_choice(
-                        name="Playstation",
-                        value="Playstation"
-                    ),
-                ]
-            ),
-            create_option(
-                name='remaining_wine',
-                description='True if you only want carriers with wine, else False. Default True',
-                option_type=5,
-                required=False
-            )
-        ],
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_wine_carrier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-    )
-    async def find_carriers_for_platform(self, ctx: SlashContext, platform: str, remaining_wine=True):
-        """
-        Find carriers for the specified platform.
-
-        :param SlashContext ctx: The discord SlashContext.
-        :param str platform: The platform to search for.
-        :param bool remaining_wine: True if you only want carriers with wine
-        :returns: None
-        """
-        await self.report_new_and_invalid_carriers(self._update_db())
-        print(f'{ctx.author} requested to fine carriers for: {platform} with wine: {remaining_wine}')
-
-        if remaining_wine:
-            data = (
-                f'%{platform}%',
-            )
-            carrier_search = 'platform LIKE (?) and runtotal > totalunloads'
-
+        if result['new_signups']:
+            for signup in result["new_signups"]:
+                print('New signed up carriers found.')
+                # loop over the new signups and print them out
+                sommelier_notification_channel = bot.get_channel(get_steve_says_channel())
+                await sommelier_notification_channel.send(embed=signup)
         else:
-            data = (
-                f'%{platform}%',
-            )
-            carrier_search = 'platform LIKE (?)'
-
-        # Check if it is in the database already
-        pirate_steve_db.execute(
-            f"SELECT * FROM boozecarriers WHERE {carrier_search}", data
-        )
-        # Really only expect a single entry here, unique field and all that
-        carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-
-        print(f'Found {len(carrier_data)} carriers matching the search')
-
-        if not carrier_data:
-            print(f'Did not find a carrier matching the condition: {carrier_search}.')
-            return await ctx.send(f'Could not find a carrier matching the inputs: {platform}, '
-                                  f'with wine: {remaining_wine}')
-
-        def chunk(chunk_list, max_size=10):
-            """
-            Take an input list, and an expected max_size.
-
-            :returns: A chunked list that is yielded back to the caller
-            :rtype: iterator
-            """
-            for i in range(0, len(chunk_list), max_size):
-                yield chunk_list[i:i + max_size]
-
-        def validate_response(react, user):
-            """
-            Validates the user response
-            """
-            return user == ctx.author and str(react.emoji) in ["◀️", "▶️"]
-
-        pages = [page for page in chunk(carrier_data)]
-        max_pages = len(pages)
-        current_page = 1
-
-        embed = discord.Embed(
-            title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. Page: #{current_page} of"
-                  f" {max_pages}"
-        )
-        count = 0  # Track the overall count for all carriers
-
-        # Go populate page 0 by default
-        for carrier in pages[0]:
-            count += 1
-            embed.add_field(
-                name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                inline=False
-            )
-
-        # Now go send it and wait on a reaction
-        message = await ctx.send(embed=embed)
-
-        # From page 0 we can only go forwards
-        await message.add_reaction("▶️")
-        # 60 seconds time out gets raised by Asyncio
-        while True:
-            try:
-                reaction, user = await bot.wait_for('reaction_add', timeout=60, check=validate_response)
-                if str(reaction.emoji) == "▶️" and current_page != max_pages:
-
-                    print(f'{ctx.author} requested to go forward a page.')
-                    current_page += 1  # Forward a page
-                    new_embed = discord.Embed(
-                        title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. Page"
-                              f":{current_page}"
-                    )
-                    for carrier in pages[current_page - 1]:
-                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
-                        count += 1
-                        new_embed.add_field(
-                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                            inline=False
-                        )
-
-                    await message.edit(embed=new_embed)
-
-                    # Ok now we can go back, check if we can also go forwards still
-                    if current_page == max_pages:
-                        await message.clear_reaction("▶️")
-
-                    await message.remove_reaction(reaction, user)
-                    await message.add_reaction("◀️")
-
-                elif str(reaction.emoji) == "◀️" and current_page > 1:
-                    print(f'{ctx.author} requested to go back a page.')
-                    current_page -= 1  # Go back a page
-
-                    new_embed = discord.Embed(
-                        title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. "
-                              f"Page:{current_page}"
-                    )
-                    # Start by counting back however many carriers are in the current page, minus the new page, that way
-                    # when we start a 3rd page we don't end up in problems
-                    count -= len(pages[current_page - 1])
-                    count -= len(pages[current_page])
-
-                    for carrier in pages[current_page - 1]:
-                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
-                        count += 1
-                        new_embed.add_field(
-                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                            inline=False
-                        )
-
-                    await message.edit(embed=new_embed)
-                    # Ok now we can go forwards, check if we can also go backwards still
-                    if current_page == 1:
-                        await message.clear_reaction("◀️")
-
-                    await message.remove_reaction(reaction, user)
-                    await message.add_reaction("▶️")
-                else:
-                    # It should be impossible to hit this part, but lets gate it just in case.
-                    print(
-                        f'HAL9001 error: {ctx.author} ended in a random state while trying to handle: {reaction.emoji} '
-                        f'and on page: {current_page}.')
-                    # HAl-9000 error response.
-                    error_embed = discord.Embed(title=f"I'm sorry {ctx.author}, I'm afraid I can't do that.")
-                    await message.edit(embed=error_embed)
-                    await message.remove_reaction(reaction, user)
-
-            except asyncio.TimeoutError:
-                print(f'Timeout hit during carrier request by: {ctx.author}')
-                await ctx.send(
-                    f'Closed the active carrier list request from: {ctx.author} due to no input in 60 seconds.')
-                return await message.delete()
-
-    @cog_ext.cog_slash(
-        name="find_wine_carrier_by_id",
-        guild_ids=[bot_guild_id()],
-        description="Returns the carriers in the database for the ID.",
-        options=[
-            create_option(
-                name='carrier_id',
-                description='The XXX-XXX ID string for the carrier',
-                option_type=3,
-                required=True
-            )
-        ],
-    )
-    async def find_carrier_by_id(self, ctx: SlashContext, carrier_id: str):
-        await self.report_new_and_invalid_carriers(self._update_db())
-        print(f'{ctx.author} wants to find a carrier by ID: {carrier_id}.')
-        # Cast this to upper case just in case
-        carrier_id = carrier_id.upper()
-        # Check the carrier ID regex
-        if not re.match(r"\w{3}-\w{3}", carrier_id):
-            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await ctx.channel.send(
-                f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-
-        # Check if it is in the database already
-        pirate_steve_db.execute(
-            "SELECT * FROM boozecarriers WHERE carrierid = (?)", (f'{carrier_id}',)
-        )
-        # Really only expect a single entry here, unique field and all that
-        carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
-        print(f'Found: {carrier_data}')
-
-        if not carrier_data:
-            print(f'No carrier found for: {carrier_id}')
-            return await ctx.send(f'No carrier found for: {carrier_id}')
-
-        carrier_embed = discord.Embed(
-            title=f'YARR! Found carrier details for the input: {carrier_id}',
-            description=f'CarrierName: **{carrier_data.carrier_name}**\n'
-                        f'ID: **{carrier_data.carrier_identifier}**\n'
-                        f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
-                        f'Number of trips to the peak: **{carrier_data.run_count}**\n'
-                        f'Total Unloads: **{carrier_data.total_unloads}**\n'
-                        f'Operated by: {carrier_data.discord_username}'
-        )
-
-        return await ctx.send(embed=carrier_embed)
-
-    @cog_ext.cog_slash(
-        name="booze_tally",
-        guild_ids=[bot_guild_id()],
-        description="Returns a summary of the stats for the current booze cruise. Restricted to Somms and Connoisseurs.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-        options=[
-            create_option(
-                name='cruise_select',
-                description='Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is '
-                            'this cruise.',
-                option_type=4,
-                required=False
-            )
-        ],
-    )
-    async def tally(self, ctx: SlashContext, cruise_select=0):
-        """
-        Returns an embed inspired by (cloned from) @CMDR Suiseiseki's b.tally. Provided to keep things in one place
-        is all.
-
-        :param SlashContext ctx: The discord context
-        :param int cruise_select: The cruise you want data on, counts backwards. 0 is this cruise, 1 is the last
-            cruise etc...
-        :return: None
-        """
-        await self.report_new_and_invalid_carriers(self._update_db())
-        cruise = 'this' if cruise_select == 0 else f'-{cruise_select}'
-        print(f'User {ctx.author} requested the current tally of the cruise stats for {cruise} cruise.')
-        target_date = None
-
-        if cruise_select == 0:
-            # Go get everything out of the database
-            pirate_steve_db.execute(
-                "SELECT * FROM boozecarriers"
-            )
-            all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-            pirate_steve_db.execute(
-                "SELECT * FROM boozecarriers WHERE runtotal > 1"
-            )
-
-        else:
-            # Get the dates in the DB and order them.
-            pirate_steve_db.execute(
-                "SELECT DISTINCT holiday_start FROM historical ORDER by holiday_start DESC"
-            )
-            all_dates = [dict(value) for value in pirate_steve_db.fetchall()]
-
-            if cruise_select > len(all_dates):
-                print('Input for cruise value was out of bounds for the number of cruises recorded in the database.')
-                return await ctx.send(f'Pirate Steve only knows about the last: {len(all_dates)} booze cruises. '
-                                      f'You wanted the -{cruise_select} data.')
-            # Subtract 1 here, we filter the values out of the historical database, so the current cruise is not
-            # there yet
-            target_date = all_dates[cruise_select - 1]['holiday_start']
-            print(f'We have found the following historical cruise dates: {all_dates}')
-            print(f'We are interested in the {cruise} option - {target_date}')
-
-            data = (
-                target_date,
-            )
-            # In this case we want the historical data from the historical database
-            pirate_steve_db.execute(
-                "SELECT * FROM historical WHERE holiday_start = (?)", data
-            )
-            all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-            pirate_steve_db.execute(
-                "SELECT * FROM historical WHERE runtotal > 1 AND holiday_start = (?)", data
-            )
-
-        total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-        stat_embed = self.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, target_date)
-
-        await ctx.send(embed=stat_embed)
-
-        # Go update all the pinned embeds also.
-        pirate_steve_db.execute(
-            """SELECT * FROM pinned_messages"""
-        )
-        pins = [dict(value) for value in pirate_steve_db.fetchall()]
-        if pins:
-            print(f'Updating pinned messages: {pins}')
-            for pin in pins:
-                channel = await bot.fetch_channel(pin['channel_id'])
-                print(f'Channel matched as: {channel} from {pin["channel_id"]}')
-                # Now go loop over every pin and update it
-                message = await channel.fetch_message(pin['message_id'])
-                print(f'Message matched as: {message} from {pin["message_id"]}')
-                await message.edit(embed=stat_embed)
-        else:
-            print('No pinned messages up update')
-
+            print('No new signed up carriers detected')
+            
     def build_stat_embed(self, all_carrier_data, total_carriers_multiple_trips, target_date=None):
         """
         Builds the stat embed
 
-        :param [BoozeCarriers] all_carrier_data: The list of all carriers
-        :param [BoozeCarriers] total_carriers_multiple_trips: The list of all carriers making multiple trips
+        :param [BoozeCarrier] all_carrier_data: The list of all carriers
+        :param [BoozeCarrier] total_carriers_multiple_trips: The list of all carriers making multiple trips
         :param str target_date: the target date
         :return: the built embed object
         :rtype: discord.Embed
-        """
+        """        
         print(f'Carriers with multiple trips: {len(total_carriers_multiple_trips)}.')
 
         extra_carrier_count = sum(carrier.run_count - 1 for carrier in total_carriers_multiple_trips)
@@ -1041,57 +436,671 @@ class DatabaseInteraction(Cog):
 
         print('Returning embed to user')
         return stat_embed
+            
+            
+    """
+    Pinned Stats and Activity Update Task Loop
+    
+    """
+    
+    @commands.Cog.listener()
+    async def on_ready(self):
+        print('Starting the pinned message checker')
+        if not self.periodic_stat_update.is_running():
+            self.periodic_stat_update.start()
 
-    @cog_ext.cog_slash(
-        name="booze_pin_message",
-        guild_ids=[bot_guild_id()],
-        description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-        options=[
-            create_option(
-                name='message_id',
-                description='The message ID to be pinned.',
-                option_type=3,
-                required=True
-            ),
-            create_option(
-                name='channel_id',
-                description='The channel ID to be pinned.',
-                option_type=3,
-                required=False
+    @tasks.loop(minutes=1)
+    async def periodic_stat_update(self):
+        """
+        Loops every hour and updates all pinned embeds and bot activity status.
+
+        :returns: None
+        """
+        # Periodic trigger that updates all the stat embeds that are pinned.
+        print('Period trigger of the embed update.')
+        
+        print("Running db update")
+        self._update_db()
+        
+        pirate_steve_db.execute(
+            "SELECT * FROM pinned_messages"
+        )
+        # Get everything
+        all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
+        
+        # Get all carriers
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers"
+        )
+        all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers WHERE runtotal > 1"
+        )
+        total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        stat_embed = self.build_stat_embed(all_carrier_data, total_carriers_multiple_trips , None)
+        
+        print(all_pins)
+        
+        if all_pins:
+            print(f'We have these pins to update: {all_pins}')
+            for pin in all_pins:
+                channel = bot.get_channel(int(pin['channel_id']))
+                message = await channel.fetch_message(pin['message_id'])
+                await message.edit(embed=stat_embed)
+        else:
+            print('No pinned messages to update. Check again in an hour.')
+        
+        print("Updating discord activity")
+        total_wine = sum(carrier.wine_total for carrier in all_carrier_data) if all_carrier_data else 0
+        state_text = f'Total Wine Tracked: {total_wine}' if ph_check() else ''
+        await self.bot.change_presence(
+            activity=discord.Activity(
+                type=discord.ActivityType.watching,
+                name='the Sidewinders landing at Rackhams Peak.',
+                state=state_text
+                )
+        )
+     
+    """
+    Database interaction Commands
+    
+    """
+            
+    @app_commands.command(name="update_booze_db", description="Populates the booze cruise database from the updated google sheet. Somm/Conn role required.")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
+    @check_command_channel(get_steve_says_channel())
+    async def user_update_database_from_googlesheets(self, interaction: discord.Interaction):
+        """
+        Slash command for updating the database from the GoogleSheet.
+
+        :returns: A discord embed to the user.
+        :rtype: None
+        """
+        print(f'User {interaction.user.name} requested to re-populate the database at {datetime.now()}')
+        
+        await interaction.response.defer()
+        
+        try:
+            result = self._update_db()
+            await self.report_new_and_invalid_carriers(result)
+            embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
+            embed.add_field(name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
+                                 f'Number of new carriers added: {result["added_count"]:>8}.\n'
+                                 f'Number of carriers amended: {result["updated_count"]:>11}.\n'
+                                 f'Number of carriers unchanged: {result["unchanged_count"]:>7}.',
+                            value='Pirate Steve hope he got this right.',
+                            inline=False)
+
+            return await interaction.edit_original_response(embed=embed)
+
+        except ValueError as ex:
+            return await interaction.edit_original_response(str(ex))
+
+
+    @app_commands.command(name="find_carriers_with_wine", description="Returns the carriers in the database that are still flagged as having wine remaining.")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
+    @check_command_channel([get_wine_carrier_channel(), get_steve_says_channel()])
+    async def find_carriers_with_wine(self, interaction: discord.Interaction):
+        """
+        Returns an interactive list of all the carriers with wine that has not yet been unloaded.
+
+        :param interaction discord.Interaction: The discord interaction context
+        :returns: An interactive message embed.
+        :rtype: Union[discord.Message, dict]
+        """
+        
+        await interaction.response.defer()
+        await self.report_new_and_invalid_carriers(self._update_db())
+        print(f'{interaction.user.name} requested to find the carrier with wine')
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
+        )
+        carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        if len(carrier_data) == 0:
+            # No carriers remaining
+            return await interaction.edit_original_response('Pirate Steve is sorry, but there are no more carriers with wine remaining.')
+
+        # Else we have wine left
+
+        def chunk(chunk_list, max_size=10):
+            """
+            Take an input list, and an expected max_size.
+
+            :returns: A chunked list that is yielded back to the caller
+            :rtype: iterator
+            """
+            for i in range(0, len(chunk_list), max_size):
+                yield chunk_list[i:i + max_size]
+
+        def validate_response(react, user):
+            """
+            Validates the user response
+            """
+            return user == interaction.user and str(react.emoji) in ["◀️", "▶️"]
+
+        pages = [page for page in chunk(carrier_data)]
+        max_pages = len(pages)
+        current_page = 1
+
+        embed = discord.Embed(
+            title=f"{len(carrier_data)} Carriers left with wine in the database. Page: #{current_page} of {max_pages}"
+        )
+        count = 0  # Track the overall count for all carriers
+
+        # Go populate page 0 by default
+        for carrier in pages[0]:
+            count += 1
+            embed.add_field(
+                name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                inline=False
             )
-        ],
-    )
-    async def pin_message(self, ctx: SlashContext, message_id, channel_id=None):
+
+        # Now go send it and wait on a reaction
+        await interaction.edit_original_response(embed=embed)
+        
+        message = await interaction.original_response()
+
+        # From page 0 we can only go forwards
+        await message.add_reaction("▶️")
+        # 60 seconds time out gets raised by Asyncio
+        while True:
+            try:
+                reaction, user = await bot.wait_for('reaction_add', timeout=60, check=validate_response)
+                if str(reaction.emoji) == "▶️" and current_page != max_pages:
+
+                    print(f'{interaction.user.name} requested to go forward a page.')
+                    current_page += 1  # Forward a page
+                    new_embed = discord.Embed(
+                        title=f"{len(carrier_data)} Carriers left with wine in the database. Page:{current_page}"
+                    )
+                    for carrier in pages[current_page - 1]:
+                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
+                        count += 1
+                        new_embed.add_field(
+                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                            inline=False
+                        )
+
+                    await message.edit(embed=new_embed)
+
+                    # Ok now we can go back, check if we can also go forwards still
+                    if current_page == max_pages:
+                        await message.clear_reaction("▶️")
+
+                    await message.remove_reaction(reaction, user)
+                    await message.add_reaction("◀️")
+
+                elif str(reaction.emoji) == "◀️" and current_page > 1:
+                    print(f'{interaction.user.name} requested to go back a page.')
+                    current_page -= 1  # Go back a page
+
+                    new_embed = discord.Embed(
+                        title=f"{len(carrier_data)} Carriers left with wine in the database. Page:{current_page}"
+                    )
+                    # Start by counting back however many carriers are in the current page, minus the new page, that way
+                    # when we start a 3rd page we don't end up in problems
+                    count -= len(pages[current_page - 1])
+                    count -= len(pages[current_page])
+
+                    for carrier in pages[current_page - 1]:
+                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
+                        count += 1
+                        new_embed.add_field(
+                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                            inline=False
+                        )
+
+                    await message.edit(embed=new_embed)
+                    # Ok now we can go forwards, check if we can also go backwards still
+                    if current_page == 1:
+                        await message.clear_reaction("◀️")
+
+                    await message.remove_reaction(reaction, user)
+                    await message.add_reaction("▶️")
+                else:
+                    # It should be impossible to hit this part, but lets gate it just in case.
+                    print(
+                        f'HAL9000 error: {interaction.user.name} ended in a random state while trying to handle: {reaction.emoji} '
+                        f'and on page: {current_page}.')
+                    # HAl-9000 error response.
+                    error_embed = discord.Embed(title=f"I'm sorry {interaction.user.name}, I'm afraid I can't do that.")
+                    await message.edit(embed=error_embed)
+                    await message.remove_reaction(reaction, user)
+
+            except asyncio.TimeoutError:
+                print(f'Timeout hit during carrier request by: {interaction.user.name}')
+                await interaction.edit_original_response(content=f'Closed the active carrier list request from: {interaction.user.name} due to no input in 60 seconds.', embed=None)
+                return await message.clear_reactions()
+
+
+    @app_commands.command(name="wine_mark_completed_forcefully", description="Forcefully marks a carrier in the database as unload completed. Admin/Sommelier required.")
+    @describe(carrier_id="The XXX-XXX ID string for the carrier")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()])
+    @check_command_channel(get_steve_says_channel())
+    async def wine_mark_completed_forcefully(self, interaction: discord.Interaction, carrier_id: str):
+        """
+        Forcefully marks a carrier as completed an unload. Ideally will never be used.
+
+        :param interaction discord.Interaction: The discord interaction context.
+        :param str carrier_id: The XXX-XXX carrier ID you want to action.
+        :returns: None
+        """
+        
+        await interaction.response.defer()
+        await self.report_new_and_invalid_carriers(self._update_db())
+        print(f'{interaction.user.name} wants to forcefully mark the carrier {carrier_id} as unloaded.')
+
+        # Cast this to upper case just in case
+        carrier_id = carrier_id.upper()
+
+        # Check the carrier ID regex
+        if not re.match(r"\w{3}-\w{3}", carrier_id):
+            print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await interaction.channel.send(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, '
+                                          f'{carrier_id}.')
+
+        # Check if it is in the database already
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
+        )
+        # Really only expect a single entry here, unique field and all that
+        carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
+
+        carrier_embed = discord.Embed(
+            title=f'Argh We found this data for {carrier_id}:',
+            description=f'CarrierName: **{carrier_data.carrier_name}**\n'
+                        f'ID: **{carrier_data.carrier_identifier}**\n'
+                        f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
+                        f'Number of trips to the peak: **{carrier_data.run_count}**\n'
+                        f'Total Unloads: **{carrier_data.total_unloads}**\n'
+                        f'Operated by: {carrier_data.discord_username}'
+        )
+        carrier_embed.set_footer(text="y/n")
+
+        def check(check_message):
+            return check_message.author == interaction.user and check_message.channel == interaction.channel and \
+                   check_message.content.lower() in ["y", "n"]
+
+        # Send the embed
+        await interaction.edit_original_response(embed=carrier_embed)
+
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=30)
+            if msg.content.lower() == "n":
+                await msg.delete()
+                print(f'User {interaction.user.name} aborted the request to mark the carrier {carrier_id} as unloaded.')
+                return await interaction.edit_original_response(content=f"Argh you cancelled the action for marking {carrier_id} "
+                                      f"as forcefully completed.", embed=None)
+
+            elif msg.content.lower() == "y":
+                try:
+                    await msg.delete()
+                    print(f'User {interaction.user.name} agreed to mark the carrier {carrier_id} as unloaded.')
+
+                    # Go update the object in the database.
+                    try:
+                        pirate_steve_lock.acquire()
+
+                        data = (
+                            f'%{carrier_data.carrier_identifier}%',
+                        )
+                        pirate_steve_db.execute(
+                            ''' 
+                            UPDATE boozecarriers 
+                            SET totalunloads=totalunloads+1, discord_unload_in_progress=NULL
+                            WHERE carrierid LIKE (?) 
+                            ''', data
+                        )
+                        pirate_steve_conn.commit()
+                    finally:
+                        pirate_steve_lock.release()
+
+                    print(f'Database for unloaded forcefully updated by {interaction.user.name} for {carrier_id}')
+                    embed = discord.Embed(
+                        description=f"Fleet carrier {carrier_data.carrier_name} marked as unloaded.",
+                    )
+                    embed.add_field(
+                        name=f'Runs Made: {carrier_data.run_count}',
+                        value=f'Unloads Completed: {carrier_data.total_unloads}'
+                    )
+                    return await interaction.edit_original_response(content=None, embed=embed)
+                except Exception as e:
+                    return await interaction.edit_original_response(content=f'Something went wrong, go tell the bot team "computer said: {e}"', embed=None)
+
+        except asyncio.TimeoutError:
+            return await interaction.edit_original_response(content="**Cancelled - timed out**", embed=None)
+        
+
+    @app_commands.command(name="find_wine_carriers_for_platform", description="Returns the carriers in the database for the platform.")
+    @describe(platform="The platform the carrier operates on.", remaining_wine="True if you only want carriers with wine, else False. Default True")
+    @app_commands.choices(platform=[
+                            Choice(name="PC (All)", value="PC"),
+                            Choice(name="PC EDH", value="PC (Horizons Only)"),
+                            Choice(name="PC EDO", value="PC (Horizons + Odyssey)"),
+                            Choice(name="Xbox", value="Xbox"),
+                            Choice(name="Playstation", value="Playstation")
+                        ])
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
+    @check_command_channel([get_wine_carrier_channel(), get_steve_says_channel()])
+    async def find_carriers_for_platform(self, interaction: discord.Interaction, platform: str, remaining_wine:bool=True):
+        """
+        Find carriers for the specified platform.
+
+        :param SlashContext ctx: The discord SlashContext.
+        :param str platform: The platform to search for.
+        :param bool remaining_wine: True if you only want carriers with wine
+        :returns: None
+        """
+        
+        await interaction.response.defer()
+        await self.report_new_and_invalid_carriers(self._update_db())
+        print(f'{interaction.user.name} requested to fine carriers for: {platform} with wine: {remaining_wine}')
+
+        if remaining_wine:
+            data = (
+                f'%{platform}%',
+            )
+            carrier_search = 'platform LIKE (?) and runtotal > totalunloads'
+
+        else:
+            data = (
+                f'%{platform}%',
+            )
+            carrier_search = 'platform LIKE (?)'
+
+        # Check if it is in the database already
+        pirate_steve_db.execute(
+            f"SELECT * FROM boozecarriers WHERE {carrier_search}", data
+        )
+        # Really only expect a single entry here, unique field and all that
+        carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+
+        print(f'Found {len(carrier_data)} carriers matching the search')
+
+        if not carrier_data:
+            print(f'Did not find a carrier matching the condition: {carrier_search}.')
+            return await interaction.edit_original_response(f'Could not find a carrier matching the inputs: {platform}, '
+                                  f'with wine: {remaining_wine}')
+
+        def chunk(chunk_list, max_size=10):
+            """
+            Take an input list, and an expected max_size.
+
+            :returns: A chunked list that is yielded back to the caller
+            :rtype: iterator
+            """
+            for i in range(0, len(chunk_list), max_size):
+                yield chunk_list[i:i + max_size]
+
+        def validate_response(react, user):
+            """
+            Validates the user response
+            """
+            return user == interaction.user and str(react.emoji) in ["◀️", "▶️"]
+
+        pages = [page for page in chunk(carrier_data)]
+        max_pages = len(pages)
+        current_page = 1
+
+        embed = discord.Embed(
+            title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. Page: #{current_page} of"
+                  f" {max_pages}"
+        )
+        count = 0  # Track the overall count for all carriers
+
+        # Go populate page 0 by default
+        for carrier in pages[0]:
+            count += 1
+            embed.add_field(
+                name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                inline=False
+            )
+
+        # Now go send it and wait on a reaction
+        await interaction.edit_original_response(embed=embed)
+        message = await interaction.original_response()
+
+        # From page 0 we can only go forwards
+        await message.add_reaction("▶️")
+        # 60 seconds time out gets raised by Asyncio
+        while True:
+            try:
+                reaction, user = await bot.wait_for('reaction_add', timeout=60, check=validate_response)
+                if str(reaction.emoji) == "▶️" and current_page != max_pages:
+
+                    print(f'{interaction.user.name} requested to go forward a page.')
+                    current_page += 1  # Forward a page
+                    new_embed = discord.Embed(
+                        title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. Page"
+                              f":{current_page}"
+                    )
+                    for carrier in pages[current_page - 1]:
+                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
+                        count += 1
+                        new_embed.add_field(
+                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                            inline=False
+                        )
+
+                    await message.edit(embed=new_embed)
+
+                    # Ok now we can go back, check if we can also go forwards still
+                    if current_page == max_pages:
+                        await message.clear_reaction("▶️")
+
+                    await message.remove_reaction(reaction, user)
+                    await message.add_reaction("◀️")
+
+                elif str(reaction.emoji) == "◀️" and current_page > 1:
+                    print(f'{interaction.user.name} requested to go back a page.')
+                    current_page -= 1  # Go back a page
+
+                    new_embed = discord.Embed(
+                        title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. "
+                              f"Page:{current_page}"
+                    )
+                    # Start by counting back however many carriers are in the current page, minus the new page, that way
+                    # when we start a 3rd page we don't end up in problems
+                    count -= len(pages[current_page - 1])
+                    count -= len(pages[current_page])
+
+                    for carrier in pages[current_page - 1]:
+                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
+                        count += 1
+                        new_embed.add_field(
+                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
+                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                            inline=False
+                        )
+
+                    await message.edit(embed=new_embed)
+                    # Ok now we can go forwards, check if we can also go backwards still
+                    if current_page == 1:
+                        await message.clear_reaction("◀️")
+
+                    await message.remove_reaction(reaction, user)
+                    await message.add_reaction("▶️")
+                else:
+                    # It should be impossible to hit this part, but lets gate it just in case.
+                    print(
+                        f'HAL9001 error: {interaction.user.name} ended in a random state while trying to handle: {reaction.emoji} '
+                        f'and on page: {current_page}.')
+                    # HAl-9000 error response.
+                    error_embed = discord.Embed(title=f"I'm sorry {interaction.user.name}, I'm afraid I can't do that.")
+                    await message.edit(embed=error_embed)
+                    await message.remove_reaction(reaction, user)
+
+            except asyncio.TimeoutError:
+                print(f'Timeout hit during carrier request by: {interaction.user.name}')
+                await interaction.edit_original_response(content=f'Closed the active carrier list request from: {interaction.user.name} due to no input in 60 seconds.', embed=None)
+                return await message.clear_reactions()
+
+
+    @app_commands.command(name="find_wine_carrier_by_id", description="Returns the carriers in the database for the ID.")
+    @describe(carrier_id="The XXX-XXX ID string for the carrier")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
+    async def find_carrier_by_id(self, interaction: discord.Interaction, carrier_id: str):
+        await interaction.response.defer()
+        await self.report_new_and_invalid_carriers(self._update_db())
+        print(f'{interaction.user.name} wants to find a carrier by ID: {carrier_id}.')
+        # Cast this to upper case just in case
+        carrier_id = carrier_id.upper()
+        # Check the carrier ID regex
+        if not re.match(r"\w{3}-\w{3}", carrier_id):
+            print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await interaction.channel.send(
+                f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+
+        # Check if it is in the database already
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers WHERE carrierid = (?)", (f'{carrier_id}',)
+        )
+        # Really only expect a single entry here, unique field and all that
+        carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
+        print(f'Found: {carrier_data}')
+
+        if not carrier_data:
+            print(f'No carrier found for: {carrier_id}')
+            return await interaction.edit_original_response(f'No carrier found for: {carrier_id}')
+
+        carrier_embed = discord.Embed(
+            title=f'YARR! Found carrier details for the input: {carrier_id}',
+            description=f'CarrierName: **{carrier_data.carrier_name}**\n'
+                        f'ID: **{carrier_data.carrier_identifier}**\n'
+                        f'Total Tonnes of Wine: **{carrier_data.wine_total}** on **{carrier_data.platform}**\n'
+                        f'Number of trips to the peak: **{carrier_data.run_count}**\n'
+                        f'Total Unloads: **{carrier_data.total_unloads}**\n'
+                        f'Operated by: {carrier_data.discord_username}'
+        )
+
+        return await interaction.edit_original_response(embed=carrier_embed)
+
+
+    @app_commands.command(name="booze_tally", description="Returns a summary of the stats for the current booze cruise. Restricted to Somms and Connoisseurs.")
+    @describe(cruise_select="Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is this cruise.")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
+    async def tally(self, interaction: discord.Interaction, cruise_select:int=0):
+        """
+        Returns an embed inspired by (cloned from) @CMDR Suiseiseki's b.tally. Provided to keep things in one place
+        is all.
+
+        :param SlashContext ctx: The discord context
+        :param int cruise_select: The cruise you want data on, counts backwards. 0 is this cruise, 1 is the last
+            cruise etc...
+        :return: None
+        """
+        
+        await interaction.response.defer()
+        
+        cruise = 'this' if cruise_select == 0 else f'-{cruise_select}'
+        print(f'User {interaction.user.name} requested the current tally of the cruise stats for {cruise} cruise.')
+        target_date = None
+
+        if cruise_select == 0:
+            # Go get everything out of the database
+            pirate_steve_db.execute(
+                "SELECT * FROM boozecarriers"
+            )
+            all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+            pirate_steve_db.execute(
+                "SELECT * FROM boozecarriers WHERE runtotal > 1"
+            )
+
+        else:
+            # Get the dates in the DB and order them.
+            pirate_steve_db.execute(
+                "SELECT DISTINCT holiday_start FROM historical ORDER by holiday_start DESC"
+            )
+            all_dates = [dict(value) for value in pirate_steve_db.fetchall()]
+
+            if cruise_select > len(all_dates):
+                print('Input for cruise value was out of bounds for the number of cruises recorded in the database.')
+                return await interaction.edit_original_response(f'Pirate Steve only knows about the last: {len(all_dates)} booze cruises. '
+                                      f'You wanted the -{cruise_select} data.')
+            # Subtract 1 here, we filter the values out of the historical database, so the current cruise is not
+            # there yet
+            target_date = all_dates[cruise_select - 1]['holiday_start']
+            print(f'We have found the following historical cruise dates: {all_dates}')
+            print(f'We are interested in the {cruise} option - {target_date}')
+
+            data = (
+                target_date,
+            )
+            # In this case we want the historical data from the historical database
+            pirate_steve_db.execute(
+                "SELECT * FROM historical WHERE holiday_start = (?)", data
+            )
+            all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+            pirate_steve_db.execute(
+                "SELECT * FROM historical WHERE runtotal > 1 AND holiday_start = (?)", data
+            )
+
+        total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        stat_embed = self.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, target_date)
+
+        await interaction.edit_original_response(embed=stat_embed)
+
+        # Go update all the pinned embeds also.
+        pirate_steve_db.execute(
+            """SELECT * FROM pinned_messages"""
+        )
+        pins = [dict(value) for value in pirate_steve_db.fetchall()]
+        if pins:
+            print(f'Updating pinned messages: {pins}')
+            for pin in pins:
+                channel = await bot.fetch_channel(pin['channel_id'])
+                print(f'Channel matched as: {channel} from {pin["channel_id"]}')
+                # Now go loop over every pin and update it
+                message = await channel.fetch_message(pin['message_id'])
+                print(f'Message matched as: {message} from {pin["message_id"]}')
+                await message.edit(embed=stat_embed)
+        else:
+            print('No pinned messages up update')
+
+
+    @app_commands.command(name="booze_pin_message", description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.")
+    @describe(message_link="The message link to be pinned")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()])
+    async def pin_message(self, interaction: discord.Interaction, message_link: str):
         """
         Pins the message in the channel.
 
-        :param SlashContext ctx: The discord slash context
-        :param str message_id: The message ID to pin
-        :param str channel_id: The channel ID. Optional, if Not provided uses the current channel.
+        :param Interaction discord.Interaction: The discord interaction context
+        :param str message_link: The link of message to pin
         :returns: None
         """
-        print(f'User {ctx.author} wants to pin the message {message_id} in channel: {channel_id} - {type(channel_id)}')
-        if not channel_id:
-            print(f'No channel ID provided - use the current channel {ctx.channel.id}')
-            channel = ctx.channel
-            channel_id = channel.id
-        else:
-            channel = bot.get_channel(int(channel_id))
-            print(f'Channel is: {channel}')
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        print(f'User {interaction.user.name} wants to pin the message {message_link}')
+            
+        split_message_link = message_link.split("/")  
+        channel_id = int(split_message_link[5])      
+        channel = bot.get_channel(channel_id)        
+        message_id = int(split_message_link[6])
 
-        message = await channel.fetch_message(int(message_id))
+        message = await channel.fetch_message(message_id)
         if not message:
-            print(f'Could not find a message for the ID: {message_id} in channel: {channel_id}')
-            return ctx.send(f'Could not find a message for the ID: {message_id} in channel: {channel_id} - '
-                            f'Check they are correct', hidden=True)
+            print(f'Could not find a message for the link: {message_link}')
+            return interaction.edit_original_response(content=f'Could not find a message with the link: {message_link}')
+        
+        try:
+            message_embed = message.embeds[0]
+        
+        except IndexError:
+            print(f'The message entered is not a pirate steve stat embed')
+            return await interaction.edit_original_response(content=f'The message entered is not a pirate steve stat embed. {message_link}')
+        
+        if message_embed.title != "Pirate Steve's Booze Cruise Tally":
+            print(f'The message entered is not a pirate steve stat embed')
+            return await interaction.edit_original_response(content=f'The message entered is not a pirate steve stat embed. {message_link}')
+        
+        
         data = (
             message_id,
             channel_id,
@@ -1108,34 +1117,26 @@ class DatabaseInteraction(Cog):
 
         if not message.pinned:
             print('Message is not pinned - do it now')
-            await message.pin(reason=f'Pirate Steve pinned on behalf of {ctx.author}')
+            await message.pin(reason=f'Pirate Steve pinned on behalf of {interaction.user.name}')
             print(f'Message {message_id} was pinned.')
         else:
             print('Message is already pinned, no action needed')
 
-        await ctx.send(f'Pirate steve recorded message: {message_id} in channel: {channel_id} for pinned updating')
+        await interaction.edit_original_response(content=f'Pirate steve recorded message {message_link} for pinned updating')
 
-    @cog_ext.cog_slash(
-        name="booze_unpin_all",
-        guild_ids=[bot_guild_id()],
-        description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def clear_all_pinned_message(self, ctx: SlashContext):
+    @app_commands.command(name="booze_unpin_all", description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()])
+    @check_command_channel([get_steve_says_channel()])
+    async def clear_all_pinned_message(self, interaction: discord.Interaction):
         """
         Clears all the pinned messages
 
-        :param SlashContext ctx: The discord slash context
+        :param Interaction discord.Interaction: The discord interaction context
         :returns: None
         """
-        print(f'User {ctx.author} requested to clear the pinned messages.')
+        
+        await interaction.response.defer(ephemeral=True)
+        print(f'User {interaction.user.name} requested to clear the pinned messages.')
 
         pirate_steve_db.execute(
             "SELECT * FROM pinned_messages"
@@ -1146,7 +1147,7 @@ class DatabaseInteraction(Cog):
             for pin in all_pins:
                 channel = bot.get_channel(int(pin['channel_id']))
                 message = await channel.fetch_message(pin['message_id'])
-                await message.unpin(reason=f'Pirate Steve unpinned at the request of: {ctx.author}')
+                await message.unpin(reason=f'Pirate Steve unpinned at the request of: {interaction.user.name}')
                 print(f'Removed pinned message: {pin["message_id"]}.')
             try:
                 print('Writing to the DB the message data to clear the pins')
@@ -1159,52 +1160,42 @@ class DatabaseInteraction(Cog):
             finally:
                 pirate_steve_lock.release()
             print('Pinned messages removed')
-            await ctx.send('Pirate Steve removed all the pinned stat messages', hidden=True)
+            await interaction.edit_original_response(content='Pirate Steve removed all the pinned stat messages')
         else:
-            await ctx.send('Pirate Steve has no pinned messages to remove.', hidden=True)
+            await interaction.edit_original_response(content='Pirate Steve has no pinned messages to remove.')
 
-    @cog_ext.cog_slash(
-        name="booze_unpin_message",
-        guild_ids=[bot_guild_id()],
-        description="Unpins a specific message and removes it from the DB. Restricted to Admin and "
-                    "Sommelier's.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        },
-        options=[
-            create_option(
-                name='message_id',
-                description='The message ID to be pinned.',
-                option_type=3,
-                required=True
-            )
-        ]
-    )
-    async def booze_unpin_message(self, ctx: SlashContext, message_id: str):
+    @app_commands.command(name="booze_unpin_message", description="Unpins a specific message and removes it from the DB. Restricted to Admin and "
+                                                                "Sommelier's.")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()])
+    @describe(message_link="The message link to be unpinned")
+    @check_command_channel([get_steve_says_channel()])
+    async def booze_unpin_message(self, interaction: discord.Interaction, message_link: str):
         """
-        Clears the pinned embed described by the message_id string.
+        Clears the pinned embed described by the message_link string.
 
-        :param SlashContext ctx: The discord slash context
-        :param str message_id: The message ID to unpin
+        :param Interaction discord.Interaction: The discord interaction context
+        :param str message_link: The message url to unpin
         :returns: None
         """
-        print(f'User {ctx.author} requested to clear the pinned message {message_id}.')
-
+        
+        await interaction.response.defer(ephemeral=True)
+        print(f'User {interaction.user.name} requested to clear the pinned message {message_link}.')
+            
+        split_message_link = message_link.split("/")  
+        channel_id = int(split_message_link[5])      
+        channel = bot.get_channel(channel_id)        
+        message_id = int(split_message_link[6])
+        
         pirate_steve_db.execute(
-            "SELECT * FROM pinned_messages WHERE "
+            f"SELECT * FROM pinned_messages WHERE message_id = {message_id}"
         )
-        # Get everything
+        # Get everything matching message_id
         all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
         if all_pins:
             for pin in all_pins:
                 channel = bot.get_channel(int(pin['channel_id']))
                 message = await channel.fetch_message(pin['message_id'])
-                await message.unpin(reason=f'Pirate Steve unpinned at the request of: {ctx.author}')
+                await message.unpin(reason=f'Pirate Steve unpinned at the request of: {interaction.user.name}')
                 print(f'Removed pinned message: {pin["message_id"]}.')
             try:
                 print('Writing to the DB the message data to clear the pins')
@@ -1217,71 +1208,70 @@ class DatabaseInteraction(Cog):
             finally:
                 pirate_steve_lock.release()
             print('Pinned messages removed')
-            await ctx.send(f'Pirate Steve removed the pinned stat message for {message_id}', hidden=True)
+            await interaction.edit_original_response(content=f'Pirate Steve removed the pinned stat message for {message_link}')
         else:
-            await ctx.send(f'Pirate Steve has no pinned messages matching {message_id}.', hidden=True)
+            await interaction.edit_original_response(content=f'Pirate Steve has no pinned messages matching {message_link}.')
 
-    @tasks.loop(hours=1)
-    async def periodic_stat_update(self):
-        """
-        Loops every hour and updates all pinned embeds.
-
-        :returns: None
-        """
-        # Periodic trigger that updates all the stat embeds that are pinned.
-        print('Period trigger of the embed update.')
-        pirate_steve_db.execute(
-            "SELECT * FROM pinned_messages"
-        )
-        # Get everything
-        all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
-        if all_pins:
-            print(f'We have these pins to update: {all_pins}')
-            for pin in all_pins:
-                channel = bot.get_channel(int(pin['channel_id']))
-                message = await channel.fetch_message(pin['message_id'])
-                pirate_steve_db.execute(
-                    "SELECT * FROM boozecarriers"
-                )
-                all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-                pirate_steve_db.execute(
-                    "SELECT * FROM boozecarriers WHERE runtotal > 1"
-                )
-                total_carriers_multiple_trips = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-                stat_embed = self.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, None)
-                await message.edit(embed=stat_embed)
-        else:
-            print('No pinned messages to update. Check again in an hour.')
-
-    @cog_ext.cog_slash(
-        name="booze_tally_extra_stats",
-        guild_ids=[bot_guild_id()],
-        description="Returns an set of extra stats for the wine. Restricted to Admin, Sommeliers, and Connoisseurs.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_connoisseur_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def extended_tally_stats(self, ctx: SlashContext):
+    @app_commands.command(name="booze_tally_extra_stats", description="Returns an set of extra stats for the wine. Restricted to Admin, Sommeliers, and Connoisseurs.")
+    @describe(cruise_select="Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is this cruise.")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
+    async def extended_tally_stats(self, interaction: discord.Interaction, cruise_select:int=0):
         """
         Prints an extended tally stats as requested by RandomGazz.
 
-        :param SlashContext ctx: The discord slash Context
+        :param Interaction discord.Interaction: The discord interaction context
+        :param int cruise_select: The cruise you want data on, counts backwards. 0 is this cruise, 1 is the last
+            cruise etc...
         :return: None
         """
-        await self.report_new_and_invalid_carriers(self._update_db())
-        print(f'User {ctx.author} requested the current extended stats of the cruise.')
+        
+        await interaction.response.defer()
+        print(f'User {interaction.user.name} requested the current extended stats of the cruise.')
+        
+        
+        cruise = 'this' if cruise_select == 0 else f'-{cruise_select}'
+        print(f'User {interaction.user.name} requested the current tally of the cruise stats for {cruise} cruise.')
+        target_date = None
 
-        # Go get everything out of the database
-        pirate_steve_db.execute(
-            "SELECT * FROM boozecarriers"
-        )
-        all_carrier_data = ([BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()])
+        if cruise_select == 0:
+            # Go get everything out of the database
+            pirate_steve_db.execute(
+                "SELECT * FROM boozecarriers"
+            )
+            all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+            pirate_steve_db.execute(
+                "SELECT * FROM boozecarriers WHERE runtotal > 1"
+            )
+
+        else:
+            # Get the dates in the DB and order them.
+            pirate_steve_db.execute(
+                "SELECT DISTINCT holiday_start FROM historical ORDER by holiday_start DESC"
+            )
+            all_dates = [dict(value) for value in pirate_steve_db.fetchall()]
+
+            if cruise_select > len(all_dates):
+                print('Input for cruise value was out of bounds for the number of cruises recorded in the database.')
+                return await interaction.edit_original_response(f'Pirate Steve only knows about the last: {len(all_dates)} booze cruises. '
+                                      f'You wanted the -{cruise_select} data.')
+            # Subtract 1 here, we filter the values out of the historical database, so the current cruise is not
+            # there yet
+            target_date = all_dates[cruise_select - 1]['holiday_start']
+            print(f'We have found the following historical cruise dates: {all_dates}')
+            print(f'We are interested in the {cruise} option - {target_date}')
+
+            data = (
+                target_date,
+            )
+            # In this case we want the historical data from the historical database
+            pirate_steve_db.execute(
+                "SELECT * FROM historical WHERE holiday_start = (?)", data
+            )
+            all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+            pirate_steve_db.execute(
+                "SELECT * FROM historical WHERE runtotal > 1 AND holiday_start = (?)", data
+            )
+
         total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
 
         total_wine_per_capita = total_wine / RACKHAMS_PEAK_POP
@@ -1350,45 +1340,30 @@ class DatabaseInteraction(Cog):
                         f'London Busses if Boxes of Wine: {busses_if_boxes:,.2f}\n\n'
         )
         stat_embed.set_footer(text='Stats requested by RandomGazz.\nPirate Steve approves of these stats!')
-        await ctx.send(embed=stat_embed)
+        await interaction.edit_original_response(embed=stat_embed)
 
-    @cog_ext.cog_slash(
-        name="booze_delete_carrier",
-        guild_ids=[bot_guild_id()],
-        description="Removes a carrier from the database. Admin/Sommelier required.",
-        options=[
-            create_option(
-                name='carrier_id',
-                description='The XXX-XXX ID string for the carrier',
-                option_type=3,
-                required=True
-            )
-        ],
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_mod_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def remove_carrier(self, ctx: SlashContext, carrier_id: str):
+    @app_commands.command(name="booze_delete_carrier", description="Removes a carrier from the database. Admin/Sommelier required.")
+    @describe(carrier_id="The XXX-XXX ID string for the carrier")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()])
+    @check_command_channel(get_steve_says_channel())
+    async def remove_carrier(self, interaction: discord.Interaction, carrier_id: str):
         """
         Removes a carrier entry from the database after confirmation.
 
-        :param SlashContext ctx: The discord slash context.
+        :param interaction discord.Interaction: The discord interaction context.
         :param str carrier_id: The XXX-XXX carrier ID.
         :returns: None
         """
-        print(f'User {ctx.author} wants to remove the carrier with ID {carrier_id} from the database.')
+        
+        await interaction.response.defer()
+        print(f'User {interaction.user.name} wants to remove the carrier with ID {carrier_id} from the database.')
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
-            print(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await ctx.channel.send(f'{ctx.author}, the carrier ID was invalid, XXX-XXX expected received, '
+            print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await interaction.channel.send(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, '
                                           f'{carrier_id}.')
 
         # Check if it is in the database already
@@ -1401,7 +1376,7 @@ class DatabaseInteraction(Cog):
 
         if not carrier_data:
             print(f'No carrier found for: {carrier_id}')
-            return await ctx.send(f'Avast Ye! No carrier found for: {carrier_id}')
+            return await interaction.edit_original_response(f'Avast Ye! No carrier found for: {carrier_id}')
 
         carrier_embed = discord.Embed(
             title=f'YARR! Pirate Steve found these details for the input: {carrier_id}',
@@ -1415,25 +1390,23 @@ class DatabaseInteraction(Cog):
         carrier_embed.set_footer(text='Confirm you want to delete: y/n')
 
         def check(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+            return check_message.author == interaction.user and check_message.channel == interaction.channel and \
                    check_message.content.lower() in ["y", "n"]
 
         # Send the embed
-        message = await ctx.send(embed=carrier_embed)
+        await interaction.edit_original_response(embed=carrier_embed)
 
         try:
             response = await bot.wait_for("message", check=check, timeout=30)
             if response.content.lower() == "n":
-                await message.delete()
                 await response.delete()
-                print(f'User {ctx.author} aborted the request delete carrier {carrier_id}.')
-                return await ctx.send(f"Avast Ye! you cancelled the action for deleting {carrier_id}.")
+                print(f'User {interaction.user.name} aborted the request delete carrier {carrier_id}.')
+                return await interaction.edit_original_response(content=f"Avast Ye! you cancelled the action for deleting {carrier_id}.", embed=None)
 
             elif response.content.lower() == "y":
                 try:
-                    await message.delete()
                     await response.delete()
-                    print(f'User {ctx.author} agreed to delete the carrier: {carrier_id}.')
+                    print(f'User {interaction.user.name} agreed to delete the carrier: {carrier_id}.')
 
                     # Go update the object in the database.
                     try:
@@ -1451,50 +1424,40 @@ class DatabaseInteraction(Cog):
                     finally:
                         pirate_steve_lock.release()
 
-                    return await ctx.send(f'Fleet carrier: {carrier_id} for user: {carrier_data.discord_username} was removed')
+                    return await interaction.edit_original_response(content=f'Fleet carrier: {carrier_id} for user: {carrier_data.discord_username} was removed', embed=None)
                 except Exception as e:
-                    return ctx.send(f'Something went wrong, go tell the bot team "computer said: {e}"')
+                    return interaction.edit_original_response(content=f'Something went wrong, go tell the bot team "computer said: {e}"', embed=None)
 
         except asyncio.TimeoutError:
-            await message.delete()
-            return await ctx.send("**Cancelled - timed out**")
+            return await interaction.edit_original_response(content="**Cancelled - timed out**", embed=None)
 
-        await message.delete()
-
-    @cog_ext.cog_slash(
-        name="booze_archive_database",
-        guild_ids=[bot_guild_id()],
-        description="Archives the boozedatabase. Admin/Sommelier required.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def archive_database(self, ctx: SlashContext):
+    @app_commands.command(name="booze_archive_database", description="Archives the boozedatabase. Admin/Sommelier required.")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()])
+    @check_command_channel(get_steve_says_channel())
+    async def archive_database(self, interaction: discord.Interaction):
         """
         Performs the steps to archive the current booze cruise database. Only possible if we are not in a PH
         currently and if the data has not been archived. Once archived it will be dropped.
 
-        :param SlashContext ctx: The discord slash context.
+        :param interaction discord.Interaction: The discord interaction context.
         :returns: None
         """
-        print(f'User {ctx.author} requested to archive the database')
+        
+        await interaction.response.defer()
+        print(f'User {interaction.user.name} requested to archive the database')
 
         if ph_check():
-            return await ctx.send('Pirate Steve thinks there is a party at Rackhams still. Try again once the grog '
+            return await interaction.edit_original_response(content='Pirate Steve thinks there is a party at Rackhams still. Try again once the grog '
                                   'runs dry.')
-        get_date_user = await ctx.send('Pirate Steve wants to know when the booze cruise started in DD-MM-YY '
+        await interaction.edit_original_response(content='Pirate Steve wants to know when the booze cruise started in DD-MM-YY '
                                        'format.')
 
         def check_yes_no(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+            return check_message.author == interaction.user and check_message.channel == interaction.channel and \
                    check_message.content.lower() in ["y", "n"]
 
         def check_date(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+            return check_message.author == interaction.user and check_message.channel == interaction.channel and \
                    re.match(r'\d{2}-\d{2}-\d{2}', check_message.content)
 
         resp_date = None
@@ -1504,20 +1467,26 @@ class DatabaseInteraction(Cog):
             if response:
                 print(f'User response to date is: {response.content}')
 
-                resp_date = datetime.strptime(response.content, '%d-%m-%y').date()
-                today = datetime.now().date()
+                try:
+                    resp_date = datetime.strptime(response.content, '%d-%m-%y').date()
+                    today = datetime.now().date()
+                except ValueError:
+                    await interaction.edit_original_response(content='Pirate steve thinks you are making up dates, '
+                                          f'format is DD-MM-YY. Your date input: {response.content}.', embed=None)
+                    await response.delete()
+                    return
 
                 if resp_date > today:
-                    return await ctx.send('Pirate steve cant set the holiday date in the future, '
-                                          f'format is DD-MM-YY. Your date input: {response.content}.')
+                    await interaction.edit_original_response(content='Pirate steve cant set the holiday date in the future, '
+                                          f'format is DD-MM-YY. Your date input: {response.content}.', embed=None)
+                    await response.delete()
+                    return
 
                 print(f'Formatted user response to date: {resp_date}')
 
         except asyncio.TimeoutError:
-            await get_date_user.delete()
-            return await ctx.send("**Waiting for date - timed out**")
+            return await interaction.edit_original_response(content="**Waiting for date - timed out**", embed=None)
 
-        await get_date_user.delete()
         await response.delete()
 
         data = (
@@ -1530,7 +1499,7 @@ class DatabaseInteraction(Cog):
         if pirate_steve_db.fetchall():
             print(f'We have a record for this date ({resp_date}) in the historical DB already.')
             # We found something for that date. stop.
-            return await ctx.send(f'Pirate Steve thinks there is a booze cruise on that day ({resp_date}) '
+            return await interaction.edit_original_response(f'Pirate Steve thinks there is a booze cruise on that day ({resp_date}) '
                                   f'already recorded. Check your data, and send him for a memory check up.')
 
         check_embed = discord.Embed(
@@ -1540,14 +1509,13 @@ class DatabaseInteraction(Cog):
                         f'**Holiday End:** {(resp_date + timedelta(days=2)).strftime("%d-%m-%y")}'
         )
         check_embed.set_footer(text='Respond with y/n.')
-        sent_embed = await ctx.send(embed=check_embed)
+        await interaction.edit_original_response(content=None, embed=check_embed)
 
         try:
             user_response = await bot.wait_for("message", check=check_yes_no, timeout=30)
             if user_response.content.lower() == "y":
                 print(f'User response to date is: {user_response.content}')
                 await user_response.delete()
-                await sent_embed.delete()
 
                 try:
                     pirate_steve_lock.acquire()
@@ -1583,38 +1551,30 @@ class DatabaseInteraction(Cog):
                     self.update_allowed = False
                 finally:
                     pirate_steve_lock.release()
-                return await ctx.send(f'Pirate Steve rejigged his memory and saved the booze data starting '
-                                      f'on: {resp_date}!')
+                return await interaction.edit_original_response(content=f'Pirate Steve rejigged his memory and saved the booze data starting '
+                                      f'on: {resp_date}!', embed=None)
             elif user_response.content.lower() == "n":
-                print(f'User {ctx.author} wants to abort the archive process.')
+                print(f'User {interaction.user.name} wants to abort the archive process.')
                 await user_response.delete()
-                await sent_embed.delete()
-                return await ctx.send('You aborted the request to archive the data.')
+                return await interaction.edit_original_response(content='You aborted the request to archive the data.', embed=None)
 
         except asyncio.TimeoutError:
-            await sent_embed.delete()
-            return await ctx.send("**Waiting for user response - timed out**")
+            return await interaction.edit_original_response(content="**Waiting for user response - timed out**", embed=None)
 
-    @cog_ext.cog_slash(
-        name="booze_configure_signup_forms",
-        guild_ids=[bot_guild_id()],
-        description="Updates the booze cruise signup forms. Admin/Sommelier required.",
-        permissions={
-            bot_guild_id(): [
-                create_permission(server_admin_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(server_sommelier_role_id(), SlashCommandPermissionType.ROLE, True),
-                create_permission(bot_guild_id(), SlashCommandPermissionType.ROLE, False),
-            ]
-        }
-    )
-    async def configure_signup_forms(self, ctx: SlashContext):
+    
+    @app_commands.command(name="booze_configure_signup_forms", description="Updates the booze cruise signup forms. Admin/Sommelier required.")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()])
+    @check_command_channel(get_steve_says_channel())
+    async def configure_signup_forms(self, interaction: discord.Interaction):
         """
         Reconfigures the signup sheet and the tracking sheet to the new forms. Only usable by an admin.
 
-        :param SlashContext ctx: The discord slash context.
+        :param interaction discord.Interaction: The discord interaction context.
         :returns: None
         """
-        print(f'{ctx.author} wants to reconfigure the booze cruise signup forms.')
+        
+        await interaction.response.defer()
+        print(f'{interaction.user.name} wants to reconfigure the booze cruise signup forms.')
 
         # Store the current states just in case we need them
         original_sheet_id = self.worksheet_with_data_id
@@ -1629,14 +1589,14 @@ class DatabaseInteraction(Cog):
         new_loader_signup_form = None
 
         def check_yes_no(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+            return check_message.author == interaction.user and check_message.channel == interaction.channel and \
                    check_message.content.lower() in ["y", "n"]
 
         def check_author(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel
+            return check_message.author == interaction.user and check_message.channel == interaction.channel
 
         def check_id(check_message):
-            return check_message.author == ctx.author and check_message.channel == ctx.channel and \
+            return check_message.author == interaction.user and check_message.channel == interaction.channel and \
                    re.match(r'^\d*$', check_message.content)
 
         # TODO: See if we can add a validation for the URL
@@ -1648,10 +1608,10 @@ class DatabaseInteraction(Cog):
         all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
         if all_carrier_data:
             # archive the database first else we will end up in issues
-            return await ctx.send('Pirate Steve has data already for a cruise - go fix his memory by running the '
+            return await interaction.edit_original_response(content='Pirate Steve has data already for a cruise - go fix his memory by running the '
                                   'archive command first.')
 
-        request_loader_signup_form = await ctx.send('Pirate Steve first wants the loader signup form URL.')
+        await interaction.edit_original_response(content='Pirate Steve first wants the loader signup form URL.')
         try:
             # in this case we do not know the shape of the URL
             response = await bot.wait_for("message", check=check_author, timeout=30)
@@ -1659,17 +1619,15 @@ class DatabaseInteraction(Cog):
                 print(f'We have data: {response.content} for the signup URL.')
                 new_loader_signup_form = response.content
                 await response.delete()
-                await request_loader_signup_form.delete()
 
         except asyncio.TimeoutError:
             self.update_allowed = True
             print('Error getting the response for the google signup form.')
-            await request_loader_signup_form.delete()
-            return await ctx.send('Pirate Steve saw you timed out.')
+            return await interaction.edit_original_response(content='Pirate Steve saw you timed out.',embed=None)
 
-        request_new_worksheet_key = await ctx.send('Pirate Steve secondly wants the sheet ID for the form. Start '
-                                                   'counting from 1 and Pirate Steve will tell the computer '
-                                                   'accordingly.')
+        await interaction.edit_original_response(content='Pirate Steve secondly wants the sheet ID for the form. Start '
+                                                        'counting from 1 and Pirate Steve will tell the computer '
+                                                        'accordingly.', embed=None)
         try:
             response = await bot.wait_for("message", check=check_id, timeout=30)
             if response:
@@ -1679,21 +1637,20 @@ class DatabaseInteraction(Cog):
                     new_sheet_id = int(response.content) - 1
                     if new_sheet_id < 0:
                         raise ValueError('Error ID is less than 0')
+                    await response.delete()
                 except ValueError:
                     self.update_allowed = init_update_value
-                    await request_new_worksheet_key.delete()
                     await response.delete()
-                    return await ctx.send(f'Pirate Steve thinks you do not know what an integer starting from 1 is.'
-                                          f' {response.content}. Start again!')
+                    return await interaction.edit_original_response(content=f'Pirate Steve thinks you do not know what an integer starting from 1 is.'
+                                          f' {response.content}. Start again!', embed=None)
 
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet key.')
-            await request_new_worksheet_key.delete()
             self.update_allowed = True
-            return await ctx.send('Pirate Steve saw you timed out on step 2.')
-
-        request_worksheet_id = await ctx.send('Pirate Steve thirdly wants to know the key for the data. The Key is '
-                                              'the long unique string in the URL.')
+            return await interaction.edit_original_response(content='Pirate Steve saw you timed out on step 2.',embed=None)
+        
+        await interaction.edit_original_response(content='Pirate Steve thirdly wants to know the key for the data. The Key is '
+                                                        'the long unique string in the URL.', embed=None)
         try:
             # in this case we do not know the shape of the worksheet Key, it is a unique value.
             response = await bot.wait_for("message", check=check_author, timeout=30)
@@ -1701,15 +1658,13 @@ class DatabaseInteraction(Cog):
                 print(f'We have data: {response.content} for the worksheet unique key.')
                 new_worksheet_key = response.content
                 await response.delete()
-                await request_worksheet_id.delete()
 
         except asyncio.TimeoutError:
             print('Error getting the response for the worksheet key.')
-            await request_worksheet_id.delete()
             self.update_allowed = init_update_value
-            return await ctx.send('Pirate Steve saw you timed out on step 3.')
+            return await interaction.edit_original_response(content='Pirate Steve saw you timed out on step 3.',embed=None)
 
-        print(f'We received valid data for all points, confirm them with the {ctx.author} it is correct.')
+        print(f'We received valid data for all points, confirm them with the {interaction.user.name} it is correct.')
 
         confirm_embed = discord.Embed(
             title='Pirate Steve wants you to confirm the new values.',
@@ -1719,14 +1674,13 @@ class DatabaseInteraction(Cog):
         )
         confirm_embed.set_footer(text='Confirm this with y/n.')
 
-        confirm_details = await ctx.send(embed=confirm_embed)
+        await interaction.edit_original_response(content=None, embed=confirm_embed)
 
         try:
             user_response = await bot.wait_for("message", check=check_yes_no, timeout=30)
             if user_response.content.lower() == "y":
-                print(f'{ctx.author} confirms to write the database now.')
+                print(f'{interaction.user.name} confirms to write the database now.')
                 await user_response.delete()
-                await confirm_details.delete()
 
                 try:
                     pirate_steve_lock.acquire()
@@ -1758,22 +1712,19 @@ class DatabaseInteraction(Cog):
 
                 except OSError as e:
                     self.update_allowed = init_update_value
-                    return await ctx.send(f'Pirate steve reports an error while updating things: {e}. Fix it and try '
-                                          f'again.')
+                    return await interaction.edit_original_response(content=f'Pirate steve reports an error while updating things: {e}. Fix it and try '
+                                          f'again.', embed=None)
 
-                return await ctx.send('Pirate Steve unfurled out the sails and is now catching the wind with the new '
-                                      'values! Try /update_booze_db to check progress.')
+                return await interaction.edit_original_response(content='Pirate Steve unfurled out the sails and is now catching the wind with the new '
+                                      'values! Try `/update_booze_db` to check progress.', embed=None)
 
             elif user_response.content.lower() == "n":
-                print(f'User {ctx.author} wants to abort the archive process.')
+                print(f'User {interaction.user.name} wants to abort the archive process.')
                 await user_response.delete()
-                await confirm_details.delete()
                 self.update_allowed = init_update_value
-                return await ctx.send('You aborted the request to update the forms.')
+                return await interaction.edit_original_response(content='You aborted the request to update the forms.', embed=None)
 
         except asyncio.TimeoutError:
-            print('Error getting the response for the worksheet ID.')
-            await confirm_details.delete()
+            print('Error getting the confirmation response')
             self.update_allowed = init_update_value
-            return await ctx.send('Pirate Steve saw you timed out on step 3.')
-
+            return await interaction.edit_original_response(content='Pirate Steve saw you timed on the confirmation.', embed=None)
