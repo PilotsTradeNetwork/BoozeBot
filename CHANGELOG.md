@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.0
+
+- \#344 - Updates discord.py to version 2.3.1
+- \#271 - Updates discord_slash to discord.py interactions
+- \#383 - /booze_channels_open and /booze_channels_close both return a confirmation embed
+- \#384 - Fix /booze_tally formatting
+- \#388 - Update Cleaner to use role.members instead of guild.members when cleaning roles
+- Updates README
+
 ## 1.8.2
 
 - \#375 - Fix original permission overwrites being reset by `/booze_channels_open` and `/booze_channels_close`
