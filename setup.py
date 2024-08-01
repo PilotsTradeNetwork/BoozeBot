@@ -30,8 +30,7 @@ setup(
     author='Graeme Cruickshank',
     url='',
     install_requires=[
-        'discord.py==1.7.3',
-        'discord-py-slash-command==3.0.3',
+        'discord.py==2.3.1',
         'google-api-python-client',
         'gspread',
         'oauth2client',
@@ -51,3 +50,4 @@ setup(
     },
     python_required='>=3.9',
 )
+
