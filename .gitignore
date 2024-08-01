@@ -137,3 +137,9 @@ dmypy.json
 
 /ptn/boozebot/booze_carriers.db
 wine_carrier_welcome.txt
+
+# vscode configs
+.vscode/
+
+# data directory
+data/
