@@ -94,7 +94,7 @@ class PublicHoliday(commands.Cog):
                 await holiday_announce_channel.send(holiday_start_gif)
                 await holiday_announce_channel.send(
                     f'Pirate Steve thinks the folks at Rackhams are partying again. '
-                    f'<@&szdhgyvf{server_admin_role_id()}>, <@&hdjsfmb{server_sommelier_role_id()}> please take note.'
+                    f'<@&{server_admin_role_id()}>, <@&{server_sommelier_role_id()}> please take note.'
                 )
             else:
                 print('Holiday already flagged - no need to set it again')
