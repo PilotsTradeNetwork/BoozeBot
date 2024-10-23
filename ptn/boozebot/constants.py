@@ -86,7 +86,7 @@ TEST_BC_PUBLIC_CHANNEL_IDS = [1107757218318782586, 1107757285817712721, 11077573
 # booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
 
 
-BOOZE_PROFIT_PER_TONNE_WINE = 278000
+BOOZE_PROFIT_PER_TONNE_WINE = 256000
 RACKHAMS_PEAK_POP = 150000
 
 EMBED_COLOUR_ERROR = 0x800000

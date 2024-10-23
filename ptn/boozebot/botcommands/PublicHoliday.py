@@ -94,7 +94,7 @@ class PublicHoliday(commands.Cog):
                 await holiday_announce_channel.send(holiday_start_gif)
                 await holiday_announce_channel.send(
                     f'Pirate Steve thinks the folks at Rackhams are partying again. '
-                    f'<@&{server_admin_role_id()}>, <@&{server_sommelier_role_id()}> please take note.'
+                    f'<@&szdhgyvf{server_admin_role_id()}>, <@&hdjsfmb{server_sommelier_role_id()}> please take note.'
                 )
             else:
                 print('Holiday already flagged - no need to set it again')
@@ -176,10 +176,42 @@ class PublicHoliday(commands.Cog):
         print(f'{interaction.user.name} requested to override the admin holiday state too: {state}.')
         PublicHoliday.admin_override_state = state
         await interaction.response.send_message(f'Set the admin holiday flag to: {state}. Check with /booze_started.')
+        
+    @app_commands.command(name="booze_timestamp_admin_override",
+                          description="Overrides the holiday start time."
+                                      "Used to set the cruise start time used to get the duration")
+    @check_roles([server_sommelier_role_id(), server_mod_role_id(), server_admin_role_id()])
+    @describe(timestamp="Date time of the the cruise starting in the format YYYY-MM-DD HH:MI:SS")
+    @check_command_channel([get_steve_says_channel()])
+    async def admin_override_holiday_state(self, interaction: discord.Interaction, timestamp: str):
+        print(f'{interaction.user.name} requested to override the start time to: {timestamp}.')
+
+        # Check if we had a holiday flagged already
+        pirate_steve_db.execute(
+            '''SELECT state FROM holidaystate'''
+        )
+        holiday_sqlite3 = pirate_steve_db.fetchone()
+        holiday_ongoing = bool(dict(holiday_sqlite3).get('state'))
+        print(f'Holiday state from database: {holiday_ongoing}')
+        if holiday_ongoing:
+            print('Holiday ongoing - updating timestamp')
+
+            pirate_steve_db.execute(
+                f'''UPDATE holidaystate SET state=TRUE, timestamp=\'{timestamp}\''''
+            )
+            pirate_steve_conn.commit()
+            
+            await interaction.response.send_message(f'Set the cruise start time to: {timestamp}. Check with /booze_duration_remaining.')
+            
+        else:
+            print('Holiday was not ongoing')
+            await interaction.response.send_message(f'No holiday has been detected yet, Wait until steve detects the holiday before using this command.')
+        
+        
+        
 
 
     @app_commands.command(name="booze_duration_remaining", description="Returns roughly how long the holiday has remaining.")
-    @check_roles([server_connoisseur_role_id(), server_sommelier_role_id(), server_mod_role_id(), server_admin_role_id()])
     async def remaining_time(self, interaction: discord. Interaction):
         print(f'User {interaction.user.name} wanted to know if the remaining time of the holiday.')
         if not ph_check():
@@ -199,8 +231,8 @@ class PublicHoliday(commands.Cog):
         start_time = datetime.strptime(dict(timestamp).get('timestamp'), '%Y-%m-%d %H:%M:%S')
         end_time = start_time + timedelta(hours=duration_hours)
 
-        print(f'End time calculated as: {end_time}. Which is epoch of: {end_time.strftime("%s")}')
+        print(f'End time calculated as: {end_time}. Which is epoch of: {int(end_time.timestamp())}')
 
-        await interaction.response.send_message(f"Pirate Steve thinks the holiday will end around <t:{end_time.strftime('%s')}> [local"
+        await interaction.response.send_message(f"Pirate Steve thinks the holiday will end around <t:{int(end_time.timestamp())}> [local"
                                                  "timezone].")
         return
