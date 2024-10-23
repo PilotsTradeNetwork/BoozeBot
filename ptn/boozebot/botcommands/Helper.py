@@ -285,6 +285,27 @@ class Helper(commands.Cog):
             "method_desc": "Closes (hides) all public-facing Booze Cruise channels.",
             "roles": ["Admin", "Sommelier", "Mod"],
         }
+        booze_duration_remaining = {
+            "params": None,
+            "method_desc": "Returns the remaining time for the current booze cruise.",
+            "roles": ["Everyone"],
+        }
+        booze_timestamp_admin_override = {
+            "params": [
+                {
+                    "name": "timestamp",
+                    "type": "str",
+                    "description": "A timestamp in the format YYYY-MM-DD HH:MM:SS",
+                }
+            ],
+            "method_desc": "Overrides the current booze cruise start timestamp.",
+            "roles": ["Admin", "Sommelier", "Mod"],
+        }
+        booze_reuse_signup_forms = {
+            "params": None,
+            "method_desc": "Reuses the current booze cruise signup forms. This is an irreversible action.",
+            "roles": ["Admin"],
+        }
 
     # pirate_steve_help slash command - get information about a specific command
     @app_commands.command(name="pirate_steve_help", description="Returns some information for each command.")

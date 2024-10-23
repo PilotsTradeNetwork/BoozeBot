@@ -15,6 +15,7 @@
 -   \#345 - Update duration remaining to be public
 -   \#335 - Update command acknowledges that it happened
 -   \#199 - Extended stats updated to have cruise select
+-   \#340 - Periodically scans the google sheet (hourly)
 -   Updates README
 
 ## 1.8.2
