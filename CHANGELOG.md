@@ -11,6 +11,7 @@
 -   \#390 - Adds command to set the start time (for the duration estimation)
 -   \#391 \#155 - Adds command to reuse the old signup forms
 -   \#387 - Add command to list remaining carriers
+-   \#383 - Add conformation embed to booze_channels_open
 -   Updates README
 
 ## 1.8.2

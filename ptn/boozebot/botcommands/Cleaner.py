@@ -5,6 +5,7 @@ Cog for all the commands related to
 
 # libraries
 import os
+import asyncio
 
 # discord.py
 import discord
@@ -64,25 +65,60 @@ class Cleaner(commands.Cog):
         :returns: A discord embed
         """
         print(f'User {interaction.user.name} requested BC channel opening in channel: {interaction.channel.name}.')
+        
+        def check_yes_no(check_message):
+            return (
+                check_message.author == interaction.user
+                and check_message.channel == interaction.channel
+                and check_message.content.lower() in ["y", "n"]
+            )
+            
+        check_embed = discord.Embed(
+            title="Validate the request",
+            description="You have requested to open the booze cruise channels:"
+        )
+        check_embed.set_footer(text="Respond with y/n.")
+        await interaction.response.send_message(content=None, embed=check_embed)
+    
+        try:
+            user_response = await bot.wait_for(
+                "message", check=check_yes_no, timeout=30
+            )
+            if user_response.content.lower() == "y":
+                
+                ids_list = get_public_channel_list()
+                guild = bot.get_guild(bot_guild_id())
 
-        ids_list = get_public_channel_list()
-        guild = bot.get_guild(bot_guild_id())
+                embed = discord.Embed()
+                
+                for id in ids_list:
+                    channel = bot.get_channel(id)
+                    try:
+                        overwrite = channel.overwrites_for(guild.default_role)
+                        overwrite.view_channel = None # less confusing alias for read_messages
+                        await channel.set_permissions(guild.default_role, overwrite=overwrite)
+                        embed.add_field(name="Opened", value="<#" + str(id) +">", inline=False)
+                    except Exception as e:
+                        embed.add_field(name="FAILED to open", value="<#" + str(id) + f">: {e}", inline=False)
 
-        embed = discord.Embed()
+                await interaction.edit_original_response(content=f"<@&{server_sommelier_role_id()}> Avast! We\'re ready to set sail!", embed=embed)
+                await user_response.delete()
+                print("Channels opened successfully.")
+                return
+                
+            elif user_response.content.lower() == "n":
+                print(
+                    f"User {interaction.user.name} wants to abort the open process."
+                )
+                await user_response.delete()
+                return await interaction.edit_original_response(
+                    content="You aborted the request to open the channels.", embed=None
+                )
 
-        for id in ids_list:
-            channel = bot.get_channel(id)
-            try:
-                overwrite = channel.overwrites_for(guild.default_role)
-                overwrite.view_channel = None # less confusing alias for read_messages
-                await channel.set_permissions(guild.default_role, overwrite=overwrite)
-                embed.add_field(name="Opened", value="<#" + str(id) +">", inline=False)
-            except Exception as e:
-                embed.add_field(name="FAILED to open", value="<#" + str(id) + f">: {e}", inline=False)
-
-        await interaction.response.send_message(f"<@&{server_sommelier_role_id()}> Avast! We\'re ready to set sail!", embed=embed)
-        return
-
+        except asyncio.TimeoutError:
+            return await interaction.edit_original_response(
+                content="**Waiting for user response - timed out**", embed=None
+            )
 
     @app_commands.command(name="booze_channels_close", description="Closes the Booze Cruise channels to the public.")
     @check_roles([server_admin_role_id(), server_sommelier_role_id(), server_mod_role_id()])
