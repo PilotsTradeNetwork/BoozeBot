@@ -9,9 +9,11 @@
 -   \#388 - Update Cleaner to use role.members instead of guild.members when cleaning roles
 -   \#384 - Fixes formatting on booze tally
 -   \#390 - Adds command to set the start time (for the duration estimation)
--   \#391 \#155 - Adds command to reuse the old signup forms
+-   \#391 \#155 \##336 - Adds command to reuse the old signup forms
 -   \#387 - Add command to list remaining carriers
 -   \#383 - Add conformation embed to booze_channels_open
+-   \#345 - Update duration remaining to be public
+-   \#335 - Update command acknowledges that it happened
 -   Updates README
 
 ## 1.8.2

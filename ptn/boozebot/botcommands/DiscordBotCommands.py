@@ -163,6 +163,7 @@ class DiscordBotCommands(commands.Cog):
         Restarts the application for updates to take affect on the local system.
         """
         print(f'Restarting the application to perform updates requested by {ctx.author}')
+        await ctx.send(f"Restarting. {ctx.author}")
         os.execv(sys.executable, ['python'] + sys.argv)
 
     @commands.command(name='version', help="Logs the bot version")
