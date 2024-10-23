@@ -1591,9 +1591,16 @@ class DatabaseInteraction(commands.Cog):
         london_bus_volume_l = 112.5 * 1000
         busses_if_bottles = wine_bottles_litres_total / london_bus_volume_l
         busses_if_boxes = wine_boxes_litres_total / london_bus_volume_l
+        
+        date_text = (
+            f":\nHistorical Data: [{target_date} - "
+            f'{datetime.strptime(target_date, "%Y-%m-%d").date() + timedelta(days=2)}]'
+            if target_date
+            else ""
+        )
 
         stat_embed = discord.Embed(
-            title="Pirate Steve's Extended Booze Comparison Stats",
+            title=f"Pirate Steve's Extended Booze Tally {date_text}",
             description=f"Current Wine Tonnes: {total_wine:,}\n"
             f"Wine per capita (Rackhams): {total_wine_per_capita:,.2f}\n\n"
             f"Weight of 1 750ml bottle (kg): {wine_bottles_weight_kg}\n"

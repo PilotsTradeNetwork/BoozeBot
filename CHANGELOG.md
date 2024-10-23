@@ -2,7 +2,7 @@
 
 ## 2.0.0
 
--   \#344 - Updates discord.py to version 2.3.1
+-   \#344 \#271 - Updates discord.py to version 2.3.1
 -   \#271 - Updates discord_slash to discord.py interactions
 -   \#383 - /booze_channels_open and /booze_channels_close both return a confirmation embed
 -   \#384 - Fix /booze_tally formatting
@@ -14,6 +14,7 @@
 -   \#383 - Add conformation embed to booze_channels_open
 -   \#345 - Update duration remaining to be public
 -   \#335 - Update command acknowledges that it happened
+-   \#199 - Extended stats updated to have cruise select
 -   Updates README
 
 ## 1.8.2
