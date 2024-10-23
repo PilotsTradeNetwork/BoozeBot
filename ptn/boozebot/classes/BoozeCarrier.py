@@ -77,7 +77,7 @@ class BoozeCarrier:
         """
         return 'BoozeCarrier: CarrierName:"{0.carrier_name}" WineTotal:{0.wine_total} ' \
                'CarrierIdentifier:"{0.carrier_identifier}" Platform:{0.platform} ' \
-               'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp} RunCount: {0.run_count} TotalUnloads: ' \
+               'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp}" RunCount: {0.run_count} TotalUnloads: ' \
                '{0.total_unloads} TimeZone:{0.timezone} DiscordUnload: {0.discord_unload_notification}"'.format(self)
 
     def __bool__(self):
