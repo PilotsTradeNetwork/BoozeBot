@@ -64,13 +64,15 @@ DATABASE INTERACTION COMMANDS
 /find_wine_carriers_for_platform - admin/mod/somm/conn/wine carrier
 /find_wine_carrier_by_id - admin/mod/somm/conn/wine carrier
 /booze_tally - admin/mod/somm/conn
+/booze_carrier_summary - admin/mod/somm/conn
 /booze_pin_message - admin/mod/somm
 /booze_unpin_all - admin/mod/somm
 /booze_unpin_message - admin/mod/somm
 /booze_tally_extra_stats - admin/mod/somm/conn
 /booze_delete_carrier - admin/mod/somm
-/booze_archive_database - admin/mod/somm/conn
-/booze_configure_signup_forms - admin/mod/somm/conn
+/booze_archive_database - admin/mod/somm
+/booze_configure_signup_forms - admin/mod/somm
+/booze_reuse_signup_form - admin/mod/somm
 """
 
 
@@ -1202,7 +1204,7 @@ class DatabaseInteraction(commands.Cog):
         Returns an embed inspired by (cloned from) @CMDR Suiseiseki's b.tally. Provided to keep things in one place
         is all.
 
-        :param SlashContext ctx: The discord context
+        :param discord.Interaction interaction: The discord interaction context
         :param int cruise_select: The cruise you want data on, counts backwards. 0 is this cruise, 1 is the last
             cruise etc...
         :return: None
@@ -1637,13 +1639,11 @@ class DatabaseInteraction(commands.Cog):
             server_connoisseur_role_id(),
         ]
     )
-    async def extended_tally_stats(self, interaction: discord.Interaction):
+    async def booze_carrier_summary(self, interaction: discord.Interaction):
         """
-        Prints an extended tally stats as requested by RandomGazz.
+        Returns an embed of the current booze carrier summary.
 
         :param Interaction discord.Interaction: The discord interaction context
-        :param int cruise_select: The cruise you want data on, counts backwards. 0 is this cruise, 1 is the last
-            cruise etc...
         :return: None
         """
 
