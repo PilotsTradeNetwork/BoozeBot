@@ -143,7 +143,7 @@ def build_database_on_startup():
         print('Forms Database created')
     else:
         print('The tracking forms database already exists')
-
+            
     print('Checking whether the the pinned message tracking database exists')
     pirate_steve_db.execute(
         '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'pinned_messages' '''
@@ -174,3 +174,4 @@ def build_database_on_startup():
             '''ALTER TABLE boozecarriers ADD COLUMN user_timezone_in_utc TEXT'''
         )
         pirate_steve_conn.commit()
+        
