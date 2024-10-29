@@ -133,7 +133,8 @@ dmypy.json
 .env
 .idea
 
-# local data
+# vscode configs
+.vscode/
 
-/ptn/boozebot/booze_carriers.db
-wine_carrier_welcome.txt
+# local data
+/ptn/boozebot/data/
