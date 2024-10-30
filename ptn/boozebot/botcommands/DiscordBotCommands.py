@@ -24,7 +24,6 @@ from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError
 from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
-
 """
 A primitive global error handler for text commands.
 
