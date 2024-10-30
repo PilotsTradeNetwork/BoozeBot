@@ -9,12 +9,11 @@ import enum
 
 # discord.py
 import discord
-from discord.app_commands import Group, describe, Choice
 from discord.ext import commands
 from discord import app_commands
 
 # local constants
-from ptn.boozebot.constants import server_admin_role_id, server_sommelier_role_id, server_mod_role_id, bot, get_steve_says_channel, bot_guild_id
+from ptn.boozebot.constants import get_bot_control_channel, get_steve_says_channel, get_wine_carrier_channel, wine_carrier_command_channel
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
@@ -32,6 +31,16 @@ STEVE HELPER COMMAND
 class Helper(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        
+        self.roles = {
+        }
+        
+        for command in self.HelpCommandInformation:
+            # Get lowest role associated with command and add it to that category
+            role = command.value["roles"][-1]
+            if role not in self.roles:
+                self.roles[role] = []
+            self.roles[role].append(command.name)
 
     # custom global error handler
     # attaching the handler when the cog is loaded
@@ -53,282 +62,360 @@ class Helper(commands.Cog):
     """
 
     class HelpCommandInformation(enum.Enum):
-        booze_tally = {
-            "params": [
-                {
-                    "name": "cruise_select",
-                    "type": "int",
-                    "description": "An integer value representing the cruise you wish data for. 0 (default) is the "
-                    "current cruise, 1 the last etc. [Optional]",
-                }
-            ],
-            "method_desc": "Logs the current tally of carriers, wine and some basic stats.",
-            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur"],
-        }
-        booze_delete_carrier = {
-            "params": [
-                {
-                    "name": "carrier_id",
-                    "type": "str",
-                    "description": "The XXX-XXX ID of the carrier you want to look for.",
-                }
-            ],
-            "method_desc": "Removes a carrier from the database.",
-            "roles": ["Admin", "Mod", "Sommelier"],
-        }
-        booze_pin_message = {
-            "params": [
-                {
-                    "name": "message_id",
-                    "type": "str",
-                    "description": "The message ID to pin",
-                },
-                {
-                    "name": "channel_id",
-                    "type": "str",
-                    "description": "The channel ID to pin. Optional, uses the current channel if not provided.",
-                },
-            ],
-            "method_desc": "Pins a message to the channel.",
-            "roles": ["Admin", "Mod", "Sommelier"],
-        }
-        booze_unpin_all = {
-            "params": None,
-            "method_desc": "Unpins all message for booze bot.",
-            "roles": ["Admin", "Mod", "Sommelier"],
-        }
-        booze_unpin_message = {
-            "params": [
-                {
-                    "name": "message_id",
-                    "type": "str",
-                    "description": "The message ID to pin",
-                }
-            ],
-            "method_desc": "Unpins the specific message for booze bot.",
-            "roles": ["Admin", "Mod", "Sommelier"],
-        }
-        booze_tally_extra_stats = {
-            "params": None,
-            "method_desc": "Logs some stats regarding what the volume of wine looks like.",
-            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur"],
-        }
-        find_carriers_with_wine = {
-            "params": None,
-            "method_desc": "Returns all the remaining carriers with wine to unload.",
-            "roles": ["Admin", "Mod", "Sommelier", "WineCarrier"],
-        }
-        find_carriers_by_id = {
-            "params": [
-                {
-                    "name": "carrier_id",
-                    "type": "str",
-                    "description": "The XXX-XXX ID of the carrier you want to look for.",
-                }
-            ],
-            "method_desc": "Returns a carrier object from the ID",
-            "roles": ["Everyone"],
-        }
-        find_wine_carriers_for_platform = {
-            "params": [
-                {
-                    "name": "platform",
-                    "type": "str",
-                    "description": "PC (All), PC (Horizons Only), PC (Horizons + Odyssey), Xbox or Playstation.",
-                },
-                {
-                    "name": "with_wine",
-                    "type": "bool",
-                    "description": "Restrict the search to those with or without wine.",
-                },
-            ],
-            "method_desc": "Find carriers for the platform.",
-            "roles": ["Admin", "Mod", "Sommelier", "WineCarrier"],
-        }
-        update_booze_db = {
-            "params": None,
-            "method_desc": "Forces an update of the booze database.",
-            "roles": ["Admin", "Sommelier", "Connoisseur"],
-        }
-        booze_started = {
-            "params": None,
-            "method_desc": "Queries the current state of the holiday.",
-            "roles": ["Admin", "Sommelier", "Mod", "Connoisseur"],
-        }
-        booze_started_admin_override = {
-            "params": [
-                {
-                    "name": "state",
-                    "type": "bool",
-                    "description": "Set the override flag to the provided state",
-                }
-            ],
-            "method_desc": "Forces the parameter flag to the provided value. Overrides the holiday checker if True.",
-            "roles": ["Admin", "Sommelier", "Mod"],
-        }
-        wine_helper_market_closed = {
-            "params": None,
-            "method_desc": "Drops a helper embed into the channel for timed market closure.",
-            "roles": ["Admin", "Mod", "Sommelier", "Wine Carrier"],
-        }
-        wine_helper_market_open = {
-            "params": None,
-            "method_desc": "Drops a helper embed into the channel for timed market unloading",
-            "roles": ["Admin", "Mod", "Sommelier", "Wine Carrier"],
-        }
-        wine_mark_completed_forcefully = {
-            "params": [
-                {
-                    "name": "carrier_id",
-                    "type": "str",
-                    "description": "The XXX-XXX ID of the carrier you want to look for.",
-                }
-            ],
-            "method_desc": "Marks a carrier as forcefully completed. Useful if someone unloaded and did not tell us.",
-            "roles": ["Admin", "Mod", "Sommelier"],
-        }
-        wine_unload = {
-            "params": [
-                {
-                    "name": "carrier_id",
-                    "type": "str",
-                    "description": "The XXX-XXX ID of the carrier you want to look for.",
-                },
-                {
-                    "name": "planetary_body",
-                    "type": "str",
-                    "description": "The location of the carrier in system",
-                },
-                {
-                    "name": "market_type",
-                    "type": "str",
-                    "description": "The unload operation for the carrier: Timed (managed markets), Squadron, "
-                    "Squadron & Friends or Fully Open.",
-                },
-                {
-                    "name": "unload_channel",
-                    "type": "str",
-                    "description": "The discord channel used for unloading. Required for Timed "
-                    "unloads. [Optional].",
-                },
-            ],
-            "method_desc": "Creates a wine unload notification post",
-            "roles": ["Admin", "Mod", "Sommelier", "Wine Carrier"],
-        }
-        wine_unload_complete = {
-            "params": [
-                {
-                    "name": "carrier_id",
-                    "type": "str",
-                    "description": "The XXX-XXX ID of the carrier you want to look for.",
-                }
-            ],
-            "method_desc": "Closes a wine unload and removes the notifications.",
-            "roles": ["Admin", "Mod", "Sommelier", "Wine Carrier"],
-        }
-        booze_archive_database = {
-            "params": None,
-            "method_desc": "Archives the current booze cruise database and drops the data. This is an irreversible "
-            "action.",
+        # Admin commands
+        _ping = {
+            "method_desc": "Ping the bot.",
             "roles": ["Admin"],
+            "params": [],
+            "channel_restrictions": [],
         }
-        booze_configure_signup_forms = {
-            "params": None,
-            "method_desc": "Configure the current booze cruise signup forms. Expected to be a google doc (sheet).",
+        _update = {
+            "method_desc": "Restart the bot.",
             "roles": ["Admin"],
+            "params": [],
+            "channel_restrictions": [],
         }
-        make_wine_carrier = {
-            "params": [
-                {
-                    "name": "user",
-                    "type": "str",
-                    "description": "An @ mention of the user to receive the role.",
-                }
-            ],
-            "method_desc": "Gives the user the Wine Carrier role and sends them a welcome message.",
-            "roles": ["Admin", "Sommelier", "Connoisseur", "Mod"],
+        _exit = {
+            "method_desc": "Stop the bot.",
+            "roles": ["Admin"],
+            "params": [],
+            "channel_restrictions": [],
         }
-        remove_wine_carrier = {
-            "params": [
-                {
-                    "name": "user",
-                    "type": "str",
-                    "description": "An @ mention of the user to remove the role.",
-                }
-            ],
-            "method_desc": "Removes the Wine Carrier role from a user.",
-            "roles": ["Admin", "Sommelier", "Connoisseur", "Mod"],
+        _version = {
+            "method_desc": "Get the bot version.",
+            "roles": ["Admin"],
+            "params": [],
+            "channel_restrictions": [],
         }
+        _sync = {
+            "method_desc": "Sync the bot command tree.",
+            "roles": ["Admin"],
+            "params": [],
+            "channel_restrictions": [],
+        }
+        
+        # Somm commands
         steve_says = {
+            "method_desc": "Send a message as PirateSteve.",
+            "roles": ["Admin", "Sommelier", "Mod"],
             "params": [
                 {
                     "name": "message",
-                    "type": "str",
-                    "description": "A message to send as Pirate Steve.",
+                    "description": "The message to send",
+                    "type": "str"
                 },
                 {
                     "name": "send_channel",
-                    "type": "str",
-                    "description": "The channel to send the message in.",
-                },
+                    "description": "The channel to send the message in",
+                    "type": "discord.TextChannel"
+                }
             ],
-            "method_desc": "Sends a message as Pirate Steve",
-            "roles": ["Admin", "Sommelier", "Mod"],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        booze_started_admin_override = {
+            "method_desc": "Override the Public Holiday Started State.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [
+                {
+                    "name": "state",
+                    "description": "The state to set the Public Holiday Started State to.",
+                    "type": "bool"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        wine_mark_completed_forcefully = {
+            "method_desc": "Forcefully mark a wine as completed.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [
+                {
+                    "name": "carrier_id",
+                    "description": "The ID of the carrier to mark as completed.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
         }
         booze_channels_open = {
-            "params": None,
-            "method_desc": "Opens all public-facing Booze Cruise channels.",
-            "roles": ["Admin", "Sommelier", "Mod"],
+            "method_desc": "Open the booze channels to the public.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
         }
-        #booze_channels_close = {
-        #    "params": None,
-        #    "method_desc": "Closes (hides) all public-facing Booze Cruise channels.",
-        #    "roles": ["Admin", "Sommelier", "Mod"],
-        #}
-        #booze_duration_remaining = {
-        #    "params": None,
-        #    "method_desc": "Returns the remaining time for the current booze cruise.",
-        #    "roles": ["Everyone"],
-        #}
-        #booze_timestamp_admin_override = {
-        #    "params": [
-        #        {
-        #            "name": "timestamp",
-        #            "type": "str",
-        #            "description": "A timestamp in the format YYYY-MM-DD HH:MM:SS",
-        #        }
-        #    ],
-        #    "method_desc": "Overrides the current booze cruise start timestamp.",
-        #    "roles": ["Admin", "Sommelier", "Mod"],
-        #}
-        #booze_reuse_signup_forms = {
-        #    "params": None,
-        #    "method_desc": "Reuses the current booze cruise signup forms. This is an irreversible action.",
-        #    "roles": ["Admin"],
-        #}
+        booze_channels_close = {
+            "method_desc": "Close the booze channels to the public.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        clear_booze_roles = {
+            "method_desc": "Clear all the booze cruise roles from everyone.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        set_wine_carrier_welcome = {
+            "method_desc": "Set the wine carrier welcome message.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        booze_pin_message = {
+            "method_desc": "Pin a steve tally embed for automatic updating.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [
+                {
+                    "name": "message_link",
+                    "description": "The link of the message to pin.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [],
+        }
+        booze_unpin_all = {
+            "method_desc": "Unpin and forget all automatic updating tallies",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        booze_unpin_message = {
+            "method_desc": "Unpin and forget an automatic updating tally message",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [
+                {
+                    "name": "message_link",
+                    "description": "The link of the message to unpin.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        booze_delete_carrier = {
+            "method_desc": "Delete a carrier from the database.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [
+                {
+                    "name": "carrier_id",
+                    "description": "The ID of the carrier to delete.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        booze_archive_database = {
+            "method_desc": "Archive the database after the cruise has ended.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        booze_configure_signup_forms = {
+            "method_desc": "Configure the signup forms for the cruise.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        booze_reuse_signup_form = {
+            "method_desc": "Reuse the signup form from the last cruise again.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        remove_wine_carrier = {
+            "method_desc": "Removes the Wine Carrier role from a user.",
+            "roles": ["Admin", "Mod", "Sommelier"],
+            "params": [
+                {
+                    "name": "user",
+                    "description": "An @ mention of the Discord user to receive the role.",
+                    "type": "discord.Member"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        
+        # Connoisseur commands
+        update_booze_db = {
+            "method_desc": "Update the booze database from the google sheet.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur"],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        make_wine_carrier = {
+            "method_desc": "Give user the Wine Carrier role.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur"],
+            "params": [
+                {
+                    "name": "user",
+                    "description": "An @ mention of the Discord user to receive the role.",
+                    "type": "discord.Member"
+                }
+            ],
+            "channel_restrictions": [],
+        }
+        booze_tally = {
+            "method_desc": "Get the current booze tally.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur"],
+            "params": [],
+            "channel_restrictions": [],
+        }
+        booze_carrier_summary = {
+            "method_desc": "Get the summary of the carriers.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur"],
+            "params": [],
+            "channel_restrictions": [],
+        }
+        booze_tally_extra_stats = {
+            "method_desc": "Get the extra stats for the booze tally.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur"],
+            "params": [],
+            "channel_restrictions": [],
+        }
+        
+        # Wine carrier commands
+        find_carriers_with_wine = {
+            "method_desc": "Find carriers with wine.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier"],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel(), get_wine_carrier_channel()],
+        }
+        find_wine_carriers_for_platform = {
+            "method_desc": "Find carriers with wine for a specific platform.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier"],
+            "params": [
+                {
+                    "name": "platform",
+                    "description": "The platform to search for.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel(), get_wine_carrier_channel()],
+        }
+        find_wine_carrier_by_id = {
+            "method_desc": "Find a wine carrier by their ID.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier"],
+            "params": [
+                {
+                    "name": "carrier_id",
+                    "description": "The ID of the carrier to search for.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel(), get_wine_carrier_channel()],
+        }
+        wine_unload_complete = {
+            "method_desc": "Close the unload of a carrier and delete the wine unload post.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier"],
+            "params": [
+                {
+                    "name": "carrier_id",
+                    "description": "The ID of the carrier to mark as unloaded.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [wine_carrier_command_channel()],
+        }
+        wine_unload = {
+            "method_desc": "Track the unload of a carrier and create a wine unload post.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier"],
+            "params": [
+                {
+                    "name": "carrier_id",
+                    "description": "The ID of the carrier to mark as unloaded.",
+                    "type": "str"
+                },
+                {
+                    "name": "body",
+                    "description": "A string representing the location of the carrier, ie Star, P1, P2",
+                    "type": "str"
+                },
+                {
+                    "name": "market_type",
+                    "description": "The market conditions for the carrier",
+                    "type": "str"
+                },
+                {
+                    "name": "unload_channel",
+                    "description": "The discord channel #xxx which the carrier will run timed unloads in",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [wine_carrier_command_channel()],
+        }
+        wine_helper_market_open = {
+            "method_desc": "Creates a new unloading helper operation in this channel.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier"],
+            "params": [],
+            "channel_restrictions": [],
+        }
+        wine_helper_market_closed = {
+            "method_desc": "Sends a message to indicate you have closed your market. Command sent in active channel.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier"],
+            "params": [],
+            "channel_restrictions": [],
+        }
+        
+        # Everyone commands
+        pirate_steve_help = {
+            "method_desc": "Returns some information for each command.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier", "Everyone"],
+            "params": [],
+            "channel_restrictions": [],
+        }
+        booze_duration_remaining = {
+            "method_desc": "Get the remaining duration of the cruise.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier", "Everyone"],
+            "params": [],
+            "channel_restrictions": [],
+        }
+        
+    
+    def get_command_info(self, command_name):
+        """
+        Function to get the command information for a specific command.
 
-    # pirate_steve_help slash command - get information about a specific command
-    @app_commands.command(name="pirate_steve_help", description="Returns some information for each command.")
-    @app_commands.describe(command="The command you want help with")
-    async def get_help(self, interaction: discord.Interaction, command: HelpCommandInformation):
+        :param str command_name: The command name to get information for
+        :returns: dict
+        """
+
+        # Get the command information from the enum class
+        command = self.HelpCommandInformation[command_name]
+        return command
+      
+    def buildHelpEmbed(self, command):
+        """
+        Function to send the help information for a specific command.
+
+        :param dict command: The command information to send help for
+        :returns: None
+        """
 
         #Get command name and info from enum class
         commandName = command.name
+        
+        if commandName.startswith("_"):
+            commandName = commandName[1:]
+            commandName = "b/"+commandName
+        else:
+            commandName = "/"+commandName
+        
         commandInfo = command.value
         
         method_desc = commandInfo["method_desc"]
         roles = commandInfo["roles"]
         params = commandInfo["params"]
-
-        print(f'User {interaction.user.name} has requested help for command: {commandName}')        
-
+        channels = commandInfo["channel_restrictions"]
+        
+        channels = [f'<#{channel}>' for channel in channels]
+        channelText = f'**Channel Restrictions**: {", ".join(channels)}.\n' if channels else ''
+        
         response_embed = discord.Embed(
-            title=f'Baton down the hatches!\nPirate Steve knows the following for: {commandName}.',
+            title=f'Batten down the hatches!\nPirate Steve knows the following for: {commandName}.',
             description=f'**Description**: {method_desc}\n'
                         f'**Required Roles**: {", ".join(roles)}.\n'
+                        f'{channelText}'
                         f'**Params**: '
         )
-
+        
         # Go build some fields for each param and log the information into it
         if params:
             for param in params:
@@ -341,7 +428,51 @@ class Helper(commands.Cog):
         else:
             # In the case of no params, just append None to the description.
             response_embed.description += 'None.'
+            
+        return response_embed
+   
+   
+    @app_commands.command(name="pirate_steve_help", description="Returns some information for each command.")
+    async def get_help(self, interaction: discord.Interaction):
+        
+        print(f"pirate_steve_help called by {interaction.user.name} in {interaction.channel.name}")
+                
+        options = [
+            discord.SelectOption(label=role, value=role)
+            for role in self.roles.keys()
+        ]
+        role_select = discord.ui.Select(placeholder="Choose a role...", options=options)
+        
+        main_interaction = interaction
 
-        print(f"Returning the response to: {interaction.user.name}")
-        await interaction.response.send_message(embed=response_embed, ephemeral=True)
-        return
+        async def select_callback(interaction: discord.Interaction):
+            role = role_select.values[0]
+            print(f"Role selected: {role}")
+            commands = self.roles[role]
+            command_options = [
+                discord.SelectOption(label=cmd, value=cmd)
+                for cmd in commands
+            ]
+            command_select = discord.ui.Select(placeholder="Choose a command...", options=command_options)
+
+            async def command_select_callback(interaction: discord.Interaction):
+                command_name = command_select.values[0]
+                print(f"Command selected: {command_name}")
+                command = self.get_command_info(command_name)
+                response_embed = self.buildHelpEmbed(command)
+                print("Sending command information message")
+                await interaction.response.defer()
+                await main_interaction.edit_original_response(embed=response_embed, view=None)
+
+            command_select.callback = command_select_callback
+            view = discord.ui.View()
+            view.add_item(command_select)
+            print("Sending command selection message")
+            await interaction.response.defer()
+            await main_interaction.edit_original_response(content="Select a command:", view=view)
+
+        role_select.callback = select_callback
+        view = discord.ui.View()
+        view.add_item(role_select)
+        print("Sending role selection message")
+        await interaction.response.send_message("Commands for role:", view=view, ephemeral=True)
