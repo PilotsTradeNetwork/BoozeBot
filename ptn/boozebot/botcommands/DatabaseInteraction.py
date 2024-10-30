@@ -594,7 +594,7 @@ class DatabaseInteraction(commands.Cog):
         booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
         channels_open = booze_cruise_chat.permissions_for(guild.default_role).view_channel
         
-        state_text = f"Total Wine Tracked: {total_wine}" if channels_open else ""
+        state_text = f"Total Wine Tracked: {total_wine}" if channels_open else "Arrr, the wine be drained, ye thirsty scallywags!"
 
         await self.bot.change_presence(
             activity=discord.Activity(
