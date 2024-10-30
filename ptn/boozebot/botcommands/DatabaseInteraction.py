@@ -34,6 +34,7 @@ from ptn.boozebot.constants import (
     server_connoisseur_role_id,
     get_wine_carrier_channel,
     GOOGLE_OAUTH_CREDENTIALS_PATH,
+    _production
 )
 
 # local classes
@@ -413,10 +414,10 @@ class DatabaseInteraction(commands.Cog):
                             text="Pirate Steve recommends verifying and then deleting this entry"
                             " with /booze_delete_carrier"
                         )
-                        # await channel.send(embed=problem_embed)
-                        # if channel == sommelier_notification_channel:
-                        #    # Add a notification for the sommelier role
-                        #    await channel.send(f'\n<@&{server_sommelier_role_id()}> please take note.')
+                        await channel.send(embed=problem_embed)
+                        if channel == sommelier_notification_channel:
+                           # Add a notification for the sommelier role
+                           await channel.send(f'\n<@&{server_sommelier_role_id()}> please take note.')
             else:
                 print("No invalid carriers found")
         except KeyError as e:
@@ -678,7 +679,8 @@ class DatabaseInteraction(commands.Cog):
         if len(carrier_data) == 0:
             # No carriers remaining
             return await interaction.edit_original_response(
-                "Pirate Steve is sorry, but there are no more carriers with wine remaining."
+                content="Pirate Steve is sorry, but there are no more carriers with wine remaining.",
+                embed=None
             )
 
         # Else we have wine left
@@ -718,7 +720,7 @@ class DatabaseInteraction(commands.Cog):
             )
 
         # Now go send it and wait on a reaction
-        await interaction.edit_original_response(embed=embed)
+        await interaction.edit_original_response(content=None, embed=embed)
 
         message = await interaction.original_response()
 
@@ -746,7 +748,7 @@ class DatabaseInteraction(commands.Cog):
                             inline=False,
                         )
 
-                    await message.edit(embed=new_embed)
+                    await message.edit(content=None, embed=new_embed)
 
                     # Ok now we can go back, check if we can also go forwards still
                     if current_page == max_pages:
@@ -776,7 +778,7 @@ class DatabaseInteraction(commands.Cog):
                             inline=False,
                         )
 
-                    await message.edit(embed=new_embed)
+                    await message.edit(content=None, embed=new_embed)
                     # Ok now we can go forwards, check if we can also go backwards still
                     if current_page == 1:
                         await message.clear_reaction("◀️")
@@ -793,7 +795,7 @@ class DatabaseInteraction(commands.Cog):
                     error_embed = discord.Embed(
                         title=f"I'm sorry {interaction.user.name}, I'm afraid I can't do that."
                     )
-                    await message.edit(embed=error_embed)
+                    await message.edit(content=None, embed=error_embed)
                     await message.remove_reaction(reaction, user)
 
             except asyncio.TimeoutError:
@@ -1286,7 +1288,7 @@ class DatabaseInteraction(commands.Cog):
 
     @app_commands.command(
         name="booze_pin_message",
-        description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.",
+        description="Pins a steve tally embed for periodic updating. Restricted to Admin and Sommelier's.",
     )
     @describe(message_link="The message link to be pinned")
     @check_roles(
@@ -1743,7 +1745,7 @@ class DatabaseInteraction(commands.Cog):
         if not carrier_data:
             print(f"No carrier found for: {carrier_id}")
             return await interaction.edit_original_response(
-                f"Avast Ye! No carrier found for: {carrier_id}"
+                content=f"Avast Ye! No carrier found for: {carrier_id}", embed=None
             )
 
         carrier_embed = discord.Embed(
@@ -1765,7 +1767,7 @@ class DatabaseInteraction(commands.Cog):
             )
 
         # Send the embed
-        await interaction.edit_original_response(embed=carrier_embed)
+        await interaction.edit_original_response(content=None, embed=carrier_embed)
 
         try:
             response = await bot.wait_for("message", check=check, timeout=30)
@@ -1838,7 +1840,7 @@ class DatabaseInteraction(commands.Cog):
         await interaction.response.defer()
         print(f"User {interaction.user.name} requested to archive the database")
 
-        if ph_check():
+        if _production and ph_check():
             return await interaction.edit_original_response(
                 content="Pirate Steve thinks there is a party at Rackhams still. Try again once the grog "
                 "runs dry."

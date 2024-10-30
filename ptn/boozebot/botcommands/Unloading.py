@@ -163,9 +163,9 @@ class Unloading(commands.Cog):
         carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
         pirate_steve_lock.release()
 
-        #if not carrier_data:
-        #    print(f'We failed to find the carrier: {carrier_id} in the database.')
-        #    return await interaction.response.send_message(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
+        if not carrier_data:
+            print(f'We failed to find the carrier: {carrier_id} in the database.')
+            return await interaction.response.send_message(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
 
         wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
 
@@ -179,6 +179,11 @@ class Unloading(commands.Cog):
             print(f'Sorry, carrier {carrier_data.carrier_identifier} is already on a wine unload.')
             return await interaction.response.send_message(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is '
                                   f'already unloading wine. Check the notification in <#{unload_channel.id}>.')
+            
+        if carrier_data.total_unloads >= carrier_data.run_count:
+            print(f'Sorry, carrier {carrier_data.carrier_identifier} has already run all of its unloads.')
+            return await interaction.response.send_message(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) has '
+                                  f'already completed all of its unloads. No further unloads are possible.')
 
         print(f'Starting to post un-load operation for carrier: {carrier_data}')
         message_send = await interaction.channel.send("**Sending to Discord...**")

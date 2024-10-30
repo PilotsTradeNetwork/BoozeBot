@@ -213,6 +213,23 @@ if not os.path.exists(SETTINGS_PATH):
     print(f'Folder {SETTINGS_PATH} does not exist, making it now.')
     os.makedirs(SETTINGS_PATH)
 
+# Move the old db to the new location if the new location doesn't exist and the old one does
+old_db_path = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'booze_carriers.db')
+if os.path.exists(old_db_path) and not os.path.exists(CARRIERS_DB_PATH):
+    os.rename(old_db_path, CARRIERS_DB_PATH)
+    
+old_db_dumps_path = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'dumps', 'booze_carriers.sql')
+if os.path.exists(old_db_dumps_path) and not os.path.exists(CARRIERS_DB_DUMPS_PATH):
+    os.rename(old_db_dumps_path, CARRIERS_DB_DUMPS_PATH)
+    
+old_wine_carrier_welcome = os.path.join('wine_carrier_welcome.txt')
+if os.path.exists(old_wine_carrier_welcome) and not os.path.exists(WELCOME_MESSAGE_FILE_PATH):
+    os.rename(old_wine_carrier_welcome, WELCOME_MESSAGE_FILE_PATH)
+    
+old_google_oauth_credentials_path = os.path.join(os.path.expanduser('~'), '.ptnboozebot.json')
+if os.path.exists(old_google_oauth_credentials_path) and not os.path.exists(GOOGLE_OAUTH_CREDENTIALS_PATH):
+    os.rename(old_google_oauth_credentials_path, GOOGLE_OAUTH_CREDENTIALS_PATH)
+
 def get_db_path():
     """
     Returns the database path. For testing we keep the file locally for ease
