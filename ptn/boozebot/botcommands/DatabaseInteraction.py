@@ -33,6 +33,7 @@ from ptn.boozebot.constants import (
     server_wine_carrier_role_id,
     server_connoisseur_role_id,
     get_wine_carrier_channel,
+    get_primary_booze_discussions_channel,
     GOOGLE_OAUTH_CREDENTIALS_PATH,
     _production
 )
@@ -537,6 +538,7 @@ class DatabaseInteraction(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print("Starting the pinned message checker")
+        await self.periodic_stat_update()
         if not self.periodic_stat_update.is_running():
             self.periodic_stat_update.start()
 
@@ -587,7 +589,13 @@ class DatabaseInteraction(commands.Cog):
             if all_carrier_data
             else 0
         )
-        state_text = f"Total Wine Tracked: {total_wine}" if ph_check() else ""
+        
+        guild = await bot.fetch_guild(bot_guild_id())
+        booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
+        channels_open = booze_cruise_chat.permissions_for(guild.default_role).view_channel
+        
+        state_text = f"Total Wine Tracked: {total_wine}" if channels_open else ""
+
         await self.bot.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching,
@@ -595,6 +603,7 @@ class DatabaseInteraction(commands.Cog):
                 state=state_text,
             )
         )
+        print("Activity status updated")
 
     """
     Database interaction Commands
