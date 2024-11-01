@@ -28,7 +28,7 @@ class BoozeCarrier:
             if not re.match(r"\w{3}-\w{3}", self.carrier_identifier):
                 raise ValueError(f'Incompatible carrier ID found: {self.carrier_identifier} - {self.carrier_name}')
 
-        self.platform = info_dict.get("Carrier Owner's Platform", None) or info_dict.get('platform', None)
+        self.platform = "PC (Horizons + Odyssey)"
 
         # We no longer track whether a carrier is associated with PTN in an official capacity or not. Since the DB
         # still contains this field, set it to False for now and phase it out
@@ -77,7 +77,7 @@ class BoozeCarrier:
         """
         return 'BoozeCarrier: CarrierName:"{0.carrier_name}" WineTotal:{0.wine_total} ' \
                'CarrierIdentifier:"{0.carrier_identifier}" Platform:{0.platform} ' \
-               'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp} RunCount: {0.run_count} TotalUnloads: ' \
+               'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp}" RunCount: {0.run_count} TotalUnloads: ' \
                '{0.total_unloads} TimeZone:{0.timezone} DiscordUnload: {0.discord_unload_notification}"'.format(self)
 
     def __bool__(self):
