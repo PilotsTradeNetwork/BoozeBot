@@ -24,7 +24,6 @@ from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError
 from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
-
 """
 A primitive global error handler for text commands.
 
@@ -178,7 +177,7 @@ class DiscordBotCommands(commands.Cog):
         print(f'User {ctx.author} requested the version: {__version__}.')
         await ctx.send(f"Avast Ye Landlubber! {self.bot.user.name} is on version: {__version__}.")
         
-    @commands.command(name='sync', help='Synchronise bot interactions with server')
+    @commands.command(name='sync', help='Synchronize bot interactions with server')
     @commands.has_role(server_admin_role_id())
     async def sync(self, ctx):
         print(f"Interaction sync called from {ctx.author.display_name}")
@@ -186,8 +185,8 @@ class DiscordBotCommands(commands.Cog):
             try:
                 bot.tree.copy_global_to(guild=discord.Object(bot_guild_id()))
                 await bot.tree.sync(guild=discord.Object(bot_guild_id()))
-                print("Synchronised bot tree.")
-                await ctx.send("Synchronised bot tree.")
+                print("Synchronized bot tree.")
+                await ctx.send("Synchronized bot tree.")
             except Exception as e:
                 print(f"Tree sync failed: {e}.")
                 return await ctx.send(f"Failed to sync bot tree: {e}")
