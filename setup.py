@@ -40,7 +40,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'booze=ptn.boozebot.booze:run',
+            'booze=ptn.boozebot.application:run',
         ],
     },
     license='MIT',
