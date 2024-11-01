@@ -238,8 +238,6 @@ class Departures(commands.Cog):
             
             # Validate the timestamp range
             now = int(time.time())
-            # Validate the timestamp range
-            now = int(time.time())
             min_timestamp = now - 60*60*24*7 # 7 days ago
             max_timestamp = now + 60*60*24*7 # 7 days in the future
             if not (departure_timestamp > min_timestamp and departure_timestamp < max_timestamp):
