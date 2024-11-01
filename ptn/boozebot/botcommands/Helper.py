@@ -370,6 +370,38 @@ class Helper(commands.Cog):
             "params": [],
             "channel_restrictions": [],
         }
+        wine_carrier_departure = {
+            "method_desc": "Post a departure notice for a carrier.",
+            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier"],
+            "params": [
+                {
+                    "name": "carrier_id",
+                    "description": "The ID of the carrier to post a departure notice for.",
+                    "type": "str"
+                },
+                {
+                    "name": "departure_location",
+                    "description": "The location the carrier is departing from.",
+                    "type": "str"
+                },
+                {
+                    "name": "arrival_location",
+                    "description": "The location the carrier is arriving to.",
+                    "type": "str"
+                },
+                {
+                    "name": "departing_at",
+                    "description": "The unix timestamp, or discord timestamp of the carrier departure.",
+                    "type": "str"
+                },
+                {
+                    "name": "departing_in",
+                    "description": "The number of minutes until the carrier departs.",
+                    "type": "float"
+                }
+            ],
+            "channel_restrictions": [wine_carrier_command_channel()],
+        }
         
         booze_carrier_stats = {
             "method_desc": "Get the stats for a specific carrier.",

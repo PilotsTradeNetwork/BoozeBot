@@ -10,10 +10,6 @@ from discord.app_commands import Group, describe, Choice
 from discord.ext import commands, tasks
 from discord import app_commands, NotFound
 
-# local classes
-from ptn.boozebot.botcommands.DatabaseInteraction import DatabaseInteraction
-from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
-
 # local constants
 from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel, get_primary_booze_discussions_channel, \
     server_admin_role_id, bot, error_gifs, ping_response_messages
@@ -108,8 +104,6 @@ class DiscordBotCommands(commands.Cog):
         bot_channel = self.bot.get_channel(get_bot_control_channel())
         await bot_channel.send(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
         print('Starting the holiday checker.')
-        if not PublicHoliday.public_holiday_loop.is_running():
-            PublicHoliday.public_holiday_loop.start()
 
     @commands.Cog.listener()
     async def on_message(self, message):
