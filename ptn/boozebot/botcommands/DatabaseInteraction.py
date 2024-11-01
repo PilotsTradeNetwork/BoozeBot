@@ -538,7 +538,6 @@ class DatabaseInteraction(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print("Starting the pinned message checker")
-        await self.periodic_stat_update()
         if not self.periodic_stat_update.is_running():
             self.periodic_stat_update.start()
 

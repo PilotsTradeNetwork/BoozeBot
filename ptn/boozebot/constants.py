@@ -61,6 +61,8 @@ PROD_TANKER_UNLOAD_CHANNEL_ID = 987972565735727124
 PROD_BOT_SPAM_CHANNEL = 801258393205604372 # Certain bot logging messages go here
 PROD_BC_PUBLIC_CHANNEL_IDS = [838699587249242162, 849460909273120856, 932918003639648306, 819295547289501736, 837764138692378634, 849249916676603944, 1078840174227763301, 1079384804098854972]
 # booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
+PROD_DEPARTURE_ANNOUNCEMENT_CHANNEL = 849460909273120856
+PROD_THOON_EMOJI_ID = 1058010828458176563
 
 # Testing variables
 TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
@@ -84,7 +86,8 @@ TEST_TANKER_UNLOAD_CHANNEL_ID = 995714783678570566
 TEST_BOT_SPAM_CHANNEL = 842525081858867211 # Bot logging messages on the test server
 TEST_BC_PUBLIC_CHANNEL_IDS = [1107757218318782586, 1107757285817712721, 1107757340381425768, 1107757384069288056, 1107757418517110955, 1107757456517505055, 1107757490940153956, 1107757548779601940]
 # booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
-
+TEST_DEPARTURE_ANNOUNCEMENT_CHANNEL = 1107757285817712721
+TEST_THOON_EMOJI_ID = 1301319362489356289
 
 BOOZE_PROFIT_PER_TONNE_WINE = 256000
 RACKHAMS_PEAK_POP = 150000
@@ -350,10 +353,10 @@ def get_bot_control_channel():
 
 def get_wine_carrier_channel():
     """
-    Gets the list of public BC channels
+    Returns the channel ID for the wine carrier chat channel.
 
     :return: The channel IDs
-    :rtype: list, int
+    :rtype: int
     """
     return PROD_WINE_CARRIER_CHANNEL if _production else TEST_WINE_CARRIER_CHANNEL
 
@@ -452,3 +455,21 @@ def wine_carrier_command_channel():
     :rtype: int
     """
     return PROD_WINE_CARRIER_COMMAND_CHANNEL if _production else TEST_WINE_CARRIER_COMMAND_CHANNEL
+
+def get_departure_announcement_channel():
+    """
+    Gets the departure announcement channel
+
+    :return: The channel ID
+    :rtype: int
+    """
+    return PROD_DEPARTURE_ANNOUNCEMENT_CHANNEL if _production else TEST_DEPARTURE_ANNOUNCEMENT_CHANNEL
+
+def get_thoon_emoji_id():
+    """
+    Gets the ID of the Thoon emoji
+
+    :return: The emoji ID
+    :rtype: int
+    """
+    return PROD_THOON_EMOJI_ID if _production else TEST_THOON_EMOJI_ID

@@ -16,6 +16,7 @@
 -   \#335 - Update command acknowledges that it happened
 -   \#199 - Extended stats updated to have cruise select
 -   \#340 - Periodically scans the google sheet (hourly)
+-   \#292 - Add a departure command
 -   Signup form no longer requires platform or carrier role sections
 -   Improved help command
 -   Pirate Steve activity status shows how much wine is tracked when the channels are open
