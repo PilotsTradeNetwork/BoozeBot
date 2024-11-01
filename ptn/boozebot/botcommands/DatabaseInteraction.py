@@ -35,7 +35,7 @@ from ptn.boozebot.constants import (
     get_wine_carrier_channel,
     get_primary_booze_discussions_channel,
     GOOGLE_OAUTH_CREDENTIALS_PATH,
-    _production
+    _production, 
 )
 
 # local classes
@@ -77,6 +77,7 @@ DATABASE INTERACTION COMMANDS
 /booze_configure_signup_forms - admin/mod/somm
 /booze_reuse_signup_form - admin/mod/somm
 /biggest_cruise_tally - admin/mod/somm/conn
+/booze_carrier_stats - admin/mod/somm/conn/wine carrier
 """
 
 
@@ -2139,6 +2140,7 @@ class DatabaseInteraction(commands.Cog):
         print(f"{interaction.user.name} requested the biggest cruise tally, extended: {extended}.")
         await interaction.response.defer()
         
+        pirate_steve_lock.acquire()
         # Fetch the target date
         pirate_steve_db.execute(
             "SELECT holiday_start FROM historical GROUP BY holiday_start ORDER BY SUM(winetotal) DESC LIMIT 1;"
@@ -2160,6 +2162,7 @@ class DatabaseInteraction(commands.Cog):
         total_carriers_multiple_trips = [
             BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
         ]
+        pirate_steve_lock.release()
 
         # Build the stat embed based on the extended flag
         if not extended:
@@ -2169,3 +2172,58 @@ class DatabaseInteraction(commands.Cog):
             
         # Edit the original interaction response with the stat embed
         await interaction.edit_original_response(embed=stat_embed)
+        
+    @app_commands.command(name="booze_carrier_stats", description="Returns the stats for a specific carrier.")
+    @describe(carrier_id="The XXX-XXX ID string for the carrier")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
+    async def carrier_stats(self, interaction: discord.Interaction, carrier_id: str):
+        """
+        Returns the stats for a specific carrier.
+
+        :param interaction discord.Interaction: The discord interaction context.
+        :param str carrier_id: he XXX-XXX carrier ID.
+        :returns: None"
+        """
+        
+        print(f"{interaction.user.name} requested the stats for the carrier: {carrier_id}.")
+        await interaction.response.defer()
+        
+        pirate_steve_lock.acquire()
+        pirate_steve_db.execute(
+            "SELECT * FROM historical WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
+        )
+        
+        carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
+        )
+
+        carrier_data.append(BoozeCarrier(pirate_steve_db.fetchone()))
+        
+        pirate_steve_lock.release()
+        
+        # Remove any carriers that do not match the carrier_id (remove the None entry if carrier is not on current cruise)
+        carrier_data = [carrier for carrier in carrier_data if carrier.carrier_identifier == carrier_id]
+        
+        if not carrier_data:
+            print(f'We failed to find the carrier: {carrier_id} in the database.')
+            return await interaction.edit_original_response(content=f'Sorry, we could not find a carrier with the id: {carrier_id}.')
+        
+        carrier_name = carrier_data[-1].carrier_name
+        total_runs = sum([carrier.run_count for carrier in carrier_data])       
+        total_wine = sum([carrier.wine_total for carrier in carrier_data])
+        total_cruises = len(carrier_data)
+        owner = carrier_data[-1].discord_username
+        
+        stat_embed = discord.Embed(
+            title=f"Stats for {carrier_name} ({carrier_id})",
+            description=
+            f"Total Wine: {total_wine}\n"
+            f"Total Runs: {total_runs}\n"
+            f"Total Cruises: {total_cruises}\n"
+            f"Total Runs: {total_runs}\n"
+            f"Owner: {owner}"
+        )
+        
+        await interaction.edit_original_response(content=None, embed=stat_embed)
