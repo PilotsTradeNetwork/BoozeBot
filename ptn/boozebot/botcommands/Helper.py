@@ -372,7 +372,7 @@ class Helper(commands.Cog):
         }
         wine_carrier_departure = {
             "method_desc": "Post a departure notice for a carrier.",
-            "roles": ["Admin", "Mod", "Sommelier", "Connoisseur", "Wine Carrier"],
+            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
             "params": [
                 {
                     "name": "carrier_id",
