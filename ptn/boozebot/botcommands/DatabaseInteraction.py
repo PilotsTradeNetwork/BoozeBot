@@ -2140,7 +2140,6 @@ class DatabaseInteraction(commands.Cog):
         print(f"{interaction.user.name} requested the biggest cruise tally, extended: {extended}.")
         await interaction.response.defer()
         
-        pirate_steve_lock.acquire()
         # Fetch the target date
         pirate_steve_db.execute(
             "SELECT holiday_start FROM historical GROUP BY holiday_start ORDER BY SUM(winetotal) DESC LIMIT 1;"
@@ -2162,7 +2161,6 @@ class DatabaseInteraction(commands.Cog):
         total_carriers_multiple_trips = [
             BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
         ]
-        pirate_steve_lock.release()
 
         # Build the stat embed based on the extended flag
         if not extended:
@@ -2187,8 +2185,7 @@ class DatabaseInteraction(commands.Cog):
         
         print(f"{interaction.user.name} requested the stats for the carrier: {carrier_id}.")
         await interaction.response.defer()
-        
-        pirate_steve_lock.acquire()
+
         pirate_steve_db.execute(
             "SELECT * FROM historical WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
         )
@@ -2200,8 +2197,6 @@ class DatabaseInteraction(commands.Cog):
         )
 
         carrier_data.append(BoozeCarrier(pirate_steve_db.fetchone()))
-        
-        pirate_steve_lock.release()
         
         # Remove any carriers that do not match the carrier_id (remove the None entry if carrier is not on current cruise)
         carrier_data = [carrier for carrier in carrier_data if carrier.carrier_identifier == carrier_id]
