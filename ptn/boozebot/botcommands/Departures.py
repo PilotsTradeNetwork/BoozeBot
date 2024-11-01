@@ -103,7 +103,7 @@ class Departures(commands.Cog):
         
         await self.handle_reaction(message, user)
         
-    @tasks.loop(seconds = 60)
+    @tasks.loop(minutes = 10)
     async def check_departure_messages_loop(self):
         guild = bot.get_guild(bot_guild_id())
         departure_channel = guild.get_channel(get_departure_announcement_channel())
@@ -136,7 +136,7 @@ class Departures(commands.Cog):
             if departure_time.startswith("<t:"):
                 departure_time = departure_time.split(":")[1]
             elif departure_time == f"{bot.get_emoji(get_thoon_emoji_id())}":
-                departure_time = message.created_at.timestamp() + 15 * 60
+                departure_time = message.created_at.timestamp() + 25 * 60
                 
             try:
                 departure_time = int(departure_time)
