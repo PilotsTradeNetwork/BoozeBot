@@ -183,8 +183,14 @@ class PublicHoliday(commands.Cog):
     @check_roles([server_sommelier_role_id(), server_mod_role_id(), server_admin_role_id()])
     @describe(timestamp="Date time of the the cruise starting in the format YYYY-MM-DD HH:MI:SS")
     @check_command_channel([get_steve_says_channel()])
-    async def admin_override_holiday_state(self, interaction: discord.Interaction, timestamp: str):
+    async def admin_override_start_timestamp(self, interaction: discord.Interaction, timestamp: str):
         print(f'{interaction.user.name} requested to override the start time to: {timestamp}.')
+        
+        try:
+            datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            await interaction.response.send_message(f'Invalid timestamp format. Please use YYYY-MM-DD HH:MI:SS.', ephemeral=True)
+            return
 
         # Check if we had a holiday flagged already
         pirate_steve_db.execute(

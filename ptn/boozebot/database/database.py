@@ -21,7 +21,7 @@ def dump_database():
 
     :returns: None
     """
-    with open(db_sql_store, 'w') as f:
+    with open(db_sql_store, 'w', encoding="utf-8") as f:
         for line in pirate_steve_conn.iterdump():
             f.write(line)
 

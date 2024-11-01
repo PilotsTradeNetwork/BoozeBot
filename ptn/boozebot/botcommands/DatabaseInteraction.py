@@ -33,7 +33,9 @@ from ptn.boozebot.constants import (
     server_wine_carrier_role_id,
     server_connoisseur_role_id,
     get_wine_carrier_channel,
+    get_primary_booze_discussions_channel,
     GOOGLE_OAUTH_CREDENTIALS_PATH,
+    _production
 )
 
 # local classes
@@ -54,6 +56,7 @@ from ptn.boozebot.database.database import (
     pirate_steve_lock,
 )
 from ptn.boozebot.modules.PHcheck import ph_check
+from ptn.boozebot.modules.pagination import createPagination
 
 """
 DATABASE INTERACTION COMMANDS
@@ -413,10 +416,10 @@ class DatabaseInteraction(commands.Cog):
                             text="Pirate Steve recommends verifying and then deleting this entry"
                             " with /booze_delete_carrier"
                         )
-                        # await channel.send(embed=problem_embed)
-                        # if channel == sommelier_notification_channel:
-                        #    # Add a notification for the sommelier role
-                        #    await channel.send(f'\n<@&{server_sommelier_role_id()}> please take note.')
+                        await channel.send(embed=problem_embed)
+                        if channel == sommelier_notification_channel:
+                           # Add a notification for the sommelier role
+                           await channel.send(f'\n<@&{server_sommelier_role_id()}> please take note.')
             else:
                 print("No invalid carriers found")
         except KeyError as e:
@@ -535,6 +538,7 @@ class DatabaseInteraction(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print("Starting the pinned message checker")
+        await self.periodic_stat_update()
         if not self.periodic_stat_update.is_running():
             self.periodic_stat_update.start()
 
@@ -585,7 +589,13 @@ class DatabaseInteraction(commands.Cog):
             if all_carrier_data
             else 0
         )
-        state_text = f"Total Wine Tracked: {total_wine}" if ph_check() else ""
+        
+        guild = await bot.fetch_guild(bot_guild_id())
+        booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
+        channels_open = booze_cruise_chat.permissions_for(guild.default_role).view_channel
+        
+        state_text = f"Total Wine Tracked: {total_wine}" if channels_open else "Arrr, the wine be drained, ye thirsty scallywags!"
+
         await self.bot.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching,
@@ -593,6 +603,7 @@ class DatabaseInteraction(commands.Cog):
                 state=state_text,
             )
         )
+        print("Activity status updated")
 
     """
     Database interaction Commands
@@ -678,131 +689,22 @@ class DatabaseInteraction(commands.Cog):
         if len(carrier_data) == 0:
             # No carriers remaining
             return await interaction.edit_original_response(
-                "Pirate Steve is sorry, but there are no more carriers with wine remaining."
+                content="Pirate Steve is sorry, but there are no more carriers with wine remaining.",
+                embed=None
             )
 
         # Else we have wine left
+        
+        carrier_data = [
+            (f"{carrier.carrier_name} ({carrier.carrier_identifier})", f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}") for carrier in carrier_data
+        ]
 
-        def chunk(chunk_list, max_size=10):
-            """
-            Take an input list, and an expected max_size.
-
-            :returns: A chunked list that is yielded back to the caller
-            :rtype: iterator
-            """
-            for i in range(0, len(chunk_list), max_size):
-                yield chunk_list[i : i + max_size]
-
-        def validate_response(react, user):
-            """
-            Validates the user response
-            """
-            return user == interaction.user and str(react.emoji) in ["◀️", "▶️"]
-
-        pages = [page for page in chunk(carrier_data)]
-        max_pages = len(pages)
-        current_page = 1
-
-        embed = discord.Embed(
-            title=f"{len(carrier_data)} Carriers left with wine in the database. Page: #{current_page} of {max_pages}"
+        # Create the pagination
+        await createPagination(
+            interaction,
+            "Carriers with wine remaining",
+            carrier_data,
         )
-        count = 0  # Track the overall count for all carriers
-
-        # Go populate page 0 by default
-        for carrier in pages[0]:
-            count += 1
-            embed.add_field(
-                name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                inline=False,
-            )
-
-        # Now go send it and wait on a reaction
-        await interaction.edit_original_response(embed=embed)
-
-        message = await interaction.original_response()
-
-        # From page 0 we can only go forwards
-        await message.add_reaction("▶️")
-        # 60 seconds time out gets raised by Asyncio
-        while True:
-            try:
-                reaction, user = await bot.wait_for(
-                    "reaction_add", timeout=60, check=validate_response
-                )
-                if str(reaction.emoji) == "▶️" and current_page != max_pages:
-
-                    print(f"{interaction.user.name} requested to go forward a page.")
-                    current_page += 1  # Forward a page
-                    new_embed = discord.Embed(
-                        title=f"{len(carrier_data)} Carriers left with wine in the database. Page:{current_page}"
-                    )
-                    for carrier in pages[current_page - 1]:
-                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
-                        count += 1
-                        new_embed.add_field(
-                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                            inline=False,
-                        )
-
-                    await message.edit(embed=new_embed)
-
-                    # Ok now we can go back, check if we can also go forwards still
-                    if current_page == max_pages:
-                        await message.clear_reaction("▶️")
-
-                    await message.remove_reaction(reaction, user)
-                    await message.add_reaction("◀️")
-
-                elif str(reaction.emoji) == "◀️" and current_page > 1:
-                    print(f"{interaction.user.name} requested to go back a page.")
-                    current_page -= 1  # Go back a page
-
-                    new_embed = discord.Embed(
-                        title=f"{len(carrier_data)} Carriers left with wine in the database. Page:{current_page}"
-                    )
-                    # Start by counting back however many carriers are in the current page, minus the new page, that way
-                    # when we start a 3rd page we don't end up in problems
-                    count -= len(pages[current_page - 1])
-                    count -= len(pages[current_page])
-
-                    for carrier in pages[current_page - 1]:
-                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
-                        count += 1
-                        new_embed.add_field(
-                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                            inline=False,
-                        )
-
-                    await message.edit(embed=new_embed)
-                    # Ok now we can go forwards, check if we can also go backwards still
-                    if current_page == 1:
-                        await message.clear_reaction("◀️")
-
-                    await message.remove_reaction(reaction, user)
-                    await message.add_reaction("▶️")
-                else:
-                    # It should be impossible to hit this part, but lets gate it just in case.
-                    print(
-                        f"HAL9000 error: {interaction.user.name} ended in a random state while trying to handle: {reaction.emoji} "
-                        f"and on page: {current_page}."
-                    )
-                    # HAl-9000 error response.
-                    error_embed = discord.Embed(
-                        title=f"I'm sorry {interaction.user.name}, I'm afraid I can't do that."
-                    )
-                    await message.edit(embed=error_embed)
-                    await message.remove_reaction(reaction, user)
-
-            except asyncio.TimeoutError:
-                print(f"Timeout hit during carrier request by: {interaction.user.name}")
-                await interaction.edit_original_response(
-                    content=f"Closed the active carrier list request from: {interaction.user.name} due to no input in 60 seconds.",
-                    embed=None,
-                )
-                return await message.clear_reactions()
 
     @app_commands.command(
         name="wine_mark_completed_forcefully",
@@ -1003,129 +905,17 @@ class DatabaseInteraction(commands.Cog):
                 f"Could not find a carrier matching the inputs: {platform}, "
                 f"with wine: {remaining_wine}"
             )
+            
+        carrier_data = [
+            (f"{carrier.carrier_name} ({carrier.carrier_identifier})", f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}") for carrier in carrier_data
+        ]
 
-        def chunk(chunk_list, max_size=10):
-            """
-            Take an input list, and an expected max_size.
-
-            :returns: A chunked list that is yielded back to the caller
-            :rtype: iterator
-            """
-            for i in range(0, len(chunk_list), max_size):
-                yield chunk_list[i : i + max_size]
-
-        def validate_response(react, user):
-            """
-            Validates the user response
-            """
-            return user == interaction.user and str(react.emoji) in ["◀️", "▶️"]
-
-        pages = [page for page in chunk(carrier_data)]
-        max_pages = len(pages)
-        current_page = 1
-
-        embed = discord.Embed(
-            title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. Page: #{current_page} of"
-            f" {max_pages}"
+        # Create the pagination
+        await createPagination(
+            interaction,
+            "Carriers found for",
+            carrier_data,
         )
-        count = 0  # Track the overall count for all carriers
-
-        # Go populate page 0 by default
-        for carrier in pages[0]:
-            count += 1
-            embed.add_field(
-                name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                inline=False,
-            )
-
-        # Now go send it and wait on a reaction
-        await interaction.edit_original_response(embed=embed)
-        message = await interaction.original_response()
-
-        # From page 0 we can only go forwards
-        await message.add_reaction("▶️")
-        # 60 seconds time out gets raised by Asyncio
-        while True:
-            try:
-                reaction, user = await bot.wait_for(
-                    "reaction_add", timeout=60, check=validate_response
-                )
-                if str(reaction.emoji) == "▶️" and current_page != max_pages:
-
-                    print(f"{interaction.user.name} requested to go forward a page.")
-                    current_page += 1  # Forward a page
-                    new_embed = discord.Embed(
-                        title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. Page"
-                        f":{current_page}"
-                    )
-                    for carrier in pages[current_page - 1]:
-                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
-                        count += 1
-                        new_embed.add_field(
-                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                            inline=False,
-                        )
-
-                    await message.edit(embed=new_embed)
-
-                    # Ok now we can go back, check if we can also go forwards still
-                    if current_page == max_pages:
-                        await message.clear_reaction("▶️")
-
-                    await message.remove_reaction(reaction, user)
-                    await message.add_reaction("◀️")
-
-                elif str(reaction.emoji) == "◀️" and current_page > 1:
-                    print(f"{interaction.user.name} requested to go back a page.")
-                    current_page -= 1  # Go back a page
-
-                    new_embed = discord.Embed(
-                        title=f"{len(carrier_data)} {platform} Carriers left with wine in the database. "
-                        f"Page:{current_page}"
-                    )
-                    # Start by counting back however many carriers are in the current page, minus the new page, that way
-                    # when we start a 3rd page we don't end up in problems
-                    count -= len(pages[current_page - 1])
-                    count -= len(pages[current_page])
-
-                    for carrier in pages[current_page - 1]:
-                        # Page -1 as humans think page 1, 2, but python thinks 0, 1, 2
-                        count += 1
-                        new_embed.add_field(
-                            name=f"{count}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                            value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
-                            inline=False,
-                        )
-
-                    await message.edit(embed=new_embed)
-                    # Ok now we can go forwards, check if we can also go backwards still
-                    if current_page == 1:
-                        await message.clear_reaction("◀️")
-
-                    await message.remove_reaction(reaction, user)
-                    await message.add_reaction("▶️")
-                else:
-                    # It should be impossible to hit this part, but lets gate it just in case.
-                    print(
-                        f"HAL9001 error: {interaction.user.name} ended in a random state while trying to handle: {reaction.emoji} "
-                        f"and on page: {current_page}."
-                    )
-                    # HAl-9000 error response.
-                    error_embed = discord.Embed(
-                        title=f"I'm sorry {interaction.user.name}, I'm afraid I can't do that."
-                    )
-                    await message.edit(embed=error_embed)
-                    await message.remove_reaction(reaction, user)
-
-            except asyncio.TimeoutError:
-                print(f"Timeout hit during carrier request by: {interaction.user.name}")
-                await interaction.edit_original_response(
-                    content=f"Closed the active carrier list request from: {interaction.user.name} due to no input in 60 seconds.",
-                    embed=None,
-                )
-                return await message.clear_reactions()
 
     @app_commands.command(
         name="find_wine_carrier_by_id",
@@ -1286,7 +1076,7 @@ class DatabaseInteraction(commands.Cog):
 
     @app_commands.command(
         name="booze_pin_message",
-        description="Pins a message and records its values into the database. Restricted to Admin and Sommelier's.",
+        description="Pins a steve tally embed for periodic updating. Restricted to Admin and Sommelier's.",
     )
     @describe(message_link="The message link to be pinned")
     @check_roles(
@@ -1743,7 +1533,7 @@ class DatabaseInteraction(commands.Cog):
         if not carrier_data:
             print(f"No carrier found for: {carrier_id}")
             return await interaction.edit_original_response(
-                f"Avast Ye! No carrier found for: {carrier_id}"
+                content=f"Avast Ye! No carrier found for: {carrier_id}", embed=None
             )
 
         carrier_embed = discord.Embed(
@@ -1765,7 +1555,7 @@ class DatabaseInteraction(commands.Cog):
             )
 
         # Send the embed
-        await interaction.edit_original_response(embed=carrier_embed)
+        await interaction.edit_original_response(content=None, embed=carrier_embed)
 
         try:
             response = await bot.wait_for("message", check=check, timeout=30)
@@ -1838,7 +1628,7 @@ class DatabaseInteraction(commands.Cog):
         await interaction.response.defer()
         print(f"User {interaction.user.name} requested to archive the database")
 
-        if ph_check():
+        if _production and ph_check():
             return await interaction.edit_original_response(
                 content="Pirate Steve thinks there is a party at Rackhams still. Try again once the grog "
                 "runs dry."
