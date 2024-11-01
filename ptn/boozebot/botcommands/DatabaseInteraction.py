@@ -76,6 +76,7 @@ DATABASE INTERACTION COMMANDS
 /booze_archive_database - admin/mod/somm
 /booze_configure_signup_forms - admin/mod/somm
 /booze_reuse_signup_form - admin/mod/somm
+/biggest_cruise_tally - admin/mod/somm/conn
 """
 
 
@@ -529,6 +530,91 @@ class DatabaseInteraction(commands.Cog):
 
         print("Returning embed to user")
         return stat_embed
+    
+    def build_extended_stat_embed(self, all_carrier_data, total_carriers_multiple_trips, target_date=None):
+        total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
+
+        total_wine_per_capita = total_wine / RACKHAMS_PEAK_POP
+
+        # Some constants for the data. The figures came from RandomGazz, complain to him if they are wrong.
+        wine_bottles_weight_kg = 1.25
+        wine_bottles_per_tonne = 1000 / wine_bottles_weight_kg
+        wine_bottles_litres_per_tonne = wine_bottles_per_tonne * 0.75
+        wine_bottles_total = total_wine * wine_bottles_per_tonne
+        wine_bottles_litres_total = total_wine * wine_bottles_litres_per_tonne
+        wine_bottles_per_capita = total_wine_per_capita * wine_bottles_per_tonne
+        wine_bottles_litres_per_capita = (
+            total_wine_per_capita * wine_bottles_litres_per_tonne
+        )
+
+        wine_box_weight_kg = 2.30
+        wine_boxes_per_tonne = 1000 / wine_box_weight_kg
+        wine_boxes_litres_per_tonne = wine_boxes_per_tonne * 2.25
+        wine_boxes_total = wine_boxes_per_tonne * total_wine
+        wine_boxes_litres_total = wine_boxes_litres_per_tonne * total_wine
+        wine_boxes_per_capita = total_wine_per_capita * wine_boxes_per_tonne
+        wine_boxes_litres_per_capita = (
+            total_wine_per_capita * wine_boxes_litres_per_tonne
+        )
+
+        usa_population = 328200000
+        wine_bottles_per_us_pop = wine_bottles_total / usa_population
+        wine_boxes_per_us_pop = wine_boxes_total / usa_population
+
+        scotland_population = 5454000
+        wine_bottles_per_scot_pop = wine_bottles_total / scotland_population
+        wine_boxes_per_scot_pop = wine_boxes_total / scotland_population
+
+        olympic_swimming_pool_volume = 2500000
+        pools_if_bottles = wine_bottles_litres_total / olympic_swimming_pool_volume
+        pools_if_boxes = wine_boxes_litres_total / olympic_swimming_pool_volume
+
+        london_bus_volume_l = 112.5 * 1000
+        busses_if_bottles = wine_bottles_litres_total / london_bus_volume_l
+        busses_if_boxes = wine_boxes_litres_total / london_bus_volume_l
+        
+        date_text = (
+            f":\nHistorical Data: [{target_date} - "
+            f'{datetime.strptime(target_date, "%Y-%m-%d").date() + timedelta(days=2)}]'
+            if target_date
+            else ""
+        )
+
+        stat_embed = discord.Embed(
+            title=f"Pirate Steve's Extended Booze Tally {date_text}",
+            description=f"Current Wine Tonnes: {total_wine:,}\n"
+            f"Wine per capita (Rackhams): {total_wine_per_capita:,.2f}\n\n"
+            f"Weight of 1 750ml bottle (kg): {wine_bottles_weight_kg}\n"
+            f"Wine Bottles per Tonne: {wine_bottles_per_tonne}\n"
+            f"Wine Bottles Litres per Tonne: {wine_bottles_litres_per_tonne}\n"
+            f"Wine Bottles Total: {wine_bottles_total:,}\n"
+            f"Wine Bottles Litres Total: {wine_bottles_litres_total:,.2f}\n"
+            f"Wine Bottles per capita (Rackhams): {wine_bottles_per_capita:,.2f}\n"
+            f"Wine Bottles Litres per capita (Rackhams): {wine_bottles_litres_per_capita:,.2f}\n\n"
+            f"Weight of box wine 2.25L (kg): {wine_box_weight_kg:,.2f}\n"
+            f"Wine Boxes per Tonne: {wine_boxes_per_tonne:,.2f}\n"
+            f"Wine Boxes Litre per Tonne: {wine_boxes_litres_per_tonne:,.2f}\n"
+            f"Wine Boxes Total: {wine_boxes_total:,.2f}\n"
+            f"Wine Boxes per capita (Rackhams): {wine_boxes_per_capita:,.2f}\n"
+            f"Wine Boxes Litres per capita (Rackhams): {wine_boxes_litres_per_capita:,.2f}\n\n"
+            f"USA Population: {usa_population:,}\n"
+            f"Wine Bottles per capita (:flag_us:): {wine_bottles_per_us_pop:,.2f}\n"
+            f"Wine Boxes per capita (:flag_us:): {wine_boxes_per_us_pop:,.2f}\n\n"
+            f"Scotland Population: {scotland_population:,}\n"
+            f"Wine Bottles per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_bottles_per_scot_pop:,.2f}\n"
+            f"Wine Boxes per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_boxes_per_scot_pop:,.2f}\n\n"
+            f"Olympic Swimming Pool Volume (L): {olympic_swimming_pool_volume:,}\n"
+            f"Olympic Swimming Pools if Bottles of Wine: {pools_if_bottles:,.2f}\n"
+            f"Olympic Swimming Pools if Boxes of Wine: {pools_if_boxes:,.2f}\n\n"
+            f"London Bus Volume (L): {london_bus_volume_l:,}\n"
+            f"London Busses if Bottles of Wine: {busses_if_bottles:,.2f}\n"
+            f"London Busses if Boxes of Wine: {busses_if_boxes:,.2f}\n\n",
+        )
+        stat_embed.set_footer(
+            text="Stats requested by RandomGazz.\nPirate Steve approves of these stats!"
+        )
+        return stat_embed
+    
 
     """
     Pinned Stats and Activity Update Task Loop
@@ -1306,6 +1392,9 @@ class DatabaseInteraction(commands.Cog):
                 BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
             ]
             pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE runtotal > 1")
+            total_carriers_multiple_trips = [
+                BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
+            ]
 
         else:
             # Get the dates in the DB and order them.
@@ -1340,88 +1429,11 @@ class DatabaseInteraction(commands.Cog):
                 "SELECT * FROM historical WHERE runtotal > 1 AND holiday_start = (?)",
                 data,
             )
+            total_carriers_multiple_trips = [
+                BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
+            ]
 
-        total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
-
-        total_wine_per_capita = total_wine / RACKHAMS_PEAK_POP
-
-        # Some constants for the data. The figures came from RandomGazz, complain to him if they are wrong.
-        wine_bottles_weight_kg = 1.25
-        wine_bottles_per_tonne = 1000 / wine_bottles_weight_kg
-        wine_bottles_litres_per_tonne = wine_bottles_per_tonne * 0.75
-        wine_bottles_total = total_wine * wine_bottles_per_tonne
-        wine_bottles_litres_total = total_wine * wine_bottles_litres_per_tonne
-        wine_bottles_per_capita = total_wine_per_capita * wine_bottles_per_tonne
-        wine_bottles_litres_per_capita = (
-            total_wine_per_capita * wine_bottles_litres_per_tonne
-        )
-
-        wine_box_weight_kg = 2.30
-        wine_boxes_per_tonne = 1000 / wine_box_weight_kg
-        wine_boxes_litres_per_tonne = wine_boxes_per_tonne * 2.25
-        wine_boxes_total = wine_boxes_per_tonne * total_wine
-        wine_boxes_litres_total = wine_boxes_litres_per_tonne * total_wine
-        wine_boxes_per_capita = total_wine_per_capita * wine_boxes_per_tonne
-        wine_boxes_litres_per_capita = (
-            total_wine_per_capita * wine_boxes_litres_per_tonne
-        )
-
-        usa_population = 328200000
-        wine_bottles_per_us_pop = wine_bottles_total / usa_population
-        wine_boxes_per_us_pop = wine_boxes_total / usa_population
-
-        scotland_population = 5454000
-        wine_bottles_per_scot_pop = wine_bottles_total / scotland_population
-        wine_boxes_per_scot_pop = wine_boxes_total / scotland_population
-
-        olympic_swimming_pool_volume = 2500000
-        pools_if_bottles = wine_bottles_litres_total / olympic_swimming_pool_volume
-        pools_if_boxes = wine_boxes_litres_total / olympic_swimming_pool_volume
-
-        london_bus_volume_l = 112.5 * 1000
-        busses_if_bottles = wine_bottles_litres_total / london_bus_volume_l
-        busses_if_boxes = wine_boxes_litres_total / london_bus_volume_l
-        
-        date_text = (
-            f":\nHistorical Data: [{target_date} - "
-            f'{datetime.strptime(target_date, "%Y-%m-%d").date() + timedelta(days=2)}]'
-            if target_date
-            else ""
-        )
-
-        stat_embed = discord.Embed(
-            title=f"Pirate Steve's Extended Booze Tally {date_text}",
-            description=f"Current Wine Tonnes: {total_wine:,}\n"
-            f"Wine per capita (Rackhams): {total_wine_per_capita:,.2f}\n\n"
-            f"Weight of 1 750ml bottle (kg): {wine_bottles_weight_kg}\n"
-            f"Wine Bottles per Tonne: {wine_bottles_per_tonne}\n"
-            f"Wine Bottles Litres per Tonne: {wine_bottles_litres_per_tonne}\n"
-            f"Wine Bottles Total: {wine_bottles_total:,}\n"
-            f"Wine Bottles Litres Total: {wine_bottles_litres_total:,.2f}\n"
-            f"Wine Bottles per capita (Rackhams): {wine_bottles_per_capita:,.2f}\n"
-            f"Wine Bottles Litres per capita (Rackhams): {wine_bottles_litres_per_capita:,.2f}\n\n"
-            f"Weight of box wine 2.25L (kg): {wine_box_weight_kg:,.2f}\n"
-            f"Wine Boxes per Tonne: {wine_boxes_per_tonne:,.2f}\n"
-            f"Wine Boxes Litre per Tonne: {wine_boxes_litres_per_tonne:,.2f}\n"
-            f"Wine Boxes Total: {wine_boxes_total:,.2f}\n"
-            f"Wine Boxes per capita (Rackhams): {wine_boxes_per_capita:,.2f}\n"
-            f"Wine Boxes Litres per capita (Rackhams): {wine_boxes_litres_per_capita:,.2f}\n\n"
-            f"USA Population: {usa_population:,}\n"
-            f"Wine Bottles per capita (:flag_us:): {wine_bottles_per_us_pop:,.2f}\n"
-            f"Wine Boxes per capita (:flag_us:): {wine_boxes_per_us_pop:,.2f}\n\n"
-            f"Scotland Population: {scotland_population:,}\n"
-            f"Wine Bottles per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_bottles_per_scot_pop:,.2f}\n"
-            f"Wine Boxes per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_boxes_per_scot_pop:,.2f}\n\n"
-            f"Olympic Swimming Pool Volume (L): {olympic_swimming_pool_volume:,}\n"
-            f"Olympic Swimming Pools if Bottles of Wine: {pools_if_bottles:,.2f}\n"
-            f"Olympic Swimming Pools if Boxes of Wine: {pools_if_boxes:,.2f}\n\n"
-            f"London Bus Volume (L): {london_bus_volume_l:,}\n"
-            f"London Busses if Bottles of Wine: {busses_if_bottles:,.2f}\n"
-            f"London Busses if Boxes of Wine: {busses_if_boxes:,.2f}\n\n",
-        )
-        stat_embed.set_footer(
-            text="Stats requested by RandomGazz.\nPirate Steve approves of these stats!"
-        )
+        stat_embed = self.build_extended_stat_embed(all_carrier_data, total_carriers_multiple_trips, target_date)
         await interaction.edit_original_response(embed=stat_embed)
 
     @app_commands.command(
@@ -2111,3 +2123,49 @@ class DatabaseInteraction(commands.Cog):
             return await interaction.edit_original_response(
                 content="Pirate Steve saw you timed on the confirmation.", embed=None
             )
+            
+            
+    @app_commands.command(name="biggest_cruise_tally", description="Returns the tally for the cruise with the most wine.")
+    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
+    async def biggest_cruise_tally(self, interaction: discord.Interaction, extended: bool = False):
+        """
+        Returns the tally for the cruise with the most wine.
+
+        :param interaction discord.Interaction: The discord interaction context.
+        :param bool extended: If the extended stats should be shown.
+        :returns: None"
+        """
+   
+        print(f"{interaction.user.name} requested the biggest cruise tally, extended: {extended}.")
+        await interaction.response.defer()
+        
+        # Fetch the target date
+        pirate_steve_db.execute(
+            "SELECT holiday_start FROM historical GROUP BY holiday_start ORDER BY SUM(winetotal) DESC LIMIT 1;"
+        )
+        target_date = pirate_steve_db.fetchone()[0]
+
+        # Fetch all carrier data for the target date
+        pirate_steve_db.execute(
+            "SELECT * FROM historical WHERE holiday_start = ?;", (target_date,)
+        )
+        all_carrier_data = [
+            BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
+        ]
+
+        # Fetch carriers with multiple trips for the target date
+        pirate_steve_db.execute(
+            "SELECT * FROM historical WHERE runtotal > 1 AND holiday_start = ?;", (target_date,)
+        )
+        total_carriers_multiple_trips = [
+            BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
+        ]
+
+        # Build the stat embed based on the extended flag
+        if not extended:
+            stat_embed = self.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, target_date)
+        else:
+            stat_embed = self.build_extended_stat_embed(all_carrier_data, total_carriers_multiple_trips, target_date)
+            
+        # Edit the original interaction response with the stat embed
+        await interaction.edit_original_response(embed=stat_embed)
