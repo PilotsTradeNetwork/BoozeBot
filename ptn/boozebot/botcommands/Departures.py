@@ -5,7 +5,6 @@ Cog for unloading related commands
 
 # libraries
 import re
-from typing import List
 import time
 
 # discord.py
@@ -30,7 +29,7 @@ from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_ch
 
 """
 UNLOADING COMMANDS
-/wine_carrier_departure - winecarrier/somm/mod/admin
+/wine_carrier_departure - wine carrier/somm/mod/admin
 """
 
 # initialise the Cog and attach our global error handler
@@ -64,14 +63,13 @@ class Departures(commands.Cog):
         print("Checking for completed departure messages.")
         
         async for message in departure_channel.history(limit=100):
-            if message.pinned == True:
+            if message.pinned:
                 continue
             
             for reaction in message.reactions:
                 if reaction.emoji == "✅":
-                    users = [user async for user in reaction.users()]
-                    for user in users:
-                        if not user.bot and self.get_departure_author_id(message) == user.id:
+                    async for user in reaction.users():
+                        if user.bot and self.get_departure_author_id(message) != user.id:
                             await self.handle_reaction(reaction.message, user)
                             
         print("Starting the departure message checker")
@@ -92,7 +90,7 @@ class Departures(commands.Cog):
         channel = await bot.fetch_channel(reaction_event.channel_id)
         message = await channel.fetch_message(reaction_event.message_id)
         
-        if message.pinned == True:
+        if message.pinned:
             return
         
         if reaction_event.emoji.name != "✅":
@@ -112,7 +110,7 @@ class Departures(commands.Cog):
         print("Checking for passed departure messages.")
         async for message in departure_channel.history(limit=100):
             
-            if message.pinned == True:
+            if message.pinned:
                 continue
             
             print("Departure message found.")
@@ -120,8 +118,7 @@ class Departures(commands.Cog):
             has_reacted = False
             for reaction in message.reactions:
                 if reaction.emoji == "⏲️":
-                    users = [user async for user in reaction.users()]
-                    for user in users:
+                    async for user in reaction.users():
                         if user.id == bot.user.id:
                             has_reacted = True
                             break
@@ -156,7 +153,7 @@ class Departures(commands.Cog):
                     
     
     
-    async def location_autocomplete(self, interaction: discord.Interaction, current:str) -> List[app_commands.Choice[str]]:
+    async def location_autocomplete(self, interaction: discord.Interaction, current:str) -> list[app_commands.Choice[str]]:
         locations = ["N0 Star", "N0 Planet 1", "N0 Planet 2", "N0 Planet 3", "N0 Planet 4", "N0 Planet 5", "N0 Planet 6",
                      "N0", "N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10", "N11", "N12", "N13", "N14", "N15","Gali"]
         return [
@@ -191,22 +188,19 @@ class Departures(commands.Cog):
         await interaction.response.defer()
 
         # Convert carrier ID to uppercase
-        carrier_id = carrier_id.upper()
+        carrier_id = carrier_id.upper().strip()
 
         # Validate the carrier ID format
-        if not re.match(r"\w{3}-\w{3}", carrier_id):
+        if not re.fullmatch(r"\w{3}-\w{3}", carrier_id):
             print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
             return await interaction.edit_original_response(content=f'{interaction.user.name}, the carrier ID was invalid during tanker unload, '
                                         f'XXX-XXX expected received, {carrier_id}.')
 
         # Acquire the database lock and fetch carrier data
-        pirate_steve_lock.acquire()
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
         )
-
         carrier_data = pirate_steve_db.fetchone()
-        pirate_steve_lock.release()
         
         # Check if carrier data was found
         if not carrier_data:
@@ -220,8 +214,8 @@ class Departures(commands.Cog):
         carrier_id = carrier_data.carrier_identifier
         
         # Function to sanitize input by removing certain characters
-        def sanitize_input(input):
-            return input.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
+        def sanitize_input(text):
+            return text.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
         
         # Sanitize the input data
         carrier_name = sanitize_input(carrier_name)
@@ -243,7 +237,10 @@ class Departures(commands.Cog):
                 return await interaction.edit_original_response(content=f"Departure time was not a valid timestamp: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
             
             # Validate the timestamp range
-            if not (departure_timestamp > 0 and departure_timestamp < 2147483647):
+            now = int(time.time())
+            min_timestamp = now - 60*60*24*14 # 14 days ago
+            max_timestamp = now + 60*60*24*14 # 14 days in the future
+            if not (departure_timestamp > min_timestamp and departure_timestamp < max_timestamp):
                 print(f"Departure time was outside 32bit range: {departing_at}")
                 return await interaction.edit_original_response(content=f"Departure time was not a valid timestamp: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
             departure_time_text = f" <t:{departure_timestamp}> (<t:{departure_timestamp}:R>) |"
