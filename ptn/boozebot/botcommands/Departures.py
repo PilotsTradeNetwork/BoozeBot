@@ -238,11 +238,11 @@ class Departures(commands.Cog):
             
             # Validate the timestamp range
             now = int(time.time())
-            min_timestamp = now - 60*60*24*14 # 14 days ago
-            max_timestamp = now + 60*60*24*14 # 14 days in the future
+            min_timestamp = now - 60*60*24*7 # 7 days ago
+            max_timestamp = now + 60*60*24*7 # 7 days in the future
             if not (departure_timestamp > min_timestamp and departure_timestamp < max_timestamp):
-                print(f"Departure time was outside 32bit range: {departing_at}")
-                return await interaction.edit_original_response(content=f"Departure time was not a valid timestamp: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
+                print(f"Departure time was outside the +- 1 week range: {departing_at}")
+                return await interaction.edit_original_response(content=f"Departure time needs to be in +- 1 week of now: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
             departure_time_text = f" <t:{departure_timestamp}> (<t:{departure_timestamp}:R>) |"
             
         # Handle departure time if provided as a duration in minutes
