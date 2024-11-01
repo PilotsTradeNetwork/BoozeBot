@@ -19,6 +19,7 @@ from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
 from ptn.boozebot.botcommands.MimicSteve import MimicSteve
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
+from ptn.boozebot.botcommands.Departures import Departures
 
 # import bot object, token, production status
 from ptn.boozebot.constants import bot, TOKEN, _production
@@ -43,6 +44,7 @@ async def boozebot():
         await bot.add_cog(MimicSteve(bot))
         await bot.add_cog(Cleaner(bot))
         await bot.add_cog(MakeWineCarrier(bot))   
+        await bot.add_cog(Departures(bot))
         await bot.start(TOKEN)
 
 if __name__ == "__main__":

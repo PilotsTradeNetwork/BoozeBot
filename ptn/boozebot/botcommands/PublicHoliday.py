@@ -60,6 +60,12 @@ class PublicHoliday(commands.Cog):
 
     admin_override_state = False
     rackhams_holiday_active = False
+    
+    @commands.Cog.listener()
+    async def on_ready(self):
+        print("Starting the public holiday state checker")
+        if not self.public_holiday_loop.is_running():
+            self.public_holiday_loop.start()
 
     @classmethod
     @tasks.loop(minutes=15)

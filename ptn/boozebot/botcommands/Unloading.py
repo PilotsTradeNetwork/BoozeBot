@@ -16,7 +16,9 @@ from discord import app_commands, NotFound
 from ptn.boozebot.constants import get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
     server_admin_role_id, server_sommelier_role_id, server_wine_carrier_role_id, \
     server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id, \
-    get_discord_tanker_unload_channel, wine_carrier_command_channel
+    get_discord_tanker_unload_channel, wine_carrier_command_channel, server_hitchhiker_role_id, \
+    get_departure_announcement_channel, server_connoisseur_role_id, get_thoon_emoji_id, bot_guild_id, \
+    get_wine_carrier_channel
 
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
