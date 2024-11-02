@@ -2216,7 +2216,6 @@ class DatabaseInteraction(commands.Cog):
             f"Total Wine: {total_wine}\n"
             f"Total Runs: {total_runs}\n"
             f"Total Cruises: {total_cruises}\n"
-            f"Total Runs: {total_runs}\n"
             f"Owner: {owner}"
         )
         
