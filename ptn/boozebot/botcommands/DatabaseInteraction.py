@@ -2182,6 +2182,8 @@ class DatabaseInteraction(commands.Cog):
         :returns: None"
         """
         
+        carrier_id = carrier_id.upper()
+
         print(f"{interaction.user.name} requested the stats for the carrier: {carrier_id}.")
         await interaction.response.defer()
 
