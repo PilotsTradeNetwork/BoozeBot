@@ -102,7 +102,7 @@ class Helper(commands.Cog):
         # Somm commands
         steve_says = {
             "method_desc": "Send a message as PirateSteve.",
-            "roles": [server_admin_role_id(), server_sommelier_role_id(), server_mod_role_id()],
+            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [
                 {
                     "name": "message",
