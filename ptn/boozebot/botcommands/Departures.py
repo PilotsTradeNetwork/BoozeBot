@@ -63,14 +63,20 @@ class Departures(commands.Cog):
         print("Checking for completed departure messages.")
         
         async for message in departure_channel.history(limit=100):
-            if message.pinned:
-                continue
-            
-            for reaction in message.reactions:
-                if reaction.emoji == "✅":
-                    async for user in reaction.users():
-                        if user.bot and self.get_departure_author_id(message) != user.id:
-                            await self.handle_reaction(reaction.message, user)
+            try:
+                if message.pinned:
+                    continue
+                
+                if message.author.id != bot.user.id:
+                    continue
+                
+                for reaction in message.reactions:
+                    if reaction.emoji == "✅":
+                        async for user in reaction.users():
+                            if self.get_departure_author_id(message) == user.id:
+                                await self.handle_reaction(reaction.message, user)
+            except Exception as e:
+                print(f"Failed to process departure message while checking for closing. message: {message.id}. Error: {e}")
                             
         print("Starting the departure message checker")
         if not self.check_departure_messages_loop.is_running():
@@ -79,27 +85,33 @@ class Departures(commands.Cog):
     # On reaction check if its in the departures channel and if it was from who posted the departure, if it is remove it.
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, reaction_event):
-        user = reaction_event.member
-        
-        if user.bot:
-            return
-        
-        if reaction_event.channel_id != get_departure_announcement_channel():
-            return
-        
-        channel = await bot.fetch_channel(reaction_event.channel_id)
-        message = await channel.fetch_message(reaction_event.message_id)
-        
-        if message.pinned:
-            return
-        
-        if reaction_event.emoji.name != "✅":
-            return
-        
-        if not self.get_departure_author_id(message) == user.id:
-            return
-        
-        await self.handle_reaction(message, user)
+        try:
+            user = reaction_event.member
+            
+            if user.bot:
+                return
+            
+            if reaction_event.channel_id != get_departure_announcement_channel():
+                return
+            
+            channel = await bot.fetch_channel(reaction_event.channel_id)
+            message = await channel.fetch_message(reaction_event.message_id)
+            
+            if message.pinned:
+                return
+            
+            if message.author.id != bot.user.id:
+                return
+            
+            if reaction_event.emoji.name != "✅":
+                return
+            
+            if not self.get_departure_author_id(message) == user.id:
+                return
+            
+            await self.handle_reaction(message, user)
+        except Exception as e:
+            print(f"Failed to process reaction: {reaction_event}. Error: {e}")
         
     @tasks.loop(minutes = 10)
     async def check_departure_messages_loop(self):
@@ -110,47 +122,53 @@ class Departures(commands.Cog):
         print("Checking for passed departure messages.")
         async for message in departure_channel.history(limit=100):
             
-            if message.pinned:
-                continue
-            
-            print("Departure message found.")
-            
-            has_reacted = False
-            for reaction in message.reactions:
-                if reaction.emoji == "⏲️":
-                    async for user in reaction.users():
-                        if user.id == bot.user.id:
-                            has_reacted = True
-                            break
-                        
-            if has_reacted:
-                print("Departure message has been responded to.")
-                continue                
-                         
-            content = message.content
-            departure_time = content.split("|")[1].replace(" ", "")
-            
-            if departure_time.startswith("<t:"):
-                departure_time = departure_time.split(":")[1]
-            elif departure_time == f"{bot.get_emoji(get_thoon_emoji_id())}":
-                departure_time = message.created_at.timestamp() + 25 * 60
-                
             try:
-                departure_time = int(departure_time)
-            except ValueError:
-                print(f"Departure time was not an integer: {departure_time}, Probably means they never set a departure time.")
-                continue
+                if message.pinned:
+                    continue
                 
-            print(f"Departure time: {departure_time}")
-            
-            if int(time.time()) > departure_time:
-                print("Departure time has passed.")
-                author_id = self.get_departure_author_id(message)
-                if author_id:
-                    print(f"Responding to departure message from {author_id}.")
-                    await message.add_reaction("⏲️")
-                    await wine_carrier_chat.send(f"<@{author_id}> your scheduled departure time of <t:{departure_time}:F> has passed. If your carrier has entered lockdown or completed its jump, please use the ✅ reaction under your notice to remove it. {message.jump_url}")
+                if message.author.id != bot.user.id:
+                    continue
+                
+                print("Departure message found.")
+                
+                has_reacted = False
+                for reaction in message.reactions:
+                    if reaction.emoji == "⏲️":
+                        async for user in reaction.users():
+                            if user.id == bot.user.id:
+                                has_reacted = True
+                                break
+                            
+                if has_reacted:
+                    print("Departure message has been responded to.")
+                    continue                
+                            
+                content = message.content
+                departure_time = content.split("|")[1].replace(" ", "")
+                
+                if departure_time.startswith("<t:"):
+                    departure_time = departure_time.split(":")[1]
+                elif departure_time == f"{bot.get_emoji(get_thoon_emoji_id())}":
+                    departure_time = message.created_at.timestamp() + 25 * 60
                     
+                try:
+                    departure_time = int(departure_time)
+                except ValueError:
+                    print(f"Departure time was not an integer: {departure_time}, Probably means they never set a departure time.")
+                    continue
+                    
+                print(f"Departure time: {departure_time}")
+                
+                if int(time.time()) > departure_time:
+                    print("Departure time has passed.")
+                    author_id = self.get_departure_author_id(message)
+                    if author_id:
+                        print(f"Responding to departure message from {author_id}.")
+                        await message.add_reaction("⏲️")
+                        await wine_carrier_chat.send(f"<@{author_id}> your scheduled departure time of <t:{departure_time}:F> has passed. If your carrier has entered lockdown or completed its jump, please use the ✅ reaction under your notice to remove it. {message.jump_url}")
+            
+            except Exception as e:
+                print(f"Failed to process departure message while checking for time passed. message: {message.id}. Error: {e}")
     
     
     async def location_autocomplete(self, interaction: discord.Interaction, current:str) -> list[app_commands.Choice[str]]:
@@ -238,11 +256,11 @@ class Departures(commands.Cog):
             
             # Validate the timestamp range
             now = int(time.time())
-            min_timestamp = now - 60*60*24*7 # 7 days ago
-            max_timestamp = now + 60*60*24*7 # 7 days in the future
+            min_timestamp = now - 60*60*24*14 # 14 days ago
+            max_timestamp = now + 60*60*24*14 # 14 days in the future
             if not (departure_timestamp > min_timestamp and departure_timestamp < max_timestamp):
-                print(f"Departure time was outside the +- 1 week range: {departing_at}")
-                return await interaction.edit_original_response(content=f"Departure time needs to be in +- 1 week of now: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
+                print(f"Departure time was outside 32bit range: {departing_at}")
+                return await interaction.edit_original_response(content=f"Departure time was not a valid timestamp: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
             departure_time_text = f" <t:{departure_timestamp}> (<t:{departure_timestamp}:R>) |"
             
         # Handle departure time if provided as a duration in minutes
