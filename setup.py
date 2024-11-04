@@ -36,7 +36,8 @@ setup(
         'oauth2client',
         'requests',
         'python-dotenv',
-        'asyncio'
+        'asyncio',
+        'httpx',
     ],
     entry_points={
         'console_scripts': [
