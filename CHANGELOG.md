@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.1
+
+-   \#409 - Made PH check function async
+-   \#408 - Departure message tasks have better error handling
+-   \#404 - Booze carrier stats accepts lower case Ids
+-   \#403 - Steve says no longer listed as a mod command
+-   \#402 - Booze carrier stats no longer shows run total twice
+-   Adds httpx as a requirement
+
 ## 2.0.0
 
 -   \#344 \#271 - Updates discord.py to version 2.3.1
