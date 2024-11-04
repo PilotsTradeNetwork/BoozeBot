@@ -602,7 +602,7 @@ class DatabaseInteraction(commands.Cog):
             f"Wine Bottles per capita (:flag_us:): {wine_bottles_per_us_pop:,.2f}\n"
             f"Wine Boxes per capita (:flag_us:): {wine_boxes_per_us_pop:,.2f}\n\n"
             f"Scotland Population: {scotland_population:,}\n"
-            f"Scotland Population: {scotland_population:,}\n"
+            f"Wine Bottles per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_bottles_per_scot_pop:,.2f}\n"
             f"Wine Boxes per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_boxes_per_scot_pop:,.2f}\n\n"
             f"Olympic Swimming Pool Volume (L): {olympic_swimming_pool_volume:,}\n"
             f"Olympic Swimming Pools if Bottles of Wine: {pools_if_bottles:,.2f}\n"
