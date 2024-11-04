@@ -1475,7 +1475,7 @@ class DatabaseInteraction(commands.Cog):
         print(
             f"User {interaction.user.name} wanted to know if the remaining time of the holiday."
         )
-        if not ph_check():
+        if not await ph_check():
             duration_remaining = "Pirate Steve has not detected the holiday state yet, or it is already over."
         else:
             duration_hours = 48
@@ -1640,7 +1640,7 @@ class DatabaseInteraction(commands.Cog):
         await interaction.response.defer()
         print(f"User {interaction.user.name} requested to archive the database")
 
-        if _production and ph_check():
+        if _production and await ph_check():
             return await interaction.edit_original_response(
                 content="Pirate Steve thinks there is a party at Rackhams still. Try again once the grog "
                 "runs dry."
@@ -2182,6 +2182,8 @@ class DatabaseInteraction(commands.Cog):
         :returns: None"
         """
         
+        carrier_id = carrier_id.upper()
+
         print(f"{interaction.user.name} requested the stats for the carrier: {carrier_id}.")
         await interaction.response.defer()
 
@@ -2216,7 +2218,6 @@ class DatabaseInteraction(commands.Cog):
             f"Total Wine: {total_wine}\n"
             f"Total Runs: {total_runs}\n"
             f"Total Cruises: {total_cruises}\n"
-            f"Total Runs: {total_runs}\n"
             f"Owner: {owner}"
         )
         
