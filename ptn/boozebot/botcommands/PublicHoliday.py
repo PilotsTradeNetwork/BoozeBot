@@ -76,7 +76,7 @@ class PublicHoliday(commands.Cog):
         :return: None
         """
         print("Rackham's holiday loop running.")
-        if ph_check():
+        if await ph_check():
             print('PH detected, triggering the notifications.')
             holiday_announce_channel = bot.get_channel(rackhams_holiday_channel())
             if PublicHoliday.admin_override_state:
@@ -151,7 +151,7 @@ class PublicHoliday(commands.Cog):
         print(f'User {interaction.user.name} wanted to know if the holiday has started.')
         gif = None
 
-        if ph_check() or PublicHoliday.admin_override_state:
+        if await ph_check() or PublicHoliday.admin_override_state:
             if PublicHoliday.admin_override_state:
                 print('Admin override was detected - forcefully returning True.')
             else:
@@ -226,8 +226,9 @@ class PublicHoliday(commands.Cog):
     @app_commands.command(name="booze_duration_remaining", description="Returns roughly how long the holiday has remaining.")
     async def remaining_time(self, interaction: discord. Interaction):
         print(f'User {interaction.user.name} wanted to know if the remaining time of the holiday.')
-        if not ph_check():
-            await interaction.response.send_message("Pirate Steve has not detected the holiday state yet, or it is already over.", ephemeral=True)
+        await interaction.response.defer()
+        if not await ph_check():
+            await interaction.edit_original_response(content="Pirate Steve has not detected the holiday state yet, or it is already over.")
             return
         print('Holiday ongoing, go figure out how long is left.')
         # Ok the holiday is ongoing
@@ -245,6 +246,6 @@ class PublicHoliday(commands.Cog):
 
         print(f'End time calculated as: {end_time}. Which is epoch of: {int(end_time.timestamp())}')
 
-        await interaction.response.send_message(f"Pirate Steve thinks the holiday will end around <t:{int(end_time.timestamp())}> [local"
+        await interaction.edit_original_response(content=f"Pirate Steve thinks the holiday will end around <t:{int(end_time.timestamp())}> [local"
                                                  "timezone].")
         return

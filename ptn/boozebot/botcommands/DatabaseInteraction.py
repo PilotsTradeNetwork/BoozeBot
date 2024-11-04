@@ -602,7 +602,7 @@ class DatabaseInteraction(commands.Cog):
             f"Wine Bottles per capita (:flag_us:): {wine_bottles_per_us_pop:,.2f}\n"
             f"Wine Boxes per capita (:flag_us:): {wine_boxes_per_us_pop:,.2f}\n\n"
             f"Scotland Population: {scotland_population:,}\n"
-            f"Wine Bottles per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_bottles_per_scot_pop:,.2f}\n"
+            f"Scotland Population: {scotland_population:,}\n"
             f"Wine Boxes per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_boxes_per_scot_pop:,.2f}\n\n"
             f"Olympic Swimming Pool Volume (L): {olympic_swimming_pool_volume:,}\n"
             f"Olympic Swimming Pools if Bottles of Wine: {pools_if_bottles:,.2f}\n"
@@ -1475,7 +1475,7 @@ class DatabaseInteraction(commands.Cog):
         print(
             f"User {interaction.user.name} wanted to know if the remaining time of the holiday."
         )
-        if not ph_check():
+        if not await ph_check():
             duration_remaining = "Pirate Steve has not detected the holiday state yet, or it is already over."
         else:
             duration_hours = 48
@@ -1640,7 +1640,7 @@ class DatabaseInteraction(commands.Cog):
         await interaction.response.defer()
         print(f"User {interaction.user.name} requested to archive the database")
 
-        if _production and ph_check():
+        if _production and await ph_check():
             return await interaction.edit_original_response(
                 content="Pirate Steve thinks there is a party at Rackhams still. Try again once the grog "
                 "runs dry."

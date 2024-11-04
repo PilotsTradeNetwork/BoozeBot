@@ -2,16 +2,17 @@
 # Returns True or False based on whether or not Rackham's is in public holiday
 # Rackham Capital Investments is the faction controlling Rackham's Peak
 
-import requests
+import httpx
 
 
-def ph_check() -> bool:
+async def ph_check() -> bool:
     params = {
         'name': 'Rackham Capital Investments'
     }
     try:
-        r = requests.get('https://elitebgs.app/api/ebgs/v5/factions', params=params)
-        result = r.json()
+        async with httpx.AsyncClient() as client:
+            r = await client.get('https://elitebgs.app/api/ebgs/v5/factions', params=params, timeout=5)
+            result = r.json()
     except Exception as e:
         print('Problem while getting the state - Returning False.')
         print(e)
