@@ -245,10 +245,10 @@ def get_db_path():
 
 def server_council_role_ids():
     """
-    Wrapper that returns the admin role ID
+    Wrapper that returns the council role IDs
 
-    :returns: Admin role id
-    :rtype: int
+    :returns: Council role ids
+    :rtype: Tuple[int, ...]
     """
     return PROD_ADMIN_IDS if _production else TEST_ADMIN_IDS
 
