@@ -14,7 +14,7 @@ from discord.ext import commands, tasks
 from discord import app_commands, NotFound
 
 # local constants
-from ptn.boozebot.constants import rackhams_holiday_channel, bot, bot_guild_id, server_admin_role_id, \
+from ptn.boozebot.constants import rackhams_holiday_channel, bot, bot_guild_id, server_council_role_ids, \
     server_sommelier_role_id, server_mod_role_id, server_connoisseur_role_id, holiday_query_not_started_gifs, \
     holiday_query_started_gifs, holiday_start_gif, holiday_ended_gif, get_steve_says_channel
 
@@ -100,7 +100,7 @@ class PublicHoliday(commands.Cog):
                 await holiday_announce_channel.send(holiday_start_gif)
                 await holiday_announce_channel.send(
                     f'Pirate Steve thinks the folks at Rackhams are partying again. '
-                    f'<@&{server_admin_role_id()}>, <@&{server_sommelier_role_id()}> please take note.'
+                    f'<@&{server_council_role_ids()[0]}>, <@&{server_sommelier_role_id()}> please take note.'
                 )
             else:
                 print('Holiday already flagged - no need to set it again')
@@ -146,7 +146,7 @@ class PublicHoliday(commands.Cog):
 
     
     @app_commands.command(name="booze_started", description="Returns a GIF for whether the holiday has started.")
-    @check_roles([server_connoisseur_role_id(), server_sommelier_role_id(), server_mod_role_id(), server_admin_role_id()])
+    @check_roles([server_connoisseur_role_id(), server_sommelier_role_id(), server_mod_role_id(), *server_council_role_ids()])
     async def holiday_query(self, interaction: discord.Interaction):
         print(f'User {interaction.user.name} wanted to know if the holiday has started.')
         gif = None
@@ -175,7 +175,7 @@ class PublicHoliday(commands.Cog):
     @app_commands.command(name="booze_started_admin_override",
                           description="Overrides the holiday admin flag."
                                       "Used to set the holiday state before the polling API catches it.")
-    @check_roles([server_sommelier_role_id(), server_mod_role_id(), server_admin_role_id()])
+    @check_roles([server_sommelier_role_id(), server_mod_role_id(), *server_council_role_ids()])
     @describe(state="True or False to override the holiday check flag.")
     @check_command_channel([get_steve_says_channel()])
     async def admin_override_holiday_state(self, interaction: discord.Interaction, state: bool):
@@ -186,7 +186,7 @@ class PublicHoliday(commands.Cog):
     @app_commands.command(name="booze_timestamp_admin_override",
                           description="Overrides the holiday start time."
                                       "Used to set the cruise start time used to get the duration")
-    @check_roles([server_sommelier_role_id(), server_mod_role_id(), server_admin_role_id()])
+    @check_roles([server_sommelier_role_id(), server_mod_role_id(), *server_council_role_ids()])
     @describe(timestamp="Date time of the the cruise starting in the format YYYY-MM-DD HH:MI:SS")
     @check_command_channel([get_steve_says_channel()])
     async def admin_override_start_timestamp(self, interaction: discord.Interaction, timestamp: str):

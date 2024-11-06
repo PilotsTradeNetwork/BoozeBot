@@ -14,7 +14,7 @@ from discord.ext import commands, tasks
 from discord import app_commands, NotFound
 
 # local constants
-from ptn.boozebot.constants import bot, server_admin_role_id, server_sommelier_role_id, \
+from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelier_role_id, \
     server_wine_carrier_role_id, server_mod_role_id, wine_carrier_command_channel, \
     server_hitchhiker_role_id, get_departure_announcement_channel, server_connoisseur_role_id, \
     get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel
@@ -183,7 +183,7 @@ class Departures(commands.Cog):
     @app_commands.command(name="wine_carrier_departure",
                           description="Post a departure message for a wine carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
     @check_command_channel(wine_carrier_command_channel())
     @app_commands.autocomplete(departure_location=location_autocomplete, arrival_location=location_autocomplete)
     async def wine_carrier_departure(self, interaction: discord.Interaction, carrier_id: str, departure_location: str, arrival_location: str, departing_at: str = None, departing_in: str = None):

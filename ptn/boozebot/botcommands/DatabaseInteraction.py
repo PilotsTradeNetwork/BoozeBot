@@ -23,7 +23,7 @@ from discord import app_commands, NotFound
 from ptn.boozebot.constants import (
     bot_guild_id,
     bot,
-    server_admin_role_id,
+    server_council_role_ids,
     server_sommelier_role_id,
     BOOZE_PROFIT_PER_TONNE_WINE,
     RACKHAMS_PEAK_POP,
@@ -702,7 +702,7 @@ class DatabaseInteraction(commands.Cog):
     )
     @check_roles(
         [
-            server_admin_role_id(),
+            *server_council_role_ids(),
             server_mod_role_id(),
             server_sommelier_role_id(),
             server_connoisseur_role_id(),
@@ -748,7 +748,7 @@ class DatabaseInteraction(commands.Cog):
     )
     @check_roles(
         [
-            server_admin_role_id(),
+            *server_council_role_ids(),
             server_mod_role_id(),
             server_sommelier_role_id(),
             server_connoisseur_role_id(),
@@ -798,7 +798,7 @@ class DatabaseInteraction(commands.Cog):
     )
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
     @check_roles(
-        [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()]
+        [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()]
     )
     @check_command_channel(get_steve_says_channel())
     async def wine_mark_completed_forcefully(
@@ -939,7 +939,7 @@ class DatabaseInteraction(commands.Cog):
     )
     @check_roles(
         [
-            server_admin_role_id(),
+            *server_council_role_ids(),
             server_mod_role_id(),
             server_sommelier_role_id(),
             server_connoisseur_role_id(),
@@ -1010,7 +1010,7 @@ class DatabaseInteraction(commands.Cog):
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
     @check_roles(
         [
-            server_admin_role_id(),
+            *server_council_role_ids(),
             server_mod_role_id(),
             server_sommelier_role_id(),
             server_connoisseur_role_id(),
@@ -1069,7 +1069,7 @@ class DatabaseInteraction(commands.Cog):
     )
     @check_roles(
         [
-            server_admin_role_id(),
+            *server_council_role_ids(),
             server_mod_role_id(),
             server_sommelier_role_id(),
             server_connoisseur_role_id(),
@@ -1166,7 +1166,7 @@ class DatabaseInteraction(commands.Cog):
     )
     @describe(message_link="The message link to be pinned")
     @check_roles(
-        [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()]
+        [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()]
     )
     async def pin_message(self, interaction: discord.Interaction, message_link: str):
         """
@@ -1240,7 +1240,7 @@ class DatabaseInteraction(commands.Cog):
         description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.",
     )
     @check_roles(
-        [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()]
+        [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()]
     )
     @check_command_channel([get_steve_says_channel()])
     async def clear_all_pinned_message(self, interaction: discord.Interaction):
@@ -1290,7 +1290,7 @@ class DatabaseInteraction(commands.Cog):
         "Sommelier's.",
     )
     @check_roles(
-        [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()]
+        [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()]
     )
     @describe(message_link="The message link to be unpinned")
     @check_command_channel([get_steve_says_channel()])
@@ -1356,7 +1356,7 @@ class DatabaseInteraction(commands.Cog):
     )
     @check_roles(
         [
-            server_admin_role_id(),
+            *server_council_role_ids(),
             server_mod_role_id(),
             server_sommelier_role_id(),
             server_connoisseur_role_id(),
@@ -1442,7 +1442,7 @@ class DatabaseInteraction(commands.Cog):
     )
     @check_roles(
         [
-            server_admin_role_id(),
+            *server_council_role_ids(),
             server_mod_role_id(),
             server_sommelier_role_id(),
             server_connoisseur_role_id(),
@@ -1505,7 +1505,7 @@ class DatabaseInteraction(commands.Cog):
     )
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
     @check_roles(
-        [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()]
+        [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()]
     )
     @check_command_channel(get_steve_says_channel())
     async def remove_carrier(self, interaction: discord.Interaction, carrier_id: str):
@@ -1625,7 +1625,7 @@ class DatabaseInteraction(commands.Cog):
         description="Archives the boozedatabase. Admin/Sommelier required.",
     )
     @check_roles(
-        [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()]
+        [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()]
     )
     @check_command_channel(get_steve_says_channel())
     async def archive_database(self, interaction: discord.Interaction):
@@ -1801,7 +1801,7 @@ class DatabaseInteraction(commands.Cog):
         description="Updates the booze cruise signup forms. Admin/Sommelier required.",
     )
     @check_roles(
-        [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()]
+        [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()]
     )
     @check_command_channel(get_steve_says_channel())
     async def configure_signup_forms(self, interaction: discord.Interaction):
@@ -2022,7 +2022,7 @@ class DatabaseInteraction(commands.Cog):
         description="Reuses the current the booze cruise signup forms. Admin/Sommelier required.",
     )
     @check_roles(
-        [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()]
+        [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()]
     )
     @check_command_channel(get_steve_says_channel())
     async def reuse_signup_forms(self, interaction: discord.Interaction):
@@ -2126,7 +2126,7 @@ class DatabaseInteraction(commands.Cog):
             
             
     @app_commands.command(name="biggest_cruise_tally", description="Returns the tally for the cruise with the most wine.")
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
     async def biggest_cruise_tally(self, interaction: discord.Interaction, extended: bool = False):
         """
         Returns the tally for the cruise with the most wine.
@@ -2172,7 +2172,7 @@ class DatabaseInteraction(commands.Cog):
         
     @app_commands.command(name="booze_carrier_stats", description="Returns the stats for a specific carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
     async def carrier_stats(self, interaction: discord.Interaction, carrier_id: str):
         """
         Returns the stats for a specific carrier.
