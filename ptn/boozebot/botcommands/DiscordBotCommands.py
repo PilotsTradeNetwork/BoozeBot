@@ -12,7 +12,7 @@ from discord import app_commands, NotFound
 
 # local constants
 from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel, get_primary_booze_discussions_channel, \
-    server_admin_role_id, bot, error_gifs, ping_response_messages
+    server_admin_role_id, bot, error_gifs, ping_response_messages, server_sommelier_role_id
 from ptn.boozebot._metadata import __version__
 
 # local modules
@@ -125,7 +125,7 @@ class DiscordBotCommands(commands.Cog):
     """
 
     @commands.command(name='ping', help='Ping the bot')
-    @commands.has_role(server_admin_role_id())
+    @commands.has_any_role(server_admin_role_id(), server_sommelier_role_id())
     async def ping(self, ctx):
         """
         Ping the bot and get a response
