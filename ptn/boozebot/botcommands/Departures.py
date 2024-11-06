@@ -241,7 +241,7 @@ class Departures(commands.Cog):
         arrival_location = sanitize_input(arrival_location)
         departure_location = sanitize_input(departure_location)
         
-        departure_time_text = ""
+        departure_timestamp = ""
         
         # Handle departure time if provided as a timestamp
         if departing_at:
@@ -261,7 +261,6 @@ class Departures(commands.Cog):
             if not (departure_timestamp > min_timestamp and departure_timestamp < max_timestamp):
                 print(f"Departure time was outside 32bit range: {departing_at}")
                 return await interaction.edit_original_response(content=f"Departure time was not a valid timestamp: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
-            departure_time_text = f" <t:{departure_timestamp}> (<t:{departure_timestamp}:R>) |"
             
         # Handle departure time if provided as a duration in minutes
         elif departing_in:
@@ -272,7 +271,11 @@ class Departures(commands.Cog):
                 return await interaction.edit_original_response(content=f"Departing in was not a valid number: {departing_in}. It should be the number of minutes until your carrier departs.")
             
             departure_timestamp = int(departure_timestamp * 60 + int(time.time()))
-            departure_time_text = f" <t:{departure_timestamp}:F> (<t:{departure_timestamp}:R>) |"
+            
+        if departure_timestamp:
+            departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
+        else:
+            departure_time_text = ""
             
         # Check if the departure needs a hitchhiker ping
         if departure_location in ["N1", "N2"] and arrival_location in ["N1", "N0", "N0 Star", "N0 Planet 1", "N0 Planet 2", "N0 Planet 3", "N0 Planet 4", "N0 Planet 5", "N0 Planet 6"]:
