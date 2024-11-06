@@ -241,7 +241,7 @@ class Departures(commands.Cog):
         arrival_location = sanitize_input(arrival_location)
         departure_location = sanitize_input(departure_location)
         
-        departure_timestamp = ""
+        departure_timestamp = None
         
         # Handle departure time if provided as a timestamp
         if departing_at:
