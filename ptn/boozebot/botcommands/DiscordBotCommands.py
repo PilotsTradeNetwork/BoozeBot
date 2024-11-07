@@ -125,7 +125,8 @@ class DiscordBotCommands(commands.Cog):
     """
 
     @commands.command(name='ping', help='Ping the bot')
-    @commands.has_any_role(server_admin_role_id(), server_sommelier_role_id())
+    @commands.has_any_role(*server_council_role_ids(), server_sommelier_role_id())
+
     async def ping(self, ctx):
         """
         Ping the bot and get a response
@@ -137,7 +138,7 @@ class DiscordBotCommands(commands.Cog):
 
     # quit the bot
     @commands.command(name='exit', help="Stops the bots process on the VM, ending all functions.")
-    @commands.has_role(server_admin_role_id())
+    @commands.has_any_role(*server_council_role_ids())
     async def exit(self, ctx):
         """
         Stop-quit command for the bot.
@@ -150,7 +151,7 @@ class DiscordBotCommands(commands.Cog):
         await sys.exit("User requested exit.")
 
     @commands.command(name='update', help="Restarts the bot.")
-    @commands.has_role(server_admin_role_id())
+    @commands.has_any_role(*server_council_role_ids())
     async def update(self, ctx):
         """
         Restarts the application for updates to take affect on the local system.
@@ -160,7 +161,7 @@ class DiscordBotCommands(commands.Cog):
         os.execv(sys.executable, ['python'] + sys.argv)
 
     @commands.command(name='version', help="Logs the bot version")
-    @commands.has_role(server_admin_role_id())
+    @commands.has_any_role(*server_council_role_ids())
     async def version(self, ctx):
         """
         Logs the bot version
@@ -172,7 +173,7 @@ class DiscordBotCommands(commands.Cog):
         await ctx.send(f"Avast Ye Landlubber! {self.bot.user.name} is on version: {__version__}.")
         
     @commands.command(name='sync', help='Synchronize bot interactions with server')
-    @commands.has_role(server_admin_role_id())
+    @commands.has_any_role(*server_council_role_ids())
     async def sync(self, ctx):
         print(f"Interaction sync called from {ctx.author.display_name}")
         async with ctx.typing():

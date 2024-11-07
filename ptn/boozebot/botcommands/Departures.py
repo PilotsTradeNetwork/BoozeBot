@@ -14,7 +14,7 @@ from discord.ext import commands, tasks
 from discord import app_commands, NotFound
 
 # local constants
-from ptn.boozebot.constants import bot, server_admin_role_id, server_sommelier_role_id, \
+from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelier_role_id, \
     server_wine_carrier_role_id, server_mod_role_id, wine_carrier_command_channel, \
     server_hitchhiker_role_id, get_departure_announcement_channel, server_connoisseur_role_id, \
     get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel
@@ -183,7 +183,7 @@ class Departures(commands.Cog):
     @app_commands.command(name="wine_carrier_departure",
                           description="Post a departure message for a wine carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
     @check_command_channel(wine_carrier_command_channel())
     @app_commands.autocomplete(departure_location=location_autocomplete, arrival_location=location_autocomplete)
     async def wine_carrier_departure(self, interaction: discord.Interaction, carrier_id: str, departure_location: str, arrival_location: str, departing_at: str = None, departing_in: str = None):
@@ -241,7 +241,7 @@ class Departures(commands.Cog):
         arrival_location = sanitize_input(arrival_location)
         departure_location = sanitize_input(departure_location)
         
-        departure_time_text = ""
+        departure_timestamp = None
         
         # Handle departure time if provided as a timestamp
         if departing_at:
@@ -261,7 +261,6 @@ class Departures(commands.Cog):
             if not (departure_timestamp > min_timestamp and departure_timestamp < max_timestamp):
                 print(f"Departure time was outside 32bit range: {departing_at}")
                 return await interaction.edit_original_response(content=f"Departure time was not a valid timestamp: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
-            departure_time_text = f" <t:{departure_timestamp}> (<t:{departure_timestamp}:R>) |"
             
         # Handle departure time if provided as a duration in minutes
         elif departing_in:
@@ -272,7 +271,11 @@ class Departures(commands.Cog):
                 return await interaction.edit_original_response(content=f"Departing in was not a valid number: {departing_in}. It should be the number of minutes until your carrier departs.")
             
             departure_timestamp = int(departure_timestamp * 60 + int(time.time()))
-            departure_time_text = f" <t:{departure_timestamp}:F> (<t:{departure_timestamp}:R>) |"
+            
+        if departure_timestamp:
+            departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
+        else:
+            departure_time_text = ""
             
         # Check if the departure needs a hitchhiker ping
         if departure_location in ["N1", "N2"] and arrival_location in ["N1", "N0", "N0 Star", "N0 Planet 1", "N0 Planet 2", "N0 Planet 3", "N0 Planet 4", "N0 Planet 5", "N0 Planet 6"]:

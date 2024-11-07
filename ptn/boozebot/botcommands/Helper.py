@@ -14,7 +14,7 @@ from discord import app_commands
 
 # local constants
 from ptn.boozebot.constants import get_steve_says_channel, get_wine_carrier_channel, wine_carrier_command_channel, \
-    server_mod_role_id, server_sommelier_role_id, server_admin_role_id, server_connoisseur_role_id, server_wine_carrier_role_id, \
+    server_mod_role_id, server_sommelier_role_id, server_council_role_ids, server_connoisseur_role_id, server_wine_carrier_role_id, \
     bot_guild_id
 
 # local modules
@@ -70,25 +70,25 @@ class Helper(commands.Cog):
         # Admin commands
         _update = {
             "method_desc": "Restart the bot.",
-            "roles": [server_admin_role_id()],
+            "roles": [*server_council_role_ids()],
             "params": [],
             "channel_restrictions": [],
         }
         _exit = {
             "method_desc": "Stop the bot.",
-            "roles": [server_admin_role_id()],
+            "roles": [*server_council_role_ids()],
             "params": [],
             "channel_restrictions": [],
         }
         _version = {
             "method_desc": "Get the bot version.",
-            "roles": [server_admin_role_id()],
+            "roles": [*server_council_role_ids()],
             "params": [],
             "channel_restrictions": [],
         }
         _sync = {
             "method_desc": "Sync the bot command tree.",
-            "roles": [server_admin_role_id()],
+            "roles": [*server_council_role_ids()],
             "params": [],
             "channel_restrictions": [],
         }
@@ -96,13 +96,13 @@ class Helper(commands.Cog):
         # Somm commands
         _ping = {
             "method_desc": "Ping the bot.",
-            "roles": [server_admin_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_sommelier_role_id()],
             "params": [],
             "channel_restrictions": [],
         }
         steve_says = {
             "method_desc": "Send a message as PirateSteve.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [
                 {
                     "name": "message",
@@ -119,7 +119,7 @@ class Helper(commands.Cog):
         }
         booze_started_admin_override = {
             "method_desc": "Override the Public Holiday Started State.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [
                 {
                     "name": "state",
@@ -131,7 +131,7 @@ class Helper(commands.Cog):
         }
         wine_mark_completed_forcefully = {
             "method_desc": "Forcefully mark a wine as completed.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [
                 {
                     "name": "carrier_id",
@@ -143,31 +143,31 @@ class Helper(commands.Cog):
         }
         booze_channels_open = {
             "method_desc": "Open the booze channels to the public.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [],
             "channel_restrictions": [get_steve_says_channel()],
         }
         booze_channels_close = {
             "method_desc": "Close the booze channels to the public.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [],
             "channel_restrictions": [get_steve_says_channel()],
         }
         clear_booze_roles = {
             "method_desc": "Clear all the booze cruise roles from everyone.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [],
             "channel_restrictions": [get_steve_says_channel()],
         }
         set_wine_carrier_welcome = {
             "method_desc": "Set the wine carrier welcome message.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [],
             "channel_restrictions": [get_steve_says_channel()],
         }
         booze_pin_message = {
             "method_desc": "Pin a steve tally embed for automatic updating.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [
                 {
                     "name": "message_link",
@@ -179,13 +179,13 @@ class Helper(commands.Cog):
         }
         booze_unpin_all = {
             "method_desc": "Unpin and forget all automatic updating tallies",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [],
             "channel_restrictions": [get_steve_says_channel()],
         }
         booze_unpin_message = {
             "method_desc": "Unpin and forget an automatic updating tally message",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [
                 {
                     "name": "message_link",
@@ -197,7 +197,7 @@ class Helper(commands.Cog):
         }
         booze_delete_carrier = {
             "method_desc": "Delete a carrier from the database.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [
                 {
                     "name": "carrier_id",
@@ -209,25 +209,25 @@ class Helper(commands.Cog):
         }
         booze_archive_database = {
             "method_desc": "Archive the database after the cruise has ended.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [],
             "channel_restrictions": [get_steve_says_channel()],
         }
         booze_configure_signup_forms = {
             "method_desc": "Configure the signup forms for the cruise.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [],
             "channel_restrictions": [get_steve_says_channel()],
         }
         booze_reuse_signup_form = {
             "method_desc": "Reuse the signup form from the last cruise again.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [],
             "channel_restrictions": [get_steve_says_channel()],
         }
         remove_wine_carrier = {
             "method_desc": "Removes the Wine Carrier role from a user.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
             "params": [
                 {
                     "name": "user",
@@ -241,13 +241,13 @@ class Helper(commands.Cog):
         # Connoisseur commands
         update_booze_db = {
             "method_desc": "Update the booze database from the google sheet.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
             "params": [],
             "channel_restrictions": [get_steve_says_channel()],
         }
         make_wine_carrier = {
             "method_desc": "Give user the Wine Carrier role.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
             "params": [
                 {
                     "name": "user",
@@ -259,25 +259,25 @@ class Helper(commands.Cog):
         }
         booze_tally = {
             "method_desc": "Get the current booze tally.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
             "params": [],
             "channel_restrictions": [],
         }
         booze_carrier_summary = {
             "method_desc": "Get the summary of the carriers.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
             "params": [],
             "channel_restrictions": [],
         }
         booze_tally_extra_stats = {
             "method_desc": "Get the extra stats for the booze tally.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
             "params": [],
             "channel_restrictions": [],
         }
         biggest_cruise_tally = {
             "method_desc": "Get the biggest cruise tally.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
             "params": [
                 {
                     "name": "extended",
@@ -291,13 +291,13 @@ class Helper(commands.Cog):
         # Wine carrier commands
         find_carriers_with_wine = {
             "method_desc": "Find carriers with wine.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
             "params": [],
             "channel_restrictions": [get_steve_says_channel(), get_wine_carrier_channel()],
         }
         find_wine_carriers_for_platform = {
             "method_desc": "Find carriers with wine for a specific platform.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
             "params": [
                 {
                     "name": "platform",
@@ -309,7 +309,7 @@ class Helper(commands.Cog):
         }
         find_wine_carrier_by_id = {
             "method_desc": "Find a wine carrier by their ID.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
             "params": [
                 {
                     "name": "carrier_id",
@@ -321,7 +321,7 @@ class Helper(commands.Cog):
         }
         wine_unload_complete = {
             "method_desc": "Close the unload of a carrier and delete the wine unload post.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
             "params": [
                 {
                     "name": "carrier_id",
@@ -333,7 +333,7 @@ class Helper(commands.Cog):
         }
         wine_unload = {
             "method_desc": "Track the unload of a carrier and create a wine unload post.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
             "params": [
                 {
                     "name": "carrier_id",
@@ -360,19 +360,19 @@ class Helper(commands.Cog):
         }
         wine_helper_market_open = {
             "method_desc": "Creates a new unloading helper operation in this channel.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
             "params": [],
             "channel_restrictions": [],
         }
         wine_helper_market_closed = {
             "method_desc": "Sends a message to indicate you have closed your market. Command sent in active channel.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
             "params": [],
             "channel_restrictions": [],
         }
         wine_carrier_departure = {
             "method_desc": "Post a departure notice for a carrier.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
             "params": [
                 {
                     "name": "carrier_id",
@@ -405,7 +405,7 @@ class Helper(commands.Cog):
         
         booze_carrier_stats = {
             "method_desc": "Get the stats for a specific carrier.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
             "params": [
                 {
                     "name": "carrier_id",
@@ -419,13 +419,13 @@ class Helper(commands.Cog):
         # Everyone commands
         pirate_steve_help = {
             "method_desc": "Returns some information for each command.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id(), bot_guild_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id(), bot_guild_id()],
             "params": [],
             "channel_restrictions": [],
         }
         booze_duration_remaining = {
             "method_desc": "Get the remaining duration of the cruise.",
-            "roles": [server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id(), bot_guild_id()],
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id(), bot_guild_id()],
             "params": [],
             "channel_restrictions": [],
         }

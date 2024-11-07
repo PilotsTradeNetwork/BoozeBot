@@ -43,7 +43,7 @@ bot = commands.Bot(command_prefix='b/', intents=discord.Intents.all())
 PROD_DISCORD_GUILD = 800080948716503040  # PTN Discord server
 PROD_ASSASSIN_ID = 806498760586035200
 PROD_BOOZE_UNLOAD_ID = 932918003639648306   # Was 838699587249242162 booze-cruise-announcements
-PROD_ADMIN_ID = 800125148971663392
+PROD_ADMIN_IDS = (800091021852803072, 1226645094439063612) # Council, Council Advisor
 PROD_SOMMELIER_ID = 838520893181263872
 PROD_CONNOISSEUR_ID = 1105144902645448915
 PROD_WINE_CARRIER_ID = 839149899596955708
@@ -68,7 +68,7 @@ PROD_THOON_EMOJI_ID = 1058010828458176563
 TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
 TEST_ASSASSIN_ID = 848957573792137247
 TEST_BOOZE_UNLOAD_ID = 849570829230014464
-TEST_ADMIN_ID = 877586918228000819#818174400997228545
+TEST_ADMIN_IDS = (877586918228000819, 1227350727131660359) # Council, Council Advisor
 TEST_SOMMELIER_ID = 849907019502059530
 TEST_CONNOISSEUR_ID = 1105144147582656663
 TEST_WINE_CARRIER_ID = 849909113776898071
@@ -243,14 +243,14 @@ def get_db_path():
     return CARRIERS_DB_PATH
 
 
-def server_admin_role_id():
+def server_council_role_ids():
     """
-    Wrapper that returns the admin role ID
+    Wrapper that returns the council role IDs
 
-    :returns: Admin role id
-    :rtype: int
+    :returns: Council role ids
+    :rtype: Tuple[int, ...]
     """
-    return PROD_ADMIN_ID if _production else TEST_ADMIN_ID
+    return PROD_ADMIN_IDS if _production else TEST_ADMIN_IDS
 
 
 def server_sommelier_role_id():
