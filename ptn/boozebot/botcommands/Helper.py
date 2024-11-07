@@ -68,12 +68,6 @@ class Helper(commands.Cog):
 
     class HelpCommandInformation(enum.Enum):
         # Admin commands
-        _ping = {
-            "method_desc": "Ping the bot.",
-            "roles": [*server_council_role_ids()],
-            "params": [],
-            "channel_restrictions": [],
-        }
         _update = {
             "method_desc": "Restart the bot.",
             "roles": [*server_council_role_ids()],
@@ -100,6 +94,12 @@ class Helper(commands.Cog):
         }
         
         # Somm commands
+        _ping = {
+            "method_desc": "Ping the bot.",
+            "roles": [*server_council_role_ids(), server_sommelier_role_id()],
+            "params": [],
+            "channel_restrictions": [],
+        }
         steve_says = {
             "method_desc": "Send a message as PirateSteve.",
             "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
