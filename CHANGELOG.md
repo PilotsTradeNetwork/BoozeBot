@@ -1,6 +1,10 @@
 # Changelog
 
-## 2.0.1
+##2.0.2
+-    \#415 - made b/ping available to somms (as well as council/advisor) (conshmea)
+-    \#414 - Updated admin role to be council role OR council advisor (conshmea)
+-    \#416 - Fix timestamp missing formatting (conshmea)
+##2.0.1
 
 -   \#409 - Made PH check function async
 -   \#408 - Departure message tasks have better error handling
