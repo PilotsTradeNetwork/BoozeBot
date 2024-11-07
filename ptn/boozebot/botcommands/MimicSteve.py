@@ -13,7 +13,7 @@ from discord.ext import commands
 from discord import app_commands
 
 # local constants
-from ptn.boozebot.constants import server_admin_role_id, server_sommelier_role_id, server_mod_role_id, bot, get_steve_says_channel
+from ptn.boozebot.constants import server_council_role_ids, server_sommelier_role_id, server_mod_role_id, bot, get_steve_says_channel
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
@@ -51,7 +51,7 @@ class MimicSteve(commands.Cog):
     @app_commands.describe(message="The message to send",
                            send_channel="The channel to send the message in",
                             )
-    @check_roles([server_admin_role_id(), server_sommelier_role_id(), server_mod_role_id()])
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def mimic_steve(self, interaction: discord.Interaction, message: str, send_channel: discord.TextChannel):
         """
