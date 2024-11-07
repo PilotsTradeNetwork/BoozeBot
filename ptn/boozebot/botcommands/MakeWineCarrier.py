@@ -13,7 +13,7 @@ from discord.ext import commands, tasks
 from discord import app_commands, NotFound
 
 # local constants
-from ptn.boozebot.constants import bot, server_admin_role_id, server_sommelier_role_id, \
+from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelier_role_id, \
     server_connoisseur_role_id, server_wine_carrier_role_id, server_mod_role_id, \
     get_primary_booze_discussions_channel, get_wine_carrier_channel, get_steve_says_channel, \
     WELCOME_MESSAGE_FILE_PATH
@@ -31,7 +31,7 @@ Make Wine Carrier
 """
 
 @bot.tree.context_menu(name='Make Wine Carrier')
-@check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
+@check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
 @check_command_channel(get_primary_booze_discussions_channel())
 async def make_contextuser_wine_carrier(interaction:  discord.Interaction, user: discord.User):
     await make_user_wine_carrier(interaction, user)
@@ -67,7 +67,7 @@ class MakeWineCarrier(commands.Cog):
         
     @app_commands.command(name="make_wine_carrier", description="Give user the Wine Carrier role. Admin/Sommelier/Connoisseur role required.")
     @describe(user="An @ mention of the Discord user to receive the role.")
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
     async def make_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
         print(f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to set the Wine Carrier role")
         
@@ -76,7 +76,7 @@ class MakeWineCarrier(commands.Cog):
         
     @app_commands.command(name="remove_wine_carrier", description="Removes the Wine Carrier role from a user. Admin/Sommelier/Connoisseur role required.")
     @describe(user="An @ mention of the Discord user to receive the role.")
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def remove_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
         print(f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to remove the Wine Carrier role")

@@ -14,7 +14,7 @@ from discord import app_commands, NotFound
 
 # local constants
 from ptn.boozebot.constants import get_custom_assassin_id, bot, get_discord_booze_unload_channel, \
-    server_admin_role_id, server_sommelier_role_id, server_wine_carrier_role_id, \
+    server_council_role_ids, server_sommelier_role_id, server_wine_carrier_role_id, \
     server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id, \
     get_discord_tanker_unload_channel, wine_carrier_command_channel, server_hitchhiker_role_id, \
     get_departure_announcement_channel, server_connoisseur_role_id, get_thoon_emoji_id, bot_guild_id, \
@@ -65,7 +65,7 @@ class Unloading(commands.Cog):
     """
 
     @app_commands.command(name="wine_helper_market_open", description="Creates a new unloading helper operation in this channel.")
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id()])
     async def booze_unload_market(self, interaction: discord.Interaction):
         print(f'User {interaction.user.name} requested a new booze unload in channel: {interaction.channel.name}.')
 
@@ -85,7 +85,7 @@ class Unloading(commands.Cog):
         await message.add_reaction('🍷')
 
     @app_commands.command(name="wine_helper_market_closed", description="Sends a message to indicate you have closed your market. Command sent in active channel.")
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id()])
     async def booze_market_closed(self, interaction: discord.Interaction):
         print(f'User {interaction.user.name} requested a to close the market in channel: {interaction.channel.name}.')
         embed = discord.Embed(title='Batten Down The Hatches! This sale is currently done!')
@@ -122,7 +122,7 @@ class Unloading(commands.Cog):
                               Choice(name="Squadron-And-Friends", value="SquadronFriends"),
                               Choice(name="Open", value="Open")
                           ])
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id()])
     @check_command_channel(wine_carrier_command_channel())
     async def wine_carrier_unload(self, interaction: discord.Interaction, carrier_id: str, planetary_body: str, market_type: str,
                                   unload_channel: discord.TextChannel|None=None):
@@ -260,7 +260,7 @@ class Unloading(commands.Cog):
 
     @app_commands.command(name="wine_unload_complete", description="Removes any trade channel notification for unloading wine. Somm/Conn/Wine Carrier role required.")
     @describe(carrier_id="the XXX-XXX ID string for the carrier")
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id(), server_wine_tanker_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id(), server_wine_tanker_role_id()])
     @check_command_channel(wine_carrier_command_channel())
     async def wine_unloading_complete(self, interaction: discord.Interaction, carrier_id: str):
         print(f'Wine unloading complete for {carrier_id} flagged by {interaction.user.name}.')
@@ -317,7 +317,7 @@ class Unloading(commands.Cog):
     @describe(carrier_id="The XXX-XXX ID string for the carrier",
               system_name="The system the carrier is present in.",
               planetary_body="A string representing the location of the carrier, ie Star, P1, P2")
-    @check_roles([server_admin_role_id(), server_mod_role_id(), server_sommelier_role_id(), server_wine_tanker_role_id()])
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_wine_tanker_role_id()])
     @check_command_channel(wine_carrier_command_channel())
     async def wine_tanker_unload(self, interaction: discord.Interaction, carrier_id: str, system_name: str, planetary_body: str):
         """

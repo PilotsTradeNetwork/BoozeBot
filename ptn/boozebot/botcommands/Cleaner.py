@@ -14,7 +14,7 @@ from discord.ext import commands, tasks
 from discord import app_commands, NotFound
 
 # local constants
-from ptn.boozebot.constants import bot_guild_id, bot, server_admin_role_id, \
+from ptn.boozebot.constants import bot_guild_id, bot, server_council_role_ids, \
 server_sommelier_role_id, server_wine_carrier_role_id, server_mod_role_id, \
     get_public_channel_list, server_hitchhiker_role_id, WELCOME_MESSAGE_FILE_PATH, \
     get_steve_says_channel
@@ -55,7 +55,7 @@ class Cleaner(commands.Cog):
     """
 
     @app_commands.command(name="booze_channels_open", description="Opens the Booze Cruise channels to the public.")
-    @check_roles([server_admin_role_id(), server_sommelier_role_id(), server_mod_role_id()])
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel([get_steve_says_channel()])
     async def booze_channels_open(self, interaction: discord.Interaction):
         """
@@ -121,7 +121,7 @@ class Cleaner(commands.Cog):
             )
 
     @app_commands.command(name="booze_channels_close", description="Closes the Booze Cruise channels to the public.")
-    @check_roles([server_admin_role_id(), server_sommelier_role_id(), server_mod_role_id()])
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel([get_steve_says_channel()])
     async def booze_channels_close(self, interaction: discord.Interaction):
         """
@@ -151,7 +151,7 @@ class Cleaner(commands.Cog):
         return
 
     @app_commands.command(name="clear_booze_roles", description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution.")
-    @check_roles([server_admin_role_id(), server_sommelier_role_id(), server_mod_role_id()])
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel([get_steve_says_channel()])
     async def clear_booze_roles(self, interaction: discord.Interaction):
         """
@@ -195,7 +195,7 @@ class Cleaner(commands.Cog):
             return
 
     @app_commands.command(name="set_wine_carrier_welcome", description="Sets the welcome message sent to Wine Carriers.")
-    @check_roles([server_admin_role_id(), server_sommelier_role_id(), server_mod_role_id()])
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel([get_steve_says_channel()])
     async def set_wine_carrier_welcome(self, interaction: discord.Interaction):
         print(f'User {interaction.user.name} is changing the wine carrier welcome message in {interaction.channel.name}.')
