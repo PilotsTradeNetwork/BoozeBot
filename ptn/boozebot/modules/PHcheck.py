@@ -4,12 +4,12 @@
 
 import httpx
 
-async def get_state_from_edbgs() -> bool:
-    edbgs_params = {
+async def get_state_from_ebgs() -> bool:
+    ebgs_params = {
         'name': 'Rackham Capital Investments'
     }
     async with httpx.AsyncClient() as client:
-        r = await client.get('https://elitebgs.app/api/ebgs/v5/factions', params=edbgs_params, timeout=5)
+        r = await client.get('https://elitebgs.app/api/ebgs/v5/factions', params=ebgs_params, timeout=5)
         result = r.json()
         
     # Search each element in the result
@@ -24,7 +24,7 @@ async def get_state_from_edbgs() -> bool:
                 for active_states in system['active_states']:
                     # If the system is in public holiday, return True
                     if active_states['state'] == 'publicholiday':
-                        print('PH state matched from edbgs')
+                        print('PH state matched from ebgs')
                         return True
     return False
 
@@ -43,10 +43,10 @@ async def get_state_from_edsm() -> bool:
 
 async def ph_check() -> bool:
     try:
-        if await get_state_from_edbgs():
+        if await get_state_from_ebgs():
             return True
     except httpx.HTTPError as exc:
-        print('Problem while getting the state from edbgs.')
+        print('Problem while getting the state from ebgs.')
         print(f"HTTP Exception for {exc.request.url} - {exc}")
         print("Attempting to get the state from the edsm.")
         
