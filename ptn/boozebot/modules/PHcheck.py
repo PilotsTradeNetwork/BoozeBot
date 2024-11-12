@@ -62,8 +62,3 @@ async def ph_check() -> bool:
     # Return false if there are no public holiday hits
     print('PH was not hit - Returning False.')
     return False
-
-
-if __name__ == '__main__':
-    import asyncio
-    print(asyncio.run(ph_check()))
