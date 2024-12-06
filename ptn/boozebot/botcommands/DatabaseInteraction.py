@@ -28,6 +28,7 @@ from ptn.boozebot.constants import (
     BOOZE_PROFIT_PER_TONNE_WINE,
     RACKHAMS_PEAK_POP,
     server_mod_role_id,
+    get_pilot_role_id,
     get_bot_control_channel,
     get_steve_says_channel,
     server_wine_carrier_role_id,
@@ -678,7 +679,8 @@ class DatabaseInteraction(commands.Cog):
         
         guild = await bot.fetch_guild(bot_guild_id())
         booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
-        channels_open = booze_cruise_chat.permissions_for(guild.default_role).view_channel
+        pilot_role = guild.get_role(get_pilot_role_id())
+        channels_open = booze_cruise_chat.permissions_for(pilot_role).view_channel
         
         state_text = f"Total Wine Tracked: {total_wine}" if channels_open else "Arrr, the wine be drained, ye thirsty scallywags!"
 
