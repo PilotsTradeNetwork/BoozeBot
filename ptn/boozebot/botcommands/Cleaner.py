@@ -17,7 +17,7 @@ from discord import app_commands, NotFound
 from ptn.boozebot.constants import bot_guild_id, bot, server_council_role_ids, \
 server_sommelier_role_id, server_wine_carrier_role_id, server_mod_role_id, \
     get_public_channel_list, server_hitchhiker_role_id, WELCOME_MESSAGE_FILE_PATH, \
-    get_steve_says_channel
+    get_steve_says_channel, get_feedback_channel_id
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error, TimeoutError
@@ -31,6 +31,9 @@ CLEANER COMMANDS
 /booze_channels_close - somm/mod/admin
 /clear_booze_roles - somm/mod/admin
 /set_wine_carrier_welcome - somm/mod/admin
+
+/open_wine_carrier_feedback - somm/mod/admin
+/close_wine_carrier_feedback - somm/mod/admin
 """
 
 class Cleaner(commands.Cog):
@@ -235,3 +238,33 @@ class Cleaner(commands.Cog):
                 return
         else:
             return
+        
+    @app_commands.command(name="open_wine_carrier_feedback", description="Opens the Wine Carrier feedback channel.")
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @check_command_channel([get_steve_says_channel()])
+    async def open_wine_carrier_feedback(self, interaction: discord.Interaction):
+        print(f'User {interaction.user.name} is opening the wine carrier feedback channel in {interaction.channel.name}.')
+        
+        wine_feedback_channel = bot.get_channel(get_feedback_channel_id())        
+        wine_carrier_role = interaction.guild.get_role(server_wine_carrier_role_id())
+        overwrite = discord.PermissionOverwrite(view_channel=True)
+        
+        await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
+
+        await interaction.response.send_message(f"Opened the Wine Carrier feedback channel.", embed=None)
+        return
+    
+    @app_commands.command(name="close_wine_carrier_feedback", description="Closes the Wine Carrier feedback channel.")
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @check_command_channel([get_steve_says_channel()])
+    async def close_wine_carrier_feedback(self, interaction: discord.Interaction):
+        print(f'User {interaction.user.name} is closing the wine carrier feedback channel in {interaction.channel.name}.')
+        
+        wine_feedback_channel = bot.get_channel(get_feedback_channel_id())
+        wine_carrier_role = interaction.guild.get_role(server_wine_carrier_role_id())
+        overwrite = discord.PermissionOverwrite(view_channel=False)
+        
+        await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
+
+        await interaction.response.send_message(f"Closed the Wine Carrier feedback channel.", embed=None)
+        return
