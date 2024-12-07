@@ -69,7 +69,7 @@ class PublicHoliday(commands.Cog):
             self.public_holiday_loop.start()
 
     @classmethod
-    @tasks.loop(minutes=15)
+    @tasks.loop(minutes=10)
     async def public_holiday_loop(cls):
         """
         Command triggers periodically to check the state at Rackhams Peak. Right now this triggers every 15 minutes.
