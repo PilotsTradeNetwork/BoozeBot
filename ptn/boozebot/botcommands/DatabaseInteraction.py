@@ -509,7 +509,7 @@ class DatabaseInteraction(commands.Cog):
         stat_embed = discord.Embed(
             title=f"Pirate Steve's Booze Cruise Tally {date_text}",
             description=f"**Total # of Carrier trips:** — {total_carriers_inc_multiple_trips:>1}\n"
-            f"**Total # of unique Carriers:** — {unique_carrier_count:>24}\n"
+            f"**Total Number of unique Carriers:** — {unique_carrier_count:>24}\n"
             f"**Profit per ton:** — {BOOZE_PROFIT_PER_TONNE_WINE:>56,}\n"
             f"**Rackham Pop:** — {RACKHAMS_PEAK_POP:>56,}\n"
             f"**Wine per capita:** — {wine_per_capita:>56,.2f}\n"
@@ -517,7 +517,7 @@ class DatabaseInteraction(commands.Cog):
             f"**Python Loads (280t):** — {math.ceil(python_loads):>56,}\n\n"
             f"**Total Wine:** — {total_wine:,}\n"
             f"**Total Profit:** — {total_profit:,}\n\n"
-            f"**# of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n"
+            f"**Total Number of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n"
             f"{flavour_text}\n\n"
             f"[Bringing wine? Sign up here]({self.loader_signup_form_url})",
         )
