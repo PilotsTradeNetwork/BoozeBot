@@ -629,7 +629,7 @@ class DatabaseInteraction(commands.Cog):
         if not self.periodic_stat_update.is_running():
             self.periodic_stat_update.start()
 
-    @tasks.loop(hours=1)
+    @tasks.loop(minutes=10)
     async def periodic_stat_update(self):
         """
         Loops every hour and updates all pinned embeds and bot activity status.
