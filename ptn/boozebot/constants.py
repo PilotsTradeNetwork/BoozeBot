@@ -63,6 +63,7 @@ PROD_BC_PUBLIC_CHANNEL_IDS = [838699587249242162, 849460909273120856, 9329180036
 # booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
 PROD_DEPARTURE_ANNOUNCEMENT_CHANNEL = 849460909273120856
 PROD_THOON_EMOJI_ID = 1058010828458176563
+PROD_FEEDBACK_CHANNEL_ID = 936218839362969621
 PROD_PILOT_ID = 800396412217982999
 
 # Testing variables
@@ -89,6 +90,7 @@ TEST_BC_PUBLIC_CHANNEL_IDS = [1107757218318782586, 1107757285817712721, 11077573
 # booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
 TEST_DEPARTURE_ANNOUNCEMENT_CHANNEL = 1107757285817712721
 TEST_THOON_EMOJI_ID = 1301319362489356289
+TEST_FEEDBACK_CHANNEL_ID = 1314640487587643532
 TEST_PILOT_ID = 818174614810787840
 
 BOOZE_PROFIT_PER_TONNE_WINE = 256000
@@ -476,6 +478,15 @@ def get_thoon_emoji_id():
     """
     return PROD_THOON_EMOJI_ID if _production else TEST_THOON_EMOJI_ID
 
+def get_feedback_channel_id():
+    """
+    Gets the ID of the feedback channel
+
+    :return: The channel ID
+    :rtype: int
+    """
+    return PROD_FEEDBACK_CHANNEL_ID if _production else TEST_FEEDBACK_CHANNEL_ID
+  
 def get_pilot_role_id():
     """
     Gets the ID of the pilot role
