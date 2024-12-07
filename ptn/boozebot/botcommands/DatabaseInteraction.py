@@ -468,7 +468,8 @@ class DatabaseInteraction(commands.Cog):
 
         wine_per_capita = (total_wine / RACKHAMS_PEAK_POP) if total_wine else 0
         wine_per_carrier = (total_wine / unique_carrier_count) if total_wine else 0
-        python_loads = (total_wine / 280) if total_wine else 0
+        python_loads = (total_wine / 288) if total_wine else 0
+        t8_loads = (total_wine / 400) if total_wine else 0
 
         total_profit = total_wine * BOOZE_PROFIT_PER_TONNE_WINE
 
@@ -515,7 +516,7 @@ class DatabaseInteraction(commands.Cog):
             f"**Rackham pop:** — {RACKHAMS_PEAK_POP:>56,}\n"
             f"**Wine per capita:** — {wine_per_capita:>56,.2f}\n"
             f"**Wine per carrier:** — {math.ceil(wine_per_carrier):>56,}\n"
-            f"**Python loads (280t):** — {math.ceil(python_loads):>56,}\n"
+            f"**Python loads (288t):** — {math.ceil(python_loads):>56,}\n"
             f"**Type-8 loads (400t):** — {math.ceil(t8_loads):>56,}\n\n"
             f"**Total wine:** — {total_wine:,}\n"
             f"**Total profit:** — {total_profit:,}\n\n"
