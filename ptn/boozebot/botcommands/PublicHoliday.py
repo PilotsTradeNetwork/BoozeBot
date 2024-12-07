@@ -16,7 +16,8 @@ from discord import app_commands, NotFound
 # local constants
 from ptn.boozebot.constants import rackhams_holiday_channel, bot, bot_guild_id, server_council_role_ids, \
     server_sommelier_role_id, server_mod_role_id, server_connoisseur_role_id, holiday_query_not_started_gifs, \
-    holiday_query_started_gifs, holiday_start_gif, holiday_ended_gif, get_steve_says_channel
+    holiday_query_started_gifs, holiday_start_gif, holiday_ended_gif, get_steve_says_channel, \
+    get_wine_carrier_channel, wine_carrier_command_channel, get_primary_booze_discussions_channel
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
@@ -68,7 +69,7 @@ class PublicHoliday(commands.Cog):
             self.public_holiday_loop.start()
 
     @classmethod
-    @tasks.loop(minutes=15)
+    @tasks.loop(minutes=10)
     async def public_holiday_loop(cls):
         """
         Command triggers periodically to check the state at Rackhams Peak. Right now this triggers every 15 minutes.
@@ -219,11 +220,9 @@ class PublicHoliday(commands.Cog):
             print('Holiday was not ongoing')
             await interaction.response.send_message(f'No holiday has been detected yet, Wait until steve detects the holiday before using this command.')
         
-        
-        
-
 
     @app_commands.command(name="booze_duration_remaining", description="Returns roughly how long the holiday has remaining.")
+    @check_command_channel([get_wine_carrier_channel(), get_steve_says_channel(), wine_carrier_command_channel(), get_primary_booze_discussions_channel()])
     async def remaining_time(self, interaction: discord. Interaction):
         print(f'User {interaction.user.name} wanted to know if the remaining time of the holiday.')
         await interaction.response.defer()

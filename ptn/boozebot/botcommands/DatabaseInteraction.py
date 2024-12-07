@@ -28,6 +28,7 @@ from ptn.boozebot.constants import (
     BOOZE_PROFIT_PER_TONNE_WINE,
     RACKHAMS_PEAK_POP,
     server_mod_role_id,
+    get_pilot_role_id,
     get_bot_control_channel,
     get_steve_says_channel,
     server_wine_carrier_role_id,
@@ -509,7 +510,7 @@ class DatabaseInteraction(commands.Cog):
         stat_embed = discord.Embed(
             title=f"Pirate Steve's Booze Cruise Tally {date_text}",
             description=f"**Total # of Carrier trips:** — {total_carriers_inc_multiple_trips:>1}\n"
-            f"**Total # of unique Carriers:** — {unique_carrier_count:>24}\n"
+            f"**Total Number of unique Carriers:** — {unique_carrier_count:>24}\n"
             f"**Profit per ton:** — {BOOZE_PROFIT_PER_TONNE_WINE:>56,}\n"
             f"**Rackham Pop:** — {RACKHAMS_PEAK_POP:>56,}\n"
             f"**Wine per capita:** — {wine_per_capita:>56,.2f}\n"
@@ -517,7 +518,7 @@ class DatabaseInteraction(commands.Cog):
             f"**Python Loads (280t):** — {math.ceil(python_loads):>56,}\n\n"
             f"**Total Wine:** — {total_wine:,}\n"
             f"**Total Profit:** — {total_profit:,}\n\n"
-            f"**# of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n"
+            f"**Total Number of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n"
             f"{flavour_text}\n\n"
             f"[Bringing wine? Sign up here]({self.loader_signup_form_url})",
         )
@@ -628,7 +629,7 @@ class DatabaseInteraction(commands.Cog):
         if not self.periodic_stat_update.is_running():
             self.periodic_stat_update.start()
 
-    @tasks.loop(hours=1)
+    @tasks.loop(minutes=10)
     async def periodic_stat_update(self):
         """
         Loops every hour and updates all pinned embeds and bot activity status.
@@ -678,7 +679,8 @@ class DatabaseInteraction(commands.Cog):
         
         guild = await bot.fetch_guild(bot_guild_id())
         booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
-        channels_open = booze_cruise_chat.permissions_for(guild.default_role).view_channel
+        pilot_role = guild.get_role(get_pilot_role_id())
+        channels_open = booze_cruise_chat.permissions_for(pilot_role).view_channel
         
         state_text = f"Total Wine Tracked: {total_wine}" if channels_open else "Arrr, the wine be drained, ye thirsty scallywags!"
 
