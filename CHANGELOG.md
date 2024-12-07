@@ -1,9 +1,18 @@
 # Changelog
 
+## 2.0.3
+
+-   \#426 \#382 - Add commands to view the status of and stop/start the background tasks
+-   Fix the tally formatting
+-   Decrease the interval between automatically checking the sheet from 1 hour to 10 minutes
+-   Added commands to open and close wine carrier feedback
+-   Fixed activity status when the cruise channels are open
+
 ## 2.0.2
--    \#415 - made b/ping available to somms (as well as council/advisor) (conshmea)
--    \#414 - Updated admin role to be council role OR council advisor (conshmea)
--    \#416 - Fix timestamp missing formatting (conshmea)
+
+-   \#415 - made b/ping available to somms (as well as council/advisor) (conshmea)
+-   \#414 - Updated admin role to be council role OR council advisor (conshmea)
+-   \#416 - Fix timestamp missing formatting (conshmea)
 
 ## 2.0.1
 
