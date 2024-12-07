@@ -510,7 +510,7 @@ class DatabaseInteraction(commands.Cog):
         # Build the embed
         stat_embed = discord.Embed(
             title=f"Pirate Steve's Booze Cruise Tally {date_text}",
-            description=f"**Total # of carrier trips:** — {total_carriers_inc_multiple_trips:>1}\n"
+            description=f"**Total number of carrier trips:** — {total_carriers_inc_multiple_trips:>1}\n"
             f"**Total number of unique carriers:** — {unique_carrier_count:>24}\n"
             f"**Profit per ton:** — {BOOZE_PROFIT_PER_TONNE_WINE:>56,}\n"
             f"**Rackham pop:** — {RACKHAMS_PEAK_POP:>56,}\n"
