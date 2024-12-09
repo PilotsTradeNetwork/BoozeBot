@@ -120,7 +120,7 @@ class PublicHoliday(commands.Cog):
                 end_time = start_time + timedelta(hours=48)
 
                 current_time_utc = datetime.strptime(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S')
-                print('No PH detected, next check in 15 mins.')
+                print('No PH detected, next check in 10 mins.')
 
                 if current_time_utc > end_time:
                     # Current time is after the end time, go turn the checks off.
