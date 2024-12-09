@@ -468,7 +468,8 @@ class DatabaseInteraction(commands.Cog):
 
         wine_per_capita = (total_wine / RACKHAMS_PEAK_POP) if total_wine else 0
         wine_per_carrier = (total_wine / unique_carrier_count) if total_wine else 0
-        python_loads = (total_wine / 280) if total_wine else 0
+        python_loads = (total_wine / 288) if total_wine else 0
+        t8_loads = (total_wine / 400) if total_wine else 0
 
         total_profit = total_wine * BOOZE_PROFIT_PER_TONNE_WINE
 
@@ -509,16 +510,17 @@ class DatabaseInteraction(commands.Cog):
         # Build the embed
         stat_embed = discord.Embed(
             title=f"Pirate Steve's Booze Cruise Tally {date_text}",
-            description=f"**Total # of Carrier trips:** — {total_carriers_inc_multiple_trips:>1}\n"
-            f"**Total Number of unique Carriers:** — {unique_carrier_count:>24}\n"
+            description=f"**Total number of carrier trips:** — {total_carriers_inc_multiple_trips:>1}\n"
+            f"**Total number of unique carriers:** — {unique_carrier_count:>24}\n"
             f"**Profit per ton:** — {BOOZE_PROFIT_PER_TONNE_WINE:>56,}\n"
-            f"**Rackham Pop:** — {RACKHAMS_PEAK_POP:>56,}\n"
+            f"**Rackham pop:** — {RACKHAMS_PEAK_POP:>56,}\n"
             f"**Wine per capita:** — {wine_per_capita:>56,.2f}\n"
             f"**Wine per carrier:** — {math.ceil(wine_per_carrier):>56,}\n"
-            f"**Python Loads (280t):** — {math.ceil(python_loads):>56,}\n\n"
-            f"**Total Wine:** — {total_wine:,}\n"
-            f"**Total Profit:** — {total_profit:,}\n\n"
-            f"**Total Number of Fleet Carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n"
+            f"**Python loads (288t):** — {math.ceil(python_loads):>56,}\n"
+            f"**Type-8 loads (400t):** — {math.ceil(t8_loads):>56,}\n\n"
+            f"**Total wine:** — {total_wine:,}\n"
+            f"**Total profit:** — {total_profit:,}\n\n"
+            f"**Total number of fleet carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n"
             f"{flavour_text}\n\n"
             f"[Bringing wine? Sign up here]({self.loader_signup_form_url})",
         )
@@ -587,30 +589,30 @@ class DatabaseInteraction(commands.Cog):
             description=f"Current Wine Tonnes: {total_wine:,}\n"
             f"Wine per capita (Rackhams): {total_wine_per_capita:,.2f}\n\n"
             f"Weight of 1 750ml bottle (kg): {wine_bottles_weight_kg}\n"
-            f"Wine Bottles per Tonne: {wine_bottles_per_tonne}\n"
-            f"Wine Bottles Litres per Tonne: {wine_bottles_litres_per_tonne}\n"
-            f"Wine Bottles Total: {wine_bottles_total:,}\n"
-            f"Wine Bottles Litres Total: {wine_bottles_litres_total:,.2f}\n"
-            f"Wine Bottles per capita (Rackhams): {wine_bottles_per_capita:,.2f}\n"
-            f"Wine Bottles Litres per capita (Rackhams): {wine_bottles_litres_per_capita:,.2f}\n\n"
+            f"Wine bottles per tonne: {wine_bottles_per_tonne}\n"
+            f"Wine bottles litres per tonne: {wine_bottles_litres_per_tonne}\n"
+            f"Wine bottles total: {wine_bottles_total:,}\n"
+            f"Wine bottles litres total: {wine_bottles_litres_total:,.2f}\n"
+            f"Wine bottles per capita (Rackhams): {wine_bottles_per_capita:,.2f}\n"
+            f"Wine bottles litres per capita (Rackhams): {wine_bottles_litres_per_capita:,.2f}\n\n"
             f"Weight of box wine 2.25L (kg): {wine_box_weight_kg:,.2f}\n"
-            f"Wine Boxes per Tonne: {wine_boxes_per_tonne:,.2f}\n"
-            f"Wine Boxes Litre per Tonne: {wine_boxes_litres_per_tonne:,.2f}\n"
-            f"Wine Boxes Total: {wine_boxes_total:,.2f}\n"
-            f"Wine Boxes per capita (Rackhams): {wine_boxes_per_capita:,.2f}\n"
-            f"Wine Boxes Litres per capita (Rackhams): {wine_boxes_litres_per_capita:,.2f}\n\n"
-            f"USA Population: {usa_population:,}\n"
-            f"Wine Bottles per capita (:flag_us:): {wine_bottles_per_us_pop:,.2f}\n"
-            f"Wine Boxes per capita (:flag_us:): {wine_boxes_per_us_pop:,.2f}\n\n"
-            f"Scotland Population: {scotland_population:,}\n"
-            f"Wine Bottles per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_bottles_per_scot_pop:,.2f}\n"
-            f"Wine Boxes per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_boxes_per_scot_pop:,.2f}\n\n"
-            f"Olympic Swimming Pool Volume (L): {olympic_swimming_pool_volume:,}\n"
-            f"Olympic Swimming Pools if Bottles of Wine: {pools_if_bottles:,.2f}\n"
-            f"Olympic Swimming Pools if Boxes of Wine: {pools_if_boxes:,.2f}\n\n"
-            f"London Bus Volume (L): {london_bus_volume_l:,}\n"
-            f"London Busses if Bottles of Wine: {busses_if_bottles:,.2f}\n"
-            f"London Busses if Boxes of Wine: {busses_if_boxes:,.2f}\n\n",
+            f"Wine boxes per tonne: {wine_boxes_per_tonne:,.2f}\n"
+            f"Wine boxes litre per tonne: {wine_boxes_litres_per_tonne:,.2f}\n"
+            f"Wine boxes total: {wine_boxes_total:,.2f}\n"
+            f"Wine boxes per capita (Rackhams): {wine_boxes_per_capita:,.2f}\n"
+            f"Wine boxes litres per capita (Rackhams): {wine_boxes_litres_per_capita:,.2f}\n\n"
+            f"USA population: {usa_population:,}\n"
+            f"Wine bottles per capita (:flag_us:): {wine_bottles_per_us_pop:,.2f}\n"
+            f"Wine boxes per capita (:flag_us:): {wine_boxes_per_us_pop:,.2f}\n\n"
+            f"Scotland population: {scotland_population:,}\n"
+            f"Wine bottles per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_bottles_per_scot_pop:,.2f}\n"
+            f"Wine boxes per capita (🏴󠁧󠁢󠁳󠁣󠁴󠁿): {wine_boxes_per_scot_pop:,.2f}\n\n"
+            f"Olympic swimming pool volume (L): {olympic_swimming_pool_volume:,}\n"
+            f"Olympic swimming pools if bottles of wine: {pools_if_bottles:,.2f}\n"
+            f"Olympic swimming pools if boxes of wine: {pools_if_boxes:,.2f}\n\n"
+            f"London bus volume (L): {london_bus_volume_l:,}\n"
+            f"London busses if bottles of wine: {busses_if_bottles:,.2f}\n"
+            f"London busses if boxes of wine: {busses_if_boxes:,.2f}\n\n",
         )
         stat_embed.set_footer(
             text="Stats requested by RandomGazz.\nPirate Steve approves of these stats!"
@@ -636,62 +638,65 @@ class DatabaseInteraction(commands.Cog):
 
         :returns: None
         """
-        # Periodic trigger that updates all the stat embeds that are pinned.
-        print("Period trigger of the embed update.")
+        try:
+            # Periodic trigger that updates all the stat embeds that are pinned.
+            print("Period trigger of the embed update.")
 
-        print("Running db update")
-        self._update_db()
+            print("Running db update")
+            self._update_db()
 
-        pirate_steve_db.execute("SELECT * FROM pinned_messages")
-        # Get everything
-        all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
+            pirate_steve_db.execute("SELECT * FROM pinned_messages")
+            # Get everything
+            all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
 
-        # Get all carriers
-        pirate_steve_db.execute("SELECT * FROM boozecarriers")
-        all_carrier_data = [
-            BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
-        ]
-        pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE runtotal > 1")
-        total_carriers_multiple_trips = [
-            BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
-        ]
-        stat_embed = self.build_stat_embed(
-            all_carrier_data, total_carriers_multiple_trips, None
-        )
-
-        print(all_pins)
-
-        if all_pins:
-            print(f"We have these pins to update: {all_pins}")
-            for pin in all_pins:
-                channel = bot.get_channel(int(pin["channel_id"]))
-                message = await channel.fetch_message(pin["message_id"])
-                await message.edit(embed=stat_embed)
-        else:
-            print("No pinned messages to update. Check again in an hour.")
-
-        print("Updating discord activity")
-        total_wine = (
-            sum(carrier.wine_total for carrier in all_carrier_data)
-            if all_carrier_data
-            else 0
-        )
-        
-        guild = await bot.fetch_guild(bot_guild_id())
-        booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
-        pilot_role = guild.get_role(get_pilot_role_id())
-        channels_open = booze_cruise_chat.permissions_for(pilot_role).view_channel
-        
-        state_text = f"Total Wine Tracked: {total_wine}" if channels_open else "Arrr, the wine be drained, ye thirsty scallywags!"
-
-        await self.bot.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name="the Sidewinders landing at Rackhams Peak.",
-                state=state_text,
+            # Get all carriers
+            pirate_steve_db.execute("SELECT * FROM boozecarriers")
+            all_carrier_data = [
+                BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
+            ]
+            pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE runtotal > 1")
+            total_carriers_multiple_trips = [
+                BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
+            ]
+            stat_embed = self.build_stat_embed(
+                all_carrier_data, total_carriers_multiple_trips, None
             )
-        )
-        print("Activity status updated")
+
+            print("Updating pinned messages")
+            if all_pins:
+                print(f"We have these pins to update: {all_pins}")
+                for pin in all_pins:
+                    channel = bot.get_channel(int(pin["channel_id"]))
+                    message = await channel.fetch_message(pin["message_id"])
+                    await message.edit(embed=stat_embed)
+            else:
+                print("No pinned messages to update.")
+
+            print("Updating discord activity")
+            total_wine = (
+                sum(carrier.wine_total for carrier in all_carrier_data)
+                if all_carrier_data
+                else 0
+            )
+            
+            guild = await bot.fetch_guild(bot_guild_id())
+            booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
+            pilot_role = guild.get_role(get_pilot_role_id())
+            channels_open = booze_cruise_chat.permissions_for(pilot_role).view_channel
+            
+            state_text = f"Total Wine Tracked: {total_wine}" if channels_open else "Arrr, the wine be drained, ye thirsty scallywags!"
+
+            await self.bot.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name="the Sidewinders landing at Rackhams Peak.",
+                    state=state_text,
+                )
+            )
+            print("Activity status updated")
+            print("Periodic update complete, checking again in 10 minutes.")
+        except Exception as e:
+            print(f"Error updating pinned messages: {e}")
 
     """
     Database interaction Commands
@@ -1046,7 +1051,7 @@ class DatabaseInteraction(commands.Cog):
 
         if not carrier_data:
             print(f"No carrier found for: {carrier_id}")
-            return await interaction.edit_original_response(
+            return await interaction.edit_original_response(content=
                 f"No carrier found for: {carrier_id}"
             )
 
@@ -1115,7 +1120,7 @@ class DatabaseInteraction(commands.Cog):
                 print(
                     "Input for cruise value was out of bounds for the number of cruises recorded in the database."
                 )
-                return await interaction.edit_original_response(
+                return await interaction.edit_original_response(content=
                     f"Pirate Steve only knows about the last: {len(all_dates)} booze cruises. "
                     f"You wanted the -{cruise_select} data."
                 )
@@ -1409,7 +1414,7 @@ class DatabaseInteraction(commands.Cog):
                 print(
                     "Input for cruise value was out of bounds for the number of cruises recorded in the database."
                 )
-                return await interaction.edit_original_response(
+                return await interaction.edit_original_response(content=
                     f"Pirate Steve only knows about the last: {len(all_dates)} booze cruises. "
                     f"You wanted the -{cruise_select} data."
                 )
