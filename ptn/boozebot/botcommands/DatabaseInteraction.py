@@ -1050,7 +1050,7 @@ class DatabaseInteraction(commands.Cog):
 
         if not carrier_data:
             print(f"No carrier found for: {carrier_id}")
-            return await interaction.edit_original_response(
+            return await interaction.edit_original_response(content=
                 f"No carrier found for: {carrier_id}"
             )
 
@@ -1119,7 +1119,7 @@ class DatabaseInteraction(commands.Cog):
                 print(
                     "Input for cruise value was out of bounds for the number of cruises recorded in the database."
                 )
-                return await interaction.edit_original_response(
+                return await interaction.edit_original_response(content=
                     f"Pirate Steve only knows about the last: {len(all_dates)} booze cruises. "
                     f"You wanted the -{cruise_select} data."
                 )
@@ -1413,7 +1413,7 @@ class DatabaseInteraction(commands.Cog):
                 print(
                     "Input for cruise value was out of bounds for the number of cruises recorded in the database."
                 )
-                return await interaction.edit_original_response(
+                return await interaction.edit_original_response(content=
                     f"Pirate Steve only knows about the last: {len(all_dates)} booze cruises. "
                     f"You wanted the -{cruise_select} data."
                 )
