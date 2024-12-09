@@ -87,7 +87,7 @@ class BoozeCarrier:
 
         :rtype: bool
         """
-        return any([value for key, value in vars(self).items() if value])
+        return any([value for key, value in vars(self).items() if key not in ['timestamp', 'platform'] and value])
 
     def __eq__(self, other):
         """
