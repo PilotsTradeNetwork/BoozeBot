@@ -211,7 +211,7 @@ class Departures(commands.Cog):
         # Validate the carrier ID format
         if not re.fullmatch(r"\w{3}-\w{3}", carrier_id):
             print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await interaction.edit_original_response(content=f'{interaction.user.name}, the carrier ID was invalid during tanker unload, '
+            return await interaction.edit_original_response(content=f'{interaction.user.name}, the carrier ID was invalid during departure creation, '
                                         f'XXX-XXX expected received, {carrier_id}.')
 
         # Acquire the database lock and fetch carrier data
@@ -223,7 +223,7 @@ class Departures(commands.Cog):
         # Check if carrier data was found
         if not carrier_data:
             print(f'We failed to find the carrier: {carrier_id} in the database.')
-            return await interaction.edit_original_response(content=f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
+            return await interaction.edit_original_response(content=f'Sorry, during departure creation we could not find a carrier for the data: {carrier_id}.')
 
         # Create a BoozeCarrier object from the fetched data
         carrier_data = BoozeCarrier(carrier_data)
