@@ -636,62 +636,64 @@ class DatabaseInteraction(commands.Cog):
 
         :returns: None
         """
-        # Periodic trigger that updates all the stat embeds that are pinned.
-        print("Period trigger of the embed update.")
+        try:
+            # Periodic trigger that updates all the stat embeds that are pinned.
+            print("Period trigger of the embed update.")
 
-        print("Running db update")
-        self._update_db()
+            print("Running db update")
+            self._update_db()
 
-        pirate_steve_db.execute("SELECT * FROM pinned_messages")
-        # Get everything
-        all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
+            pirate_steve_db.execute("SELECT * FROM pinned_messages")
+            # Get everything
+            all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
 
-        # Get all carriers
-        pirate_steve_db.execute("SELECT * FROM boozecarriers")
-        all_carrier_data = [
-            BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
-        ]
-        pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE runtotal > 1")
-        total_carriers_multiple_trips = [
-            BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
-        ]
-        stat_embed = self.build_stat_embed(
-            all_carrier_data, total_carriers_multiple_trips, None
-        )
-
-        print(all_pins)
-
-        if all_pins:
-            print(f"We have these pins to update: {all_pins}")
-            for pin in all_pins:
-                channel = bot.get_channel(int(pin["channel_id"]))
-                message = await channel.fetch_message(pin["message_id"])
-                await message.edit(embed=stat_embed)
-        else:
-            print("No pinned messages to update. Check again in an hour.")
-
-        print("Updating discord activity")
-        total_wine = (
-            sum(carrier.wine_total for carrier in all_carrier_data)
-            if all_carrier_data
-            else 0
-        )
-        
-        guild = await bot.fetch_guild(bot_guild_id())
-        booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
-        pilot_role = guild.get_role(get_pilot_role_id())
-        channels_open = booze_cruise_chat.permissions_for(pilot_role).view_channel
-        
-        state_text = f"Total Wine Tracked: {total_wine}" if channels_open else "Arrr, the wine be drained, ye thirsty scallywags!"
-
-        await self.bot.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name="the Sidewinders landing at Rackhams Peak.",
-                state=state_text,
+            # Get all carriers
+            pirate_steve_db.execute("SELECT * FROM boozecarriers")
+            all_carrier_data = [
+                BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
+            ]
+            pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE runtotal > 1")
+            total_carriers_multiple_trips = [
+                BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
+            ]
+            stat_embed = self.build_stat_embed(
+                all_carrier_data, total_carriers_multiple_trips, None
             )
-        )
-        print("Activity status updated")
+
+            print("Updating pinned messages")
+            if all_pins:
+                print(f"We have these pins to update: {all_pins}")
+                for pin in all_pins:
+                    channel = bot.get_channel(int(pin["channel_id"]))
+                    message = await channel.fetch_message(pin["message_id"])
+                    await message.edit(embed=stat_embed)
+            else:
+                print("No pinned messages to update. Check again in an hour.")
+
+            print("Updating discord activity")
+            total_wine = (
+                sum(carrier.wine_total for carrier in all_carrier_data)
+                if all_carrier_data
+                else 0
+            )
+            
+            guild = await bot.fetch_guild(bot_guild_id())
+            booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
+            pilot_role = guild.get_role(get_pilot_role_id())
+            channels_open = booze_cruise_chat.permissions_for(pilot_role).view_channel
+            
+            state_text = f"Total Wine Tracked: {total_wine}" if channels_open else "Arrr, the wine be drained, ye thirsty scallywags!"
+
+            await self.bot.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name="the Sidewinders landing at Rackhams Peak.",
+                    state=state_text,
+                )
+            )
+            print("Activity status updated")
+        except Exception as e:
+            print(f"Error updating pinned messages: {e}")
 
     """
     Database interaction Commands
