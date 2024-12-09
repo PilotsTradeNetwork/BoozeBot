@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.4
+
+-   \#436 - Commands respond correctly to IDs not in the database (platform is ignored in BoozeCarrier check)
+-   \#435 - Basic error logging added to background tasks
+-   \#434 - Departure command no longer says tanker unload in errors
+-   Fix loop log messages using old loop timings
+
 ## 2.0.3
 
 -   \#426 \#382 - Add commands to view the status of and stop/start the background tasks
