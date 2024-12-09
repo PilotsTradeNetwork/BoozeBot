@@ -670,7 +670,7 @@ class DatabaseInteraction(commands.Cog):
                     message = await channel.fetch_message(pin["message_id"])
                     await message.edit(embed=stat_embed)
             else:
-                print("No pinned messages to update. Check again in an hour.")
+                print("No pinned messages to update.")
 
             print("Updating discord activity")
             total_wine = (
@@ -694,6 +694,7 @@ class DatabaseInteraction(commands.Cog):
                 )
             )
             print("Activity status updated")
+            print("Periodic update complete, checking again in 10 minutes.")
         except Exception as e:
             print(f"Error updating pinned messages: {e}")
 
