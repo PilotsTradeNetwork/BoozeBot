@@ -200,19 +200,23 @@ class Departures(commands.Cog):
         """
         # Log the request
         print(f'User {interaction.user.name} has requested a new wine carrier departure operation for carrier: {carrier_id} from the '
-            f'location: {departure_location} to {arrival_location}.')
+              f'location: {departure_location} to {arrival_location}.')
         
         # Defer the interaction response to allow more time for processing
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
 
         # Convert carrier ID to uppercase
         carrier_id = carrier_id.upper().strip()
 
+        guild = bot.get_guild(bot_guild_id())
+        wine_carrier_chat = guild.get_channel(get_wine_carrier_channel())
         # Validate the carrier ID format
         if not re.fullmatch(r"\w{3}-\w{3}", carrier_id):
-            print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await interaction.edit_original_response(content=f'{interaction.user.name}, the carrier ID was invalid during departure creation, '
-                                        f'XXX-XXX expected received, {carrier_id}.')
+            msg = f'{interaction.user.name}, the carrier ID was invalid, "XXX-XXX" expected, received "{carrier_id}".'
+            print(msg)
+            await interaction.edit_original_response(content=msg)
+            await wine_carrier_chat.send(f"Error during `wine_carrier_departure` command: {msg}")
+            return
 
         # Acquire the database lock and fetch carrier data
         pirate_steve_db.execute(
@@ -222,8 +226,11 @@ class Departures(commands.Cog):
         
         # Check if carrier data was found
         if not carrier_data:
-            print(f'We failed to find the carrier: {carrier_id} in the database.')
-            return await interaction.edit_original_response(content=f'Sorry, during departure creation we could not find a carrier for the data: {carrier_id}.')
+            msg = f'could not find a carrier for the data: "{carrier_id}".'
+            print(msg)
+            await interaction.edit_original_response(content=f"Sorry, we {msg}")
+            await wine_carrier_chat.send(f"Error during `wine_carrier_departure` command: {msg}")
+            return
 
         # Create a BoozeCarrier object from the fetched data
         carrier_data = BoozeCarrier(carrier_data)
@@ -251,24 +258,33 @@ class Departures(commands.Cog):
                     departure_timestamp = departure_timestamp.split(":")[1]
                 departure_timestamp = int(departure_timestamp)
             except ValueError:
-                print(f"Departure time was not an integer: {departing_at}")
-                return await interaction.edit_original_response(content=f"Departure time was not a valid timestamp: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
+                msg = f"Departure time was not a valid timestamp: {departing_at}"
+                print(msg)
+                await interaction.edit_original_response(content=f"{msg}. You can use <https://hammertime.cyou> to generate them.")
+                await wine_carrier_chat.send(f"Error during `wine_carrier_departure` command: {msg}")
+                return
             
             # Validate the timestamp range
             now = int(time.time())
             min_timestamp = now - 60*60*24*14 # 14 days ago
             max_timestamp = now + 60*60*24*14 # 14 days in the future
-            if not (departure_timestamp > min_timestamp and departure_timestamp < max_timestamp):
-                print(f"Departure time was outside 32bit range: {departing_at}")
-                return await interaction.edit_original_response(content=f"Departure time was not a valid timestamp: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
+            if not (min_timestamp < departure_timestamp < max_timestamp):
+                msg = f"Departure time must be within 2 weeks of now: {departing_at}"
+                print(msg)
+                await interaction.edit_original_response(content=msg)
+                await wine_carrier_chat.send(f"Error during `wine_carrier_departure` command: {msg}")
+                return
             
         # Handle departure time if provided as a duration in minutes
         elif departing_in:
             try:
                 departure_timestamp = float(departing_in)
             except ValueError:
-                print(f"Departure time was not a float: {departing_in}")
-                return await interaction.edit_original_response(content=f"Departing in was not a valid number: {departing_in}. It should be the number of minutes until your carrier departs.")
+                msg = f"Departing in was not a valid number: {departing_in}"
+                print(msg)
+                await interaction.edit_original_response(content=f"{msg}. It should be the number of minutes until your carrier departs.")
+                await wine_carrier_chat.send(f"Error during `wine_carrier_departure` command: {msg}")
+                return
             
             departure_timestamp = int(departure_timestamp * 60 + int(time.time()))
             
@@ -293,10 +309,10 @@ class Departures(commands.Cog):
         departure_message = await departure_channel.send(departure_message_text)
         await departure_message.add_reaction("🛬")
         await departure_message.add_reaction("✅")
-        print(f"Departure message sent.")
+        print("Departure message sent.")
         
         # Edit the original interaction response with the jump URL of the departure message
-        return await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
+        await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
     
 
     def get_departure_author_id(self, message):
