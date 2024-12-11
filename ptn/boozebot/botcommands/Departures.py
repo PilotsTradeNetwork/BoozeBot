@@ -248,7 +248,7 @@ class Departures(commands.Cog):
             try:
                 departure_timestamp = departing_at
                 if departure_timestamp.startswith("<t:") and departure_timestamp.endswith(">"):
-                    departure_timestamp = departure_timestamp.split(":")[1]
+                    departure_timestamp = departure_timestamp.rstrip(">").split(":")[1]
                 departure_timestamp = int(departure_timestamp)
             except ValueError:
                 print(f"Departure time was not an integer: {departing_at}")
