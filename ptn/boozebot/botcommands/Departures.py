@@ -173,7 +173,7 @@ class Departures(commands.Cog):
     
     async def location_autocomplete(self, interaction: discord.Interaction, current:str) -> list[app_commands.Choice[str]]:
         locations = ["N0 Star", "N0 Planet 1", "N0 Planet 2", "N0 Planet 3", "N0 Planet 4", "N0 Planet 5", "N0 Planet 6",
-                     "N0", "N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10", "N11", "N12", "N13", "N14", "N15","Gali"]
+                     "N0", "N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10", "N11", "N12", "N13", "N14", "N15", "Gali"]
         return [
             app_commands.Choice(name=location, value=location)
             for location in locations if current.lower() in location.lower()
@@ -198,6 +198,9 @@ class Departures(commands.Cog):
             departing_at (str, optional): The unix timestamp of when the carrier is departing. Defaults to None.
             departing_in (str, optional): The time in minutes until the carrier departs. Defaults to None.
         """
+        # Sanitize inputs
+        departure_location = departure_location.strip().title()
+        arrival_location = arrival_location.strip().title()
         # Log the request
         print(f'User {interaction.user.name} has requested a new wine carrier departure operation for carrier: {carrier_id} from the '
             f'location: {departure_location} to {arrival_location}.')
