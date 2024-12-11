@@ -1494,7 +1494,8 @@ class DatabaseInteraction(commands.Cog):
                 dict(timestamp).get("timestamp"), "%Y-%m-%d %H:%M:%S"
             )
             end_time = start_time + timedelta(hours=duration_hours)
-            duration_remaining = f"Pirate Steve thinks the holiday will end around <t:{int(end_time.timestamp())}> [local timezone]."
+            end_timestamp = int(end_time.timestamp())
+            duration_remaining = f"Pirate Steve thinks the holiday will end around <t:{end_timestamp}> (<t:{end_timestamp}:R>) [local timezone]."
 
         stat_embed = discord.Embed(
             title="Pirate Steve's Booze Carrier Summary",
