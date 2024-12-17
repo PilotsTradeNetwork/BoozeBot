@@ -26,6 +26,28 @@ MIMIC STEVE COMMAND
 /steve_says - somm/mod/admin
 """
 
+@bot.tree.context_menu(name="Reply as Steve")
+@check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+async def reply_as_steve(interaction: discord.Interaction, reply_message: discord.Message):
+    class ReplyModal(discord.ui.Modal, title="Reply as PirateSteve"):
+        message = discord.ui.TextInput(label="Message", style=discord.TextStyle.long)
+
+        async def on_submit(self, interaction: discord.Interaction):
+            print(f"User {interaction.user.name} has requested to reply as PirateSteve with the message {self.message.value}.")
+            guild = bot.get_guild(bot_guild_id())
+            steve_says_channel = guild.get_channel(get_steve_says_channel())
+            try:
+                msg = await reply_message.reply(content=self.message.value)
+                await interaction.response.send_message(f"Replied as PirateSteve: {self.message.value}", ephemeral=True)
+                await steve_says_channel.send(f"User {interaction.user.name} replied as PirateSteve: {self.message.value} in: {reply_message.channel.name}. {msg.jump_url}")
+                print("Reply was impersonated successfully.")
+            except Exception as e:
+                print(f"Error replying as PirateSteve: {e}")
+                await interaction.response.send_message(f"Failed to reply as PirateSteve: {self.message.value}", ephemeral=True)
+
+    print(f"User {interaction.user.name} has requested to reply as PirateSteve to: {reply_message.jump_url}.")
+    await interaction.response.send_modal(ReplyModal())
+
 class MimicSteve(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -72,14 +94,12 @@ class MimicSteve(commands.Cog):
         
         await interaction.response.defer(ephemeral=True)
         
-        msg = await send_channel.send(content=message)
-
-        if msg:
-            print("Message was impersonated successfully.")
+        try:
+            msg = await send_channel.send(content=message)
             await interaction.edit_original_response(content=f"Pirate Steve said: {message} in: {send_channel} successfully")
-            await steve_says_channel.send(f"User {interaction.user.name} sent the message {message} as PirateSteve in: {send_channel.name}.")
-            return
-
-        # Error case
-        print(f"Error sending message in {message} channel: {send_channel}")
-        await interaction.edit_original_response(content=f"Pirate Steve failed to say: {message} in: {send_channel}.")
+            await steve_says_channel.send(f"User {interaction.user.name} sent the message {message} as PirateSteve in: {send_channel.name}. {msg.jump_url}")
+            print("Message was impersonated successfully.")
+            
+        except:
+            print(f"Error sending message in {message} channel: {send_channel}")
+            await interaction.edit_original_response(content=f"Pirate Steve failed to say: {message} in: {send_channel}.")
