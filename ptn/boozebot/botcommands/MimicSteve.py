@@ -26,31 +26,14 @@ MIMIC STEVE COMMAND
 /steve_says - somm/mod/admin
 """
 
-@bot.tree.context_menu(name="Reply as Steve")
-@check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-async def reply_as_steve(interaction: discord.Interaction, reply_message: discord.Message):
-    class ReplyModal(discord.ui.Modal, title="Reply as PirateSteve"):
-        message = discord.ui.TextInput(label="Message", style=discord.TextStyle.long)
-
-        async def on_submit(self, interaction: discord.Interaction):
-            print(f"User {interaction.user.name} has requested to reply as PirateSteve with the message {self.message.value}.")
-            guild = bot.get_guild(bot_guild_id())
-            steve_says_channel = guild.get_channel(get_steve_says_channel())
-            try:
-                msg = await reply_message.reply(content=self.message.value)
-                await interaction.response.send_message(f"Replied as PirateSteve: {self.message.value}", ephemeral=True)
-                await steve_says_channel.send(f"User {interaction.user.name} replied as PirateSteve: {self.message.value} in: {reply_message.channel.name}. {msg.jump_url}")
-                print("Reply was impersonated successfully.")
-            except Exception as e:
-                print(f"Error replying as PirateSteve: {e}")
-                await interaction.response.send_message(f"Failed to reply as PirateSteve: {self.message.value}", ephemeral=True)
-
-    print(f"User {interaction.user.name} has requested to reply as PirateSteve to: {reply_message.jump_url}.")
-    await interaction.response.send_modal(ReplyModal())
-
 class MimicSteve(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.ctx_menu = app_commands.ContextMenu(
+            name="Reply as Steve",
+            callback=self.reply_as_steve
+        )
+        self.bot.tree.add_command(self.ctx_menu)
 
     # custom global error handler
     # attaching the handler when the cog is loaded
@@ -64,11 +47,22 @@ class MimicSteve(commands.Cog):
     def cog_unload(self):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
+        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
+
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    async def reply_as_steve(self, interaction: discord.Interaction, reply_message: discord.Message):
+        class ReplyModal(discord.ui.Modal, title="Reply as PirateSteve"):
+            message = discord.ui.TextInput(label="Message", style=discord.TextStyle.long)
+
+            async def on_submit(self, interaction: discord.Interaction):
+                await MimicSteve._steve_speak(interaction, self.message.value, reply_message=reply_message)
+
+        print(f"User {interaction.user.name} has requested to reply as PirateSteve to: {reply_message.jump_url}.")
+        await interaction.response.send_modal(ReplyModal())
 
     """
     This class implements functionality for a user to send commands as PirateSteve
     """
-
     @app_commands.command(name="steve_says", description="Send a message as PirateSteve.")
     @app_commands.describe(message="The message to send",
                            send_channel="The channel to send the message in",
@@ -83,23 +77,27 @@ class MimicSteve(commands.Cog):
         :param TextChannel send_channel: The channel for the bot to send the message to.
         :returns: 2 discord messages, 1 in the channel it is run and 1 as the output.
         """
-        
-        guild = bot.get_guild(bot_guild_id())
-        steve_says_channel = guild.get_channel(get_steve_says_channel())
-        
         if send_channel == None:
             send_channel = interaction.channel
         
         print(f"User {interaction.user.name} has requested to send the message {message} as PirateSteve in: {send_channel.name}.")
         
         await interaction.response.defer(ephemeral=True)
-        
+        await self._steve_speak(interaction, message, send_channel=send_channel)
+
+
+    @staticmethod
+    async def _steve_speak(interaction: discord.Interaction, message: str, send_channel: discord.TextChannel = None, reply_message: discord.Message = None):
+        guild = bot.get_guild(bot_guild_id())
+        steve_says_channel = guild.get_channel(get_steve_says_channel())
         try:
-            msg = await send_channel.send(content=message)
+            if reply_message:
+                msg = await reply_message.reply(content=message)
+            elif send_channel:
+                msg = await send_channel.send(content=message)
             await interaction.edit_original_response(content=f"Pirate Steve said: {message} in: {send_channel} successfully")
             await steve_says_channel.send(f"User {interaction.user.name} sent the message {message} as PirateSteve in: {send_channel.name}. {msg.jump_url}")
             print("Message was impersonated successfully.")
-            
-        except:
+        except discord.DiscordException:
             print(f"Error sending message in {message} channel: {send_channel}")
             await interaction.edit_original_response(content=f"Pirate Steve failed to say: {message} in: {send_channel}.")
