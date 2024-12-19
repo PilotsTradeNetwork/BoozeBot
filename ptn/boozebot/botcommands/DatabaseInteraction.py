@@ -744,7 +744,8 @@ class DatabaseInteraction(commands.Cog):
             f"User {interaction.user.name} requested to re-populate the database at {datetime.now()}"
         )
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
+        
         try:
             await self.report_db_update_result(self._update_db())
             await interaction.followup.send(content="Pirate Steve's DB Update ran successfully.")
@@ -1103,6 +1104,8 @@ class DatabaseInteraction(commands.Cog):
             f"User {interaction.user.name} requested the current tally of the cruise stats for {cruise} cruise."
         )
         target_date = None
+        
+        await self.report_new_and_invalid_carriers(self._update_db())
 
         if cruise_select == 0:
             # Go get everything out of the database
@@ -1388,6 +1391,8 @@ class DatabaseInteraction(commands.Cog):
         print(
             f"User {interaction.user.name} requested the current extended stats of the cruise."
         )
+        
+        await self.report_new_and_invalid_carriers(self._update_db())
 
         cruise = "this" if cruise_select == 0 else f"-{cruise_select}"
         print(
