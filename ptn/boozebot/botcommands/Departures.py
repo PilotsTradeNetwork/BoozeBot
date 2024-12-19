@@ -168,24 +168,41 @@ class Departures(commands.Cog):
                         await wine_carrier_chat.send(f"<@{author_id}> your scheduled departure time of <t:{departure_time}:F> has passed. If your carrier has entered lockdown or completed its jump, please use the ✅ reaction under your notice to remove it. {message.jump_url}")
             
             except Exception as e:
-                print(f"Failed to process departure message while checking for time passed. message: {message.id}. Error: {e}")
+                print(f"Failed to process departure message while checking for time passed. message: {message.id}. Error: {e}")    
     
-    
-    async def location_autocomplete(self, interaction: discord.Interaction, current:str) -> list[app_commands.Choice[str]]:
-        locations = ["N0 Star", "N0 Planet 1", "N0 Planet 2", "N0 Planet 3", "N0 Planet 4", "N0 Planet 5", "N0 Planet 6",
-                     "N0", "N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9", "N10", "N11", "N12", "N13", "N14", "N15", "Gali"]
-        return [
-            app_commands.Choice(name=location, value=location)
-            for location in locations if current.lower() in location.lower()
-        ]
-    
+    system_choices = [
+        Choice(name="N0 Star", value="N0 Star"),
+        Choice(name="N0 Planet 1", value="N0 Planet 1"),
+        Choice(name="N0 Planet 2", value="N0 Planet 2"),
+        Choice(name="N0 Planet 3", value="N0 Planet 3"),
+        Choice(name="N0 Planet 4", value="N0 Planet 4"),
+        Choice(name="N0 Planet 5", value="N0 Planet 5"),
+        Choice(name="N0 Planet 6", value="N0 Planet 6"),
+        Choice(name="N1", value="N1"),
+        Choice(name="N2", value="N2"),
+        Choice(name="N3", value="N3"),
+        Choice(name="N4", value="N4"),
+        Choice(name="N5", value="N5"),
+        Choice(name="N6", value="N6"),
+        Choice(name="N7", value="N7"),
+        Choice(name="N8", value="N8"),
+        Choice(name="N9", value="N9"),
+        Choice(name="N10", value="N10"),
+        Choice(name="N11", value="N11"),
+        Choice(name="N12", value="N12"),
+        Choice(name="N13", value="N13"),
+        Choice(name="N14", value="N14"),
+        Choice(name="N15", value="N15"),
+        Choice(name="Gali", value="Gali"),
+        Choice(name="Mandhrithar", value="Mandhrithar"),
+    ]
     
     @app_commands.command(name="wine_carrier_departure",
                           description="Post a departure message for a wine carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
     @check_command_channel(wine_carrier_command_channel())
-    @app_commands.autocomplete(departure_location=location_autocomplete, arrival_location=location_autocomplete)
+    @app_commands.choices(arrival_location=system_choices, departure_location=system_choices)
     async def wine_carrier_departure(self, interaction: discord.Interaction, carrier_id: str, departure_location: str, arrival_location: str, departing_at: str = None, departing_in: str = None):
         """
         Handles the wine carrier departure operation.
