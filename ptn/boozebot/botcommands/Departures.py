@@ -54,6 +54,33 @@ class Departures(commands.Cog):
     This class is a collection functionality for posting departure messages for carriers.
     """
     
+    system_choices = [
+        Choice(name="N0 Star", value="N0 Star"),
+        Choice(name="N0 Planet 1", value="N0 Planet 1"),
+        Choice(name="N0 Planet 2", value="N0 Planet 2"),
+        Choice(name="N0 Planet 3", value="N0 Planet 3"),
+        Choice(name="N0 Planet 4", value="N0 Planet 4"),
+        Choice(name="N0 Planet 5", value="N0 Planet 5"),
+        Choice(name="N0 Planet 6", value="N0 Planet 6"),
+        Choice(name="N1", value="N1"),
+        Choice(name="N2", value="N2"),
+        Choice(name="N3", value="N3"),
+        Choice(name="N4", value="N4"),
+        Choice(name="N5", value="N5"),
+        Choice(name="N6", value="N6"),
+        Choice(name="N7", value="N7"),
+        Choice(name="N8", value="N8"),
+        Choice(name="N9", value="N9"),
+        Choice(name="N10", value="N10"),
+        Choice(name="N11", value="N11"),
+        Choice(name="N12", value="N12"),
+        Choice(name="N13", value="N13"),
+        Choice(name="N14", value="N14"),
+        Choice(name="N15", value="N15"),
+        Choice(name="Gali", value="Gali"),
+        Choice(name="Mandhrithar", value="Mandhrithar"),
+    ]
+    
     # On ready check for any completed departure messages and remove them.
     @commands.Cog.listener()
     async def on_ready(self):
@@ -170,33 +197,6 @@ class Departures(commands.Cog):
             except Exception as e:
                 print(f"Failed to process departure message while checking for time passed. message: {message.id}. Error: {e}")    
     
-    system_choices = [
-        Choice(name="N0 Star", value="N0 Star"),
-        Choice(name="N0 Planet 1", value="N0 Planet 1"),
-        Choice(name="N0 Planet 2", value="N0 Planet 2"),
-        Choice(name="N0 Planet 3", value="N0 Planet 3"),
-        Choice(name="N0 Planet 4", value="N0 Planet 4"),
-        Choice(name="N0 Planet 5", value="N0 Planet 5"),
-        Choice(name="N0 Planet 6", value="N0 Planet 6"),
-        Choice(name="N1", value="N1"),
-        Choice(name="N2", value="N2"),
-        Choice(name="N3", value="N3"),
-        Choice(name="N4", value="N4"),
-        Choice(name="N5", value="N5"),
-        Choice(name="N6", value="N6"),
-        Choice(name="N7", value="N7"),
-        Choice(name="N8", value="N8"),
-        Choice(name="N9", value="N9"),
-        Choice(name="N10", value="N10"),
-        Choice(name="N11", value="N11"),
-        Choice(name="N12", value="N12"),
-        Choice(name="N13", value="N13"),
-        Choice(name="N14", value="N14"),
-        Choice(name="N15", value="N15"),
-        Choice(name="Gali", value="Gali"),
-        Choice(name="Mandhrithar", value="Mandhrithar"),
-    ]
-    
     @app_commands.command(name="wine_carrier_departure",
                           description="Post a departure message for a wine carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
@@ -295,25 +295,46 @@ class Departures(commands.Cog):
         if departure_timestamp:
             departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
         else:
-            departure_time_text = ""
-            
+            departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
+        
         # Check if the departure needs a hitchhiker ping
-        if departure_location in ["N1", "N2"] and arrival_location in ["N1", "N0", "N0 Star", "N0 Planet 1", "N0 Planet 2", "N0 Planet 3", "N0 Planet 4", "N0 Planet 5", "N0 Planet 6"]:
+        hitchhiker_systems = [0, 1, 2]
+        
+        departure_system_index = int(departure_location.split(" ")[0][1:])
+        arrival_system_index = int(arrival_location.split(" ")[0][1:])
+        
+        if departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems:
             print("Departure needs hitchhiker ping.")
             hitchhiker_ping_text = f"| <@&{str(server_hitchhiker_role_id())}>"
             departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
         else:
             hitchhiker_ping_text = ""
             
+        # Set the direction arrow text
+        if departure_system_index == arrival_system_index:
+            print("Departure and arrival are the same system.")
+            direction_arrow = "🔄"
+        elif departure_system_index < arrival_system_index:
+            print("Departure system is above arrival system.")
+            direction_arrow = "🔽"
+        elif departure_system_index > arrival_system_index:
+            print("Departure system is below arrival system.")
+            direction_arrow = "🔼"
+        else:
+            print("Failed to determine direction arrow.")
+            direction_arrow = ""
+            
+        
+            
         # Construct the departure message text
-        departure_message_text = f"**{departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{interaction.user.id}> {hitchhiker_ping_text}"
+        departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{interaction.user.id}> {hitchhiker_ping_text}"
                     
         # Send the departure message to the departure announcement channel
         departure_channel = bot.get_channel(get_departure_announcement_channel())
         departure_message = await departure_channel.send(departure_message_text)
         await departure_message.add_reaction("🛬")
         await departure_message.add_reaction("✅")
-        print(f"Departure message sent.")
+        print("Departure message sent.")
         
         # Edit the original interaction response with the jump URL of the departure message
         return await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
