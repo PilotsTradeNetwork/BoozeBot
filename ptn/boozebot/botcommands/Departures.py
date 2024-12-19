@@ -218,7 +218,7 @@ class Departures(commands.Cog):
             msg = f'{interaction.user.name}, the carrier ID was invalid, "XXX-XXX" expected, received "{carrier_id}".'
             print(msg)
             await interaction.edit_original_response(content=msg)
-            await steve_says_channel.send(f"Error during `wine_carrier_departure` command: {msg}")
+            await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
             return
 
         # Acquire the database lock and fetch carrier data
@@ -232,7 +232,7 @@ class Departures(commands.Cog):
             msg = f'could not find a carrier for the data: "{carrier_id}".'
             print(msg)
             await interaction.edit_original_response(content=f"Sorry, we {msg}")
-            await steve_says_channel.send(f"Error during `wine_carrier_departure` command: {msg}")
+            await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
             return
 
         # Create a BoozeCarrier object from the fetched data
@@ -264,7 +264,7 @@ class Departures(commands.Cog):
                 msg = f"Departure time was not a valid timestamp: {departing_at}"
                 print(msg)
                 await interaction.edit_original_response(content=f"{msg}. You can use <https://hammertime.cyou> to generate them.")
-                await steve_says_channel.send(f"Error during `wine_carrier_departure` command: {msg}")
+                await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
                 return
 
             # Validate the timestamp range
@@ -275,7 +275,7 @@ class Departures(commands.Cog):
                 msg = f"Departure time must be within 2 weeks of now: {departing_at}"
                 print(msg)
                 await interaction.edit_original_response(content=msg)
-                await steve_says_channel.send(f"Error during `wine_carrier_departure` command: {msg}")
+                await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
                 return
 
         # Handle departure time if provided as a duration in minutes
@@ -286,7 +286,7 @@ class Departures(commands.Cog):
                 msg = f"Departing in was not a valid number: {departing_in}"
                 print(msg)
                 await interaction.edit_original_response(content=f"{msg}. It should be the number of minutes until your carrier departs.")
-                await steve_says_channel.send(f"Error during `wine_carrier_departure` command: {msg}")
+                await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
                 return
 
             departure_timestamp = int(departure_timestamp * 60 + int(time.time()))
