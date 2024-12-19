@@ -380,6 +380,23 @@ class DatabaseInteraction(commands.Cog):
             "new_signups": new_signups,
         }
 
+    async def report_db_update_result(self, result: dict):
+        if result["added_count"] == result["updated_count"] == 0:
+            return
+        embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
+        embed.add_field(
+            name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
+            f'Number of new carriers added: {result["added_count"]:>8}.\n'
+            f'Number of carriers amended: {result["updated_count"]:>11}.\n'
+            f'Number of carriers unchanged: {result["unchanged_count"]:>7}.',
+            value="Pirate Steve hope he got this right.",
+            inline=False,
+        )
+        sommelier_notification_channel = bot.get_channel(get_steve_says_channel())
+        await sommelier_notification_channel.send(embed=embed)
+        await self.report_new_and_invalid_carriers(result)
+
+
     async def report_new_and_invalid_carriers(self, result=None):
         """
         Reports any invalid carriers to the applicable channels.
@@ -400,9 +417,7 @@ class DatabaseInteraction(commands.Cog):
 
                     # Notify the channels so it can be deleted.
                     booze_bot_channel = bot.get_channel(get_bot_control_channel())
-                    sommelier_notification_channel = bot.get_channel(
-                        get_steve_says_channel()
-                    )
+                    sommelier_notification_channel = bot.get_channel(get_steve_says_channel())
                     for channel in [booze_bot_channel, sommelier_notification_channel]:
                         problem_embed = discord.Embed(
                             title="Avast Ye! Pirate Steve found a missing carrier in the database!",
@@ -643,7 +658,7 @@ class DatabaseInteraction(commands.Cog):
             print("Period trigger of the embed update.")
 
             print("Running db update")
-            self._update_db()
+            await self.report_db_update_result(self._update_db())
 
             pirate_steve_db.execute("SELECT * FROM pinned_messages")
             # Get everything
@@ -729,25 +744,13 @@ class DatabaseInteraction(commands.Cog):
             f"User {interaction.user.name} requested to re-populate the database at {datetime.now()}"
         )
 
-        await interaction.response.defer()
-
+        await interaction.response.defer(ephemeral=True)
         try:
-            result = self._update_db()
-            await self.report_new_and_invalid_carriers(result)
-            embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
-            embed.add_field(
-                name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
-                f'Number of new carriers added: {result["added_count"]:>8}.\n'
-                f'Number of carriers amended: {result["updated_count"]:>11}.\n'
-                f'Number of carriers unchanged: {result["unchanged_count"]:>7}.',
-                value="Pirate Steve hope he got this right.",
-                inline=False,
-            )
-
-            return await interaction.edit_original_response(content=None, embed=embed)
+            await self.report_db_update_result(self._update_db())
+            await interaction.followup.send(content="Pirate Steve's DB Update ran successfully.")
 
         except ValueError as ex:
-            return await interaction.edit_original_response(content=str(ex), embed=None)
+            await interaction.followup.send(content=str(ex))
 
     @app_commands.command(
         name="find_carriers_with_wine",
@@ -773,7 +776,7 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        await self.report_new_and_invalid_carriers(self._update_db())
+        await self.report_db_update_result(self._update_db())
         print(f"{interaction.user.name} requested to find the carrier with wine")
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
@@ -820,7 +823,7 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        await self.report_new_and_invalid_carriers(self._update_db())
+        await self.report_db_update_result(self._update_db())
         print(
             f"{interaction.user.name} wants to forcefully mark the carrier {carrier_id} as unloaded."
         )
@@ -970,7 +973,7 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        await self.report_new_and_invalid_carriers(self._update_db())
+        await self.report_db_update_result(self._update_db())
         print(
             f"{interaction.user.name} requested to fine carriers for: {platform} with wine: {remaining_wine}"
         )
@@ -1028,7 +1031,7 @@ class DatabaseInteraction(commands.Cog):
         self, interaction: discord.Interaction, carrier_id: str
     ):
         await interaction.response.defer()
-        await self.report_new_and_invalid_carriers(self._update_db())
+        await self.report_db_update_result(self._update_db())
         print(f"{interaction.user.name} wants to find a carrier by ID: {carrier_id}.")
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
@@ -1992,7 +1995,7 @@ class DatabaseInteraction(commands.Cog):
 
                     # Now go make the new updates to pull the data initially
                     self._reconfigure_workbook_and_form()
-                    self._update_db()
+                    await self.report_db_update_result(self._update_db())
 
                 except OSError as e:
                     self.update_allowed = init_update_value
@@ -2099,7 +2102,7 @@ class DatabaseInteraction(commands.Cog):
 
                     # Now go make the new updates to pull the data initially
                     self._reconfigure_workbook_and_form()
-                    self._update_db()
+                    await self.report_db_update_result(self._update_db())
 
                 except OSError as e:
                     self.update_allowed = init_update_value
