@@ -13,7 +13,7 @@ from discord.ext import commands
 from discord import app_commands
 
 # local constants
-from ptn.boozebot.constants import server_council_role_ids, server_sommelier_role_id, server_mod_role_id, bot, get_steve_says_channel
+from ptn.boozebot.constants import server_council_role_ids, server_sommelier_role_id, server_mod_role_id, bot, get_steve_says_channel, bot_guild_id
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
@@ -25,6 +25,28 @@ MIMIC STEVE COMMAND
 
 /steve_says - somm/mod/admin
 """
+
+@bot.tree.context_menu(name="Reply as Steve")
+@check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+async def reply_as_steve(interaction: discord.Interaction, reply_message: discord.Message):
+    class ReplyModal(discord.ui.Modal, title="Reply as PirateSteve"):
+        message = discord.ui.TextInput(label="Message", style=discord.TextStyle.long)
+
+        async def on_submit(self, interaction: discord.Interaction):
+            print(f"User {interaction.user.name} has requested to reply as PirateSteve with the message {self.message.value}.")
+            guild = bot.get_guild(bot_guild_id())
+            steve_says_channel = guild.get_channel(get_steve_says_channel())
+            try:
+                msg = await reply_message.reply(content=self.message.value)
+                await interaction.response.send_message(f"Replied as PirateSteve: {self.message.value}", ephemeral=True)
+                await steve_says_channel.send(f"User {interaction.user.name} replied as PirateSteve: {self.message.value} in: {reply_message.channel.name}. {msg.jump_url}")
+                print("Reply was impersonated successfully.")
+            except Exception as e:
+                print(f"Error replying as PirateSteve: {e}")
+                await interaction.response.send_message(f"Failed to reply as PirateSteve: {self.message.value}", ephemeral=True)
+
+    print(f"User {interaction.user.name} has requested to reply as PirateSteve to: {reply_message.jump_url}.")
+    await interaction.response.send_modal(ReplyModal())
 
 class MimicSteve(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -52,8 +74,7 @@ class MimicSteve(commands.Cog):
                            send_channel="The channel to send the message in",
                             )
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel(get_steve_says_channel())
-    async def mimic_steve(self, interaction: discord.Interaction, message: str, send_channel: discord.TextChannel):
+    async def mimic_steve(self, interaction: discord.Interaction, message: str, send_channel: discord.TextChannel = None):
         """
         Command to send a message as pirate steve. Generates a message in the channel that it ran in.
 
@@ -62,47 +83,23 @@ class MimicSteve(commands.Cog):
         :param TextChannel send_channel: The channel for the bot to send the message to.
         :returns: 2 discord messages, 1 in the channel it is run and 1 as the output.
         """
-        print(f"User {interaction.user.name} has requested to send the message {message} as PirateSteve in: {send_channel}.")
- 
-        print(f"Channel resolved into: {send_channel.name}. Checking for any potential use names to be resolved.")
-
-        possible_id = None
-        # Try to resolve any @<int> to a user
-        for word in message.split():
-            if word.startswith("@"):
-                try:
-                    print(f"Potential user id found: {word}.")
-                    # this might be a user ID, int convert it
-                    possible_id = int(re.search(r"\d+", word).group())
-
-                    # Ok this was in fact an int, try to see if it resolves to a discord user
-                    member = await bot.fetch_user(possible_id)
-                    print(f"Member determined as: {member}")
-
-                    message = message.replace(word, f"<@{member.id}>")
-                    print(f"New message is: {message}")
-                except discord.errors.NotFound as ex:
-                    print(
-                        f'Potential user string "{possible_id if possible_id else word}" is invalid: {ex}. Continuing '
-                        f"on as-is"
-                    )
-                except ValueError as ex:
-                    # Ok continue on anyway and send it as-is
-                    print(f"Error converting the word: {word}. {ex}")
-
-        response = f"{message}"
+        
+        guild = bot.get_guild(bot_guild_id())
+        steve_says_channel = guild.get_channel(get_steve_says_channel())
+        
+        if send_channel == None:
+            send_channel = interaction.channel
+        
+        print(f"User {interaction.user.name} has requested to send the message {message} as PirateSteve in: {send_channel.name}.")
         
         await interaction.response.defer(ephemeral=True)
         
-        msg = await send_channel.send(content=response)
-
-        if msg:
-            print("Message was impersonated successfully.")
+        try:
+            msg = await send_channel.send(content=message)
             await interaction.edit_original_response(content=f"Pirate Steve said: {message} in: {send_channel} successfully")
-            return
-
-        # Error case
-        print(f"Error sending message in {message} channel: {send_channel}")
-        await interaction.edit_original_response(content=f"Pirate Steve failed to say: {message} in: {send_channel}.")
-
-        return
+            await steve_says_channel.send(f"User {interaction.user.name} sent the message {message} as PirateSteve in: {send_channel.name}. {msg.jump_url}")
+            print("Message was impersonated successfully.")
+            
+        except:
+            print(f"Error sending message in {message} channel: {send_channel}")
+            await interaction.edit_original_response(content=f"Pirate Steve failed to say: {message} in: {send_channel}.")
