@@ -245,9 +245,9 @@ class PublicHoliday(commands.Cog):
 
         start_time = datetime.strptime(dict(timestamp).get('timestamp'), '%Y-%m-%d %H:%M:%S')
         end_time = start_time + timedelta(hours=duration_hours)
+        end_timestamp = int(end_time.timestamp())
+        print(f'End time calculated as: {end_time}. Which is epoch of: {end_timestamp}')
 
-        print(f'End time calculated as: {end_time}. Which is epoch of: {int(end_time.timestamp())}')
-
-        await interaction.edit_original_response(content=f"Pirate Steve thinks the holiday will end around <t:{int(end_time.timestamp())}> [local"
-                                                 "timezone].")
-        return
+        await interaction.edit_original_response(
+            content=f"Pirate Steve thinks the holiday will end around <t:{end_timestamp}> (<t:{end_timestamp}:R>) [local timezone]."
+        )
