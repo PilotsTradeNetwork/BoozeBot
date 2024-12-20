@@ -55,6 +55,7 @@ class MimicSteve(commands.Cog):
             message = discord.ui.TextInput(label="Message", style=discord.TextStyle.long)
 
             async def on_submit(self, interaction: discord.Interaction):
+                await interaction.response.send_message("Replying as PirateSteve...", ephemeral=True)
                 await MimicSteve._steve_speak(interaction, self.message.value, reply_message=reply_message)
 
         print(f"User {interaction.user.name} has requested to reply as PirateSteve to: {reply_message.jump_url}.")
@@ -82,7 +83,7 @@ class MimicSteve(commands.Cog):
         
         print(f"User {interaction.user.name} has requested to send the message {message} as PirateSteve in: {send_channel.name}.")
         
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.send_message("Replying as PirateSteve...", ephemeral=True)
         await self._steve_speak(interaction, message, send_channel=send_channel)
 
 
@@ -92,9 +93,15 @@ class MimicSteve(commands.Cog):
         steve_says_channel = guild.get_channel(get_steve_says_channel())
         try:
             if reply_message:
+                send_channel = reply_message.channel
                 msg = await reply_message.reply(content=message)
             elif send_channel:
                 msg = await send_channel.send(content=message)
+            else:
+                await interaction.edit_original_response(content=f"No channel specified")
+                print("No channel specified")
+                return
+            
             await interaction.edit_original_response(content=f"Pirate Steve said: {message} in: {send_channel} successfully")
             await steve_says_channel.send(f"User {interaction.user.name} sent the message {message} as PirateSteve in: {send_channel.name}. {msg.jump_url}")
             print("Message was impersonated successfully.")
