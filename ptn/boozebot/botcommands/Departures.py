@@ -313,7 +313,8 @@ class Departures(commands.Cog):
         # Set the direction arrow text
         if departure_system_index == arrival_system_index:
             print("Departure and arrival are the same system.")
-            direction_arrow = "🔄"
+            await interaction.edit_original_response(content="Departure and arrival systems cannot be the same.")
+            return
         elif departure_system_index < arrival_system_index:
             print("Departure system is above arrival system.")
             direction_arrow = "🔽"
