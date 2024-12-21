@@ -18,11 +18,22 @@ class BoozeCarrier:
 
         # Because we also pass a DB object, we should also covert those to the same fields
         self.carrier_name = info_dict.get('Carrier Name', None) or info_dict.get('carriername', None)
+        
+        if self.carrier_name:
+            self.carrier_name = str(self.carrier_name)
+        
         self.wine_total = info_dict.get('Wine Total (tons)', None) or info_dict.get('winetotal', None)
+        
+        if self.wine_total:
+            try:
+                self.wine_total = int(self.wine_total)
+            except ValueError:
+                self.wine_total = None
+        
         self.carrier_identifier = info_dict.get('Carrier ID', None) or info_dict.get('carrierid', None)
         if self.carrier_identifier:
             # Cast the carrier ID to upper case for consistency
-            self.carrier_identifier = self.carrier_identifier.upper()
+            self.carrier_identifier = str(self.carrier_identifier).upper()
 
             # make sure it matches the regex
             if not re.match(r"\w{3}-\w{3}", self.carrier_identifier):
@@ -35,6 +46,10 @@ class BoozeCarrier:
         self.ptn_carrier = False
 
         self.discord_username = info_dict.get('Discord Username', None) or info_dict.get('discordusername', None)
+        
+        if self.discord_username:
+            self.discord_username = str(self.discord_username)
+        
         self.timestamp = info_dict.get('Timestamp', None) or info_dict.get('timestamp', None)
 
         # This being set that an unload is ongoing
