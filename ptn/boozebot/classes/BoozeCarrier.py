@@ -112,5 +112,14 @@ class BoozeCarrier:
         :rtype: bool
         """
         if isinstance(other, BoozeCarrier):
-            return self.__dict__ == other.__dict__
+            self_dict = self.to_dictionary()
+            other_dict = other.to_dictionary()
+            
+            self_dict.pop('timestamp', None)
+            other_dict.pop('timestamp', None)
+            
+            self_dict.pop('total_unloads', None)
+            other_dict.pop('total_unloads', None)
+            
+            return self_dict == other_dict
         return False
