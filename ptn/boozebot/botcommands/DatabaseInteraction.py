@@ -2267,11 +2267,12 @@ class DatabaseInteraction(commands.Cog):
                         ),
                         carrier_ids,
                     )
+                    pirate_steve_conn.commit()
                 except Exception as e:
                     print(f"Error deleting carriers: {e}")
                     failed_carriers.extend(carrier_ids)
-                        
-                pirate_steve_lock.release()
+                finally:
+                    pirate_steve_lock.release()
                     
                 if failed_carriers:
                     await interaction.followup.send(content=f"Failed to delete the following carriers: {', '.join(failed_carriers)}")
