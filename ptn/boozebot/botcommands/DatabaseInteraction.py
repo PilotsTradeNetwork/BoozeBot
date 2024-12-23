@@ -181,36 +181,31 @@ class DatabaseInteraction(commands.Cog):
         total_entries = len(records_data)
         print(f"Updating the database we have: {total_entries} records found.")
         
-        all_carriers_data = [] # type: list[BoozeCarrier]
+        all_carriers_data = {} # type: dict[str, BoozeCarrier]
         
         # Loop through each record and parse it into a BoozeCarrier object
         for record in records_data:
             try:
                 carrier_data = BoozeCarrier(record)
                 
-                unique = True
-                
                 # Check if there is already a object for this carrier and update it if so
-                for data in all_carriers_data:
-                    if data.carrier_identifier == carrier_data.carrier_identifier:
-                        data.wine_total += carrier_data.wine_total
-                        data.run_count += 1
-                        
-                        unique = False
-
-                if unique:
-                    all_carriers_data.append(carrier_data)
+                if carrier_data.carrier_identifier in all_carriers_data:
+                    
+                    all_carriers_data[carrier_data.carrier_identifier].wine_total += carrier_data.wine_total
+                    all_carriers_data[carrier_data.carrier_identifier].run_count += 1
+                
+                else:
+                    all_carriers_data[carrier_data.carrier_identifier] = carrier_data
             except ValueError as ex:
                 print(f"Error while paring the stats into carrier records: {ex}")
                 return
-
-        all_carrier_ids_sheet = [
-            carrier.carrier_identifier for carrier in all_carriers_data
-        ]
         
         print(f"Total Carriers: {len(all_carriers_data)}")
         
-        for carrier_data in all_carriers_data:
+        for carrier_data in all_carriers_data.items():
+            
+            carrier_data = carrier_data[1]
+            
             pirate_steve_db.execute(
                 "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)",
                 (f'%{carrier_data.carrier_identifier}%',),
@@ -311,7 +306,7 @@ class DatabaseInteraction(commands.Cog):
                 updated_db = True
                 print("Added carrier to the database")
 
-                embed = discord.Embed(title=f"New WineCarrier signed up!")
+                embed = discord.Embed(title="New WineCarrier signed up!")
                 embed.add_field(
                     name=f"Owner: {carrier_data.discord_username}: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})",
                     value=f"{carrier_data.wine_total // carrier_data.run_count} tonnes of wine on {carrier_data.platform}",
@@ -319,15 +314,15 @@ class DatabaseInteraction(commands.Cog):
                 )
                 new_signups.append(embed)
  
-        print(f"all_carrier_sheet_ids: {[id for id in all_carrier_ids_sheet]}")
+        print(f"all_carrier_sheet_ids: {list(all_carriers_data.keys())}")
         
         # Now that the records are updated, make sure no carrier was removed - check for anything not matching the
         # carrier id strings.
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid NOT IN ({})".format(
-                ", ".join("?" * len(all_carrier_ids_sheet))
+                ", ".join("?" * len(list(all_carriers_data.keys())))
             ),
-            all_carrier_ids_sheet,
+            list(all_carriers_data.keys()),
         )
 
         invalid_database_entries = [
