@@ -79,6 +79,7 @@ DATABASE INTERACTION COMMANDS
 /booze_reuse_signup_form - admin/mod/somm
 /biggest_cruise_tally - admin/mod/somm/conn
 /booze_carrier_stats - admin/mod/somm/conn/wine carrier
+/purge_booze_carriers - admin/mod/somm
 """
 
 
@@ -2208,3 +2209,81 @@ class DatabaseInteraction(commands.Cog):
         )
         
         await interaction.edit_original_response(content=None, embed=stat_embed)
+        
+    @app_commands.command(name="booze_purge_full_carriers", description="Purges full carriers from the database.")
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
+    @check_command_channel(get_steve_says_channel())
+    async def purge_full_carriers(self, interaction: discord.Interaction):
+        """
+        Purges full carriers from the database.
+
+        :param interaction discord.Interaction: The discord interaction context.
+        :returns: None"
+        """
+        
+        print(f"{interaction.user.name} requested to purge full carriers.")
+        await interaction.response.defer()
+        await self.report_new_and_invalid_carriers(self._update_db())
+        print(f"{interaction.user.name} requested to delete all full carriers.")
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
+        )
+        carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        if len(carrier_data) == 0:
+            print("No full carriers to delete.")
+            await interaction.edit_original_response(content="There are no full carriers to delete.")
+            return
+        
+        print(f"Found {len(carrier_data)} full carriers to delete. Sending confirmation message.")
+        
+        confirmation_embed = discord.Embed(
+            title=f"Purge {len(carrier_data)} Full Carriers?",
+            description="Are you sure you want to delete all the remaining full carriers?",
+        )
+        confirmation_embed.set_footer(text="Confirm this with y/n.")
+        
+        await interaction.edit_original_response(content=None, embed=confirmation_embed)
+        
+        def check_yes_no(check_message):
+            return (
+                check_message.author == interaction.user
+                and check_message.channel == interaction.channel
+                and check_message.content.lower() in ["y", "n"]
+            )
+            
+        try:
+            user_response = await bot.wait_for("message", check=check_yes_no, timeout=30)
+            if user_response.content.lower() == "y":
+                await user_response.delete()
+                print(f"User {interaction.user.name} accepted the request to purge full carriers.")
+                await interaction.edit_original_response(content="Purging Carriers...", embed=None)
+                failed_carriers = []
+                pirate_steve_lock.acquire()
+                try:
+                    carrier_ids = [carrier.carrier_identifier for carrier in carrier_data]
+                    pirate_steve_db.execute(
+                        "DELETE FROM boozecarriers WHERE carrierid IN ({})".format(
+                            ", ".join("?" * len(carrier_ids))
+                        ),
+                        carrier_ids,
+                    )
+                except Exception as e:
+                    print(f"Error deleting carriers: {e}")
+                    failed_carriers.extend(carrier_ids)
+                        
+                pirate_steve_lock.release()
+                    
+                if failed_carriers:
+                    await interaction.followup.send(content=f"Failed to delete the following carriers: {', '.join(failed_carriers)}")
+                
+                print("Finished purging full carriers.")                    
+                await interaction.edit_original_response(content="Full carriers have been purged.", embed=None)
+                
+            elif user_response.content.lower() == "n":
+                await user_response.delete()
+                print(f"User {interaction.user.name} aborted the request to purge full carriers.")
+                await interaction.edit_original_response(content="Aborted the request to purge full carriers.", embed=None)
+                
+        except asyncio.TimeoutError:
+            print("Timed out while waiting for confirmation response.")
+            await interaction.edit_original_response(content="Waiting for user response - timed out", embed=None)
