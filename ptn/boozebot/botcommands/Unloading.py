@@ -196,14 +196,14 @@ class Unloading(commands.Cog):
         elif market_type == 'SquadronFriends':
             market_conditions = f'{carrier_data.platform} Squadron and Friends'
         elif market_type == 'Open':
-            market_conditions = 'Open for all.'
+            market_conditions = 'Open for all'
 
         # Only in the case of timed openings does a channel make sense.
         unload_tracking = f' Tracked in <#{unload_channel.id}>.' if market_type == 'Timed' else ''
 
         wine_load_embed = discord.Embed(
             title='Wine unload notification.',
-            description=f'Carrier {carrier_data.carrier_name} (**{carrier_data.carrier_identifier}**) is currently '
+            description=f'Carrier **{carrier_data.carrier_name} ({carrier_data.carrier_identifier})** is currently '
                         f'unloading **{carrier_data.wine_total // carrier_data.run_count}** tonnes of wine from *'
                         f'*{planetary_body}**.'
                         f'\n Market Conditions: **{market_conditions}**.{unload_tracking}'
@@ -253,7 +253,7 @@ class Unloading(commands.Cog):
         await booze_cruise_chat.send(f"A new wine unload is in progress. See <#{wine_unload_alert.channel.id}>")
 
         return await interaction.response.send_message(
-            f'Wine unload requested by {interaction.user.name} for **{carrier_data.carrier_name}** ({carrier_id}) '
+            f'Wine unload requested by {interaction.user.name} for **{carrier_data.carrier_name} ({carrier_id})** '
             f'processed successfully. Market: **{market_conditions}**.{unload_tracking}'
         )
 
