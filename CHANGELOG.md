@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.5
+
+-   \#448 - Handle unformatted departure timestamp
+-   \#449 - Convert departure/arrival locations to title case
+-   \#450 - Use consistent formatting, remove trailing dot on unload
+-   \#460 - Add relative time to booze_duration_remaining
+-   \#461 - Return ephemeral responses on departure command
+-   \#462 - Send db update embed from background task
+-   \#463 - Update steve says commands
+-   \#466 - Fix db update numbers
+-   \#464 \#467 - Fix /booze_tally not updating the db
+-   \#465 - Add purge command
+
 ## 2.0.4
 
 -   \#436 - Commands respond correctly to IDs not in the database (platform is ignored in BoozeCarrier check)
