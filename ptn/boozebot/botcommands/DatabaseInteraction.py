@@ -2280,14 +2280,17 @@ class DatabaseInteraction(commands.Cog):
                 await interaction.edit_original_response(content="Purging Carriers...", embed=None)
                 failed_carriers = []
                 pirate_steve_lock.acquire()
-                for carrier in carrier_data:
-                    try:
-                        pirate_steve_db.execute(
-                            "DELETE FROM boozecarriers WHERE carrierid = ?", (carrier.carrier_identifier,)
-                        )
-                    except Exception as e:
-                        print(f"Error deleting carrier {carrier.carrier_identifier}: {e}")
-                        failed_carriers.append(carrier.carrier_identifier)
+                try:
+                    carrier_ids = [carrier.carrier_identifier for carrier in carrier_data]
+                    pirate_steve_db.execute(
+                        "DELETE FROM boozecarriers WHERE carrierid IN ({})".format(
+                            ", ".join("?" * len(carrier_ids))
+                        ),
+                        carrier_ids,
+                    )
+                except Exception as e:
+                    print(f"Error deleting carriers: {e}")
+                    failed_carriers.extend(carrier_ids)
                         
                 pirate_steve_lock.release()
                     
