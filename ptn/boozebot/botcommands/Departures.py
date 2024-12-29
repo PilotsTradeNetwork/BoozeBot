@@ -17,7 +17,7 @@ from discord import app_commands, NotFound
 from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelier_role_id, \
     server_wine_carrier_role_id, server_mod_role_id, wine_carrier_command_channel, \
     server_hitchhiker_role_id, get_departure_announcement_channel, server_connoisseur_role_id, \
-    get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel
+    get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel, get_steve_says_channel
 
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
@@ -86,17 +86,17 @@ class Departures(commands.Cog):
     async def on_ready(self):
         guild = bot.get_guild(bot_guild_id())
         departure_channel = guild.get_channel(get_departure_announcement_channel())
-        
+
         print("Checking for completed departure messages.")
-        
+
         async for message in departure_channel.history(limit=100):
             try:
                 if message.pinned:
                     continue
-                
+
                 if message.author.id != bot.user.id:
                     continue
-                
+
                 for reaction in message.reactions:
                     if reaction.emoji == "✅":
                         async for user in reaction.users():
@@ -104,7 +104,7 @@ class Departures(commands.Cog):
                                 await self.handle_reaction(reaction.message, user)
             except Exception as e:
                 print(f"Failed to process departure message while checking for closing. message: {message.id}. Error: {e}")
-                            
+
         print("Starting the departure message checker")
         if not self.check_departure_messages_loop.is_running():
             self.check_departure_messages_loop.start()
@@ -114,50 +114,50 @@ class Departures(commands.Cog):
     async def on_raw_reaction_add(self, reaction_event):
         try:
             user = reaction_event.member
-            
+
             if user.bot:
                 return
-            
+
             if reaction_event.channel_id != get_departure_announcement_channel():
                 return
-            
+
             channel = await bot.fetch_channel(reaction_event.channel_id)
             message = await channel.fetch_message(reaction_event.message_id)
-            
+
             if message.pinned:
                 return
-            
+
             if message.author.id != bot.user.id:
                 return
-            
+
             if reaction_event.emoji.name != "✅":
                 return
-            
+
             if not self.get_departure_author_id(message) == user.id:
                 return
-            
+
             await self.handle_reaction(message, user)
         except Exception as e:
             print(f"Failed to process reaction: {reaction_event}. Error: {e}")
-        
+
     @tasks.loop(minutes = 10)
     async def check_departure_messages_loop(self):
         guild = bot.get_guild(bot_guild_id())
         departure_channel = guild.get_channel(get_departure_announcement_channel())
         wine_carrier_chat = guild.get_channel(get_wine_carrier_channel())
-        
+
         print("Checking for passed departure messages.")
         async for message in departure_channel.history(limit=100):
-            
+
             try:
                 if message.pinned:
                     continue
-                
+
                 if message.author.id != bot.user.id:
                     continue
-                
+
                 print("Departure message found.")
-                
+
                 has_reacted = False
                 for reaction in message.reactions:
                     if reaction.emoji == "⏲️":
@@ -165,27 +165,27 @@ class Departures(commands.Cog):
                             if user.id == bot.user.id:
                                 has_reacted = True
                                 break
-                            
+
                 if has_reacted:
                     print("Departure message has been responded to.")
-                    continue                
-                            
+                    continue
+
                 content = message.content
                 departure_time = content.split("|")[1].replace(" ", "")
-                
+
                 if departure_time.startswith("<t:"):
                     departure_time = departure_time.split(":")[1]
                 elif departure_time == f"{bot.get_emoji(get_thoon_emoji_id())}":
                     departure_time = message.created_at.timestamp() + 25 * 60
-                    
+
                 try:
                     departure_time = int(departure_time)
                 except ValueError:
                     print(f"Departure time was not an integer: {departure_time}, Probably means they never set a departure time.")
                     continue
-                    
+
                 print(f"Departure time: {departure_time}")
-                
+
                 if int(time.time()) > departure_time:
                     print("Departure time has passed.")
                     author_id = self.get_departure_author_id(message)
@@ -193,7 +193,7 @@ class Departures(commands.Cog):
                         print(f"Responding to departure message from {author_id}.")
                         await message.add_reaction("⏲️")
                         await wine_carrier_chat.send(f"<@{author_id}> your scheduled departure time of <t:{departure_time}:F> has passed. If your carrier has entered lockdown or completed its jump, please use the ✅ reaction under your notice to remove it. {message.jump_url}")
-            
+
             except Exception as e:
                 print(f"Failed to process departure message while checking for time passed. message: {message.id}. Error: {e}")    
     
@@ -215,54 +215,57 @@ class Departures(commands.Cog):
             departing_at (str, optional): The unix timestamp of when the carrier is departing. Defaults to None.
             departing_in (str, optional): The time in minutes until the carrier departs. Defaults to None.
         """
-        # Sanitize inputs
-        departure_location = departure_location.strip().title()
-        arrival_location = arrival_location.strip().title()
+        
         # Log the request
         print(f'User {interaction.user.name} has requested a new wine carrier departure operation for carrier: {carrier_id} from the '
-            f'location: {departure_location} to {arrival_location}.')
-        
+              f'location: {departure_location} to {arrival_location}.')
+
         # Defer the interaction response to allow more time for processing
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
 
         # Convert carrier ID to uppercase
         carrier_id = carrier_id.upper().strip()
 
+        guild = bot.get_guild(bot_guild_id())
+        steve_says_channel = guild.get_channel(get_steve_says_channel())
         # Validate the carrier ID format
         if not re.fullmatch(r"\w{3}-\w{3}", carrier_id):
-            print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await interaction.edit_original_response(content=f'{interaction.user.name}, the carrier ID was invalid during departure creation, '
-                                        f'XXX-XXX expected received, {carrier_id}.')
+            msg = f'{interaction.user.name}, the carrier ID was invalid, "XXX-XXX" expected, received "{carrier_id}".'
+            print(msg)
+            await interaction.edit_original_response(content=msg)
+            await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
+            return
 
         # Acquire the database lock and fetch carrier data
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
         )
         carrier_data = pirate_steve_db.fetchone()
-        
+
         # Check if carrier data was found
         if not carrier_data:
-            print(f'We failed to find the carrier: {carrier_id} in the database.')
-            return await interaction.edit_original_response(content=f'Sorry, during departure creation we could not find a carrier for the data: {carrier_id}.')
+            msg = f'could not find a carrier for the data: "{carrier_id}".'
+            print(msg)
+            await interaction.edit_original_response(content=f"Sorry, we {msg}")
+            await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
+            return
 
         # Create a BoozeCarrier object from the fetched data
         carrier_data = BoozeCarrier(carrier_data)
-        
+
         carrier_name = carrier_data.carrier_name
         carrier_id = carrier_data.carrier_identifier
-        
+
         # Function to sanitize input by removing certain characters
         def sanitize_input(text):
             return text.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
-        
+
         # Sanitize the input data
         carrier_name = sanitize_input(carrier_name)
         carrier_id = sanitize_input(carrier_id)
-        arrival_location = sanitize_input(arrival_location)
-        departure_location = sanitize_input(departure_location)
-        
+
         departure_timestamp = None
-        
+
         # Handle departure time if provided as a timestamp
         if departing_at:
             try:
@@ -271,27 +274,36 @@ class Departures(commands.Cog):
                     departure_timestamp = departure_timestamp.rstrip(">").split(":")[1]
                 departure_timestamp = int(departure_timestamp)
             except ValueError:
-                print(f"Departure time was not an integer: {departing_at}")
-                return await interaction.edit_original_response(content=f"Departure time was not a valid timestamp: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
-            
+                msg = f"Departure time was not a valid timestamp: {departing_at}"
+                print(msg)
+                await interaction.edit_original_response(content=f"{msg}. You can use <https://hammertime.cyou> to generate them.")
+                await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
+                return
+
             # Validate the timestamp range
             now = int(time.time())
             min_timestamp = now - 60*60*24*14 # 14 days ago
             max_timestamp = now + 60*60*24*14 # 14 days in the future
-            if not (departure_timestamp > min_timestamp and departure_timestamp < max_timestamp):
-                print(f"Departure time was outside 32bit range: {departing_at}")
-                return await interaction.edit_original_response(content=f"Departure time was not a valid timestamp: {departing_at}. You can use <https://hammertime.cyou> to generate them.")
-            
+            if not (min_timestamp < departure_timestamp < max_timestamp):
+                msg = f"Departure time must be within 2 weeks of now: {departing_at}"
+                print(msg)
+                await interaction.edit_original_response(content=msg)
+                await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
+                return
+
         # Handle departure time if provided as a duration in minutes
         elif departing_in:
             try:
                 departure_timestamp = float(departing_in)
             except ValueError:
-                print(f"Departure time was not a float: {departing_in}")
-                return await interaction.edit_original_response(content=f"Departing in was not a valid number: {departing_in}. It should be the number of minutes until your carrier departs.")
-            
+                msg = f"Departing in was not a valid number: {departing_in}"
+                print(msg)
+                await interaction.edit_original_response(content=f"{msg}. It should be the number of minutes until your carrier departs.")
+                await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
+                return
+
             departure_timestamp = int(departure_timestamp * 60 + int(time.time()))
-            
+
         if departure_timestamp:
             departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
         else:
@@ -300,8 +312,15 @@ class Departures(commands.Cog):
         # Check if the departure needs a hitchhiker ping
         hitchhiker_systems = [0, 1, 2]
         
-        departure_system_index = int(departure_location.split(" ")[0][1:])
-        arrival_system_index = int(arrival_location.split(" ")[0][1:])
+        try:
+            departure_system_index = int(departure_location.split(" ")[0][1:])
+        except ValueError:
+            departure_system_index = 16
+
+        try:
+            arrival_system_index = int(arrival_location.split(" ")[0][1:])
+        except ValueError:
+            arrival_system_index = 16
         
         if departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems:
             print("Departure needs hitchhiker ping.")
@@ -314,13 +333,14 @@ class Departures(commands.Cog):
         if departure_system_index == arrival_system_index:
             print("Departure and arrival are the same system.")
             await interaction.edit_original_response(content="Departure and arrival systems cannot be the same.")
+            await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: Departure and arrival systems cannot be the same.")
             return
         elif departure_system_index < arrival_system_index:
             print("Departure system is above arrival system.")
-            direction_arrow = "🔽"
+            direction_arrow = "⬇️"
         elif departure_system_index > arrival_system_index:
             print("Departure system is below arrival system.")
-            direction_arrow = "🔼"
+            direction_arrow = "⬆️"
         else:
             print("Failed to determine direction arrow.")
             direction_arrow = ""
@@ -338,8 +358,8 @@ class Departures(commands.Cog):
         print("Departure message sent.")
         
         # Edit the original interaction response with the jump URL of the departure message
-        return await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
-    
+        await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
+
 
     def get_departure_author_id(self, message):
         try:

@@ -79,6 +79,7 @@ DATABASE INTERACTION COMMANDS
 /booze_reuse_signup_form - admin/mod/somm
 /biggest_cruise_tally - admin/mod/somm/conn
 /booze_carrier_stats - admin/mod/somm/conn/wine carrier
+/purge_booze_carriers - admin/mod/somm
 """
 
 
@@ -178,138 +179,108 @@ class DatabaseInteraction(commands.Cog):
         records_data = self.tracking_sheet.get_all_records()
         new_signups = []  # type: list[discord.Embed]
 
-        total_carriers = len(records_data)
-        print(f"Updating the database we have: {total_carriers} records found.")
-
-        # A list of carrier dicts, containing how often they are in the overall input sheet, populate this to start
-        # with. This is a quick and dirty amalgamation of the data. We do this first to avoid unnecessary writes to
-        # the database.
-
-        carrier_count = []
-        try:
-            for record in records_data:
-                carrier = BoozeCarrier(record)
-                if not any(
-                    data["carrier_id"] == carrier.carrier_identifier
-                    for data in carrier_count
-                ):
-                    # if the carrier does not exist, then we need to add it
-                    carrier_dict = {
-                        "carrier_name": carrier.carrier_name,
-                        "carrier_id": carrier.carrier_identifier,
-                        "run_count": carrier.run_count,
-                        "wine_total": carrier.wine_total,
-                    }
-                    carrier_count.append(carrier_dict)
-                else:
-                    # Go append in the stats for this entry then
-                    for data in carrier_count:
-                        if data["carrier_id"] == carrier.carrier_identifier:
-                            data["run_count"] += 1
-                            data["wine_total"] += carrier.wine_total
-        except ValueError as ex:
-            # This is OK, we want to just log the problem and highlight it to be addressed. We do not have a context
-            # here so we cannot actually post anything.
-            print(f"Error while paring the stats into carrier records: {ex}")
-            # Just re-raise this error
-            raise ex
-        # We use this later to go find all the carriers in the database and ensure they match up and none were removed
-        all_carrier_ids_sheet = [
-            f'{carrier["carrier_id"]}' for carrier in carrier_count
-        ]
-
-        print(all_carrier_ids_sheet)
-        print(carrier_count)
-
-        # First row is the headers, drop them.
+        total_entries = len(records_data)
+        print(f"Updating the database we have: {total_entries} records found.")
+        
+        all_carriers_data = {} # type: dict[str, BoozeCarrier]
+        
+        # Loop through each record and parse it into a BoozeCarrier object
         for record in records_data:
-            # Iterate over the records and populate the database as required.
-
-            # Check if it is in the database already
+            try:
+                carrier_data = BoozeCarrier(record)
+                
+                # Check if there is already a object for this carrier and update it if so
+                if carrier_data.carrier_identifier in all_carriers_data:
+                    
+                    all_carriers_data[carrier_data.carrier_identifier].wine_total += carrier_data.wine_total
+                    all_carriers_data[carrier_data.carrier_identifier].run_count += 1
+                
+                else:
+                    all_carriers_data[carrier_data.carrier_identifier] = carrier_data
+            except ValueError as ex:
+                print(f"Error while paring the stats into carrier records: {ex}")
+                return
+        
+        print(f"Total Carriers: {len(all_carriers_data)}")
+        
+        for carrier_data in all_carriers_data.items():
+            
+            carrier_data = carrier_data[1]
+            
             pirate_steve_db.execute(
                 "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)",
-                (f'%{record["Carrier ID"].upper()}%',),
+                (f'%{carrier_data.carrier_identifier}%',),
             )
-            carrier_data = [
-                BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
+            
+            old_carrier_data = [
+                BoozeCarrier(carrier_data) for carrier_data in pirate_steve_db.fetchall()
             ]
-            if len(carrier_data) > 1:
+            
+            if len(old_carrier_data) > 1:
                 raise ValueError(
-                    f"{len(carrier_data)} carriers are listed with this carrier ID:"
-                    f' {record["Carrier ID"].upper()}. Problem in the DB!'
+                    f"{len(old_carrier_data)} carriers are listed with this carrier ID:"
+                    f' {carrier_data.carrier_identifier}. Problem in the DB!'
                 )
-
-            if carrier_data:
-                # We have a carrier, just check the values and update it if needed.
-                print(
-                    f'The carrier for {record["Carrier ID"].upper()} exists, checking the values.'
-                )
-                expected_carrier_data = BoozeCarrier(record)
-                db_carrier_data = carrier_data[0]
-
-                # Update the expected values for wine and count to those coming out of the earlier check if they exist
-                for data in carrier_count:
-                    # There must be a better solution than this, but this was the simplest path I could see
-                    if data["carrier_id"] == expected_carrier_data.carrier_identifier:
-                        expected_carrier_data.wine_total = data["wine_total"]
-                        expected_carrier_data.run_count = data["run_count"]
-
-                print(f"EXPECTED: \t{expected_carrier_data}")
-                print(f"RECORD: \t{db_carrier_data}")
-                print(f"EQUALITY: \t{expected_carrier_data == db_carrier_data}")
-
-                if db_carrier_data != expected_carrier_data:
+            
+            # If the carrier is in the database, check if the data is the same
+            if old_carrier_data:
+                old_carrier_data = old_carrier_data[0]
+                
+                print(f"EXPECTED: \t{carrier_data}")
+                print(f"RECORD: \t{old_carrier_data}")
+                print(f"EQUALITY: \t{carrier_data == old_carrier_data}")
+                
+                # If the data is the same, skip over, otherwise update it
+                if old_carrier_data != carrier_data:
+                    
                     print(
-                        f"The DB data for {db_carrier_data.carrier_name} does not equal the input in GoogleSheets "
+                        f"The DB data for {carrier_data.carrier_name} does not equal the input in GoogleSheets "
                         f"- Updating"
                     )
                     updated_count += 1
                     try:
                         pirate_steve_lock.acquire()
                         data = (
-                            expected_carrier_data.carrier_name,
-                            expected_carrier_data.carrier_identifier,
-                            expected_carrier_data.wine_total,
-                            expected_carrier_data.platform,
-                            expected_carrier_data.ptn_carrier,
-                            expected_carrier_data.discord_username,
-                            expected_carrier_data.timestamp,
-                            expected_carrier_data.run_count,
-                            f"%{db_carrier_data.carrier_identifier}%",
+                            carrier_data.carrier_name,
+                            carrier_data.wine_total,
+                            carrier_data.discord_username,
+                            carrier_data.timestamp,
+                            carrier_data.run_count,
+                            f"%{old_carrier_data.carrier_identifier}%",
                         )
 
-                        # Use the carrier ID as the constraint match here, it is unique.
                         pirate_steve_db.execute(
                             """ UPDATE boozecarriers 
-                            SET carriername=?, carrierid=?, winetotal=?, platform=?, officialcarrier=?, 
+                            SET carriername=?, winetotal=?, 
                             discordusername=?, timestamp=?, runtotal=?
                             WHERE carrierid LIKE (?) """,
                             data,
                         )
-
-                        pirate_steve_conn.commit()
+                        
+                        updated_db = True
+                        
                     except sqlite3.IntegrityError as ex:
                         print(f"WARNING: {ex}")
                         print(
-                            f"Error updating the carrier data in the db for: {expected_carrier_data}"
+                            f"Error updating the carrier data in the db for: {carrier_data}"
                         )
-                        # just re-raise this to break out, we need the log message for debugging
                         raise ex
                     finally:
                         pirate_steve_lock.release()
+                
                 else:
                     print(
-                        f"The DB data for {db_carrier_data.carrier_name} is the same as the sheets record - "
+                        f"The DB data for {carrier_data.carrier_name} is the same as the sheets record - "
                         f"skipping over."
                     )
                     unchanged_count += 1
-
+            
+            # If carrier is not in the database, add it
             else:
                 added_count += 1
-                carrier = BoozeCarrier(record)
-                print(carrier.to_dictionary())
+                print(carrier_data.to_dictionary())
                 print(
-                    f'Carrier {record["Carrier Name"]} is not yet in the database - adding it'
+                    f'Carrier {carrier_data.carrier_name} is not yet in the database - adding it'
                 )
                 try:
                     pirate_steve_lock.acquire()
@@ -318,16 +289,16 @@ class DatabaseInteraction(commands.Cog):
                     INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?) 
                     """,
                         (
-                            carrier.carrier_name,
-                            carrier.carrier_identifier,
-                            carrier.wine_total,
-                            carrier.platform,
-                            carrier.ptn_carrier,
-                            carrier.discord_username,
-                            carrier.timestamp,
-                            carrier.run_count,
-                            carrier.total_unloads,
-                            carrier.timezone,
+                            carrier_data.carrier_name,
+                            carrier_data.carrier_identifier,
+                            carrier_data.wine_total,
+                            carrier_data.platform,
+                            carrier_data.ptn_carrier,
+                            carrier_data.discord_username,
+                            carrier_data.timestamp,
+                            carrier_data.run_count,
+                            carrier_data.total_unloads,
+                            carrier_data.timezone,
                         ),
                     )
                 finally:
@@ -336,30 +307,29 @@ class DatabaseInteraction(commands.Cog):
                 updated_db = True
                 print("Added carrier to the database")
 
-                # Post the notification to the Admin channel
-
-                embed = discord.Embed(title=f"New WineCarrier signed up!")
+                embed = discord.Embed(title="New WineCarrier signed up!")
                 embed.add_field(
-                    name=f"Owner: {carrier.discord_username}: {carrier.carrier_name} ({carrier.carrier_identifier})",
-                    value=f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}",
+                    name=f"Owner: {carrier_data.discord_username}: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})",
+                    value=f"{carrier_data.wine_total // carrier_data.run_count} tonnes of wine on {carrier_data.platform}",
                     inline=False,
                 )
                 new_signups.append(embed)
-
-        print(all_carrier_ids_sheet)
-
+ 
+        print(f"all_carrier_sheet_ids: {list(all_carriers_data.keys())}")
+        
         # Now that the records are updated, make sure no carrier was removed - check for anything not matching the
         # carrier id strings.
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid NOT IN ({})".format(
-                ", ".join("?" * len(all_carrier_ids_sheet))
+                ", ".join("?" * len(list(all_carriers_data.keys())))
             ),
-            all_carrier_ids_sheet,
+            list(all_carriers_data.keys()),
         )
 
         invalid_database_entries = [
-            BoozeCarrier(inv_carrier) for inv_carrier in pirate_steve_db.fetchall()
+            BoozeCarrier(invalid_carrier) for invalid_carrier in pirate_steve_db.fetchall()
         ]
+                
         if updated_db:
             # Write the database and then dump the updated SQL
             try:
@@ -369,19 +339,20 @@ class DatabaseInteraction(commands.Cog):
                 pirate_steve_lock.release()
             dump_database()
             print("Wrote the database and dumped the SQL")
-
+        
         return {
             "updated_db": updated_db,
             "added_count": added_count,
             "updated_count": updated_count,
             "unchanged_count": unchanged_count,
-            "total_carriers": total_carriers,
+            "total_carriers": len(all_carriers_data),
             "invalid_database_entries": invalid_database_entries,
             "new_signups": new_signups,
         }
 
-    async def report_db_update_result(self, result: dict):
-        if result["added_count"] == result["updated_count"] == 0:
+    async def report_db_update_result(self, result: dict, force_embed=False):
+        
+        if result["updated_db"] is False and force_embed is False:
             return
         embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
         embed.add_field(
@@ -744,9 +715,10 @@ class DatabaseInteraction(commands.Cog):
             f"User {interaction.user.name} requested to re-populate the database at {datetime.now()}"
         )
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
+        
         try:
-            await self.report_db_update_result(self._update_db())
+            await self.report_db_update_result(self._update_db(), force_embed=True)
             await interaction.followup.send(content="Pirate Steve's DB Update ran successfully.")
 
         except ValueError as ex:
@@ -1103,6 +1075,8 @@ class DatabaseInteraction(commands.Cog):
             f"User {interaction.user.name} requested the current tally of the cruise stats for {cruise} cruise."
         )
         target_date = None
+        
+        await self.report_db_update_result(self._update_db())
 
         if cruise_select == 0:
             # Go get everything out of the database
@@ -1388,6 +1362,8 @@ class DatabaseInteraction(commands.Cog):
         print(
             f"User {interaction.user.name} requested the current extended stats of the cruise."
         )
+        
+        await self.report_db_update_result(self._update_db())
 
         cruise = "this" if cruise_select == 0 else f"-{cruise_select}"
         print(
@@ -2233,3 +2209,82 @@ class DatabaseInteraction(commands.Cog):
         )
         
         await interaction.edit_original_response(content=None, embed=stat_embed)
+        
+    @app_commands.command(name="booze_purge_full_carriers", description="Purges full carriers from the database.")
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
+    @check_command_channel(get_steve_says_channel())
+    async def purge_full_carriers(self, interaction: discord.Interaction):
+        """
+        Purges full carriers from the database.
+
+        :param interaction discord.Interaction: The discord interaction context.
+        :returns: None"
+        """
+        
+        print(f"{interaction.user.name} requested to purge full carriers.")
+        await interaction.response.defer()
+        await self.report_new_and_invalid_carriers(self._update_db())
+        print(f"{interaction.user.name} requested to delete all full carriers.")
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
+        )
+        carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
+        if len(carrier_data) == 0:
+            print("No full carriers to delete.")
+            await interaction.edit_original_response(content="There are no full carriers to delete.")
+            return
+        
+        print(f"Found {len(carrier_data)} full carriers to delete. Sending confirmation message.")
+        
+        confirmation_embed = discord.Embed(
+            title=f"Purge {len(carrier_data)} Full Carriers?",
+            description="Are you sure you want to delete all the remaining full carriers?",
+        )
+        confirmation_embed.set_footer(text="Confirm this with y/n.")
+        
+        await interaction.edit_original_response(content=None, embed=confirmation_embed)
+        
+        def check_yes_no(check_message):
+            return (
+                check_message.author == interaction.user
+                and check_message.channel == interaction.channel
+                and check_message.content.lower() in ["y", "n"]
+            )
+            
+        try:
+            user_response = await bot.wait_for("message", check=check_yes_no, timeout=30)
+            if user_response.content.lower() == "y":
+                await user_response.delete()
+                print(f"User {interaction.user.name} accepted the request to purge full carriers.")
+                await interaction.edit_original_response(content="Purging Carriers...", embed=None)
+                failed_carriers = []
+                pirate_steve_lock.acquire()
+                try:
+                    carrier_ids = [carrier.carrier_identifier for carrier in carrier_data]
+                    pirate_steve_db.execute(
+                        "DELETE FROM boozecarriers WHERE carrierid IN ({})".format(
+                            ", ".join("?" * len(carrier_ids))
+                        ),
+                        carrier_ids,
+                    )
+                    pirate_steve_conn.commit()
+                except Exception as e:
+                    print(f"Error deleting carriers: {e}")
+                    failed_carriers.extend(carrier_ids)
+                finally:
+                    pirate_steve_lock.release()
+                    
+                if failed_carriers:
+                    await interaction.followup.send(content=f"Failed to delete the following carriers: {', '.join(failed_carriers)}")
+                
+                print("Finished purging full carriers.")                    
+                await interaction.edit_original_response(content="Full carriers have been purged.", embed=None)
+                
+            elif user_response.content.lower() == "n":
+                await user_response.delete()
+                print(f"User {interaction.user.name} aborted the request to purge full carriers.")
+                await interaction.edit_original_response(content="Aborted the request to purge full carriers.", embed=None)
+                
+        except asyncio.TimeoutError:
+            print("Timed out while waiting for confirmation response.")
+            await interaction.edit_original_response(content="Waiting for user response - timed out", embed=None)
