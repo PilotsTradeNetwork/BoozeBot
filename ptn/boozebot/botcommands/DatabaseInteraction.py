@@ -2223,7 +2223,6 @@ class DatabaseInteraction(commands.Cog):
         
         print(f"{interaction.user.name} requested to purge full carriers.")
         await interaction.response.defer()
-        await self.report_new_and_invalid_carriers(self._update_db())
         print(f"{interaction.user.name} requested to delete all full carriers.")
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
