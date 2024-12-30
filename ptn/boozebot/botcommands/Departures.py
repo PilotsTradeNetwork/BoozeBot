@@ -331,9 +331,9 @@ class Departures(commands.Cog):
             
         # Set the direction arrow text
         if departure_system_index == arrival_system_index:
-            print("Departure and arrival are the same system.")
-            await interaction.edit_original_response(content="Departure and arrival systems cannot be the same.")
-            await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: Departure and arrival systems cannot be the same.")
+            msg = "Departure and arrival are the same system."
+            await interaction.edit_original_response(content=msg)
+            await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
             return
         elif departure_system_index < arrival_system_index:
             print("Departure system is above arrival system.")
