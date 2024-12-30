@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.6
+
+-   \#456 - Added arrow emojis to departure messages
+-   \#472 - Purge command no longer runs a db update
+-   \#474 - Steve says logs the messages within a codeblock
+
 ## 2.0.5
 
 -   \#448 - Handle unformatted departure timestamp
@@ -12,6 +18,7 @@
 -   \#466 - Fix db update numbers
 -   \#464 \#467 - Fix /booze_tally not updating the db
 -   \#465 - Add purge command
+-   \#457 - Steve says command logs to steve-says
 
 ## 2.0.4
 
