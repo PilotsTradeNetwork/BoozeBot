@@ -102,9 +102,11 @@ class MimicSteve(commands.Cog):
                 print("No channel specified")
                 return
             
-            await interaction.edit_original_response(content=f"Pirate Steve said: {message} in: {send_channel} successfully")
-            await steve_says_channel.send(f"User {interaction.user.name} sent the message {message} as PirateSteve in: {send_channel.name}. {msg.jump_url}")
+            message = message.replace("`", "\u200B`")
+            
+            await interaction.edit_original_response(content=f"Pirate Steve said: ``{message}\u200B`` in: {send_channel} successfully")
+            await steve_says_channel.send(f"User {interaction.user.name} sent the message ``{message}\u200B`` as PirateSteve in: {send_channel.name}. {msg.jump_url}")
             print("Message was impersonated successfully.")
         except discord.DiscordException:
             print(f"Error sending message in {message} channel: {send_channel}")
-            await interaction.edit_original_response(content=f"Pirate Steve failed to say: {message} in: {send_channel}.")
+            await interaction.edit_original_response(content=f"Pirate Steve failed to say: ``{message}\u200B`` in: {send_channel}.")
