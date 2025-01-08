@@ -321,15 +321,13 @@ class Departures(commands.Cog):
             arrival_system_index = int(arrival_location.split(" ")[0][1:])
         except ValueError:
             arrival_system_index = 16
-        
-        if departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems:
-            print("Departure needs hitchhiker ping.")
-            hitchhiker_ping_text = f"| <@&{str(server_hitchhiker_role_id())}>"
+
+        is_hitchhiking_trip = departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems
+        if is_hitchhiking_trip:
             departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
-        else:
-            hitchhiker_ping_text = ""
-            
-        # Set the direction arrow text
+
+        hitchhiker_ping_text = ""
+        # Set the direction arrow text and determine if hitchhiker ping is needed
         if departure_system_index == arrival_system_index:
             msg = "Departure and arrival are the same system."
             print(msg)
@@ -342,6 +340,9 @@ class Departures(commands.Cog):
         elif departure_system_index > arrival_system_index:
             print("Departure system is below arrival system.")
             direction_arrow = "⬆️"
+            if is_hitchhiking_trip:
+                print("Departure needs hitchhiker ping.")
+                hitchhiker_ping_text = f"| <@&{str(server_hitchhiker_role_id())}>"
         else:
             print("Failed to determine direction arrow.")
             direction_arrow = ""
