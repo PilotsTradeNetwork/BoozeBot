@@ -55,6 +55,7 @@ class Departures(commands.Cog):
     """
     
     system_choices = [
+        Choice(name="N0", value="N0"),
         Choice(name="N0 Star", value="N0 Star"),
         Choice(name="N0 Planet 1", value="N0 Planet 1"),
         Choice(name="N0 Planet 2", value="N0 Planet 2"),
