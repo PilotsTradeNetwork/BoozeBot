@@ -53,7 +53,7 @@ class Departures(commands.Cog):
     """
     This class is a collection functionality for posting departure messages for carriers.
     """
-    
+
     system_choices = [
         Choice(name="N0", value="N0"),
         Choice(name="N0 Star", value="N0 Star"),
@@ -81,7 +81,7 @@ class Departures(commands.Cog):
         Choice(name="Gali", value="Gali"),
         Choice(name="Mandhrithar", value="Mandhrithar"),
     ]
-    
+
     # On ready check for any completed departure messages and remove them.
     @commands.Cog.listener()
     async def on_ready(self):
@@ -196,8 +196,8 @@ class Departures(commands.Cog):
                         await wine_carrier_chat.send(f"<@{author_id}> your scheduled departure time of <t:{departure_time}:F> has passed. If your carrier has entered lockdown or completed its jump, please use the ✅ reaction under your notice to remove it. {message.jump_url}")
 
             except Exception as e:
-                print(f"Failed to process departure message while checking for time passed. message: {message.id}. Error: {e}")    
-    
+                print(f"Failed to process departure message while checking for time passed. message: {message.id}. Error: {e}")
+
     @app_commands.command(name="wine_carrier_departure",
                           description="Post a departure message for a wine carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
@@ -216,7 +216,7 @@ class Departures(commands.Cog):
             departing_at (str, optional): The unix timestamp of when the carrier is departing. Defaults to None.
             departing_in (str, optional): The time in minutes until the carrier departs. Defaults to None.
         """
-        
+
         # Log the request
         print(f'User {interaction.user.name} has requested a new wine carrier departure operation for carrier: {carrier_id} from the '
               f'location: {departure_location} to {arrival_location}.')
@@ -267,8 +267,12 @@ class Departures(commands.Cog):
 
         departure_timestamp = None
 
+        thoon_emoji = f"<:thoon:{get_thoon_emoji_id()}>"
+        # Handle thoon
+        if departing_at == thoon_emoji or departing_in == thoon_emoji:
+            print("Thoon emoji given as departure time")
         # Handle departure time if provided as a timestamp
-        if departing_at:
+        elif departing_at:
             try:
                 departure_timestamp = departing_at
                 if departure_timestamp.startswith("<t:") and departure_timestamp.endswith(">"):
@@ -308,11 +312,11 @@ class Departures(commands.Cog):
         if departure_timestamp:
             departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
         else:
-            departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
-        
+            departure_time_text = f" {thoon_emoji} |"
+
         # Check if the departure needs a hitchhiker ping
         hitchhiker_systems = [0, 1, 2]
-        
+
         try:
             departure_system_index = int(departure_location.split(" ")[0][1:])
         except ValueError:
@@ -325,7 +329,7 @@ class Departures(commands.Cog):
 
         is_hitchhiking_trip = departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems
         if is_hitchhiking_trip:
-            departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
+            departure_time_text = f" {thoon_emoji} |"
 
         hitchhiker_ping_text = ""
         # Set the direction arrow text and determine if hitchhiker ping is needed
@@ -347,19 +351,17 @@ class Departures(commands.Cog):
         else:
             print("Failed to determine direction arrow.")
             direction_arrow = ""
-            
-        
-            
+
         # Construct the departure message text
         departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{interaction.user.id}> {hitchhiker_ping_text}"
-                    
+
         # Send the departure message to the departure announcement channel
         departure_channel = bot.get_channel(get_departure_announcement_channel())
         departure_message = await departure_channel.send(departure_message_text)
         await departure_message.add_reaction("🛬")
         await departure_message.add_reaction("✅")
         print("Departure message sent.")
-        
+
         # Edit the original interaction response with the jump URL of the departure message
         await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
 
