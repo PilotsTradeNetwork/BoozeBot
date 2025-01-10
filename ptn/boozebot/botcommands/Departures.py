@@ -267,10 +267,10 @@ class Departures(commands.Cog):
 
         departure_timestamp = None
 
-        thoon_emoji = f"<:thoon:{get_thoon_emoji_id()}>"
+        thoon_inputs = [f"<:thoon:{get_thoon_emoji_id()}>", "thoon"]
         # Handle thoon
-        if departing_at == thoon_emoji or departing_in == thoon_emoji:
-            print("Thoon emoji given as departure time")
+        if departing_at.lower() in thoon_inputs or departing_in.lower() in thoon_inputs:
+            print("Thoon given as departure time")
         # Handle departure time if provided as a timestamp
         elif departing_at:
             try:
@@ -312,7 +312,7 @@ class Departures(commands.Cog):
         if departure_timestamp:
             departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
         else:
-            departure_time_text = f" {thoon_emoji} |"
+            departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
 
         # Check if the departure needs a hitchhiker ping
         hitchhiker_systems = [0, 1, 2]
