@@ -112,14 +112,13 @@ class BoozeCarrier:
         :rtype: bool
         """
         if isinstance(other, BoozeCarrier):
-            self_dict = self.to_dictionary()
-            other_dict = other.to_dictionary()
             
-            self_dict.pop('timestamp', None)
-            other_dict.pop('timestamp', None)
+            keys = ["carrier_name", "wine_total", "carrier_identifier", "discord_username", "run_count"]
             
-            self_dict.pop('total_unloads', None)
-            other_dict.pop('total_unloads', None)
+            for key in keys:
+                if getattr(self, key) != getattr(other, key):
+                    return False
             
-            return self_dict == other_dict
+            return True
+
         return False
