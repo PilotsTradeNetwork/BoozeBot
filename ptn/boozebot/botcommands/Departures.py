@@ -329,7 +329,7 @@ class Departures(commands.Cog):
 
         is_hitchhiking_trip = departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems
         if is_hitchhiking_trip:
-            departure_time_text = f" {thoon_emoji} |"
+            departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
 
         hitchhiker_ping_text = ""
         # Set the direction arrow text and determine if hitchhiker ping is needed
