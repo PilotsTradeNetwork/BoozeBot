@@ -6,6 +6,7 @@ Cog for unloading related commands
 # libraries
 import re
 import time
+from typing import Literal
 
 # discord.py
 import discord
@@ -82,6 +83,7 @@ class Departures(commands.Cog):
         Choice(name="Mandhrithar", value="Mandhrithar"),
     ]
 
+    departure_announcement_status: Literal["Disabled", "Upwards", "All"] = "Disabled"
     # On ready check for any completed departure messages and remove them.
     @commands.Cog.listener()
     async def on_ready(self):
@@ -352,6 +354,18 @@ class Departures(commands.Cog):
             print("Failed to determine direction arrow.")
             direction_arrow = ""
 
+        # Check if departure announcements are enabled
+        msg = ""
+        if self.departure_announcement_status  == "Disabled":
+            msg = "Departure announcements are currently disabled."
+        elif self.departure_announcement_status == "Upwards" and direction_arrow == "⬇️":
+            msg = "Departure announcements are currently only enabled for jumps moving up from N2 or higher."
+        if msg:
+            print(msg)
+            await interaction.edit_original_response(content=msg)
+            await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
+            return
+
         # Construct the departure message text
         departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{interaction.user.id}> {hitchhiker_ping_text}"
 
@@ -364,6 +378,27 @@ class Departures(commands.Cog):
 
         # Edit the original interaction response with the jump URL of the departure message
         await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
+
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
+    async def set_allowed_departures(self, interaction: discord.Interaction, status: departure_announcement_status):
+        """
+        Set the status of departure announcements.
+
+        Args:
+            interaction (discord.Interaction): The discord interaction context.
+            status (departure_announcement_status): The status of departure announcements.
+        """
+
+        # Log the request
+        guild = bot.get_guild(bot_guild_id())
+        steve_says_channel = guild.get_channel(get_steve_says_channel())
+        msg = f"requested to set the departure announcement status to: '{status}'."
+        print(f'{interaction.user.name} {msg}')
+        await steve_says_channel.send(f'{interaction.user.mention} {msg}')
+        # Set the departure announcement status
+        self.departure_announcement_status = status
+        # Send the response message
+        await interaction.edit_original_response(content=f"Departure announcements are now '{status}'.")
 
 
     def get_departure_author_id(self, message):
