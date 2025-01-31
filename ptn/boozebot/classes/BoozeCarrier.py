@@ -2,6 +2,8 @@ import re
 
 
 class BoozeCarrier:
+    
+    COMPARISON_KEYS = ["carrier_name", "wine_total", "carrier_identifier", "discord_username", "run_count"]
 
     def __init__(self, info_dict=None):
         """
@@ -112,13 +114,5 @@ class BoozeCarrier:
         :rtype: bool
         """
         if isinstance(other, BoozeCarrier):
-            
-            keys = ["carrier_name", "wine_total", "carrier_identifier", "discord_username", "run_count"]
-            
-            for key in keys:
-                if getattr(self, key) != getattr(other, key):
-                    return False
-            
-            return True
-
+            return all(getattr(self, key) == getattr(other, key) for key in self.COMPARISON_KEYS)
         return False
