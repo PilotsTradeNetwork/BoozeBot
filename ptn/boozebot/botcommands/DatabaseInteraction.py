@@ -426,7 +426,7 @@ class DatabaseInteraction(commands.Cog):
             print("No new signed up carriers detected")
 
     def build_stat_embed(
-        self, all_carrier_data, total_carriers_multiple_trips, target_date=None
+        self, all_carrier_data, total_carriers_multiple_trips, target_date=None, include_timestamp=False
     ):
         """
         Builds the stat embed
@@ -492,6 +492,8 @@ class DatabaseInteraction(commands.Cog):
             if target_date
             else ""
         )
+        
+        updated_timestamp = f"\n\nLast updated: <t:{int(datetime.now().timestamp())}:F>" if include_timestamp else ""
 
         # Build the embed
         stat_embed = discord.Embed(
@@ -508,7 +510,8 @@ class DatabaseInteraction(commands.Cog):
             f"**Total profit:** — {total_profit:,}\n\n"
             f"**Total number of fleet carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n"
             f"{flavour_text}\n\n"
-            f"[Bringing wine? Sign up here]({self.loader_signup_form_url})",
+            f"[Bringing wine? Sign up here]({self.loader_signup_form_url})"
+            f"{updated_timestamp}"
         )
         stat_embed.set_image(
             url="https://cdn.discordapp.com/attachments/783783142737182724/849157248923992085/unknown.png"
@@ -645,7 +648,7 @@ class DatabaseInteraction(commands.Cog):
                 BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
             ]
             stat_embed = self.build_stat_embed(
-                all_carrier_data, total_carriers_multiple_trips, None
+                all_carrier_data, total_carriers_multiple_trips, None, True
             )
 
             print("Updating pinned messages")
@@ -1129,6 +1132,9 @@ class DatabaseInteraction(commands.Cog):
         await interaction.edit_original_response(embed=stat_embed)
 
         if cruise_select == 0:
+            
+            pinned_stat_embed = self.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, None, True)
+            
             # Go update all the pinned embeds also.
             pirate_steve_db.execute("""SELECT * FROM pinned_messages""")
             pins = [dict(value) for value in pirate_steve_db.fetchall()]
@@ -1140,7 +1146,7 @@ class DatabaseInteraction(commands.Cog):
                     # Now go loop over every pin and update it
                     message = await channel.fetch_message(pin["message_id"])
                     print(f'Message matched as: {message} from {pin["message_id"]}')
-                    await message.edit(embed=stat_embed)
+                    await message.edit(embed=pinned_stat_embed)
             else:
                 print("No pinned messages up update")
 
