@@ -1129,20 +1129,21 @@ class DatabaseInteraction(commands.Cog):
 
         await interaction.edit_original_response(embed=stat_embed)
 
-        # Go update all the pinned embeds also.
-        pirate_steve_db.execute("""SELECT * FROM pinned_messages""")
-        pins = [dict(value) for value in pirate_steve_db.fetchall()]
-        if pins:
-            print(f"Updating pinned messages: {pins}")
-            for pin in pins:
-                channel = await bot.fetch_channel(pin["channel_id"])
-                print(f'Channel matched as: {channel} from {pin["channel_id"]}')
-                # Now go loop over every pin and update it
-                message = await channel.fetch_message(pin["message_id"])
-                print(f'Message matched as: {message} from {pin["message_id"]}')
-                await message.edit(embed=stat_embed)
-        else:
-            print("No pinned messages up update")
+        if cruise_select == 0:
+            # Go update all the pinned embeds also.
+            pirate_steve_db.execute("""SELECT * FROM pinned_messages""")
+            pins = [dict(value) for value in pirate_steve_db.fetchall()]
+            if pins:
+                print(f"Updating pinned messages: {pins}")
+                for pin in pins:
+                    channel = await bot.fetch_channel(pin["channel_id"])
+                    print(f'Channel matched as: {channel} from {pin["channel_id"]}')
+                    # Now go loop over every pin and update it
+                    message = await channel.fetch_message(pin["message_id"])
+                    print(f'Message matched as: {message} from {pin["message_id"]}')
+                    await message.edit(embed=stat_embed)
+            else:
+                print("No pinned messages up update")
 
     @app_commands.command(
         name="booze_pin_message",
