@@ -1,5 +1,5 @@
 """
-Cog for all the commands related to 
+Cog for all the commands related to
 
 """
 
@@ -17,9 +17,11 @@ from discord import app_commands, NotFound
 from ptn.boozebot.constants import bot_guild_id, bot, server_council_role_ids, \
 server_sommelier_role_id, server_wine_carrier_role_id, server_mod_role_id, \
     get_public_channel_list, server_hitchhiker_role_id, WELCOME_MESSAGE_FILE_PATH, \
-    get_steve_says_channel, get_feedback_channel_id
+    get_steve_says_channel, get_feedback_channel_id, get_ptn_booze_cruise_role_id, \
+    get_wine_carrier_guide_channel_id
 
 # local modules
+from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error, TimeoutError
 from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
 
@@ -52,7 +54,7 @@ class Cleaner(commands.Cog):
     def cog_unload(self):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
-    
+
     """
     This class handles role and channel cleanup after a cruise, as well as opening channels in preparation for a cruise.
     """
@@ -68,47 +70,52 @@ class Cleaner(commands.Cog):
         :returns: A discord embed
         """
         print(f'User {interaction.user.name} requested BC channel opening in channel: {interaction.channel.name}.')
-        
+
+        await interaction.response.defer()
+
         def check_yes_no(check_message):
             return (
                 check_message.author == interaction.user
                 and check_message.channel == interaction.channel
                 and check_message.content.lower() in ["y", "n"]
             )
-            
+
         check_embed = discord.Embed(
             title="Validate the request",
             description="You have requested to open the booze cruise channels:"
         )
         check_embed.set_footer(text="Respond with y/n.")
-        await interaction.response.send_message(content=None, embed=check_embed)
-    
+        await interaction.edit_original_response(content=None, embed=check_embed)
+
         try:
             user_response = await bot.wait_for(
                 "message", check=check_yes_no, timeout=30
             )
             if user_response.content.lower() == "y":
-                
+
                 ids_list = get_public_channel_list()
                 guild = bot.get_guild(bot_guild_id())
 
                 embed = discord.Embed()
+                Departures.departure_announcement_status = "Disabled"
+                channels = {channel_id: guild.default_role for channel_id in ids_list}
+                channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
                 
-                for id in ids_list:
-                    channel = bot.get_channel(id)
+                for channel_id, role in channels.items():
+                    channel = bot.get_channel(channel_id)
                     try:
-                        overwrite = channel.overwrites_for(guild.default_role)
-                        overwrite.view_channel = None # less confusing alias for read_messages
-                        await channel.set_permissions(guild.default_role, overwrite=overwrite)
-                        embed.add_field(name="Opened", value="<#" + str(id) +">", inline=False)
+                        overwrite = channel.overwrites_for(role)
+                        overwrite.view_channel = True # less confusing alias for read_messages
+                        await channel.set_permissions(role, overwrite=overwrite)
+                        embed.add_field(name="Opened", value="<#" + str(channel_id) +">", inline=False)
                     except Exception as e:
-                        embed.add_field(name="FAILED to open", value="<#" + str(id) + f">: {e}", inline=False)
+                        embed.add_field(name="FAILED to open", value="<#" + str(channel_id) + f">: {e}", inline=False)
 
                 await interaction.edit_original_response(content=f"<@&{server_sommelier_role_id()}> Avast! We\'re ready to set sail!", embed=embed)
                 await user_response.delete()
                 print("Channels opened successfully.")
                 return
-                
+
             elif user_response.content.lower() == "n":
                 print(
                     f"User {interaction.user.name} wants to abort the open process."
@@ -135,22 +142,27 @@ class Cleaner(commands.Cog):
         """
         print(f'User {interaction.user.name} requested BC channel closing in channel: {interaction.channel.name}.')
 
+        await interaction.response.defer()
+
         ids_list = get_public_channel_list()
         guild = bot.get_guild(bot_guild_id())
 
         embed = discord.Embed()
+        
+        channels = {channel_id: guild.default_role for channel_id in ids_list}
+        channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
 
-        for id in ids_list:
-            channel = bot.get_channel(id)
+        for channel_id, role in channels.items():
+            channel = bot.get_channel(channel_id)
             try:
-                overwrite = channel.overwrites_for(guild.default_role)
+                overwrite = channel.overwrites_for(role)
                 overwrite.view_channel = False # less confusing alias for read_messages
-                await channel.set_permissions(guild.default_role, overwrite=overwrite)
-                embed.add_field(name="Closed", value="<#" + str(id) +">", inline=False)
+                await channel.set_permissions(role, overwrite=overwrite)
+                embed.add_field(name="Closed", value="<#" + str(channel_id) +">", inline=False)
             except Exception as e:
-                embed.add_field(name="FAILED to close", value="<#" + str(id) + f">: {e}", inline=False)
+                embed.add_field(name="FAILED to close", value="<#" + str(channel_id) + f">: {e}", inline=False)
 
-        await interaction.response.send_message(f"<@&{server_sommelier_role_id()}> That\'s the end of that, me hearties.", embed=embed)
+        await interaction.edit_original_response(content=f"<@&{server_sommelier_role_id()}> That\'s the end of that, me hearties.", embed=embed)
         return
 
     @app_commands.command(name="clear_booze_roles", description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution.")
@@ -208,12 +220,12 @@ class Cleaner(commands.Cog):
         if os.path.isfile(WELCOME_MESSAGE_FILE_PATH):
             with open(WELCOME_MESSAGE_FILE_PATH, "r") as file:
                 wine_welcome_message = file.read()
-                
+
         response_timeout = 20
 
         await interaction.response.send_message(f"Existing message: ```\n{wine_welcome_message}\n```\n"
                                                 f"<@{interaction.user.id}> your next message in this channel will be used as the new welcome message, or wait {response_timeout} seconds to cancel.")
-        
+
         def check(response):
             return response.author == interaction.user and response.channel == interaction.channel
 
@@ -238,32 +250,32 @@ class Cleaner(commands.Cog):
                 return
         else:
             return
-        
+
     @app_commands.command(name="open_wine_carrier_feedback", description="Opens the Wine Carrier feedback channel.")
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel([get_steve_says_channel()])
     async def open_wine_carrier_feedback(self, interaction: discord.Interaction):
         print(f'User {interaction.user.name} is opening the wine carrier feedback channel in {interaction.channel.name}.')
-        
-        wine_feedback_channel = bot.get_channel(get_feedback_channel_id())        
+
+        wine_feedback_channel = bot.get_channel(get_feedback_channel_id())
         wine_carrier_role = interaction.guild.get_role(server_wine_carrier_role_id())
         overwrite = discord.PermissionOverwrite(view_channel=True)
-        
+
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
 
         await interaction.response.send_message(f"Opened the Wine Carrier feedback channel.", embed=None)
         return
-    
+
     @app_commands.command(name="close_wine_carrier_feedback", description="Closes the Wine Carrier feedback channel.")
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel([get_steve_says_channel()])
     async def close_wine_carrier_feedback(self, interaction: discord.Interaction):
         print(f'User {interaction.user.name} is closing the wine carrier feedback channel in {interaction.channel.name}.')
-        
+
         wine_feedback_channel = bot.get_channel(get_feedback_channel_id())
         wine_carrier_role = interaction.guild.get_role(server_wine_carrier_role_id())
         overwrite = discord.PermissionOverwrite(view_channel=False)
-        
+
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
 
         await interaction.response.send_message(f"Closed the Wine Carrier feedback channel.", embed=None)
