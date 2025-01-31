@@ -36,7 +36,7 @@ from ptn.boozebot.constants import (
     get_wine_carrier_channel,
     get_primary_booze_discussions_channel,
     GOOGLE_OAUTH_CREDENTIALS_PATH,
-    _production, 
+    _production,
 )
 
 # local classes
@@ -181,58 +181,58 @@ class DatabaseInteraction(commands.Cog):
 
         total_entries = len(records_data)
         print(f"Updating the database we have: {total_entries} records found.")
-        
+
         all_carriers_data = {} # type: dict[str, BoozeCarrier]
-        
+
         # Loop through each record and parse it into a BoozeCarrier object
         for record in records_data:
             try:
                 carrier_data = BoozeCarrier(record)
-                
+
                 # Check if there is already a object for this carrier and update it if so
                 if carrier_data.carrier_identifier in all_carriers_data:
-                    
+
                     all_carriers_data[carrier_data.carrier_identifier].wine_total += carrier_data.wine_total
                     all_carriers_data[carrier_data.carrier_identifier].run_count += 1
-                
+
                 else:
                     all_carriers_data[carrier_data.carrier_identifier] = carrier_data
             except ValueError as ex:
                 print(f"Error while paring the stats into carrier records: {ex}")
                 return
-        
+
         print(f"Total Carriers: {len(all_carriers_data)}")
-        
+
         for carrier_data in all_carriers_data.items():
-            
+
             carrier_data = carrier_data[1]
-            
+
             pirate_steve_db.execute(
                 "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)",
                 (f'%{carrier_data.carrier_identifier}%',),
             )
-            
+
             old_carrier_data = [
                 BoozeCarrier(carrier_data) for carrier_data in pirate_steve_db.fetchall()
             ]
-            
+
             if len(old_carrier_data) > 1:
                 raise ValueError(
                     f"{len(old_carrier_data)} carriers are listed with this carrier ID:"
                     f' {carrier_data.carrier_identifier}. Problem in the DB!'
                 )
-            
+
             # If the carrier is in the database, check if the data is the same
             if old_carrier_data:
                 old_carrier_data = old_carrier_data[0]
-                
+
                 print(f"EXPECTED: \t{carrier_data}")
                 print(f"RECORD: \t{old_carrier_data}")
                 print(f"EQUALITY: \t{carrier_data == old_carrier_data}")
-                
+
                 # If the data is the same, skip over, otherwise update it
                 if old_carrier_data != carrier_data:
-                    
+
                     print(
                         f"The DB data for {carrier_data.carrier_name} does not equal the input in GoogleSheets "
                         f"- Updating"
@@ -256,9 +256,9 @@ class DatabaseInteraction(commands.Cog):
                             WHERE carrierid LIKE (?) """,
                             data,
                         )
-                        
+
                         updated_db = True
-                        
+
                     except sqlite3.IntegrityError as ex:
                         print(f"WARNING: {ex}")
                         print(
@@ -267,14 +267,14 @@ class DatabaseInteraction(commands.Cog):
                         raise ex
                     finally:
                         pirate_steve_lock.release()
-                
+
                 else:
                     print(
                         f"The DB data for {carrier_data.carrier_name} is the same as the sheets record - "
                         f"skipping over."
                     )
                     unchanged_count += 1
-            
+
             # If carrier is not in the database, add it
             else:
                 added_count += 1
@@ -314,9 +314,9 @@ class DatabaseInteraction(commands.Cog):
                     inline=False,
                 )
                 new_signups.append(embed)
- 
+
         print(f"all_carrier_sheet_ids: {list(all_carriers_data.keys())}")
-        
+
         # Now that the records are updated, make sure no carrier was removed - check for anything not matching the
         # carrier id strings.
         pirate_steve_db.execute(
@@ -329,7 +329,7 @@ class DatabaseInteraction(commands.Cog):
         invalid_database_entries = [
             BoozeCarrier(invalid_carrier) for invalid_carrier in pirate_steve_db.fetchall()
         ]
-                
+
         if updated_db:
             # Write the database and then dump the updated SQL
             try:
@@ -339,7 +339,7 @@ class DatabaseInteraction(commands.Cog):
                 pirate_steve_lock.release()
             dump_database()
             print("Wrote the database and dumped the SQL")
-        
+
         return {
             "updated_db": updated_db,
             "added_count": added_count,
@@ -351,7 +351,7 @@ class DatabaseInteraction(commands.Cog):
         }
 
     async def report_db_update_result(self, result: dict, force_embed=False):
-        
+
         if result["updated_db"] is False and force_embed is False:
             return
         embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
@@ -520,7 +520,7 @@ class DatabaseInteraction(commands.Cog):
 
         print("Returning embed to user")
         return stat_embed
-    
+
     def build_extended_stat_embed(self, all_carrier_data, total_carriers_multiple_trips, target_date=None):
         total_wine = sum(carrier.wine_total for carrier in all_carrier_data)
 
@@ -562,7 +562,7 @@ class DatabaseInteraction(commands.Cog):
         london_bus_volume_l = 112.5 * 1000
         busses_if_bottles = wine_bottles_litres_total / london_bus_volume_l
         busses_if_boxes = wine_boxes_litres_total / london_bus_volume_l
-        
+
         date_text = (
             f":\nHistorical Data: [{target_date} - "
             f'{datetime.strptime(target_date, "%Y-%m-%d").date() + timedelta(days=2)}]'
@@ -604,7 +604,7 @@ class DatabaseInteraction(commands.Cog):
             text="Stats requested by RandomGazz.\nPirate Steve approves of these stats!"
         )
         return stat_embed
-    
+
 
     """
     Pinned Stats and Activity Update Task Loop
@@ -664,12 +664,12 @@ class DatabaseInteraction(commands.Cog):
                 if all_carrier_data
                 else 0
             )
-            
+
             guild = await bot.fetch_guild(bot_guild_id())
             booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
             pilot_role = guild.get_role(get_pilot_role_id())
             channels_open = booze_cruise_chat.permissions_for(pilot_role).view_channel
-            
+
             state_text = f"Total Wine Tracked: {total_wine}" if channels_open else "Arrr, the wine be drained, ye thirsty scallywags!"
 
             await self.bot.change_presence(
@@ -716,7 +716,7 @@ class DatabaseInteraction(commands.Cog):
         )
 
         await interaction.response.defer()
-        
+
         try:
             await self.report_db_update_result(self._update_db(), force_embed=True)
             await interaction.followup.send(content="Pirate Steve's DB Update ran successfully.")
@@ -762,7 +762,7 @@ class DatabaseInteraction(commands.Cog):
             )
 
         # Else we have wine left
-        
+
         carrier_data = [
             (f"{carrier.carrier_name} ({carrier.carrier_identifier})", f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}") for carrier in carrier_data
         ]
@@ -970,10 +970,9 @@ class DatabaseInteraction(commands.Cog):
         if not carrier_data:
             print(f"Did not find a carrier matching the condition: {carrier_search}.")
             return await interaction.edit_original_response(
-                f"Could not find a carrier matching the inputs: {platform}, "
-                f"with wine: {remaining_wine}"
+                content=f"Could not find a carrier matching the inputs: {platform}, with wine: {remaining_wine}"
             )
-            
+
         carrier_data = [
             (f"{carrier.carrier_name} ({carrier.carrier_identifier})", f"{carrier.wine_total // carrier.run_count} tonnes of wine on {carrier.platform}") for carrier in carrier_data
         ]
@@ -1075,7 +1074,7 @@ class DatabaseInteraction(commands.Cog):
             f"User {interaction.user.name} requested the current tally of the cruise stats for {cruise} cruise."
         )
         target_date = None
-        
+
         await self.report_db_update_result(self._update_db())
 
         if cruise_select == 0:
@@ -1174,7 +1173,7 @@ class DatabaseInteraction(commands.Cog):
         message = await channel.fetch_message(message_id)
         if not message:
             print(f"Could not find a message for the link: {message_link}")
-            return interaction.edit_original_response(
+            return await interaction.edit_original_response(
                 content=f"Could not find a message with the link: {message_link}"
             )
 
@@ -1363,7 +1362,7 @@ class DatabaseInteraction(commands.Cog):
         print(
             f"User {interaction.user.name} requested the current extended stats of the cruise."
         )
-        
+
         await self.report_db_update_result(self._update_db())
 
         cruise = "this" if cruise_select == 0 else f"-{cruise_select}"
@@ -1598,7 +1597,7 @@ class DatabaseInteraction(commands.Cog):
                         embed=None,
                     )
                 except Exception as e:
-                    return interaction.edit_original_response(
+                    return await interaction.edit_original_response(
                         content=f'Something went wrong, go tell the bot team "computer said: {e}"',
                         embed=None,
                     )
@@ -2034,7 +2033,7 @@ class DatabaseInteraction(commands.Cog):
         # track the init value, we reset to this in case of bail out
         init_update_value = self.update_allowed
         self.update_allowed = False
-        
+
         # Check the dB is empty first.
         pirate_steve_db.execute("SELECT * FROM boozecarriers")
         all_carrier_data = [
@@ -2111,8 +2110,8 @@ class DatabaseInteraction(commands.Cog):
             return await interaction.edit_original_response(
                 content="Pirate Steve saw you timed on the confirmation.", embed=None
             )
-            
-            
+
+
     @app_commands.command(name="biggest_cruise_tally", description="Returns the tally for the cruise with the most wine.")
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
     async def biggest_cruise_tally(self, interaction: discord.Interaction, extended: bool = False):
@@ -2123,10 +2122,10 @@ class DatabaseInteraction(commands.Cog):
         :param bool extended: If the extended stats should be shown.
         :returns: None"
         """
-   
+
         print(f"{interaction.user.name} requested the biggest cruise tally, extended: {extended}.")
         await interaction.response.defer()
-        
+
         # Fetch the target date
         pirate_steve_db.execute(
             "SELECT holiday_start FROM historical GROUP BY holiday_start ORDER BY SUM(winetotal) DESC LIMIT 1;"
@@ -2154,10 +2153,10 @@ class DatabaseInteraction(commands.Cog):
             stat_embed = self.build_stat_embed(all_carrier_data, total_carriers_multiple_trips, target_date)
         else:
             stat_embed = self.build_extended_stat_embed(all_carrier_data, total_carriers_multiple_trips, target_date)
-            
+
         # Edit the original interaction response with the stat embed
         await interaction.edit_original_response(embed=stat_embed)
-        
+
     @app_commands.command(name="booze_carrier_stats", description="Returns the stats for a specific carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
@@ -2169,7 +2168,7 @@ class DatabaseInteraction(commands.Cog):
         :param str carrier_id: he XXX-XXX carrier ID.
         :returns: None"
         """
-        
+
         carrier_id = carrier_id.upper()
 
         print(f"{interaction.user.name} requested the stats for the carrier: {carrier_id}.")
@@ -2178,28 +2177,28 @@ class DatabaseInteraction(commands.Cog):
         pirate_steve_db.execute(
             "SELECT * FROM historical WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
         )
-        
+
         carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-        
+
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
         )
 
         carrier_data.append(BoozeCarrier(pirate_steve_db.fetchone()))
-        
+
         # Remove any carriers that do not match the carrier_id (remove the None entry if carrier is not on current cruise)
         carrier_data = [carrier for carrier in carrier_data if carrier.carrier_identifier == carrier_id]
-        
+
         if not carrier_data:
             print(f'We failed to find the carrier: {carrier_id} in the database.')
             return await interaction.edit_original_response(content=f'Sorry, we could not find a carrier with the id: {carrier_id}.')
-        
+
         carrier_name = carrier_data[-1].carrier_name
-        total_runs = sum([carrier.run_count for carrier in carrier_data])       
+        total_runs = sum([carrier.run_count for carrier in carrier_data])
         total_wine = sum([carrier.wine_total for carrier in carrier_data])
         total_cruises = len(carrier_data)
         owner = carrier_data[-1].discord_username
-        
+
         stat_embed = discord.Embed(
             title=f"Stats for {carrier_name} ({carrier_id})",
             description=
@@ -2208,9 +2207,9 @@ class DatabaseInteraction(commands.Cog):
             f"Total Cruises: {total_cruises}\n"
             f"Owner: {owner}"
         )
-        
+
         await interaction.edit_original_response(content=None, embed=stat_embed)
-        
+
     @app_commands.command(name="booze_purge_full_carriers", description="Purges full carriers from the database.")
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @check_command_channel(get_steve_says_channel())
@@ -2221,7 +2220,7 @@ class DatabaseInteraction(commands.Cog):
         :param interaction discord.Interaction: The discord interaction context.
         :returns: None"
         """
-        
+
         print(f"{interaction.user.name} requested to purge full carriers.")
         await interaction.response.defer()
         print(f"{interaction.user.name} requested to delete all full carriers.")
@@ -2233,24 +2232,24 @@ class DatabaseInteraction(commands.Cog):
             print("No full carriers to delete.")
             await interaction.edit_original_response(content="There are no full carriers to delete.")
             return
-        
+
         print(f"Found {len(carrier_data)} full carriers to delete. Sending confirmation message.")
-        
+
         confirmation_embed = discord.Embed(
             title=f"Purge {len(carrier_data)} Full Carriers?",
             description="Are you sure you want to delete all the remaining full carriers?",
         )
         confirmation_embed.set_footer(text="Confirm this with y/n.")
-        
+
         await interaction.edit_original_response(content=None, embed=confirmation_embed)
-        
+
         def check_yes_no(check_message):
             return (
                 check_message.author == interaction.user
                 and check_message.channel == interaction.channel
                 and check_message.content.lower() in ["y", "n"]
             )
-            
+
         try:
             user_response = await bot.wait_for("message", check=check_yes_no, timeout=30)
             if user_response.content.lower() == "y":
@@ -2273,18 +2272,18 @@ class DatabaseInteraction(commands.Cog):
                     failed_carriers.extend(carrier_ids)
                 finally:
                     pirate_steve_lock.release()
-                    
+
                 if failed_carriers:
                     await interaction.followup.send(content=f"Failed to delete the following carriers: {', '.join(failed_carriers)}")
-                
-                print("Finished purging full carriers.")                    
+
+                print("Finished purging full carriers.")
                 await interaction.edit_original_response(content="Full carriers have been purged.", embed=None)
-                
+
             elif user_response.content.lower() == "n":
                 await user_response.delete()
                 print(f"User {interaction.user.name} aborted the request to purge full carriers.")
                 await interaction.edit_original_response(content="Aborted the request to purge full carriers.", embed=None)
-                
+
         except asyncio.TimeoutError:
             print("Timed out while waiting for confirmation response.")
             await interaction.edit_original_response(content="Waiting for user response - timed out", embed=None)
