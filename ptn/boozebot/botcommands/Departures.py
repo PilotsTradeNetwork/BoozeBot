@@ -271,7 +271,7 @@ class Departures(commands.Cog):
 
         thoon_inputs = [f"<:thoon:{get_thoon_emoji_id()}>", "thoon"]
         # Handle thoon
-        if departing_at.lower() in thoon_inputs or departing_in.lower() in thoon_inputs:
+        if (departing_at and departing_at.lower() in thoon_inputs) or (departing_in and departing_in.lower() in thoon_inputs):
             print("Thoon given as departure time")
         # Handle departure time if provided as a timestamp
         elif departing_at:
@@ -359,7 +359,7 @@ class Departures(commands.Cog):
         if self.departure_announcement_status  == "Disabled":
             msg = "Departure announcements are currently disabled."
         elif self.departure_announcement_status == "Upwards" and direction_arrow == "⬇️":
-            msg = "Departure announcements are currently only enabled for jumps moving up from N2 or higher."
+            msg = "Departure announcements are currently only enabled for jumps moving up towards N0"
         if msg:
             print(msg)
             await interaction.edit_original_response(content=msg)
@@ -379,15 +379,18 @@ class Departures(commands.Cog):
         # Edit the original interaction response with the jump URL of the departure message
         await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
 
+    @app_commands.command(name="set_allowed_departures", description="Set the status of departure announcements.")
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
-    async def set_allowed_departures(self, interaction: discord.Interaction, status: departure_announcement_status):
+    async def set_allowed_departures(self, interaction: discord.Interaction, status: Literal["Disabled", "Upwards", "All"]):
         """
         Set the status of departure announcements.
 
         Args:
             interaction (discord.Interaction): The discord interaction context.
-            status (departure_announcement_status): The status of departure announcements.
+            status (Literal["Disabled", "Upwards", "All"]): The status of departure announcements.
         """
+        
+        await interaction.response.defer(ephemeral=True)
 
         # Log the request
         guild = bot.get_guild(bot_guild_id())
