@@ -17,7 +17,8 @@ from discord import app_commands, NotFound
 from ptn.boozebot.constants import bot_guild_id, bot, server_council_role_ids, \
 server_sommelier_role_id, server_wine_carrier_role_id, server_mod_role_id, \
     get_public_channel_list, server_hitchhiker_role_id, WELCOME_MESSAGE_FILE_PATH, \
-    get_steve_says_channel, get_feedback_channel_id
+    get_steve_says_channel, get_feedback_channel_id, get_ptn_booze_cruise_role_id, \
+    get_wine_carrier_guide_channel_id
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error, TimeoutError
@@ -69,6 +70,8 @@ class Cleaner(commands.Cog):
         """
         print(f'User {interaction.user.name} requested BC channel opening in channel: {interaction.channel.name}.')
         
+        await interaction.response.defer()
+        
         def check_yes_no(check_message):
             return (
                 check_message.author == interaction.user
@@ -81,7 +84,7 @@ class Cleaner(commands.Cog):
             description="You have requested to open the booze cruise channels:"
         )
         check_embed.set_footer(text="Respond with y/n.")
-        await interaction.response.send_message(content=None, embed=check_embed)
+        await interaction.edit_original_response(content=None, embed=check_embed)
     
         try:
             user_response = await bot.wait_for(
@@ -94,15 +97,18 @@ class Cleaner(commands.Cog):
 
                 embed = discord.Embed()
                 
-                for id in ids_list:
-                    channel = bot.get_channel(id)
+                channels = {channel_id: guild.default_role for channel_id in ids_list}
+                channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
+                
+                for channel_id, role in channels.items():
+                    channel = bot.get_channel(channel_id)
                     try:
-                        overwrite = channel.overwrites_for(guild.default_role)
-                        overwrite.view_channel = None # less confusing alias for read_messages
-                        await channel.set_permissions(guild.default_role, overwrite=overwrite)
-                        embed.add_field(name="Opened", value="<#" + str(id) +">", inline=False)
+                        overwrite = channel.overwrites_for(role)
+                        overwrite.view_channel = True # less confusing alias for read_messages
+                        await channel.set_permissions(role, overwrite=overwrite)
+                        embed.add_field(name="Opened", value="<#" + str(channel_id) +">", inline=False)
                     except Exception as e:
-                        embed.add_field(name="FAILED to open", value="<#" + str(id) + f">: {e}", inline=False)
+                        embed.add_field(name="FAILED to open", value="<#" + str(channel_id) + f">: {e}", inline=False)
 
                 await interaction.edit_original_response(content=f"<@&{server_sommelier_role_id()}> Avast! We\'re ready to set sail!", embed=embed)
                 await user_response.delete()
@@ -135,22 +141,27 @@ class Cleaner(commands.Cog):
         """
         print(f'User {interaction.user.name} requested BC channel closing in channel: {interaction.channel.name}.')
 
+        await interaction.response.defer()
+
         ids_list = get_public_channel_list()
         guild = bot.get_guild(bot_guild_id())
 
         embed = discord.Embed()
+        
+        channels = {channel_id: guild.default_role for channel_id in ids_list}
+        channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
 
-        for id in ids_list:
-            channel = bot.get_channel(id)
+        for channel_id, role in channels.items():
+            channel = bot.get_channel(channel_id)
             try:
-                overwrite = channel.overwrites_for(guild.default_role)
+                overwrite = channel.overwrites_for(role)
                 overwrite.view_channel = False # less confusing alias for read_messages
-                await channel.set_permissions(guild.default_role, overwrite=overwrite)
-                embed.add_field(name="Closed", value="<#" + str(id) +">", inline=False)
+                await channel.set_permissions(role, overwrite=overwrite)
+                embed.add_field(name="Closed", value="<#" + str(channel_id) +">", inline=False)
             except Exception as e:
-                embed.add_field(name="FAILED to close", value="<#" + str(id) + f">: {e}", inline=False)
+                embed.add_field(name="FAILED to close", value="<#" + str(channel_id) + f">: {e}", inline=False)
 
-        await interaction.response.send_message(f"<@&{server_sommelier_role_id()}> That\'s the end of that, me hearties.", embed=embed)
+        await interaction.edit_original_response(content=f"<@&{server_sommelier_role_id()}> That\'s the end of that, me hearties.", embed=embed)
         return
 
     @app_commands.command(name="clear_booze_roles", description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution.")
