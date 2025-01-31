@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.7
+-    \#494 - Add "Last updated: ..." to pinned tallies (conshmea)
+-    \#492 - fix bugs with departures (conshmea)
+-    \#491 - Fix carriers being marked as amended when unloading (conshmea)
+-    \#490 - Don't update pinned message for historical tallies (conshmea)
+-    \#489 - Open/Close WCO Guide with public channels (conshmea)
+-    \#488 - Fix DatabaseInteraction errors (IndorilReborn)
+-    \#487 - Add controls for departure message posting (IndorilReborn)
+-    \#485 - Only ping hitchhikers on the way up, allow N0 blind plot (IndorilReborn)
+
 ## 2.0.6
 
 -   \#456 - Added arrow emojis to departure messages
