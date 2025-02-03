@@ -317,7 +317,7 @@ class Departures(commands.Cog):
             departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
 
         # Check if the departure needs a hitchhiker ping
-        hitchhiker_systems = [0, 1, 2]
+        hitchhiker_systems = [0, 1, 2, 3]
 
         try:
             departure_system_index = int(departure_location.split(" ")[0][1:])
