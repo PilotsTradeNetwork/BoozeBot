@@ -152,6 +152,7 @@ class PublicHoliday(commands.Cog):
     @app_commands.command(name="booze_started", description="Returns a GIF for whether the holiday has started.")
     @check_roles([server_connoisseur_role_id(), server_sommelier_role_id(), server_mod_role_id(), *server_council_role_ids()])
     async def holiday_query(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         print(f'User {interaction.user.name} wanted to know if the holiday has started.')
         gif = None
 
@@ -162,18 +163,18 @@ class PublicHoliday(commands.Cog):
                 print('Rackhams holiday check says yep.')
             try:
                 gif = random.choice(holiday_query_started_gifs)
-                await interaction.response.send_message(gif)
+                await interaction.followup.send(gif)
             except NotFound:
                 print(f'Problem sending the GIF for: {gif}.')
-                await interaction.response.send_message('Pirate Steve could not parse the gif. Try again and tell Kutu to check the log.')
+                await interaction.followup.send('Pirate Steve could not parse the gif. Try again and tell Kutu to check the log.')
         else:
             try:
                 gif = random.choice(holiday_query_not_started_gifs)
                 print('Rackhams holiday check says no.')
-                await interaction.response.send_message(gif)
+                await interaction.followup.send(gif)
             except NotFound:
                 print(f'Problem sending the GIF for: {gif}.')
-                await interaction.response.send_message('Pirate Steve could not parse the gif. Try again and tell Kutu to check the log.')
+                await interaction.followup.send('Pirate Steve could not parse the gif. Try again and tell Kutu to check the log.')
 
 
     @app_commands.command(name="booze_started_admin_override",
