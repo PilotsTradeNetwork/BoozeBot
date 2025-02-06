@@ -18,7 +18,7 @@ from discord import app_commands, NotFound
 from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelier_role_id, \
     server_wine_carrier_role_id, server_mod_role_id, wine_carrier_command_channel, \
     server_hitchhiker_role_id, get_departure_announcement_channel, server_connoisseur_role_id, \
-    get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel, get_steve_says_channel
+    get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel, get_steve_says_channel, BOOZE_SNOOZE_ID
 
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
@@ -136,7 +136,8 @@ class Departures(commands.Cog):
             if reaction_event.emoji.name != "✅":
                 return
 
-            if not self.get_departure_author_id(message) == user.id:
+            user_role_ids = {role.id for role in user.roles}
+            if self.get_departure_author_id(message) != user.id and server_sommelier_role_id() not in user_role_ids:
                 return
 
             await self.handle_reaction(message, user)
@@ -369,7 +370,8 @@ class Departures(commands.Cog):
             return
 
         # Construct the departure message text
-        departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{interaction.user.id}> {hitchhiker_ping_text}"
+        user_mention = interaction.user.mention if carrier_id != BOOZE_SNOOZE_ID else f"<@&{server_sommelier_role_id()}>"
+        departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | {user_mention} {hitchhiker_ping_text}"
 
         # Send the departure message to the departure announcement channel
         departure_channel = bot.get_channel(get_departure_announcement_channel())
