@@ -273,7 +273,7 @@ def server_sommelier_role_id():
 
 def server_connoisseur_role_id():
     """
-    Wrapper that returns the sommelier role ID
+    Wrapper that returns the connoisseur role ID
 
     :returns: Sommelier role id
     :rtype: int
@@ -518,3 +518,6 @@ def get_ptn_booze_cruise_role_id():
     :rtype: int
     """
     return PROD_PTN_BOOZE_CRUISE_ROLE_ID if _production else TEST_PTN_BOOZE_CRUISE_ROLE_ID
+
+full_access_role_ids = {*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()}
+elevated_role_ids = {*full_access_role_ids, server_connoisseur_role_id()}

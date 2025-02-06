@@ -18,7 +18,8 @@ from discord import app_commands, NotFound
 from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelier_role_id, \
     server_wine_carrier_role_id, server_mod_role_id, wine_carrier_command_channel, \
     server_hitchhiker_role_id, get_departure_announcement_channel, server_connoisseur_role_id, \
-    get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel, get_steve_says_channel
+    get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel, get_steve_says_channel, full_access_role_ids, \
+    elevated_role_ids
 
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
@@ -203,7 +204,7 @@ class Departures(commands.Cog):
     @app_commands.command(name="wine_carrier_departure",
                           description="Post a departure message for a wine carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
+    @check_roles([*elevated_role_ids, server_wine_carrier_role_id()])
     @check_command_channel(wine_carrier_command_channel())
     @app_commands.choices(arrival_location=system_choices, departure_location=system_choices)
     async def wine_carrier_departure(self, interaction: discord.Interaction, carrier_id: str, departure_location: str, arrival_location: str, departing_at: str = None, departing_in: str = None):
@@ -255,6 +256,14 @@ class Departures(commands.Cog):
 
         # Create a BoozeCarrier object from the fetched data
         carrier_data = BoozeCarrier(carrier_data)
+
+        user_role_ids = {role.id for role in interaction.user.roles}
+        if carrier_data.discord_username != interaction.user.name and not user_role_ids.intersection(elevated_role_ids):
+            msg = f'You are not the owner of the carrier with ID: "{carrier_id}".'
+            print(msg)
+            await interaction.edit_original_response(content=msg)
+            await steve_says_channel.send(f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}")
+            return
 
         carrier_name = carrier_data.carrier_name
         carrier_id = carrier_data.carrier_identifier
@@ -382,7 +391,7 @@ class Departures(commands.Cog):
         await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
 
     @app_commands.command(name="set_allowed_departures", description="Set the status of departure announcements.")
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
+    @check_roles(full_access_role_ids)
     async def set_allowed_departures(self, interaction: discord.Interaction, status: Literal["Disabled", "Upwards", "All"]):
         """
         Set the status of departure announcements.
