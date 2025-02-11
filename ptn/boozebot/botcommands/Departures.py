@@ -317,7 +317,8 @@ class Departures(commands.Cog):
             departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
 
         # Check if the departure needs a hitchhiker ping
-        hitchhiker_systems = [0, 1, 2]
+        hitchhiker_systems = [0, 1, 2, 3]
+        thoon_systems = [0, 1]
 
         try:
             departure_system_index = int(departure_location.split(" ")[0][1:])
@@ -330,7 +331,8 @@ class Departures(commands.Cog):
             arrival_system_index = 16
 
         is_hitchhiking_trip = departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems
-        if is_hitchhiking_trip:
+        is_thoon_trip = departure_system_index in thoon_systems or arrival_system_index in thoon_systems
+        if is_thoon_trip:
             departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
 
         hitchhiker_ping_text = ""

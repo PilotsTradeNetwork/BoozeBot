@@ -31,6 +31,7 @@ setup(
     url='',
     install_requires=[
         'discord.py==2.3.1',
+        'discord-ext-prometheus',
         'google-api-python-client',
         'gspread',
         'oauth2client',
