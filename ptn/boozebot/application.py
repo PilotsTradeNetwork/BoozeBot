@@ -6,6 +6,7 @@ The Python script that starts the bot.
 # import libraries
 import asyncio
 import os
+from discord.ext.prometheus import PrometheusCog
 
 # import build functions
 from ptn.boozebot.database.database import build_database_on_startup
@@ -44,9 +45,10 @@ async def boozebot():
         await bot.add_cog(PublicHoliday(bot))
         await bot.add_cog(MimicSteve(bot))
         await bot.add_cog(Cleaner(bot))
-        await bot.add_cog(MakeWineCarrier(bot))   
+        await bot.add_cog(MakeWineCarrier(bot))
         await bot.add_cog(Departures(bot))
         await bot.add_cog(BackgroundTaskCommands(bot))
+        await bot.add_cog(PrometheusCog(bot))
         await bot.start(TOKEN)
 
 if __name__ == "__main__":
