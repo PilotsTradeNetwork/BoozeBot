@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.0.8
+-    \#507 - add prometheus logging (IndorilReborn)
+
 ## 2.0.7
 -    \#494 - Add "Last updated: ..." to pinned tallies (conshmea)
 -    \#492 - fix bugs with departures (conshmea)
