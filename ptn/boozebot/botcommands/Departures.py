@@ -6,6 +6,7 @@ Cog for unloading related commands
 # libraries
 import re
 import time
+from datetime import datetime, timedelta
 from typing import Literal
 
 # discord.py
@@ -311,8 +312,10 @@ class Departures(commands.Cog):
 
             departure_timestamp = int(departure_timestamp * 60 + int(time.time()))
 
+        departing_thoon = False
         if departure_timestamp:
             departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
+            departing_thoon = datetime.fromtimestamp(departure_timestamp) < datetime.now() + timedelta(hours=2)
         else:
             departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
 
@@ -332,7 +335,7 @@ class Departures(commands.Cog):
 
         is_hitchhiking_trip = departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems
         is_thoon_trip = departure_system_index in thoon_systems or arrival_system_index in thoon_systems
-        if is_thoon_trip:
+        if is_thoon_trip and departing_thoon:
             departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
 
         hitchhiker_ping_text = ""
