@@ -402,7 +402,7 @@ class Departures(commands.Cog):
         steve_says_channel = guild.get_channel(get_steve_says_channel())
         msg = f"requested to set the departure announcement status to: '{status}'."
         print(f'{interaction.user.name} {msg}')
-        await steve_says_channel.send(f'{interaction.user.mention} {msg}')
+        await steve_says_channel.send(f'{interaction.user.mention} {msg}', silent=True)
         # Set the departure announcement status
         self.departure_announcement_status = status
         # Send the response message
