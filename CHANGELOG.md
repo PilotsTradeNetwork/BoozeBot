@@ -4,6 +4,9 @@
 -    \#507 - add prometheus logging (IndorilReborn)
 -    \#502 - Use thoon for all trips from/to N0, N1 (IndorilReborn)
 -    \#501 - Allow hitchhiker pings from N3 (IndorilReborn)
+-    \#504 - Only THOONify departures within 2h (IndorilReborn)
+-    \#505 - Silent ping the user running /set_allowed_departures (IndorilReborn)
+-    \#506 - Defer /booze_started response (IndorilReborn)
 
 ## 2.0.7
 -    \#494 - Add "Last updated: ..." to pinned tallies (conshmea)
