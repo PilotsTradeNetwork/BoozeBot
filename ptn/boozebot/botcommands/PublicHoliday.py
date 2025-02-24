@@ -166,7 +166,7 @@ class PublicHoliday(commands.Cog):
                 await interaction.followup.send(gif)
             except NotFound:
                 print(f'Problem sending the GIF for: {gif}.')
-                await interaction.followup.send('Pirate Steve could not parse the gif. Try again and tell Kutu to check the log.')
+                await interaction.followup.send('Pirate Steve could not parse the gif. Try again and tell Council to check the log.')
         else:
             try:
                 gif = random.choice(holiday_query_not_started_gifs)
@@ -174,7 +174,7 @@ class PublicHoliday(commands.Cog):
                 await interaction.followup.send(gif)
             except NotFound:
                 print(f'Problem sending the GIF for: {gif}.')
-                await interaction.followup.send('Pirate Steve could not parse the gif. Try again and tell Kutu to check the log.')
+                await interaction.followup.send('Pirate Steve could not parse the gif. Try again and tell Council to check the log.')
 
 
     @app_commands.command(name="booze_started_admin_override",
