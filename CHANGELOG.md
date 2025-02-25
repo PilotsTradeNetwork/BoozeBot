@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.9
+-    \#515 - change steve from oauth2 to google-auth (TuggyBoat)
+-    \#517 - set up logging, properly Log messages from discord.py and httpx (axleantilles)
+
 ## 2.0.8
 -    \#507 - add prometheus logging (IndorilReborn)
 -    \#502 - Use thoon for all trips from/to N0, N1 (IndorilReborn)
