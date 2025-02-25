@@ -24,7 +24,8 @@ from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 
 # import bot object, token, production status
-from ptn.boozebot.constants import bot, TOKEN, _production
+from ptn.boozebot.constants import bot, TOKEN, _production, log_handler, LOG_LEVEL
+from discord.utils import setup_logging
 
 
 print(f"Booze bot is connecting against production: {_production}.")
@@ -49,6 +50,7 @@ async def boozebot():
         await bot.add_cog(Departures(bot))
         await bot.add_cog(BackgroundTaskCommands(bot))
         await bot.add_cog(PrometheusCog(bot))
+        setup_logging(handler=log_handler, level=LOG_LEVEL)
         await bot.start(TOKEN)
 
 if __name__ == "__main__":

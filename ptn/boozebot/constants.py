@@ -9,6 +9,8 @@ import os
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+import logging
+import sys
 
 # Define whether the bot is in testing or live mode. Default is testing mode.
 _production = ast.literal_eval(os.environ.get('PTN_BOOZE_BOT', 'False'))
@@ -101,6 +103,27 @@ BOOZE_PROFIT_PER_TONNE_WINE = 256000
 RACKHAMS_PEAK_POP = 150000
 
 EMBED_COLOUR_ERROR = 0x800000
+
+# define the logger for discord client
+# TODO: use PTNLogger and extend to all Steve Logging
+log_handler = logging.StreamHandler(sys.stdout)
+
+loglevel_input = os.getenv('PTN_BOOZEBOT_LOG_LEVEL', 'INFO')
+match loglevel_input:
+    case 'CRITICAL':
+        LOG_LEVEL = logging.CRITICAL
+
+    case 'ERROR':
+        LOG_LEVEL = logging.ERROR
+
+    case 'INFO':
+        LOG_LEVEL = logging.INFO
+
+    case 'DEBUG':
+        LOG_LEVEL = logging.DEBUG
+
+    case _:
+        LOG_LEVEL = logging.INFO
 
 ping_response_messages = [
     'Yarrr, <@{message_author_id}>, you summoned me?',
