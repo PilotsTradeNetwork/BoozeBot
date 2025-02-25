@@ -11,7 +11,7 @@ import math
 import os.path
 import re
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 
 # discord.py
 import discord
@@ -95,8 +95,8 @@ class DatabaseInteraction(commands.Cog):
         if not os.path.exists(GOOGLE_OAUTH_CREDENTIALS_PATH):
             raise EnvironmentError("Cannot find the booze cruise json file.")
 
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            GOOGLE_OAUTH_CREDENTIALS_PATH, scope
+        credentials = Credentials.from_service_account_file(
+            GOOGLE_OAUTH_CREDENTIALS_PATH, scopes=scope
         )
 
         # authorize the client sheet
