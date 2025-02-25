@@ -5,6 +5,7 @@ Cog for all the commands that interact with the database
 
 # libraries
 import asyncio
+import logging
 import sqlite3
 from datetime import datetime, timedelta
 import math
