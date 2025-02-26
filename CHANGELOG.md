@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.9a
+-    \#520 - add error handling, increase log specificity, refactor google API calls to async (axleantilles)
+-    \#522 - add gspread_asyncio to requirements in setup.py (axleantilles)
+
 ## 2.0.9
 -    \#515 - change steve from oauth2 to google-auth (TuggyBoat)
 -    \#517 - set up logging, properly Log messages from discord.py and httpx (axleantilles)
