@@ -64,7 +64,7 @@ class Helper(commands.Cog):
             try:
                 role = guild.get_role(command.value["roles"][-1]).name
             except Exception as e:
-                logging.error(f"Failed to get role: {e}")
+                logging.exception(f"Failed to get role: {e}")
 
             if role not in self.roles:
                 self.roles[role] = []
