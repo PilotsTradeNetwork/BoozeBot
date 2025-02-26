@@ -92,7 +92,7 @@ class Departures(commands.Cog):
         try:
             guild = bot.get_guild(bot_guild_id())
         except Exception as e:
-            logging.error(f"Failed to get guild: {e}")
+            logging.exception(f"Failed to get guild: {e}")
         try:
             departure_channel = guild.get_channel(get_departure_announcement_channel())
         except Exception as e:
