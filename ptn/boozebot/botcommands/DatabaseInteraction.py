@@ -85,27 +85,45 @@ DATABASE INTERACTION COMMANDS
 """
 
 
+def get_creds():
+    creds = Credentials.from_service_account_file(GOOGLE_OAUTH_CREDENTIALS_PATH)
+    scoped = creds.with_scopes([
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ])
+    return scoped
+
 class DatabaseInteraction(commands.Cog):
+
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        # Things that will be set later in the async functions
+        self._old_tree_error = None
+        self.client = None
+        self.tracking_sheet = None
+        self.worksheet_key = None
+        self.worksheet_with_data_id = None
+        self.loader_signup_form_url = None
+        self.client_manager = None
 
         if not os.path.exists(GOOGLE_OAUTH_CREDENTIALS_PATH):
             raise EnvironmentError("Cannot find the booze cruise json file.")
 
-        def get_creds():
-            creds = Credentials.from_service_account_file(GOOGLE_OAUTH_CREDENTIALS_PATH)
-            scoped = creds.with_scopes([
-                "https://spreadsheets.google.com/feeds",
-                "https://www.googleapis.com/auth/spreadsheets",
-                "https://www.googleapis.com/auth/drive",
-            ])
-            return scoped
+        self.update_allowed = True  # This might be better stored somewhere over a reset
 
         # authorize the client sheet
-        self.client_manager = gspread_asyncio.AsyncioGspreadClientManager(get_creds())
-        self.client = self.client_manager.authorize()
-        self.tracking_sheet = None
-        self.update_allowed = True  # This might be better stored somewhere over a reset
+        self.client_manager = gspread_asyncio.AsyncioGspreadClientManager(get_creds)
+
+    # custom global error handler
+    # attaching the handler when the cog is loaded
+    # and storing the old handler
+    async def cog_load(self):
+        tree = self.bot.tree
+        self._old_tree_error = tree.on_error
+        tree.on_error = on_app_command_error
+
         pirate_steve_db.execute("SELECT * FROM trackingforms")
         forms = dict(pirate_steve_db.fetchone())
 
@@ -117,20 +135,14 @@ class DatabaseInteraction(commands.Cog):
         # input form is the form we have loaders fill in
         self.loader_signup_form_url = forms["loader_input_form_url"]
 
-        self._reconfigure_workbook_and_form()
+        self.client = await self.client_manager.authorize()
 
-        self._update_db()  # On instantiation, go build the DB
+        await self._reconfigure_workbook_and_form()
+        await self._update_db()  # On instantiation, go build the DB
 
-    # custom global error handler
-    # attaching the handler when the cog is loaded
-    # and storing the old handler
-    def cog_load(self):
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = on_app_command_error
 
     # detaching the handler when the cog is unloaded
-    def cog_unload(self):
+    async def cog_unload(self):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
 
@@ -143,8 +155,7 @@ class DatabaseInteraction(commands.Cog):
         """
         # The key is part of the URL
         try:
-            self.tracking_sheet = None
-            print(f"Building worksheet with the key: {self.worksheet_key}")
+            logging.info(f"Building worksheet with the key: {self.worksheet_key}")
             self.client = await self.client_manager.authorize()
             workbook = await self.client.open_by_key(self.worksheet_key)
 
@@ -155,7 +166,7 @@ class DatabaseInteraction(commands.Cog):
             # Update the tracking sheet object
             self.tracking_sheet = await workbook.get_worksheet(self.worksheet_with_data_id)
         except gspread.exceptions.APIError as e:
-            print(f"Error reading the worksheet: {e}")
+            logging.error(f"Error reading the worksheet: {e}")
 
     async def _update_db(self):
         """
@@ -181,6 +192,7 @@ class DatabaseInteraction(commands.Cog):
         updated_count = 0
         unchanged_count = 0
         # A JSON form tracking all the records
+        self.client = await self.client_manager.authorize()
         records_data = await self.tracking_sheet.get_all_records()
         new_signups = []  # type: list[discord.Embed]
 
