@@ -5,7 +5,10 @@ The Python script that starts the bot.
 
 # import libraries
 import asyncio
+import logging
 import os
+
+from discord import LoginFailure, GatewayNotFound, ConnectionClosed, HTTPException
 from discord.ext.prometheus import PrometheusCog
 
 # import build functions
@@ -36,9 +39,9 @@ def run():
 
 
 async def boozebot():
+    setup_logging(handler=log_handler, level=LOG_LEVEL)
+    build_database_on_startup()
     async with bot:
-        build_database_on_startup()
-
         await bot.add_cog(DiscordBotCommands(bot))
         await bot.add_cog(Unloading(bot))
         await bot.add_cog(DatabaseInteraction(bot))
@@ -50,8 +53,16 @@ async def boozebot():
         await bot.add_cog(Departures(bot))
         await bot.add_cog(BackgroundTaskCommands(bot))
         await bot.add_cog(PrometheusCog(bot))
-        setup_logging(handler=log_handler, level=LOG_LEVEL)
-        await bot.start(TOKEN)
+
+        try:
+            await bot.login(TOKEN)
+        except (LoginFailure, HTTPException) as e:
+            logging.error(f"Error in bot login: {e}")
+
+        try:
+            await bot.connect()
+        except (GatewayNotFound, ConnectionClosed) as e:
+            logging.error(f"Error in bot connection: {e}")
 
 if __name__ == "__main__":
     """
