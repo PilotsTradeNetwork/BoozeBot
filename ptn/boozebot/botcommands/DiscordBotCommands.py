@@ -3,6 +3,7 @@ import os
 import random
 import sys
 import datetime
+import logging
 
 # discord.py
 import discord
@@ -101,8 +102,12 @@ class DiscordBotCommands(commands.Cog):
         :returns: None
         """
         print(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
-        bot_channel = self.bot.get_channel(get_bot_control_channel())
-        await bot_channel.send(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
+        try:
+            bot_channel = self.bot.get_channel(get_bot_control_channel())
+            await bot_channel.send(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
+        except AttributeError as e:
+            logging.error(f"Error in on_ready: {e}")
+
         print('Starting the holiday checker.')
 
     @commands.Cog.listener()

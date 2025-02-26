@@ -8,6 +8,7 @@ Depends on: constants
 
 # import asyncio
 from asyncio import TimeoutError
+import logging
 
 # import discord.py
 import discord
@@ -195,6 +196,7 @@ async def on_app_command_error(
 
         else:
             print("Other type error message raised")
+            logging.error(f"Unhandled Error: {error}")
             embed = discord.Embed(
                 description=f"❌ Unhandled Error: {error}",
                 color=constants.EMBED_COLOUR_ERROR

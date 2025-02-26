@@ -5,12 +5,14 @@ Cog for all the commands that interact with the database
 
 # libraries
 import asyncio
+import logging
 import sqlite3
 from datetime import datetime, timedelta
 import math
 import os.path
 import re
 import gspread
+import gspread_asyncio
 from google.oauth2.service_account import Credentials
 
 # discord.py
@@ -87,20 +89,21 @@ class DatabaseInteraction(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-        scope = [
-            "https://spreadsheets.google.com/feeds",
-            "https://www.googleapis.com/auth/drive",
-        ]
-
         if not os.path.exists(GOOGLE_OAUTH_CREDENTIALS_PATH):
             raise EnvironmentError("Cannot find the booze cruise json file.")
 
-        credentials = Credentials.from_service_account_file(
-            GOOGLE_OAUTH_CREDENTIALS_PATH, scopes=scope
-        )
+        def get_creds():
+            creds = Credentials.from_service_account_file(GOOGLE_OAUTH_CREDENTIALS_PATH)
+            scoped = creds.with_scopes([
+                "https://spreadsheets.google.com/feeds",
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+            ])
+            return scoped
 
         # authorize the client sheet
-        self.client = gspread.authorize(credentials)
+        self.client_manager = gspread_asyncio.AsyncioGspreadClientManager(get_creds())
+        self.client = self.client_manager.authorize()
         self.tracking_sheet = None
         self.update_allowed = True  # This might be better stored somewhere over a reset
         pirate_steve_db.execute("SELECT * FROM trackingforms")
@@ -131,7 +134,7 @@ class DatabaseInteraction(commands.Cog):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
 
-    def _reconfigure_workbook_and_form(self):
+    async def _reconfigure_workbook_and_form(self):
         """
         Reconfigures the tracking sheet to the latest version based on the current worksheet key and sheet ID. Called
         when we update the forms or on startup of the bot.
@@ -142,17 +145,19 @@ class DatabaseInteraction(commands.Cog):
         try:
             self.tracking_sheet = None
             print(f"Building worksheet with the key: {self.worksheet_key}")
-            workbook = self.client.open_by_key(self.worksheet_key)
+            self.client = await self.client_manager.authorize()
+            workbook = await self.client.open_by_key(self.worksheet_key)
 
-            for sheet in workbook.worksheets():
+            worksheets = await workbook.worksheets()
+            for sheet in worksheets:
                 print(sheet.title)
 
             # Update the tracking sheet object
-            self.tracking_sheet = workbook.get_worksheet(self.worksheet_with_data_id)
+            self.tracking_sheet = await workbook.get_worksheet(self.worksheet_with_data_id)
         except gspread.exceptions.APIError as e:
             print(f"Error reading the worksheet: {e}")
 
-    def _update_db(self):
+    async def _update_db(self):
         """
         Private method to wrap the DB update commands.
 
@@ -176,7 +181,7 @@ class DatabaseInteraction(commands.Cog):
         updated_count = 0
         unchanged_count = 0
         # A JSON form tracking all the records
-        records_data = self.tracking_sheet.get_all_records()
+        records_data = await self.tracking_sheet.get_all_records()
         new_signups = []  # type: list[discord.Embed]
 
         total_entries = len(records_data)
@@ -632,7 +637,8 @@ class DatabaseInteraction(commands.Cog):
             print("Period trigger of the embed update.")
 
             print("Running db update")
-            await self.report_db_update_result(self._update_db())
+            db_update = await self._update_db()
+            await self.report_db_update_result(db_update)
 
             pirate_steve_db.execute("SELECT * FROM pinned_messages")
             # Get everything
@@ -721,7 +727,8 @@ class DatabaseInteraction(commands.Cog):
         await interaction.response.defer()
 
         try:
-            await self.report_db_update_result(self._update_db(), force_embed=True)
+            db_update = await self._update_db()
+            await self.report_db_update_result(db_update, force_embed=True)
             await interaction.followup.send(content="Pirate Steve's DB Update ran successfully.")
 
         except ValueError as ex:
@@ -751,7 +758,8 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        await self.report_db_update_result(self._update_db())
+        db_update = await self._update_db()
+        await self.report_db_update_result(db_update)
         print(f"{interaction.user.name} requested to find the carrier with wine")
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE runtotal > totalunloads"
@@ -798,7 +806,8 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        await self.report_db_update_result(self._update_db())
+        db_update = await self._update_db()
+        await self.report_db_update_result(db_update)
         print(
             f"{interaction.user.name} wants to forcefully mark the carrier {carrier_id} as unloaded."
         )
@@ -948,7 +957,8 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        await self.report_db_update_result(self._update_db())
+        db_update = await self._update_db()
+        await self.report_db_update_result(db_update)
         print(
             f"{interaction.user.name} requested to fine carriers for: {platform} with wine: {remaining_wine}"
         )
@@ -1005,7 +1015,8 @@ class DatabaseInteraction(commands.Cog):
         self, interaction: discord.Interaction, carrier_id: str
     ):
         await interaction.response.defer()
-        await self.report_db_update_result(self._update_db())
+        db_update = await self._update_db()
+        await self.report_db_update_result(db_update)
         print(f"{interaction.user.name} wants to find a carrier by ID: {carrier_id}.")
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
@@ -1078,7 +1089,8 @@ class DatabaseInteraction(commands.Cog):
         )
         target_date = None
 
-        await self.report_db_update_result(self._update_db())
+        db_update = await self._update_db()
+        await self.report_db_update_result(db_update)
 
         if cruise_select == 0:
             # Go get everything out of the database
@@ -1369,7 +1381,8 @@ class DatabaseInteraction(commands.Cog):
             f"User {interaction.user.name} requested the current extended stats of the cruise."
         )
 
-        await self.report_db_update_result(self._update_db())
+        db_update = await self._update_db()
+        await self.report_db_update_result(db_update)
 
         cruise = "this" if cruise_select == 0 else f"-{cruise_select}"
         print(
@@ -1976,8 +1989,9 @@ class DatabaseInteraction(commands.Cog):
                 try:
 
                     # Now go make the new updates to pull the data initially
-                    self._reconfigure_workbook_and_form()
-                    await self.report_db_update_result(self._update_db())
+                    await self._reconfigure_workbook_and_form()
+                    db_update = await self._update_db()
+                    await self.report_db_update_result(db_update)
 
                 except OSError as e:
                     self.update_allowed = init_update_value
@@ -2083,8 +2097,9 @@ class DatabaseInteraction(commands.Cog):
                 try:
 
                     # Now go make the new updates to pull the data initially
-                    self._reconfigure_workbook_and_form()
-                    await self.report_db_update_result(self._update_db())
+                    await self._reconfigure_workbook_and_form()
+                    db_update = await self._update_db()
+                    await self.report_db_update_result(db_update)
 
                 except OSError as e:
                     self.update_allowed = init_update_value
