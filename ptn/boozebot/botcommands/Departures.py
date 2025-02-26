@@ -116,7 +116,7 @@ class Departures(commands.Cog):
                 except Exception as e:
                     print(f"Failed to process departure message while checking for closing. message: {message.id}. Error: {e}")
         except Exception as e:
-            logging.error(f"Failed to get departure_channel history: {e}")
+            logging.exception(f"Failed to get departure_channel history: {e}")
 
         print("Starting the departure message checker")
         if not self.check_departure_messages_loop.is_running():
