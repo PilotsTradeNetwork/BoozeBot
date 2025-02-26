@@ -166,7 +166,7 @@ class DatabaseInteraction(commands.Cog):
             # Update the tracking sheet object
             self.tracking_sheet = await workbook.get_worksheet(self.worksheet_with_data_id)
         except gspread.exceptions.APIError as e:
-            logging.error(f"Error reading the worksheet: {e}")
+            logging.exception(f"Error reading the worksheet: {e}")
 
     async def _update_db(self):
         """
