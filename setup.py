@@ -34,6 +34,7 @@ setup(
         'discord-ext-prometheus',
         'google-api-python-client',
         'gspread',
+        'gspread_asyncio',
         'requests',
         'python-dotenv',
         'asyncio',
