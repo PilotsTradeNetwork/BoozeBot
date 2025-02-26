@@ -6,6 +6,7 @@ Steve's help command
 # libraries
 import re
 import enum
+import logging
 
 # discord.py
 import discord
@@ -53,10 +54,18 @@ class Helper(commands.Cog):
     # Fetch all the role names
     @commands.Cog.listener()
     async def on_ready(self):
-        guild = self.bot.get_guild(bot_guild_id())
+        try:
+            guild = self.bot.get_guild(bot_guild_id())
+        except Exception as e:
+            logging.exception(f"Failed to get guild: {e}")
+
         for command in self.HelpCommandInformation:
             # Get lowest role associated with command and add it to that category
-            role = guild.get_role(command.value["roles"][-1]).name
+            try:
+                role = guild.get_role(command.value["roles"][-1]).name
+            except Exception as e:
+                logging.exception(f"Failed to get role: {e}")
+
             if role not in self.roles:
                 self.roles[role] = []
             self.roles[role].append(command.name)

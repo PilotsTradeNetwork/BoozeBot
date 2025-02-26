@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.0.9b
+-    \#525 - fixes async functions in sync code, unfixed on_ready exceptions (axleantilles)
+
 ## 2.0.9a
 -    \#520 - add error handling, increase log specificity, refactor google API calls to async (axleantilles)
 -    \#522 - add gspread_asyncio to requirements in setup.py (axleantilles)

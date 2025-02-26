@@ -8,6 +8,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from typing import Literal
+import logging
 
 # discord.py
 import discord
@@ -88,26 +89,34 @@ class Departures(commands.Cog):
     # On ready check for any completed departure messages and remove them.
     @commands.Cog.listener()
     async def on_ready(self):
-        guild = bot.get_guild(bot_guild_id())
-        departure_channel = guild.get_channel(get_departure_announcement_channel())
+        try:
+            guild = bot.get_guild(bot_guild_id())
+        except Exception as e:
+            logging.exception(f"Failed to get guild: {e}")
+        try:
+            departure_channel = guild.get_channel(get_departure_announcement_channel())
+        except Exception as e:
+            logging.exception(f"Failed to get departure_channel: {e}")
 
         print("Checking for completed departure messages.")
+        try:
+            async for message in departure_channel.history(limit=100):
+                try:
+                    if message.pinned:
+                        continue
 
-        async for message in departure_channel.history(limit=100):
-            try:
-                if message.pinned:
-                    continue
+                    if message.author.id != bot.user.id:
+                        continue
 
-                if message.author.id != bot.user.id:
-                    continue
-
-                for reaction in message.reactions:
-                    if reaction.emoji == "✅":
-                        async for user in reaction.users():
-                            if self.get_departure_author_id(message) == user.id:
-                                await self.handle_reaction(reaction.message, user)
-            except Exception as e:
-                print(f"Failed to process departure message while checking for closing. message: {message.id}. Error: {e}")
+                    for reaction in message.reactions:
+                        if reaction.emoji == "✅":
+                            async for user in reaction.users():
+                                if self.get_departure_author_id(message) == user.id:
+                                    await self.handle_reaction(reaction.message, user)
+                except Exception as e:
+                    print(f"Failed to process departure message while checking for closing. message: {message.id}. Error: {e}")
+        except Exception as e:
+            logging.exception(f"Failed to get departure_channel history: {e}")
 
         print("Starting the departure message checker")
         if not self.check_departure_messages_loop.is_running():
