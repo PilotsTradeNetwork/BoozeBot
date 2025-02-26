@@ -18,7 +18,7 @@ from ptn.boozebot.constants import get_custom_assassin_id, bot, get_discord_booz
     server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id, \
     get_discord_tanker_unload_channel, wine_carrier_command_channel, server_hitchhiker_role_id, \
     get_departure_announcement_channel, server_connoisseur_role_id, get_thoon_emoji_id, bot_guild_id, \
-    get_wine_carrier_channel
+    get_wine_carrier_channel, elevated_role_ids
 
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
@@ -122,7 +122,7 @@ class Unloading(commands.Cog):
                               Choice(name="Squadron-And-Friends", value="SquadronFriends"),
                               Choice(name="Open", value="Open")
                           ])
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id()])
+    @check_roles([*elevated_role_ids, server_wine_carrier_role_id()])
     @check_command_channel(wine_carrier_command_channel())
     async def wine_carrier_unload(self, interaction: discord.Interaction, carrier_id: str, planetary_body: str, market_type: str,
                                   unload_channel: discord.TextChannel|None=None):
@@ -163,6 +163,13 @@ class Unloading(commands.Cog):
 
         # We will only get a single entry back here as the carrierid is a unique field.
         carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
+
+        user_role_ids = {role.id for role in interaction.user.roles}
+        if carrier_data.discord_username != interaction.user.name and not user_role_ids.intersection(elevated_role_ids):
+            msg = f'{interaction.user.name}, you are not the owner of the carrier with ID: "{carrier_id}".'
+            print(msg)
+            return await interaction.channel.name.send(msg)
+
         pirate_steve_lock.release()
 
         if not carrier_data:
@@ -260,7 +267,7 @@ class Unloading(commands.Cog):
 
     @app_commands.command(name="wine_unload_complete", description="Removes any trade channel notification for unloading wine. Somm/Conn/Wine Carrier role required.")
     @describe(carrier_id="the XXX-XXX ID string for the carrier")
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id(), server_wine_tanker_role_id()])
+    @check_roles([*elevated_role_ids, server_wine_carrier_role_id(), server_wine_tanker_role_id()])
     @check_command_channel(wine_carrier_command_channel())
     async def wine_unloading_complete(self, interaction: discord.Interaction, carrier_id: str):
         print(f'Wine unloading complete for {carrier_id} flagged by {interaction.user.name}.')
@@ -282,6 +289,12 @@ class Unloading(commands.Cog):
         if not carrier_data:
             print(f'No carrier found while searching the DB for: {carrier_id}')
             return await interaction.response.send_message(f'Sorry, could not find a carrier for the ID data in DB: {carrier_id}.')
+
+        user_role_ids = {role.id for role in interaction.user.roles}
+        if carrier_data.discord_username != interaction.user.name and not user_role_ids.intersection(elevated_role_ids):
+            msg = f'{interaction.user.name}, you are not the owner of the carrier with ID: "{carrier_id}".'
+            print(msg)
+            return await interaction.channel.name.send(msg)
 
         if carrier_data.discord_unload_notification and carrier_data.discord_unload_notification != 'NULL':
             # If we have a notification, remove it.
