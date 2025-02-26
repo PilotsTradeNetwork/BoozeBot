@@ -57,7 +57,7 @@ class Helper(commands.Cog):
         try:
             guild = self.bot.get_guild(bot_guild_id())
         except Exception as e:
-            logging.error(f"Failed to get guild: {e}")
+            logging.exception(f"Failed to get guild: {e}")
 
         for command in self.HelpCommandInformation:
             # Get lowest role associated with command and add it to that category
