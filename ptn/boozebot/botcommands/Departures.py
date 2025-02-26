@@ -96,7 +96,7 @@ class Departures(commands.Cog):
         try:
             departure_channel = guild.get_channel(get_departure_announcement_channel())
         except Exception as e:
-            logging.error(f"Failed to get departure_channel: {e}")
+            logging.exception(f"Failed to get departure_channel: {e}")
 
         print("Checking for completed departure messages.")
         try:
