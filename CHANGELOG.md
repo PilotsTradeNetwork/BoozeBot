@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.0.10
+-    \#529 - Fixed checking for PH in only HIP 58832 (TugNuggy)
+
 ## 2.0.9b
 -    \#525 - fixes async functions in sync code, unfixed on_ready exceptions (axleantilles)
 
