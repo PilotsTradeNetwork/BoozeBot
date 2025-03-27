@@ -19,7 +19,7 @@ async def get_state_from_ebgs() -> bool:
         # Search each system in which the faction is present
         for system in element['faction_presence']:
             # If there are no active states in the system, skip to the next system
-            if not system['active_states']:
+            if not system['active_states'] or system['system_name'] != "HIP 58832":
                 continue
             # If there is an active state, look through the active states for a public holiday
             else:
