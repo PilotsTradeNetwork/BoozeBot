@@ -18,7 +18,7 @@ from ptn.boozebot.constants import get_custom_assassin_id, bot, get_discord_booz
     server_mod_role_id, get_primary_booze_discussions_channel, get_fc_complete_id, server_wine_tanker_role_id, \
     get_discord_tanker_unload_channel, wine_carrier_command_channel, server_hitchhiker_role_id, \
     get_departure_announcement_channel, server_connoisseur_role_id, get_thoon_emoji_id, bot_guild_id, \
-    get_wine_carrier_channel
+    get_wine_carrier_channel, get_steve_says_channel
 
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
@@ -58,7 +58,7 @@ class Unloading(commands.Cog):
     """
     This class is a collection functionality for tracking a booze cruise unload operations
     """
-
+    timed_unloads_allowed: bool = False
 
     """
     Market helper commands
@@ -102,45 +102,37 @@ class Unloading(commands.Cog):
     carrier unload commands
     """
 
+    PLANETARY_CHOICES = [
+        Choice(name="Star", value="Star"),
+        Choice(name="Planet 1", value="Planet 1"),
+        Choice(name="Planet 2", value="Planet 2"),
+        Choice(name="Planet 3", value="Planet 3"),
+        Choice(name="Planet 4", value="Planet 4"),
+        Choice(name="Planet 5", value="Planet 5"),
+        Choice(name="Planet 6", value="Planet 6")
+    ]
+
     @app_commands.command(name="wine_unload", description="Posts a new unload notice for a carrier. Admin/Sommelier/WineCarrier role required.")
-    @describe(carrier_id="The XXX-XXX ID string for the carrier",
-              planetary_body="A string representing the location of the carrier, ie Star, P1, P2",
-              market_type="The market conditions for the carrier",
-              unload_channel="The discord channel #xxx which the carrier will run timed unloads in")
-    @app_commands.choices(planetary_body=[
-                                Choice(name="Star", value="Star"),
-                                Choice(name="Planet 1", value="Planet 1"),
-                                Choice(name="Planet 2", value="Planet 2"),
-                                Choice(name="Planet 3", value="Planet 3"),
-                                Choice(name="Planet 4", value="Planet 4"),
-                                Choice(name="Planet 5", value="Planet 5"),
-                                Choice(name="Planet 6", value="Planet 6")
-                            ],
-                          market_type=[
-                              Choice(name="TimedMarkets", value="Timed"),
-                              Choice(name="SquadronOnly", value="Squadron"),
-                              Choice(name="Squadron-And-Friends", value="SquadronFriends"),
-                              Choice(name="Open", value="Open")
-                          ])
+    @describe(
+        carrier_id="The XXX-XXX ID string for the carrier",
+        planetary_body="A string representing the location of the carrier, ie Star, P1, P2",
+    )
+    @app_commands.choices(planetary_body=PLANETARY_CHOICES)
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id()])
     @check_command_channel(wine_carrier_command_channel())
-    async def wine_carrier_unload(self, interaction: discord.Interaction, carrier_id: str, planetary_body: str, market_type: str,
-                                  unload_channel: discord.TextChannel|None=None):
+    async def wine_carrier_unload(self, interaction: discord.Interaction, carrier_id: str, planetary_body: str):
         """
         Posts a wine unload request to the unloading channel.
 
         :param SlashContext ctx: The discord slash context.
         :param str carrier_id: The carrier ID string
         :param str planetary_body: Where is the carrier? Star, P1 etc?
-        :param str market_type: The market conditions for the opening. Timed, Squadron or Open
-        :param str unload_channel: The discord unload channel. Required if using timed market openings so we can
-            point the user where to go. This is an optional value.
         :returns: A message to the user
         :rtype: Union[discord.Message, dict]
         """
         
         print(f'User {interaction.user.name} has requested a new wine unload operation for carrier: {carrier_id} around the '
-              f'body: {planetary_body} using unload channel: "{unload_channel}" using market type: {market_type}.')
+              f'body: {planetary_body}.')
 
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
@@ -151,10 +143,6 @@ class Unloading(commands.Cog):
             return await interaction.channel.name.send(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, '
                                           f'{carrier_id}.')
 
-        if market_type == 'Timed' and not unload_channel:
-            print(f'Sorry, to run a timed market we need an unload channel, you provided: {unload_channel}.')
-            return await interaction.channel.name.send(f'Sorry, to run a timed market we need an unload channel, you '
-                                          f'provided: {unload_channel}.')
 
         pirate_steve_lock.acquire()
         pirate_steve_db.execute(
@@ -170,17 +158,6 @@ class Unloading(commands.Cog):
             return await interaction.response.send_message(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
 
         wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
-
-        if unload_channel:
-            if unload_channel == wine_alert_channel:
-                print('Unload channel for timed market is the same as the wine alert channel. Problem!')
-                return await interaction.response.send_message('You cannot use the alert channel for timed unloads. Talk with a sommelier to '
-                                      'arrange a channel for this activity.')
-
-        if carrier_data.discord_unload_notification:
-            print(f'Sorry, carrier {carrier_data.carrier_identifier} is already on a wine unload.')
-            return await interaction.response.send_message(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is '
-                                  f'already unloading wine. Check the notification in <#{unload_channel.id}>.')
             
         if carrier_data.total_unloads >= carrier_data.run_count:
             print(f'Sorry, carrier {carrier_data.carrier_identifier} has already run all of its unloads.')
@@ -190,26 +167,16 @@ class Unloading(commands.Cog):
         print(f'Starting to post un-load operation for carrier: {carrier_data}')
         message_send = await interaction.channel.send("**Sending to Discord...**")
 
-        market_conditions = 'Timed Openings'
-        if market_type == 'Squadron':
-            market_conditions = f'{carrier_data.platform} Squadron'
-        elif market_type == 'SquadronFriends':
-            market_conditions = f'{carrier_data.platform} Squadron and Friends'
-        elif market_type == 'Open':
-            market_conditions = 'Open for all'
-
-        # Only in the case of timed openings does a channel make sense.
-        unload_tracking = f' Tracked in <#{unload_channel.id}>.' if market_type == 'Timed' else ''
+        market_conditions = 'Open for all'
 
         wine_load_embed = discord.Embed(
             title='Wine unload notification.',
             description=f'Carrier **{carrier_data.carrier_name} ({carrier_data.carrier_identifier})** is currently '
                         f'unloading **{carrier_data.wine_total // carrier_data.run_count}** tonnes of wine from *'
-                        f'*{planetary_body}**.'
-                        f'\n Market Conditions: **{market_conditions}**.{unload_tracking}'
+                        f'*{planetary_body}**.\n Market Conditions: **{market_conditions}**.'
         )
 
-        wine_load_embed.set_footer(text=f'Please react with this emoji once completed.',
+        wine_load_embed.set_footer(text='Please react with this emoji once completed.',
                                    icon_url=f'https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1')
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
         await message_send.delete()
@@ -235,18 +202,137 @@ class Unloading(commands.Cog):
             pirate_steve_lock.release()
         print(f'Discord alert ID written to database for {carrier_data.carrier_identifier}')
 
-        if unload_channel:
-            embed = discord.Embed(title='Wine unloading starting shortly')
-            # If we have an unload channel ID, go write a message there also.
-            embed.add_field(
-                name=f'Carrier {carrier_data.carrier_name} ({carrier_data.carrier_identifier}).\n'
-                     f'Unloading {carrier_data.wine_total // carrier_data.run_count} tonnes of wine with timed '
-                     f'openings.\nLocation: {planetary_body}',
-                value='Market unloads will begin shortly.',
-                inline=True
+        # Also post a note into the primary channel to go read the announcements.
+        booze_cruise_chat = bot.get_channel(get_primary_booze_discussions_channel())
+        await booze_cruise_chat.send(f"A new wine unload is in progress. See <#{wine_unload_alert.channel.id}>")
+
+        return await interaction.response.send_message(
+            f'Wine unload requested by {interaction.user.name} for **{carrier_data.carrier_name} ({carrier_id})** '
+            f'processed successfully. Market: **{market_conditions}**.'
+        )
+
+
+    @app_commands.command(name="wine_timed_unload", description="Posts a new timed unload notice for a carrier. Admin/Sommelier/WineCarrier role required.")
+    @describe(carrier_id="The XXX-XXX ID string for the carrier",
+              planetary_body="A string representing the location of the carrier, ie Star, P1, P2",
+              unload_channel="The discord channel #xxx which the carrier will run timed unloads in")
+    @app_commands.choices(planetary_body=PLANETARY_CHOICES)
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_wine_carrier_role_id()])
+    @check_command_channel(wine_carrier_command_channel())
+    async def wine_carrier_timed_unload(self, interaction: discord.Interaction, carrier_id: str, planetary_body: str,
+                                        unload_channel: discord.TextChannel):
+        """
+        Posts a wine unload request to the unloading channel.
+
+        :param SlashContext ctx: The discord slash context.
+        :param str carrier_id: The carrier ID string
+        :param str planetary_body: Where is the carrier? Star, P1 etc?
+        :param str unload_channel: The discord unload channel.
+        :returns: A message to the user
+        :rtype: Union[discord.Message, dict]
+        """
+
+        print(f'User {interaction.user.name} has requested a new wine timed unload operation for carrier: {carrier_id} '
+              f'around the body: {planetary_body} using unload channel: "{unload_channel}".')
+
+        if self.timed_unloads_allowed is False:
+            msg = "Timed unloads are not allowed at this time."
+            print(msg)
+            await interaction.response.send_message(content=msg)
+            return
+
+        # Cast this to upper case just in case
+        carrier_id = carrier_id.upper()
+
+        # Check the carrier ID regex
+        if not re.match(r"\w{3}-\w{3}", carrier_id):
+            print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
+            return await interaction.channel.name.send(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, '
+                                          f'{carrier_id}.')
+
+        pirate_steve_lock.acquire()
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
+        )
+
+        # We will only get a single entry back here as the carrierid is a unique field.
+        carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
+        pirate_steve_lock.release()
+
+        if not carrier_data:
+            print(f'We failed to find the carrier: {carrier_id} in the database.')
+            return await interaction.response.send_message(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
+
+        wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
+
+        if unload_channel == wine_alert_channel:
+            print('Unload channel for timed market is the same as the wine alert channel. Problem!')
+            return await interaction.response.send_message('You cannot use the alert channel for timed unloads. Talk with a sommelier to '
+                                  'arrange a channel for this activity.')
+
+        if carrier_data.discord_unload_notification:
+            print(f'Sorry, carrier {carrier_data.carrier_identifier} is already on a wine unload.')
+            return await interaction.response.send_message(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is '
+                                  f'already unloading wine. Check the notification in <#{unload_channel.id}>.')
+
+        if carrier_data.total_unloads >= carrier_data.run_count:
+            print(f'Sorry, carrier {carrier_data.carrier_identifier} has already run all of its unloads.')
+            return await interaction.response.send_message(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) has '
+                                  f'already completed all of its unloads. No further unloads are possible.')
+
+        print(f'Starting to post un-load operation for carrier: {carrier_data}')
+        message_send = await interaction.channel.send("**Sending to Discord...**")
+
+        market_conditions = 'Timed Openings'
+
+        # Only in the case of timed openings does a channel make sense.
+        unload_tracking = f' Tracked in <#{unload_channel.id}>.'
+
+        wine_load_embed = discord.Embed(
+            title='Wine unload notification.',
+            description=f'Carrier **{carrier_data.carrier_name} ({carrier_data.carrier_identifier})** is currently '
+                        f'unloading **{carrier_data.wine_total // carrier_data.run_count}** tonnes of wine from *'
+                        f'*{planetary_body}**.'
+                        f'\n Market Conditions: **{market_conditions}**.{unload_tracking}'
+        )
+
+        wine_load_embed.set_footer(text='Please react with this emoji once completed.',
+                                   icon_url=f'https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1')
+        wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
+        await message_send.delete()
+        # Get the discord alert ID and drop it into the database
+        discord_alert_id = wine_unload_alert.id
+
+        print(f'Posted the wine unload alert for {carrier_data.carrier_name} ({carrier_data.carrier_identifier})')
+
+        try:
+            pirate_steve_lock.acquire()
+            data = (
+                discord_alert_id,
+                f'%{carrier_id}%'
             )
-            embed.set_footer(text='C/O: Try the commands /wine_helper_market_open and /wine_helper_market_closed.')
-            await unload_channel.send(embed=embed)
+
+            pirate_steve_db.execute('''
+                UPDATE boozecarriers
+                SET discord_unload_in_progress=?, totalunloads=totalunloads+1
+                WHERE carrierid LIKE (?)
+            ''', data)
+            pirate_steve_conn.commit()
+        finally:
+            pirate_steve_lock.release()
+        print(f'Discord alert ID written to database for {carrier_data.carrier_identifier}')
+
+        embed = discord.Embed(title='Wine unloading starting shortly')
+        # If we have an unload channel ID, go write a message there also.
+        embed.add_field(
+            name=f'Carrier {carrier_data.carrier_name} ({carrier_data.carrier_identifier}).\n'
+                 f'Unloading {carrier_data.wine_total // carrier_data.run_count} tonnes of wine with timed '
+                 f'openings.\nLocation: {planetary_body}',
+            value='Market unloads will begin shortly.',
+            inline=True
+        )
+        embed.set_footer(text='C/O: Try the commands /wine_helper_market_open and /wine_helper_market_closed.')
+        await unload_channel.send(embed=embed)
 
         # Also post a note into the primary channel to go read the announcements.
         booze_cruise_chat = bot.get_channel(get_primary_booze_discussions_channel())
@@ -366,7 +452,6 @@ class Unloading(commands.Cog):
                         f'unloading **{carrier_data.wine_total // carrier_data.run_count}** tonnes of wine in '
                         f'**system: {system_name}** from **{planetary_body}**.'
         )
-        fc_complete = bot.get_emoji(get_fc_complete_id())
         tanker_embed.set_footer(text=f'Please react with this emoji once completed.',
                                 icon_url=f'https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1')
         tanker_unload_alert = await tanker_unload_channel.send(embed=tanker_embed)
@@ -402,4 +487,26 @@ class Unloading(commands.Cog):
             f'processed successfully. Unloading in **system: {system_name}** at **position: {planetary_body}**.'
         )
 
-    # TODO: Make a separate unload command once we know what the tracking process will be.
+
+    @app_commands.command(name="toggle_timed_unloads", description="Toggle the status of timed unloads.")
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
+    async def toggle_timed_unloads(self, interaction: discord.Interaction):
+        """
+        Toggle allowing timed unloads.
+
+        Args:
+            interaction (discord.Interaction): The discord interaction context.
+        """
+
+        await interaction.response.defer(ephemeral=True)
+
+        # Log the request
+        guild = bot.get_guild(bot_guild_id())
+        steve_says_channel = guild.get_channel(get_steve_says_channel())
+        new_status = "Disabled" if self.timed_unloads_allowed else "Enabled"
+        msg = f"requested to toggle the timed unloads status to: '{new_status}'."
+        print(f'{interaction.user.name} {msg}')
+        await steve_says_channel.send(f'{interaction.user.mention} {msg}', silent=True)
+        self.timed_unloads_allowed = not self.timed_unloads_allowed
+        # Send the response message
+        await interaction.edit_original_response(content=f"Timed unloads are now '{new_status}'.")
