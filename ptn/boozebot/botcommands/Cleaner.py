@@ -22,6 +22,7 @@ server_sommelier_role_id, server_wine_carrier_role_id, server_mod_role_id, \
 
 # local modules
 from ptn.boozebot.botcommands.Departures import Departures
+from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error, TimeoutError
 from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
 
@@ -98,6 +99,7 @@ class Cleaner(commands.Cog):
 
                 embed = discord.Embed()
                 Departures.departure_announcement_status = "Disabled"
+                Unloading.timed_unloads_allowed = False
                 channels = {channel_id: guild.default_role for channel_id in ids_list}
                 channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
                 
