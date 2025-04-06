@@ -36,7 +36,7 @@ async def get_state_from_edsm() -> bool:
         'systemName': 'HIP 58832',
     }
     async with httpx.AsyncClient() as client:
-        r = await client.get('https://www.edsm.net/api-v1/factions', params=edsm_params,  timeout=5)
+        r = await client.get('https://www.edsm.net/api-system-v1/factions', params=edsm_params,  timeout=5)
         r.raise_for_status()
         result = r.json()
 
