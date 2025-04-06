@@ -158,6 +158,11 @@ class Unloading(commands.Cog):
             return await interaction.response.send_message(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
 
         wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
+        
+        if carrier_data.discord_unload_notification:
+            print(f'Sorry, carrier {carrier_data.carrier_identifier} is already on a wine unload.')
+            return await interaction.response.send_message(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is '
+                                  f'already unloading wine. Check the notification in <#{wine_alert_channel.id}>.')
             
         if carrier_data.total_unloads >= carrier_data.run_count:
             print(f'Sorry, carrier {carrier_data.carrier_identifier} has already run all of its unloads.')
