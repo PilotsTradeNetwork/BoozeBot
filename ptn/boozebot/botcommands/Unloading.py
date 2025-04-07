@@ -139,9 +139,9 @@ class Unloading(commands.Cog):
 
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
-            print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await interaction.channel.name.send(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, '
-                                          f'{carrier_id}.')
+            msg = f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.'
+            print(msg)
+            return await interaction.response.send_message(msg)
 
 
         pirate_steve_lock.acquire()
@@ -236,14 +236,14 @@ class Unloading(commands.Cog):
         :returns: A message to the user
         :rtype: Union[discord.Message, dict]
         """
-
+        await interaction.response.defer()
         print(f'User {interaction.user.name} has requested a new wine timed unload operation for carrier: {carrier_id} '
               f'around the body: {planetary_body} using unload channel: "{unload_channel}".')
 
         if self.timed_unloads_allowed is False:
             msg = "Timed unloads are not allowed at this time."
             print(msg)
-            await interaction.response.send_message(content=msg)
+            await interaction.followup.send(msg)
             return
 
         # Cast this to upper case just in case
@@ -251,9 +251,9 @@ class Unloading(commands.Cog):
 
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
-            print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await interaction.channel.name.send(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, '
-                                          f'{carrier_id}.')
+            msg = f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.'
+            print(msg)
+            return await interaction.followup.send(msg)
 
         pirate_steve_lock.acquire()
         pirate_steve_db.execute(
@@ -266,23 +266,23 @@ class Unloading(commands.Cog):
 
         if not carrier_data:
             print(f'We failed to find the carrier: {carrier_id} in the database.')
-            return await interaction.response.send_message(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
+            return await interaction.followup.send(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
 
         wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
 
         if unload_channel == wine_alert_channel:
             print('Unload channel for timed market is the same as the wine alert channel. Problem!')
-            return await interaction.response.send_message('You cannot use the alert channel for timed unloads. Talk with a sommelier to '
+            return await interaction.followup.send('You cannot use the alert channel for timed unloads. Talk with a sommelier to '
                                   'arrange a channel for this activity.')
 
         if carrier_data.discord_unload_notification:
             print(f'Sorry, carrier {carrier_data.carrier_identifier} is already on a wine unload.')
-            return await interaction.response.send_message(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is '
-                                  f'already unloading wine. Check the notification in <#{unload_channel.id}>.')
+            return await interaction.followup.send(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is '
+                                  f'already unloading wine. Check the notification in <#{wine_alert_channel.id}>.')
 
         if carrier_data.total_unloads >= carrier_data.run_count:
             print(f'Sorry, carrier {carrier_data.carrier_identifier} has already run all of its unloads.')
-            return await interaction.response.send_message(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) has '
+            return await interaction.followup.send(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) has '
                                   f'already completed all of its unloads. No further unloads are possible.')
 
         print(f'Starting to post un-load operation for carrier: {carrier_data}')
@@ -343,7 +343,7 @@ class Unloading(commands.Cog):
         booze_cruise_chat = bot.get_channel(get_primary_booze_discussions_channel())
         await booze_cruise_chat.send(f"A new wine unload is in progress. See <#{wine_unload_alert.channel.id}>")
 
-        return await interaction.response.send_message(
+        return await interaction.followup.send(
             f'Wine unload requested by {interaction.user.name} for **{carrier_data.carrier_name} ({carrier_id})** '
             f'processed successfully. Market: **{market_conditions}**.{unload_tracking}'
         )
@@ -360,9 +360,9 @@ class Unloading(commands.Cog):
 
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
-            print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await interaction.response.send_message(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, '
-                                          f'{carrier_id}.')
+            msg = f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.'
+            print(msg)
+            return await interaction.response.send_message(msg)
 
         pirate_steve_db.execute(
             "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
@@ -428,9 +428,9 @@ class Unloading(commands.Cog):
 
         # Check the carrier ID regex
         if not re.match(r"\w{3}-\w{3}", carrier_id):
-            print(f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.')
-            return await interaction.channel.name.send(f'{interaction.user.name}, the carrier ID was invalid during tanker unload, '
-                                          f'XXX-XXX expected received, {carrier_id}.')
+            msg = f'{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}.'
+            print(msg)
+            return await interaction.response.send_message(msg)
 
         pirate_steve_lock.acquire()
         pirate_steve_db.execute(
