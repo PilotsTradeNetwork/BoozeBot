@@ -1037,7 +1037,7 @@ class DatabaseInteraction(commands.Cog):
             print(
                 f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             )
-            return await interaction.channel.send(
+            return await interaction.edit_original_response(content=
                 f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             )
 
