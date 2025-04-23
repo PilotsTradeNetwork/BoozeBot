@@ -3,24 +3,20 @@ Cog for granting and removing the wine carrier role
 
 """
 
-# libraries
 import asyncio
 
-# discord.py
 import discord
-from discord.app_commands import Group, describe, Choice
-from discord.ext import commands, tasks
-from discord import app_commands, NotFound
+from discord import app_commands
+from discord.app_commands import describe
+from discord.ext import commands
 
-# local constants
-from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelier_role_id, \
-    server_connoisseur_role_id, server_wine_carrier_role_id, server_mod_role_id, \
-    get_primary_booze_discussions_channel, get_wine_carrier_channel, get_steve_says_channel, \
-    WELCOME_MESSAGE_FILE_PATH
-
-# local modules
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
-from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
+from ptn.boozebot.constants import (
+    WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot, get_primary_booze_discussions_channel, get_steve_says_channel,
+    get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
+    server_sommelier_role_id, server_wine_carrier_role_id
+)
+from ptn.boozebot.modules.ErrorHandler import on_app_command_error
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
 """
 Make Wine Carrier app commands - cannot be placed in the Cog
@@ -33,7 +29,7 @@ Make Wine Carrier
 @bot.tree.context_menu(name='Make Wine Carrier')
 @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
 @check_command_channel(get_primary_booze_discussions_channel())
-async def make_contextuser_wine_carrier(interaction:  discord.Interaction, user: discord.User):
+async def make_contextuser_wine_carrier(interaction:  discord.Interaction, user: discord.Member):
     await make_user_wine_carrier(interaction, user)
 
 """
@@ -133,7 +129,7 @@ async def make_user_wine_carrier(interaction, user):
             
             wine_channel = bot.get_channel(get_wine_carrier_channel())
             embed = discord.Embed(description=wine_welcome_message)
-            embed.set_thumbnail(url="https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless")
+            embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
             await wine_channel.send(f"<@{user.id}>", embed=embed)
 
             wine_carrier_toggle_lock.release()
