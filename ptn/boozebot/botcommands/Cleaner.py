@@ -3,29 +3,23 @@ Cog for all the commands related to
 
 """
 
-# libraries
-import os
 import asyncio
+from datetime import datetime, timezone
 
-# discord.py
 import discord
-from discord.app_commands import Group, describe, Choice
-from discord.ext import commands, tasks
-from discord import app_commands, NotFound
+from discord import app_commands
+from discord.ext import commands
 
-# local constants
-from ptn.boozebot.constants import bot_guild_id, bot, server_council_role_ids, \
-server_sommelier_role_id, server_wine_carrier_role_id, server_mod_role_id, \
-    get_public_channel_list, server_hitchhiker_role_id, WELCOME_MESSAGE_FILE_PATH, \
-    get_steve_says_channel, get_feedback_channel_id, get_ptn_booze_cruise_role_id, \
-    get_wine_carrier_guide_channel_id
-
-# local modules
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.Unloading import Unloading
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error, TimeoutError
-from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
-
+from ptn.boozebot.constants import (
+    BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot, bot_guild_id, get_feedback_channel_id, get_ptn_booze_cruise_role_id,
+    get_public_channel_list, get_steve_says_channel, get_wine_carrier_guide_channel_id, server_council_role_ids,
+    get_wine_status_channel, server_hitchhiker_role_id, server_mod_role_id, server_sommelier_role_id,
+    server_wine_carrier_role_id, BC_STATUS
+)
+from ptn.boozebot.modules.ErrorHandler import TimeoutError, on_app_command_error
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
 """
 CLEANER COMMANDS
@@ -42,6 +36,7 @@ CLEANER COMMANDS
 class Cleaner(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.init_blurbs()
 
     # custom global error handler
     # attaching the handler when the cog is loaded
@@ -56,6 +51,13 @@ class Cleaner(commands.Cog):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
 
+    @staticmethod
+    def init_blurbs():
+        # Ensure all blurb files exist
+        for blurb in BLURBS.values():
+            if not blurb["file_path"].is_file():
+                blurb["file_path"].parent.mkdir(parents=True, exist_ok=True)
+                blurb["file_path"].write_text(blurb["default_text"], encoding="utf-8")
     """
     This class handles role and channel cleanup after a cruise, as well as opening channels in preparation for a cruise.
     """
@@ -102,7 +104,9 @@ class Cleaner(commands.Cog):
                 Unloading.timed_unloads_allowed = False
                 channels = {channel_id: guild.default_role for channel_id in ids_list}
                 channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
-                
+
+                await self.update_status_embed("bc_prep")
+
                 for channel_id, role in channels.items():
                     channel = bot.get_channel(channel_id)
                     try:
@@ -119,9 +123,7 @@ class Cleaner(commands.Cog):
                 return
 
             elif user_response.content.lower() == "n":
-                print(
-                    f"User {interaction.user.name} wants to abort the open process."
-                )
+                print(f"User {interaction.user.name} wants to abort the open process.")
                 await user_response.delete()
                 return await interaction.edit_original_response(
                     content="You aborted the request to open the channels.", embed=None
@@ -163,9 +165,10 @@ class Cleaner(commands.Cog):
                 embed.add_field(name="Closed", value="<#" + str(channel_id) +">", inline=False)
             except Exception as e:
                 embed.add_field(name="FAILED to close", value="<#" + str(channel_id) + f">: {e}", inline=False)
+        await self.update_status_embed("bc_end")
 
         await interaction.edit_original_response(content=f"<@&{server_sommelier_role_id()}> That\'s the end of that, me hearties.", embed=embed)
-        return
+
 
     @app_commands.command(name="clear_booze_roles", description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution.")
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
@@ -187,7 +190,7 @@ class Cleaner(commands.Cog):
 
         wine_count = 0
         hitch_count = 0
-        await interaction.response.send_message(f'This may take a minute...')
+        await interaction.response.send_message('This may take a minute...')
         try:
             for member in wine_carrier_role.members:
                 try:
@@ -204,29 +207,32 @@ class Cleaner(commands.Cog):
                     print(e)
                     await interaction.channel.send(f"Unable to remove { hitch_role } from { member }")
 
-            await interaction.channel.send(content = f'Successfully removed { hitch_count } users from the Hitchhiker role.\n'
-                               f'Successfully removed { wine_count } users from the Wine Carrier role.', embed = None)
+            await interaction.channel.send(
+                content=f'Successfully removed { hitch_count } users from the Hitchhiker role.\n'
+                        f'Successfully removed { wine_count } users from the Wine Carrier role.',
+            )
         except Exception as e:
             print(e)
             await interaction.channel.send('Clear roles command failed. Contact admin.')
-            return
 
-    @app_commands.command(name="set_wine_carrier_welcome", description="Sets the welcome message sent to Wine Carriers.")
+    @app_commands.command(name="booze_update_blurb_message", description="Update a blurb message (WCO welcome or announcement).")
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel([get_steve_says_channel()])
-    async def set_wine_carrier_welcome(self, interaction: discord.Interaction):
-        print(f'User {interaction.user.name} is changing the wine carrier welcome message in {interaction.channel.name}.')
+    async def update_blurb_message(self, interaction: discord.Interaction, blurb: BLURB_KEYS):
+        print(f'User {interaction.user.name} is changing the {blurb} message in {interaction.channel.name}.')
 
         # send the existing message (if there is one) so the user has a copy
-        wine_welcome_message = ""
-        if os.path.isfile(WELCOME_MESSAGE_FILE_PATH):
-            with open(WELCOME_MESSAGE_FILE_PATH, "r") as file:
-                wine_welcome_message = file.read()
+        if not BLURBS[blurb]["file_path"].is_file():
+            self.init_blurbs()
+        blurb_message = BLURBS[blurb]["file_path"].read_text()
 
         response_timeout = 20
 
-        await interaction.response.send_message(f"Existing message: ```\n{wine_welcome_message}\n```\n"
-                                                f"<@{interaction.user.id}> your next message in this channel will be used as the new welcome message, or wait {response_timeout} seconds to cancel.")
+        await interaction.response.send_message(
+            f"Existing message: ```\n{blurb_message}\n```\n"
+            f"<@{interaction.user.id}> your next message in this channel will be used as the new {blurb} message, "
+            f"or wait {response_timeout} seconds to cancel."
+        )
 
         def check(response):
             return response.author == interaction.user and response.channel == interaction.channel
@@ -242,16 +248,14 @@ class Cleaner(commands.Cog):
 
         if message:
             # Now try to replace the contents
-            print("Setting welcome message from user input")
-            with open(WELCOME_MESSAGE_FILE_PATH, "w") as wine_welcome_txt_file:
-                wine_welcome_txt_file.write(message.content)
-                embed = discord.Embed(description=message.content)
-                embed.set_thumbnail(url="https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless")
-                await interaction.edit_original_response(content="New Wine Carrier welcome message set:", embed=embed)
-                await message.delete()
-                return
-        else:
-            return
+            print(f"Setting {blurb} message from user input")
+            BLURBS[blurb]["file_path"].write_text(message.content.strip())
+            embed = discord.Embed(description=message.content)
+            if blurb == "wco_welcome":
+                embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
+            await interaction.edit_original_response(content=f"New {blurb} message set:", embed=embed)
+            await message.delete()
+
 
     @app_commands.command(name="open_wine_carrier_feedback", description="Opens the Wine Carrier feedback channel.")
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
@@ -264,9 +268,7 @@ class Cleaner(commands.Cog):
         overwrite = discord.PermissionOverwrite(view_channel=True)
 
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
-
-        await interaction.response.send_message(f"Opened the Wine Carrier feedback channel.", embed=None)
-        return
+        await interaction.response.send_message("Opened the Wine Carrier feedback channel.", embed=None)
 
     @app_commands.command(name="close_wine_carrier_feedback", description="Closes the Wine Carrier feedback channel.")
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
@@ -279,6 +281,27 @@ class Cleaner(commands.Cog):
         overwrite = discord.PermissionOverwrite(view_channel=False)
 
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
+        await interaction.response.send_message("Closed the Wine Carrier feedback channel.", embed=None)
 
-        await interaction.response.send_message(f"Closed the Wine Carrier feedback channel.", embed=None)
-        return
+    @app_commands.command(name="booze_update_bc_status_embed", description="Updates the booze-cruise-status embed.")
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @check_command_channel([get_steve_says_channel()])
+    async def update_bc_status_embed(self, interaction: discord.Interaction, status: BC_STATUS):
+        await interaction.response.defer()
+        print(f'User {interaction.user.name} is updating the status embed in {interaction.channel.name}.')
+        await self.update_status_embed(status)
+        await interaction.followup.send(f"Updated the status embed to {status}.", ephemeral=True)
+
+    @classmethod
+    async def update_status_embed(cls, status: BC_STATUS):
+        channel = bot.get_channel(get_wine_status_channel())
+        async for message in channel.history():
+            if message.author == bot.user or not message.pinned:
+                await message.delete()
+
+        if not BLURBS[status]["file_path"].is_file():
+            cls.init_blurbs()
+        blurb_message = BLURBS[status]["file_path"].read_text()
+        blurb_message += f"\n\n-# Updated: <t:{int(datetime.now(timezone.utc).timestamp())}:F>"
+        embed_colour = BLURBS[status]["embed_colour"]
+        await channel.send(embed=discord.Embed(description=blurb_message, colour=embed_colour))
