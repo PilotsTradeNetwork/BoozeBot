@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.11
+-    \#534 - Fixed find_wine_carrier_by_id regex error message (TuggyBoat)
+-    \#536 - Prefer EDSM over EBGS, use /factions endpoint for states (IndorilReborn)
+-    \#537 - Simplify /wine_unload command, split timed unloads code (IndorilReborn)
+-    \#538 - Use stored blurbs for bc-status embeds, automatically update status (IndorilReborn)
+
 ## 2.0.10
 -    \#529 - Fixed checking for PH in only HIP 58832 (TugNuggy)
 
