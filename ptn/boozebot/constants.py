@@ -6,11 +6,16 @@ Constants used throughout BoozeBot.
 # libraries
 import ast
 import os
+import logging
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import TypedDict, Literal
+
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
-import logging
-import sys
+
 
 # Define whether the bot is in testing or live mode. Default is testing mode.
 _production = ast.literal_eval(os.environ.get('PTN_BOOZE_BOT', 'False'))
@@ -26,8 +31,10 @@ DB_DUMPS_PATH = os.path.join(DATA_DIR, 'database')
 CARRIERS_DB_PATH = os.path.join(DATA_DIR, 'database', 'booze_carriers.db')
 CARRIERS_DB_DUMPS_PATH = os.path.join(DATA_DIR, 'sql', 'booze_carriers.sql')
 SETTINGS_PATH = os.path.join(DATA_DIR, 'settings')
-WELCOME_MESSAGE_FILE = "welcome_message.txt"
-WELCOME_MESSAGE_FILE_PATH = os.path.join(SETTINGS_PATH, WELCOME_MESSAGE_FILE)
+WELCOME_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "welcome_message.txt")
+BC_PREP_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_prep_message.txt")
+BC_START_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_start_message.txt")
+BC_END_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_end_message.txt")
 GOOGLE_OAUTH_CREDENTIALS_PATH = os.path.join(DATA_DIR, '.ptnboozebot.json')
 
 # Get the discord token from the local .env file. Deliberately not hosted in the repo or Discord takes the bot down
@@ -53,9 +60,12 @@ PROD_BOOZE_BOT_CHANNEL = 841413917468917781  # This is #booze-bot
 PROD_STEVE_SAYS_CHANNEL = 937024914572070922  # This is #steve-says
 PROD_WINE_CARRIER_CHANNEL = 839149134938112030 # wine-carrier-chat
 PROD_WINE_CARRIER_COMMAND_CHANNEL = 839503109679349780 #rackhams-space-traffic-control
+PROD_WINE_STATUS_CHANNEL = 1223312512276107285  # booze-cruise-status
 PROD_MOD_ID = 813814494563401780
 PROD_HOLIDAY_ANNOUNCE_CHANNEL_ID = 851110121870196777   # Dread-pirate-steve
 PROD_BOOZE_CRUISE_CHAT_CHANNEL = 819295547289501736     # Booze-Cruise
+PROD_BOOZE_CRUISE_SIGNUPS_CHANNEL = 838515030588653599
+PROD_WCO_ANNOUNCEMENTS_CHANNEL = 839495951131475988
 PROD_FC_COMPLETE_ID = 878216234653605968
 PROD_WINE_TANKER_ID = 978321720630980658
 PROD_HITCHHIKER_ID = 998344068524417175
@@ -75,16 +85,21 @@ TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
 TEST_ASSASSIN_ID = 848957573792137247
 TEST_BOOZE_UNLOAD_ID = 849570829230014464
 TEST_ADMIN_IDS = (877586918228000819, 1227350727131660359) # Council, Council Advisor
+# TEST_ADMIN_IDS = (1364570643353571388,) # Somm-Dev - TODO: comment out
 TEST_SOMMELIER_ID = 849907019502059530
+# TEST_SOMMELIER_ID = 1364570643353571388 # Somm-Dev - TODO: comment out
 TEST_CONNOISSEUR_ID = 1105144147582656663
 TEST_WINE_CARRIER_ID = 849909113776898071
 TEST_BOOZE_BOT_CHANNEL = 937026057188552745 # Actually Steve says because we don't have a bot channel on the test server
 TEST_STEVE_SAYS_CHANNEL = 937026057188552745  # This is #steve-says
 TEST_WINE_CARRIER_CHANNEL = 1108010143070834788 # wine-carrier-chat
 TEST_WINE_CARRIER_COMMAND_CHANNEL = 1241483631785152604 #rackhams-space-traffic-control
+TEST_WINE_STATUS_CHANNEL = 1364573272531927132  # booze-cruise-status
 TEST_MOD_ID = 818174400997228545
 TEST_HOLIDAY_ANNOUNCE_CHANNEL_ID = 818174236480897058
 TEST_BOOZE_CRUISE_CHAT_CHANNEL = 1107757384069288056
+TEST_BOOZE_CRUISE_SIGNUPS_CHANNEL = 838515030588653599
+TEST_WCO_ANNOUNCEMENTS_CHANNEL = 839495951131475988
 TEST_FC_COMPLETE_ID = 884673510067286076
 TEST_WINE_TANKER_ID = 990601307771506708
 TEST_HITCHHIKER_ID = 1108112740800798750
@@ -103,6 +118,9 @@ BOOZE_PROFIT_PER_TONNE_WINE = 256000
 RACKHAMS_PEAK_POP = 150000
 
 EMBED_COLOUR_ERROR = 0x800000
+EMBED_COLOUR_STATUS = 0xee3563
+
+WCO_ROLE_ICON_URL = "https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless"
 
 # define the logger for discord client
 # TODO: use PTNLogger and extend to all Steve Logging
@@ -392,6 +410,13 @@ def get_wine_carrier_channel():
     return PROD_WINE_CARRIER_CHANNEL if _production else TEST_WINE_CARRIER_CHANNEL
 
 
+def get_wine_status_channel() -> int:
+    """
+    Returns the channel ID for the wine status channel.
+    """
+    return PROD_WINE_STATUS_CHANNEL if _production else TEST_WINE_STATUS_CHANNEL
+
+
 def server_mod_role_id():
     """
     Returns the moderator role ID for the server
@@ -541,3 +566,90 @@ def get_ptn_booze_cruise_role_id():
     :rtype: int
     """
     return PROD_PTN_BOOZE_CRUISE_ROLE_ID if _production else TEST_PTN_BOOZE_CRUISE_ROLE_ID
+
+
+def get_booze_cruise_signups_channel():
+    """
+    Gets the ID of the Booze Cruise signups channel
+
+    :return: The channel ID
+    :rtype: int
+    """
+    return PROD_BOOZE_CRUISE_SIGNUPS_CHANNEL if _production else TEST_BOOZE_CRUISE_SIGNUPS_CHANNEL
+
+
+def get_wco_announcements_channel():
+    """
+    Gets the ID of the WCO announcements channel
+
+    :return: The channel ID
+    :rtype: int
+    """
+    return PROD_WCO_ANNOUNCEMENTS_CHANNEL if _production else TEST_WCO_ANNOUNCEMENTS_CHANNEL
+
+
+_WCO_WELCOME_BLURB = (
+    f"Welcome to the <@&{server_wine_carrier_role_id()}> backrooms! If you are a returning cruiser, it's great to have you back! "
+    f"Please have a read of <#{get_wine_carrier_guide_channel_id()}>, <#{get_wco_announcements_channel()}>, and the pins of this channel. "
+    f"As a reminder, everything you read here is **strictly confidential** and should remain in this chat.\n\n"
+    "In the pins you'll find a link to a [spreadsheet](https://docs.google.com/spreadsheets/d/1UscA2YRTLckjAg2FSsUhEv5FYICvf70LMGnnaBHWUfA/edit) "
+    "where you need to add your carrier.\n\n"
+    "If you have any questions please ask in this channel. There are lots of experienced cruisers here that are eager to help!"
+)
+
+_BC_PREP_BLURB = (
+    "# **PTN Booze Cruise Status**\n\n"
+    "**The channels are open, and we are preparing for the next Booze Cruise! "
+    f"If you want to receive notifications as the Cruise progresses use the button in <#{get_booze_cruise_signups_channel()}> "
+    f"to take the <@&{get_ptn_booze_cruise_role_id()}> role, which will be pinged when the Holiday begins "
+    f"and for other similarly-important events.**"
+)
+
+_BC_START_BLURB = (
+    "# **PTN Booze Cruise Status**\n\n"
+    f"**The Booze Cruise has begun! Head to <#{get_discord_booze_unload_channel()}> to see which carrier is currently unloading, "
+    f"or visit <#{get_primary_booze_discussions_channel()}> to chat with your fellow cruisers! If you're in N1, N2, or N3 "
+    f"and wish to catch a ride up, head to <#{get_booze_cruise_signups_channel()}> and take the <@&{server_hitchhiker_role_id()}> role, "
+    f"then watch <#{get_departure_announcement_channel()}> for departures to or from the peak!\n\n"
+    f"If you want to receive other notifications related to the Booze Cruise use the button in <#{get_booze_cruise_signups_channel()}> "
+    f"to take the <@&{get_ptn_booze_cruise_role_id()}> role, which will be pinged for important events related to the Booze Cruise.**"
+)
+
+_BC_END_BLURB = (
+    "# **PTN Booze Cruise Status**\n\n"
+    "**The Booze Cruise has ended, and we're waiting for the next one! If you want to receive a notification when we "
+    f"open the channels to begin prepping for the next Cruise use the button in <#{get_booze_cruise_signups_channel()}> "
+    f"to take the <@&{get_ptn_booze_cruise_role_id()}> role, which will be pinged when we open the channels "
+    f"and for other similarly-important events.**"
+)
+
+BLURB_KEYS = Literal["wco_welcome", "bc_prep", "bc_start", "bc_end"]
+BC_STATUS = Literal["bc_prep", "bc_start", "bc_end"]
+
+class BlurbInfo(TypedDict):
+    file_path: Path
+    default_text: str
+    embed_colour: int | discord.Colour
+
+BLURBS: dict[BLURB_KEYS, BlurbInfo] = {
+    "wco_welcome": {
+        "file_path": WELCOME_MESSAGE_FILE_PATH,
+        "default_text": _WCO_WELCOME_BLURB,
+        "embed_colour": 0xf16e7f  # Unused
+    },
+    "bc_prep": {
+        "file_path": BC_PREP_MESSAGE_FILE_PATH,
+        "default_text": _BC_PREP_BLURB,
+        "embed_colour": discord.Colour.gold()
+    },
+    "bc_start": {
+        "file_path": BC_START_MESSAGE_FILE_PATH,
+        "default_text": _BC_START_BLURB,
+        "embed_colour": discord.Colour.green()
+    },
+    "bc_end": {
+        "file_path": BC_END_MESSAGE_FILE_PATH,
+        "default_text": _BC_END_BLURB,
+        "embed_colour": 0xee3563
+    },
+}

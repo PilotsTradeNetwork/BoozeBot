@@ -3,26 +3,24 @@ Cog for PH check commands and loop
 
 """
 
-# libraries
 import random
 from datetime import datetime, timedelta
 
-# discord.py
 import discord
-from discord.app_commands import Group, describe, Choice
+from discord import NotFound, app_commands
+from discord.app_commands import describe
 from discord.ext import commands, tasks
-from discord import app_commands, NotFound
 
-# local constants
-from ptn.boozebot.constants import rackhams_holiday_channel, bot, bot_guild_id, server_council_role_ids, \
-    server_sommelier_role_id, server_mod_role_id, server_connoisseur_role_id, holiday_query_not_started_gifs, \
-    holiday_query_started_gifs, holiday_start_gif, holiday_ended_gif, get_steve_says_channel, \
-    get_wine_carrier_channel, wine_carrier_command_channel, get_primary_booze_discussions_channel
-
-# local modules
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
-from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
-from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_conn
+from ptn.boozebot.botcommands.Cleaner import Cleaner
+from ptn.boozebot.constants import (
+    bot, get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel, holiday_ended_gif,
+    holiday_query_not_started_gifs, holiday_query_started_gifs, holiday_start_gif, rackhams_holiday_channel,
+    server_connoisseur_role_id, server_council_role_ids, server_mod_role_id, server_sommelier_role_id,
+    wine_carrier_command_channel
+)
+from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db
+from ptn.boozebot.modules.ErrorHandler import on_app_command_error
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.PHcheck import ph_check
 
 """
@@ -104,6 +102,7 @@ class PublicHoliday(commands.Cog):
                         f'Pirate Steve thinks the folks at Rackhams are partying again. '
                         f'<@&{server_council_role_ids()[0]}>, <@&{server_sommelier_role_id()}> please take note.'
                     )
+                    await Cleaner.update_status_embed("bc_start")
                 else:
                     print('Holiday already flagged - no need to set it again')
             else:
@@ -143,6 +142,7 @@ class PublicHoliday(commands.Cog):
                         # Only post it if it is a state change.
                         print('Holiday was ongoing, no longer ongoing - flag it accordingly')
                         await holiday_announce_channel.send(holiday_ended_gif)
+                        await Cleaner.update_status_embed("bc_end")
                 else:
                     print(f'Holiday has not yet expired, due at: {end_time}. Ignoring the check result for now.')
         except Exception as e:
