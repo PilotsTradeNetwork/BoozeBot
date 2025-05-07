@@ -15,8 +15,8 @@ from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import (
     BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot, bot_guild_id, get_feedback_channel_id, get_ptn_booze_cruise_role_id,
     get_public_channel_list, get_steve_says_channel, get_wine_carrier_guide_channel_id, server_council_role_ids,
-    get_wine_status_channel, server_hitchhiker_role_id, server_mod_role_id, server_sommelier_role_id,
-    server_wine_carrier_role_id, BC_STATUS
+    get_wine_status_channel, server_hitchhiker_role_id, server_mod_role_id, server_pilot_role_id,
+    server_sommelier_role_id, server_wine_carrier_role_id, BC_STATUS
 )
 from ptn.boozebot.modules.ErrorHandler import TimeoutError, on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
@@ -102,7 +102,8 @@ class Cleaner(commands.Cog):
                 embed = discord.Embed()
                 Departures.departure_announcement_status = "Disabled"
                 Unloading.timed_unloads_allowed = False
-                channels = {channel_id: guild.default_role for channel_id in ids_list}
+                pilot_role = guild.get_role(server_pilot_role_id())
+                channels = {channel_id: pilot_role for channel_id in ids_list}
                 channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
 
                 await self.update_status_embed("bc_prep")
@@ -152,8 +153,8 @@ class Cleaner(commands.Cog):
         guild = bot.get_guild(bot_guild_id())
 
         embed = discord.Embed()
-        
-        channels = {channel_id: guild.default_role for channel_id in ids_list}
+        pilot_role = guild.get_role(server_pilot_role_id())
+        channels = {channel_id: pilot_role for channel_id in ids_list}
         channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
 
         for channel_id, role in channels.items():
