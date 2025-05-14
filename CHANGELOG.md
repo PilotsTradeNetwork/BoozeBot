@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.0.12
+-    \#544 - Steve now changes pilot view perms for bc channels rather than default perms
+
 ## 2.0.11
 -    \#534 - Fixed find_wine_carrier_by_id regex error message (TuggyBoat)
 -    \#536 - Prefer EDSM over EBGS, use /factions endpoint for states (IndorilReborn)
