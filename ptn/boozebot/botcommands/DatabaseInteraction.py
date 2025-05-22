@@ -393,51 +393,46 @@ class DatabaseInteraction(commands.Cog):
         """
         if result is None:
             result = {}
+            
+        steve_says_channel = bot.get_channel(get_steve_says_channel())
 
-        try:
-            if result["invalid_database_entries"]:
+        if result.get("invalid_database_entries", False):
 
-                # In case any problem carriers found, mark them up
-                print("Problem: We have invalid carriers!")
-                for problem_carrier in result["invalid_database_entries"]:
-                    print(f"This carrier is no longer in the sheet: {problem_carrier}")
+            # In case any problem carriers found, mark them up
+            print("Problem: We have invalid carriers!")
+            
+            for problem_carrier in result["invalid_database_entries"]:
+                print(f"This carrier is no longer in the sheet: {problem_carrier}")
 
-                    # Notify the channels so it can be deleted.
-                    booze_bot_channel = bot.get_channel(get_bot_control_channel())
-                    sommelier_notification_channel = bot.get_channel(get_steve_says_channel())
-                    for channel in [booze_bot_channel, sommelier_notification_channel]:
-                        problem_embed = discord.Embed(
-                            title="Avast Ye! Pirate Steve found a missing carrier in the database!",
-                            description=f"This carrier is no longer in the GoogleSheet:\n"
-                            f"CarrierName: **{problem_carrier.carrier_name}**\n"
-                            f"ID: **{problem_carrier.carrier_identifier}**\n"
-                            f"Total Tonnes of Wine: **{problem_carrier.wine_total}** on "
-                            f"**{problem_carrier.platform}**\n"
-                            f"Number of trips to the peak: **{problem_carrier.run_count}**\n"
-                            f"Total Unloads: **{problem_carrier.total_unloads}**\n"
-                            f"Operated by: {problem_carrier.discord_username}",
-                        )
-                        problem_embed.set_footer(
-                            text="Pirate Steve recommends verifying and then deleting this entry"
-                            " with /booze_delete_carrier"
-                        )
-                        await channel.send(embed=problem_embed)
-                        if channel == sommelier_notification_channel:
-                           # Add a notification for the sommelier role
-                           await channel.send(f'\n<@&{server_sommelier_role_id()}> please take note.')
-            else:
-                print("No invalid carriers found")
-        except KeyError as e:
-            print(f"Key did not exist in the input: {result} -> {e}")
+                # Notify to #steve-says so it can be deleted.
+                problem_embed = discord.Embed(
+                    title="Avast Ye! Pirate Steve found a missing carrier in the database!",
+                    description=f"This carrier is no longer in the GoogleSheet:\n"
+                    f"CarrierName: **{problem_carrier.carrier_name}**\n"
+                    f"ID: **{problem_carrier.carrier_identifier}**\n"
+                    f"Total Tonnes of Wine: **{problem_carrier.wine_total}** on "
+                    f"**{problem_carrier.platform}**\n"
+                    f"Number of trips to the peak: **{problem_carrier.run_count}**\n"
+                    f"Total Unloads: **{problem_carrier.total_unloads}**\n"
+                    f"Operated by: {problem_carrier.discord_username}",
+                )
+                problem_embed.set_footer(
+                    text="Pirate Steve recommends verifying and then deleting this entry"
+                    " with /booze_delete_carrier"
+                )
+                await steve_says_channel.send(embed=problem_embed)
+                
+            # Only ping once after displaying all the invalid carriers
+            await steve_says_channel.send(f'\n<@&{server_sommelier_role_id()}> please take note.')
+    
+        else:
+            print("No invalid carriers found")
 
-        if result["new_signups"]:
+        if result.get("new_signups", False):
             for signup in result["new_signups"]:
                 print("New signed up carriers found.")
                 # loop over the new signups and print them out
-                sommelier_notification_channel = bot.get_channel(
-                    get_steve_says_channel()
-                )
-                await sommelier_notification_channel.send(embed=signup)
+                await steve_says_channel.send(embed=signup)
         else:
             print("No new signed up carriers detected")
 
