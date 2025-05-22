@@ -30,7 +30,7 @@ setup(
     author='Graeme Cruickshank',
     url='',
     install_requires=[
-        'discord.py==2.3.1',
+        'discord.py>=2.5.0',
         'discord-ext-prometheus',
         'google-api-python-client',
         'gspread',
