@@ -369,19 +369,18 @@ class DatabaseInteraction(commands.Cog):
 
     async def report_db_update_result(self, result: dict, force_embed=False):
 
-        if result["updated_db"] is False and force_embed is False:
-            return
-        embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
-        embed.add_field(
-            name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
-            f'Number of new carriers added: {result["added_count"]:>8}.\n'
-            f'Number of carriers amended: {result["updated_count"]:>11}.\n'
-            f'Number of carriers unchanged: {result["unchanged_count"]:>7}.',
-            value="Pirate Steve hope he got this right.",
-            inline=False,
-        )
-        sommelier_notification_channel = bot.get_channel(get_steve_says_channel())
-        await sommelier_notification_channel.send(embed=embed)
+        if result["updated_db"] or force_embed:
+            embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
+            embed.add_field(
+                name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
+                f'Number of new carriers added: {result["added_count"]:>8}.\n'
+                f'Number of carriers amended: {result["updated_count"]:>11}.\n'
+                f'Number of carriers unchanged: {result["unchanged_count"]:>7}.',
+                value="Pirate Steve hope he got this right.",
+                inline=False,
+            )
+            steve_says_channel = bot.get_channel(get_steve_says_channel())
+            await steve_says_channel.send(embed=embed)
         await self.report_new_and_invalid_carriers(result)
 
 
