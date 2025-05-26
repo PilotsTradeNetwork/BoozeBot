@@ -112,8 +112,8 @@ class Departures(commands.Cog):
             await self.handle_reaction(message, user)
         except Exception as e:
             print(f"Failed to process reaction: {reaction_event}. Error: {e}")
-        
-    @tasks.loop(minutes = 10)
+
+    @tasks.loop(minutes = 5)
     async def check_departure_messages_loop(self):
         guild = bot.get_guild(bot_guild_id())
         departure_channel = guild.get_channel(get_departure_announcement_channel())
@@ -158,8 +158,8 @@ class Departures(commands.Cog):
                     continue
                     
                 print(f"Departure time: {departure_time}")
-                
-                if int(time.time()) > departure_time:
+
+                if int(time.time()) > departure_time + 10 * 60:  # Allow a 10-minute grace period
                     print("Departure time has passed.")
                     author_id = self.get_departure_author_id(message)
                     if author_id:
