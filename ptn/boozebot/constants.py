@@ -252,6 +252,27 @@ error_gifs = [
     'https://media.tenor.com/u-1jz7ttHhEAAAAC/angry-panda-rage.gif' # panda smash
 ]
 
+N_SYSTEMS = {
+    "N0": "HIP 58832",
+    "N1": "HD 105341",
+    "N2": "HD 104495",
+    "N3": "HIP 57784",
+    "N4": "HIP 57478",
+    "N5": "HIP 56843",
+    "N6": "HD 104392",
+    "N7": "HD 102779",
+    "N8": "HD 102000",
+    "N9": "HD 104785",
+    "N10": "HD 105548",
+    "N11": "HD 107865",
+    "N12": "Plaa Trua WQ-C d13-0",
+    "N13": "Plaa Trua QL-B c27-0",
+    "N14": "Wregoe OP-D b58-0",
+    "N15": "Wregoe ZE-B c28-2",
+    "N16": "Gali",
+    "N16-Trit": "Mandhrithar"
+}
+
 # Check the folder exists
 if not os.path.exists(os.path.dirname(CARRIERS_DB_PATH)):
     print(f'Folder {os.path.dirname(CARRIERS_DB_PATH)} does not exist, making it now.')
