@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Literal
 import logging
-
+ 
 # discord.py
 import discord
 from discord.app_commands import Group, describe, Choice
@@ -20,7 +20,7 @@ from discord import app_commands, NotFound
 from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelier_role_id, \
     server_wine_carrier_role_id, server_mod_role_id, wine_carrier_command_channel, \
     server_hitchhiker_role_id, get_departure_announcement_channel, server_connoisseur_role_id, \
-    get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel, get_steve_says_channel
+    get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel, get_steve_says_channel, N_SYSTEMS
 
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
@@ -57,33 +57,7 @@ class Departures(commands.Cog):
     This class is a collection functionality for posting departure messages for carriers.
     """
 
-    system_choices = [
-        Choice(name="N0", value="N0"),
-        Choice(name="N0 Star", value="N0 Star"),
-        Choice(name="N0 Planet 1", value="N0 Planet 1"),
-        Choice(name="N0 Planet 2", value="N0 Planet 2"),
-        Choice(name="N0 Planet 3", value="N0 Planet 3"),
-        Choice(name="N0 Planet 4", value="N0 Planet 4"),
-        Choice(name="N0 Planet 5", value="N0 Planet 5"),
-        Choice(name="N0 Planet 6", value="N0 Planet 6"),
-        Choice(name="N1", value="N1"),
-        Choice(name="N2", value="N2"),
-        Choice(name="N3", value="N3"),
-        Choice(name="N4", value="N4"),
-        Choice(name="N5", value="N5"),
-        Choice(name="N6", value="N6"),
-        Choice(name="N7", value="N7"),
-        Choice(name="N8", value="N8"),
-        Choice(name="N9", value="N9"),
-        Choice(name="N10", value="N10"),
-        Choice(name="N11", value="N11"),
-        Choice(name="N12", value="N12"),
-        Choice(name="N13", value="N13"),
-        Choice(name="N14", value="N14"),
-        Choice(name="N15", value="N15"),
-        Choice(name="Gali", value="Gali"),
-        Choice(name="Mandhrithar", value="Mandhrithar"),
-    ]
+    system_choices = [Choice(name=f"{system_id} ({system_name})", value=system_id) for system_id, system_name in N_SYSTEMS.items()]
 
     departure_announcement_status: Literal["Disabled", "Upwards", "All"] = "Disabled"
     # On ready check for any completed departure messages and remove them.
@@ -341,6 +315,10 @@ class Departures(commands.Cog):
             arrival_system_index = int(arrival_location.split(" ")[0][1:])
         except ValueError:
             arrival_system_index = 16
+            
+        departure_location = f"{departure_location} ({N_SYSTEMS[departure_location]})"
+        arrival_location = f"{arrival_location} ({N_SYSTEMS[arrival_location]})"
+            
 
         is_hitchhiking_trip = departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems
         is_thoon_trip = departure_system_index in thoon_systems or arrival_system_index in thoon_systems
@@ -415,7 +393,7 @@ class Departures(commands.Cog):
         # Set the departure announcement status
         self.departure_announcement_status = status
         # Send the response message
-        await interaction.edit_original_response(content=f"Departure announcements are now '{status}'.")
+        await interaction.edit_original_response(content=f"Departure announcements are now '{status}'.")        
 
 
     def get_departure_author_id(self, message):
