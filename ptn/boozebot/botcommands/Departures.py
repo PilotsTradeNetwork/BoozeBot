@@ -142,6 +142,9 @@ class Departures(commands.Cog):
 
                 if message.author.id != bot.user.id:
                     continue
+                
+                if len(message.embeds) > 0:
+                    continue
 
                 print("Departure message found.")
 
@@ -394,6 +397,89 @@ class Departures(commands.Cog):
         self.departure_announcement_status = status
         # Send the response message
         await interaction.edit_original_response(content=f"Departure announcements are now '{status}'.")        
+        
+        
+    @app_commands.command(name="official_carrier_departure", description="Post an official carrier departure message.")
+    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
+    @check_command_channel(get_steve_says_channel())
+    @app_commands.choices(arrival_location=system_choices, departure_location=system_choices, departure_time_type=[
+        Choice(name="Start Of Cruise", value="Start Of Cruise"),
+        Choice(name="End of Cruise", value="End of Cruise"),
+        Choice(name="Custom (requires timestamp)", value="Custom (requires timestamp)"),
+    ])
+    async def official_carrier_departure(self, interaction: discord.Interaction, carrier_id: str, operated_by: discord.Member, departure_location: str, arrival_location: str, departure_time_type: str, departure_timestamp: str = ""):
+        print(f"User {interaction.user.name} has requested an official carrier departure for carrier: {carrier_id} from {departure_location} to {arrival_location} with type: {departure_time_type}.")
+        await interaction.response.defer()
+        
+        # Convert carrier ID to uppercase
+        carrier_id = carrier_id.upper().strip()
+        guild = bot.get_guild(bot_guild_id())
+        
+        # Validate the carrier ID format
+        if not re.fullmatch(r"\w{3}-\w{3}", carrier_id):
+            msg = f'{interaction.user.name}, the carrier ID was invalid, "XXX-XXX" expected, received "{carrier_id}".'
+            print(msg)
+            await interaction.edit_original_response(content=msg)
+            return
+        
+        # Acquire the database lock and fetch carrier data
+        pirate_steve_db.execute(
+            "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f'%{carrier_id}%',)
+        )
+        carrier_data = pirate_steve_db.fetchone()
+        
+        # Check if carrier data was found
+        if not carrier_data:
+            msg = f'could not find a carrier for the data: "{carrier_id}".'
+            print(msg)
+            await interaction.edit_original_response(content=f"Sorry, we {msg}")
+            return
+        
+        # Create a BoozeCarrier object from the fetched data
+        carrier_data = BoozeCarrier(carrier_data)
+        
+        carrier_name = carrier_data.carrier_name
+        carrier_id = carrier_data.carrier_identifier
+        
+        departure_location = f"{departure_location} ({N_SYSTEMS[departure_location]})"
+        arrival_location = f"{arrival_location} ({N_SYSTEMS[arrival_location]})"
+        
+        if departure_time_type == "Start Of Cruise":
+            departure_time_text = "Departs when the public holiday is announced at Rackham's Peak"
+        elif departure_time_type == "End of Cruise":
+            departure_time_text = "Departs when the public holiday ends at Rackham's Peak"
+        elif departure_time_type == "Custom (requires timestamp)":
+            if not departure_timestamp:
+                msg = "You must provide a departure timestamp when using the 'Custom' departure time type."
+                print(msg)
+                await interaction.edit_original_response(content=msg)
+                return
+            
+            try:
+                if departure_timestamp.startswith("<t:") and departure_timestamp.endswith(">"):
+                    departure_timestamp = departure_timestamp.rstrip(">").split(":")[1]
+                departure_timestamp = int(departure_timestamp)
+            except ValueError:
+                msg = f"Departure timestamp was not a valid integer: {departure_timestamp}"
+                print(msg)
+                await interaction.edit_original_response(content=msg)
+                return
+            
+            departure_time_text = f"Departing at <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>)"
+        
+        embed = discord.Embed(
+            description=f"## {carrier_name} ({carrier_id})\n"
+                        f"## {departure_location} > {arrival_location}\n"
+                        f"{departure_time_text}\n"
+                        f"Operated by {operated_by.mention}",
+            color=15611236
+        )
+        
+        departure_channel = bot.get_channel(get_departure_announcement_channel())
+        departure_message = await departure_channel.send(embed=embed)
+        await departure_message.add_reaction("🛬")
+        await interaction.edit_original_response(content=f"Official carrier departure message sent: {departure_message.jump_url}")
+    
 
 
     def get_departure_author_id(self, message):
