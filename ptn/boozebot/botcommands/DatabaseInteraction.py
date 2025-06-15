@@ -51,7 +51,7 @@ from ptn.boozebot.modules.ErrorHandler import (
     CustomError,
     on_generic_error,
 )
-from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
+from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel, bc_channel_status
 from ptn.boozebot.database.database import (
     pirate_steve_db,
     pirate_steve_conn,
@@ -511,6 +511,7 @@ class DatabaseInteraction(commands.Cog):
         )
         
         updated_timestamp = f"\n\nLast updated: <t:{int(datetime.now().timestamp())}:F>" if include_timestamp else ""
+        signup_form_text = f"[Bringing wine? Sign up here]({self.loader_signup_form_url})" if bc_channel_status() else ""
 
         # Build the embed
         stat_embed = discord.Embed(
@@ -527,7 +528,7 @@ class DatabaseInteraction(commands.Cog):
             f"**Total profit:** — {total_profit:,}\n\n"
             f"**Total number of fleet carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n"
             f"{flavour_text}\n\n"
-            f"[Bringing wine? Sign up here]({self.loader_signup_form_url})"
+            f"{signup_form_text}"
             f"{updated_timestamp}"
         )
         stat_embed.set_image(
