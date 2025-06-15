@@ -53,6 +53,7 @@ def build_database_on_startup():
                     runtotal INT,
                     totalunloads INT,
                     discord_unload_in_progress INT,
+                    discord_unload_poster_id INT,
                     user_timezone_in_utc TEXT
                 ) 
             ''')
@@ -172,6 +173,14 @@ def build_database_on_startup():
         # Go add it
         pirate_steve_db.execute(
             '''ALTER TABLE boozecarriers ADD COLUMN user_timezone_in_utc TEXT'''
+        )
+        pirate_steve_conn.commit()
+        
+    if 'discord_unload_poster_id' not in col_names:
+        print('Adding the discord_unload_poster_id field.')
+        # Go add it
+        pirate_steve_db.execute(
+            '''ALTER TABLE boozecarriers ADD COLUMN discord_unload_poster_id INT'''
         )
         pirate_steve_conn.commit()
         
