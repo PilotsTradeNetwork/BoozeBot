@@ -105,7 +105,7 @@ class Unloading(commands.Cog):
                         carrier_data = BoozeCarrier(carrier_data)
                         
                         if carrier_data and carrier_data.discord_unload_poster_id:
-                            wine_carrier_channel = bot.get_channel(get_wine_carrier_channel())
+                            wine_carrier_channel = bot.get_channel(wine_carrier_command_channel())
                             await wine_carrier_channel.send(
                                 f"<@{carrier_data.discord_unload_poster_id}> "
                                 f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
