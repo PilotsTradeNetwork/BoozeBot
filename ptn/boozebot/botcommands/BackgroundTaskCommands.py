@@ -11,6 +11,14 @@ from ptn.boozebot.constants import bot, server_mod_role_id, server_sommelier_rol
 from ptn.boozebot.modules.helpers import check_roles, check_command_channel
 
 class BackgroundTaskCommands(commands.Cog):
+    
+    task_choices = [
+        Choice(name="periodic_stat_update", value="periodic_stat_update"),
+        Choice(name="check_departure_messages_loop", value="check_departure_messages_loop"),
+        Choice(name="public_holiday_loop", value="public_holiday_loop"),
+        Choice(name="last_unload_time_loop", value="last_unload_time_loop"),
+    ]
+    
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -21,11 +29,7 @@ class BackgroundTaskCommands(commands.Cog):
         task_name="The name of the task to start."
     )
     @app_commands.choices(
-        task_name=[
-            Choice(name="periodic_stat_update", value="periodic_stat_update"),
-            Choice(name="check_departure_messages_loop", value="check_departure_messages_loop"),
-            Choice(name="public_holiday_loop", value="public_holiday_loop"),
-        ]
+        task_name=task_choices
     )
     async def start_task(self, interaction: discord.Interaction, task_name: str):
         task = self.get_task(task_name)
@@ -46,11 +50,7 @@ class BackgroundTaskCommands(commands.Cog):
         task_name="The name of the task to stop."
     )
     @app_commands.choices(
-        task_name=[
-            Choice(name="periodic_stat_update", value="periodic_stat_update"),
-            Choice(name="check_departure_messages_loop", value="check_departure_messages_loop"),
-            Choice(name="public_holiday_loop", value="public_holiday_loop"),
-        ]
+        task_name=task_choices
     )
     async def stop_task(self, interaction: discord.Interaction, task_name: str):
         task = self.get_task(task_name)
@@ -71,11 +71,7 @@ class BackgroundTaskCommands(commands.Cog):
         task_name="The name of the task to check."
     )
     @app_commands.choices(
-        task_name=[
-            Choice(name="periodic_stat_update", value="periodic_stat_update"),
-            Choice(name="check_departure_messages_loop", value="check_departure_messages_loop"),
-            Choice(name="public_holiday_loop", value="public_holiday_loop"),
-        ]
+        task_name=task_choices
     )
     async def task_status(self, interaction: discord.Interaction, task_name: str):
         task = self.get_task(task_name)
@@ -91,6 +87,7 @@ class BackgroundTaskCommands(commands.Cog):
             "periodic_stat_update": bot.get_cog("DatabaseInteraction").periodic_stat_update,
             "check_departure_messages_loop": bot.get_cog("Departures").check_departure_messages_loop,
             "public_holiday_loop": bot.get_cog("PublicHoliday").public_holiday_loop,
+            "last_unload_time_loop": bot.get_cog("Unloading").last_unload_time_loop,
         }
         return tasks.get(task_name)
     
