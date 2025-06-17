@@ -28,6 +28,7 @@ from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
 from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
 from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
+from ptn.boozebot.modules.PHcheck import ph_check
 
 """
 UNLOADING COMMANDS
@@ -82,6 +83,10 @@ class Unloading(commands.Cog):
         
         if self.last_unload_time is None:
             print("Last unload time is not set, skipping reminder check.")
+            return
+        
+        if not await ph_check():
+            print("PH is not currently active, skipping reminder check.")
             return
 
         if datetime.now() - self.last_unload_time  >= timedelta(minutes=20):
