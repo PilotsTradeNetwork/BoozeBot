@@ -15,7 +15,7 @@ from discord.ext import commands
 
 # import local constants
 import ptn.boozebot.constants as constants
-from ptn.boozebot.constants import bot
+from ptn.boozebot.constants import bot, get_primary_booze_discussions_channel, get_pilot_role_id, bot_guild_id
 
 # import local modules
 from ptn.boozebot.modules.ErrorHandler import CommandChannelError, CommandRoleError, CustomError, on_generic_error
@@ -124,3 +124,21 @@ def check_text_command_channel(permitted_channel):
 # function to stop and quit
 def bot_exit():
     sys.exit("User requested exit.")
+    
+    
+def bc_channel_status():
+    """
+    Check if the booze cruise channels are open to pilot or not.
+    """
+    try:
+        guild = bot.get_guild(bot_guild_id())
+        bc_chat_channel = guild.get_channel(get_primary_booze_discussions_channel())
+        pilot_role = guild.get_role(get_pilot_role_id())
+        
+        if bc_chat_channel.permissions_for(pilot_role).view_channel:
+            print("Booze Cruise channel is open to pilots.")
+            return True
+        
+    except Exception as e:
+        print(f"Error checking bc channel status: {e}")
+        return False
