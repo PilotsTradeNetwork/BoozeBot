@@ -62,6 +62,69 @@ class Unloading(commands.Cog):
     """
     timed_unloads_allowed: bool = False
     last_unload_time: datetime = None
+    
+    # On reaction check if its in the unloading channel and if the reaction is fc complete,
+    # If it is and there are 5 reactions ping the poster
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, reaction_event):
+        try:
+            user = reaction_event.member
+
+            if user.bot:
+                return
+
+            if reaction_event.channel_id != get_discord_booze_unload_channel():
+                return
+
+            channel = await bot.fetch_channel(reaction_event.channel_id)
+            message = await channel.fetch_message(reaction_event.message_id)
+
+            if message.pinned:
+                return
+
+            if message.author.id != bot.user.id:
+                return
+
+            if reaction_event.emoji.id != get_fc_complete_id():
+                return
+
+            # Check if the FC complete reaction count meets the threshold
+            for message_reaction in message.reactions:
+                if message_reaction.emoji.id == get_fc_complete_id() and message_reaction.count >= 5:
+                    
+                    # Find carrier data for this message from the database
+                    pirate_steve_lock.acquire() 
+                    try:
+                        # Get the carrier data based on the message ID
+                        pirate_steve_db.execute(
+                            "SELECT * FROM boozecarriers WHERE discord_unload_in_progress = ?", 
+                            (message.id,)
+                        )
+                        carrier_data = pirate_steve_db.fetchone()
+                        
+                        carrier_data = BoozeCarrier(carrier_data)
+                        
+                        if carrier_data and carrier_data.discord_unload_poster_id:
+                            wine_carrier_channel = bot.get_channel(wine_carrier_command_channel())
+                            await wine_carrier_channel.send(
+                                f"<@{carrier_data.discord_unload_poster_id}> "
+                                f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
+                                f"has been marked completed, Please check and run /wine_unload_complete in <#{get_steve_says_channel()}> "
+                                "if it is correct."
+                            )
+                            
+                            # Set the poster ID to None to indicate they have already been notified
+                            pirate_steve_db.execute(
+                                "UPDATE boozecarriers SET discord_unload_poster_id = NULL WHERE discord_unload_in_progress = ?",
+                                (message.id,)  
+                            )
+                            pirate_steve_conn.commit()
+                    finally:
+                        pirate_steve_lock.release()
+                break
+
+        except Exception as e:
+            print(f"Failed to process reaction: {reaction_event}. Error: {e}")
 
     """
     Market helper commands
@@ -236,12 +299,13 @@ class Unloading(commands.Cog):
             pirate_steve_lock.acquire()
             data = (
                 discord_alert_id,
+                interaction.user.id,
                 f'%{carrier_id}%'
             )
 
             pirate_steve_db.execute('''
                 UPDATE boozecarriers
-                SET discord_unload_in_progress=?, totalunloads=totalunloads+1
+                SET discord_unload_in_progress=?, totalunloads=totalunloads+1, discord_unload_poster_id=?
                 WHERE carrierid LIKE (?)
             ''', data)
             pirate_steve_conn.commit()
@@ -356,12 +420,13 @@ class Unloading(commands.Cog):
             pirate_steve_lock.acquire()
             data = (
                 discord_alert_id,
+                interaction.user.id,
                 f'%{carrier_id}%'
             )
 
             pirate_steve_db.execute('''
                 UPDATE boozecarriers
-                SET discord_unload_in_progress=?, totalunloads=totalunloads+1
+                SET discord_unload_in_progress=?, totalunloads=totalunloads+1, discord_unload_poster_id=?
                 WHERE carrierid LIKE (?)
             ''', data)
             pirate_steve_conn.commit()
@@ -428,7 +493,7 @@ class Unloading(commands.Cog):
                 data = (f'%{carrier_id}%',)
                 pirate_steve_db.execute('''
                     UPDATE boozecarriers
-                    SET discord_unload_in_progress=NULL
+                    SET discord_unload_in_progress=NULL, discord_unload_poster_id=NULL
                     WHERE carrierid LIKE (?)
                 ''', data)
                 pirate_steve_conn.commit()
@@ -522,12 +587,13 @@ class Unloading(commands.Cog):
             pirate_steve_lock.acquire()
             data = (
                 discord_alert_id,
+                interaction.user.id,
                 f'%{carrier_id}%'
             )
 
             pirate_steve_db.execute('''
                 UPDATE boozecarriers
-                SET discord_unload_in_progress=?, totalunloads=totalunloads+1
+                SET discord_unload_in_progress=?, totalunloads=totalunloads+1, discord_unload_poster_id=?
                 WHERE carrierid LIKE (?)
             ''', data)
             pirate_steve_conn.commit()

@@ -303,7 +303,7 @@ class DatabaseInteraction(commands.Cog):
                     pirate_steve_lock.acquire()
                     pirate_steve_db.execute(
                         """ 
-                    INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?) 
+                    INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL) 
                     """,
                         (
                             carrier_data.carrier_name,
