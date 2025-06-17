@@ -5,7 +5,7 @@ Cog for unloading related commands
 
 # libraries
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # discord.py
 import discord
@@ -84,9 +84,7 @@ class Unloading(commands.Cog):
             print("Last unload time is not set, skipping reminder check.")
             return
 
-        now = datetime.now()
-        elapsed_time = now - self.last_unload_time
-        if elapsed_time.total_seconds() >= 60 * 20:
+        if datetime.now() - self.last_unload_time  >= timedelta(minutes=20):
             print("Last unload time was more than 20 minutes ago, sending reminder message.")
             try:
                 rstc_channel = bot.get_channel(wine_carrier_command_channel())
