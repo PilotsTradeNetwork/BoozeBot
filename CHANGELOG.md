@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.13
+-    \#555 - When unload notices get 5 :fc_complete: reactions, the poster is pinged in <#839503109679349780>
+-    \#549 - Invalid carriers now properly reported, Somm only pinged once even for multiple carriers
+-    \#552 - /booze_started_admin_override now sets the start time in the database
+-    \#495 - /official_carrier_departure has been added to allow posting snooze / shuttle departures
+-    \#541 - Tallies posted when the cruise channels are closed will no longer include the signup link
+-    \#542 - Update default tracking forms to dev sheet not a cruise from 2021
+-    \#556 - Post a reminder in <#839503109679349780> if it has been 20 minutes since the last unload
+-    Conns now have access to unload & unload complete commands
+
 ## 2.0.12
 -    \#544 - Steve now changes pilot view perms for bc channels rather than default perms
 

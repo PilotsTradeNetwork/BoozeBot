@@ -53,6 +53,7 @@ def build_database_on_startup():
                     runtotal INT,
                     totalunloads INT,
                     discord_unload_in_progress INT,
+                    discord_unload_poster_id INT,
                     user_timezone_in_utc TEXT
                 ) 
             ''')
@@ -130,12 +131,12 @@ def build_database_on_startup():
                 ) 
             ''')
         # Some default values in the case we need to make the table. These will need to be set accordingly,
-        # remove this once we have them in place
+        # These are the values for the testing form.
         pirate_steve_db.execute('''
             INSERT INTO trackingforms VALUES(
                 NULL,
-                '1Etk2sZRKKV7LsDVNJ60qrzJs3ZE8Wa99KTv7r6bwgIw',
-                'https://forms.gle/dWugae3M3i76NNVi7',
+                '1fhdNd1zM4cQrQA0mCWzJAQWy70uiR3I8NLhBO7TAIL8',
+                'https://forms.gle/U1YeSg9Szj1jcFHr5',
                 1
             ) 
         ''')
@@ -172,6 +173,14 @@ def build_database_on_startup():
         # Go add it
         pirate_steve_db.execute(
             '''ALTER TABLE boozecarriers ADD COLUMN user_timezone_in_utc TEXT'''
+        )
+        pirate_steve_conn.commit()
+        
+    if 'discord_unload_poster_id' not in col_names:
+        print('Adding the discord_unload_poster_id field.')
+        # Go add it
+        pirate_steve_db.execute(
+            '''ALTER TABLE boozecarriers ADD COLUMN discord_unload_poster_id INT'''
         )
         pirate_steve_conn.commit()
         

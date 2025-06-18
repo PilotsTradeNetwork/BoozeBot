@@ -56,6 +56,8 @@ class BoozeCarrier:
 
         # This being set that an unload is ongoing
         self.discord_unload_notification = info_dict.get('discord_unload_in_progress', None)
+        # Discord unload poster ID, the user who posted the unload notification
+        self.discord_unload_poster_id = info_dict.get('discord_unload_poster_id', None)
 
         # Track number of runs the carrier completed
         self.run_count = info_dict.get('run_count', None) or info_dict.get('runtotal', None)
@@ -104,7 +106,7 @@ class BoozeCarrier:
 
         :rtype: bool
         """
-        return any([value for key, value in vars(self).items() if key not in ['timestamp', 'platform'] and value])
+        return any([value for key, value in vars(self).items() if key not in ['timestamp', 'platform', 'discord_unload_poster_id'] and value])
 
     def __eq__(self, other):
         """
