@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.13a
+-    \#570 - Make ph_check check the database (conshmea)
+-    \#571 - Fix last unload time not resetting with unloads (conshmea)
+
 ## 2.0.13
 -    \#555 - When unload notices get 5 :fc_complete: reactions, the poster is pinged in <#839503109679349780>
 -    \#549 - Invalid carriers now properly reported, Somm only pinged once even for multiple carriers

@@ -5,6 +5,8 @@
 import httpx
 from json import JSONDecodeError
 
+from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock
+
 async def get_state_from_ebgs() -> bool:
     ebgs_params = {
         'name': 'Rackham Capital Investments'
@@ -47,7 +49,7 @@ async def get_state_from_edsm() -> bool:
     return False
 
 
-async def ph_check() -> bool:
+async def api_ph_check() -> bool:
     try:
         if await get_state_from_edsm():
             return True
@@ -67,3 +69,20 @@ async def ph_check() -> bool:
     # Return false if there are no public holiday hits
     print('PH was not hit - Returning False.')
     return False
+
+def ph_check() -> bool:
+    try:
+        pirate_steve_db.execute(
+            '''SELECT state FROM holidaystate'''
+        )
+        holiday_sqlite3 = pirate_steve_db.fetchone()
+        holiday_ongoing = bool(dict(holiday_sqlite3).get('state'))
+        if not holiday_ongoing:
+            print('PH is not ongoing according to the database.')
+            return False
+        else:
+            print('PH is ongoing according to the database.')
+            return True
+    except Exception as e:
+        print(f'Problem while checking the PH state from the database: {e}')
+        return False

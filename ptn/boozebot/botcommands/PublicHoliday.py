@@ -21,7 +21,7 @@ from ptn.boozebot.constants import (
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_lock
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
-from ptn.boozebot.modules.PHcheck import ph_check
+from ptn.boozebot.modules.PHcheck import ph_check, api_ph_check
 
 """
 PUBLIC HOLIDAY TASK LOOP
@@ -153,7 +153,7 @@ class PublicHoliday(commands.Cog):
         """
         try:
             print("Rackham's holiday loop running.")
-            await cls._set_public_holiday_state(await ph_check())
+            await cls._set_public_holiday_state(await api_ph_check())
                 
         except Exception as e:
             print(f'Error in the public holiday loop: {e}')
@@ -166,7 +166,7 @@ class PublicHoliday(commands.Cog):
         print(f'User {interaction.user.name} wanted to know if the holiday has started.')
         gif = None
 
-        if await ph_check():
+        if ph_check():
             print('Rackhams holiday check says yep.')
             try:
                 gif = random.choice(holiday_query_started_gifs)
@@ -238,7 +238,7 @@ class PublicHoliday(commands.Cog):
     async def remaining_time(self, interaction: discord. Interaction):
         print(f'User {interaction.user.name} wanted to know if the remaining time of the holiday.')
         await interaction.response.defer()
-        if not await ph_check():
+        if not ph_check():
             await interaction.edit_original_response(content="Pirate Steve has not detected the holiday state yet, or it is already over.")
             return
         print('Holiday ongoing, go figure out how long is left.')
