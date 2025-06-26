@@ -72,7 +72,6 @@ async def api_ph_check() -> bool:
 
 def ph_check() -> bool:
     try:
-        pirate_steve_lock.acquire()
         pirate_steve_db.execute(
             '''SELECT state FROM holidaystate'''
         )
