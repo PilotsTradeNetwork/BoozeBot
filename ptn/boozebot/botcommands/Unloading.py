@@ -61,7 +61,7 @@ class Unloading(commands.Cog):
     This class is a collection functionality for tracking a booze cruise unload operations
     """
     timed_unloads_allowed: bool = False
-    last_unload_time: datetime = None
+    last_unload_time: datetime | None = None
     
     # On reaction check if its in the unloading channel and if the reaction is fc complete,
     # If it is and there are 5 reactions ping the poster
@@ -152,7 +152,11 @@ class Unloading(commands.Cog):
             print("PH is not currently active, skipping reminder check.")
             return
 
-        if datetime.now() - self.last_unload_time  >= timedelta(minutes=20):
+        if datetime.now() - self.last_unload_time >= timedelta(minutes=20):
+            pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE discord_unload_in_progress IS NOT NULL")
+            if pirate_steve_db.fetchone():
+                print("There is an active unload in progress, skipping reminder check.")
+                return
             print("Last unload time was more than 20 minutes ago, sending reminder message.")
             try:
                 rstc_channel = bot.get_channel(wine_carrier_command_channel())
@@ -163,8 +167,8 @@ class Unloading(commands.Cog):
                 await message.add_reaction("🏴‍☠️")
                 # Set the flag back to None so we don't keep sending messages
                 self.last_unload_time = None
-            except:
-                print("Failed to notify RSTC channel about the last unload time.")
+            except discord.DiscordException as e:
+                print(f"Failed to notify RSTC channel about the last unload time: {e}")
         else:
             print("Last unload time was less than 20 minutes ago, skipping reminder.")
             
