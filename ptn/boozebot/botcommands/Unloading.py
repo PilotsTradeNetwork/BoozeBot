@@ -290,6 +290,9 @@ class Unloading(commands.Cog):
                                    icon_url=f'https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1')
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
         await message_send.delete()
+        
+        self.last_unload_time = None
+        
         # Get the discord alert ID and drop it into the database
         discord_alert_id = wine_unload_alert.id
 
@@ -411,6 +414,9 @@ class Unloading(commands.Cog):
                                    icon_url=f'https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1')
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
         await message_send.delete()
+        
+        self.last_unload_time = None
+        
         # Get the discord alert ID and drop it into the database
         discord_alert_id = wine_unload_alert.id
 
@@ -577,6 +583,8 @@ class Unloading(commands.Cog):
         tanker_embed.set_footer(text=f'Please react with this emoji once completed.',
                                 icon_url=f'https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1')
         tanker_unload_alert = await tanker_unload_channel.send(embed=tanker_embed)
+        
+        self.last_unload_time = None
 
         # Get the discord alert ID and drop it into the database
         discord_alert_id = tanker_unload_alert.id
