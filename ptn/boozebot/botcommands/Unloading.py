@@ -148,7 +148,7 @@ class Unloading(commands.Cog):
             print("Last unload time is not set, skipping reminder check.")
             return
         
-        if not await ph_check():
+        if not ph_check():
             print("PH is not currently active, skipping reminder check.")
             return
 
