@@ -105,6 +105,7 @@ class DiscordBotCommands(commands.Cog):
         try:
             bot_channel = self.bot.get_channel(get_bot_control_channel())
             await bot_channel.send(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
+            await bot_channel.send('https://tenor.com/view/minecraft-movie-minecraft-a-minecraft-movie-jack-black-i-am-steve-gif-13691645871022200802')
         except AttributeError as e:
             logging.error(f"Error in on_ready: {e}")
 
