@@ -5,7 +5,7 @@
 import httpx
 from json import JSONDecodeError
 
-from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock
+from ptn.boozebot.database.database import pirate_steve_db
 
 async def get_state_from_ebgs() -> bool:
     ebgs_params = {
