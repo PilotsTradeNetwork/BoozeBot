@@ -18,7 +18,7 @@ from ptn.boozebot.constants import (
     server_connoisseur_role_id, server_council_role_ids, server_mod_role_id, server_sommelier_role_id,
     wine_carrier_command_channel
 )
-from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_lock
+from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.PHcheck import ph_check, api_ph_check
@@ -80,12 +80,12 @@ class PublicHoliday(commands.Cog):
             holiday_ongoing = bool(dict(holiday_sqlite3).get('state'))
             print(f'Holiday state from database: {holiday_ongoing}')
             if not holiday_ongoing or force_update:
-                pirate_steve_lock.acquire()
-                pirate_steve_db.execute(
-                    '''UPDATE holidaystate SET state=TRUE, timestamp=CURRENT_TIMESTAMP'''
-                )
-                pirate_steve_conn.commit()
-                pirate_steve_lock.release()
+                async with pirate_steve_db_lock:
+                    pirate_steve_db.execute(
+                        '''UPDATE holidaystate SET state=TRUE, timestamp=CURRENT_TIMESTAMP'''
+                    )
+                    pirate_steve_conn.commit()
+                
                 print('Holiday was not ongoing, started now - flag it accordingly')
                 await holiday_announce_channel.send(holiday_start_gif)
                 await holiday_announce_channel.send(
@@ -126,12 +126,12 @@ class PublicHoliday(commands.Cog):
 
                 print(f'Holiday state from database: {holiday_ongoing}')
                 if holiday_ongoing or force_update:
-                    pirate_steve_lock.acquire()
-                    pirate_steve_db.execute(
-                        '''UPDATE holidaystate SET state=False, timestamp=CURRENT_TIMESTAMP'''
-                    )
-                    pirate_steve_conn.commit()
-                    pirate_steve_lock.release()
+                    async with pirate_steve_db_lock:
+                        pirate_steve_db.execute(
+                            '''UPDATE holidaystate SET state=False, timestamp=CURRENT_TIMESTAMP'''
+                        )
+                        pirate_steve_conn.commit()
+                    
                     # Only post it if it is a state change.
                     print('Holiday was ongoing, no longer ongoing - flag it accordingly')
                     await holiday_announce_channel.send(holiday_ended_gif)
