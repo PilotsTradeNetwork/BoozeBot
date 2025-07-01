@@ -13,7 +13,8 @@ from discord import app_commands, NotFound
 
 # local constants
 from ptn.boozebot.constants import bot_guild_id, get_bot_control_channel, get_primary_booze_discussions_channel, \
-    server_council_role_ids, bot, error_gifs, ping_response_messages, server_sommelier_role_id, I_AM_STEVE_GIF
+    server_council_role_ids, bot, error_gifs, ping_response_messages, server_sommelier_role_id, I_AM_STEVE_GIF, \
+    get_wine_carrier_channel
 from ptn.boozebot._metadata import __version__
 
 # local modules
@@ -33,11 +34,11 @@ async def on_command_error(ctx, error):
         await ctx.send(f'**Bad argument!** {error}')
         print({error})
     elif isinstance(error, commands.CommandNotFound):
-        await ctx.send("**Invalid command.**")
+        #await ctx.send("**Invalid command.**")
         print({error})
     elif isinstance(error, commands.MissingRequiredArgument):
         print({error})
-        await ctx.send("**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help <command>` for details."
+        await ctx.send("**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details."
                        "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation"
                        " marks are of the same type, i.e. all straight or matching open/close smartquotes.")
     elif isinstance(error, commands.MissingPermissions):
@@ -116,15 +117,34 @@ class DiscordBotCommands(commands.Cog):
         print('Starting the holiday checker.')
 
     @commands.Cog.listener()
-    async def on_message(self, message):
-        if message.channel.id == get_primary_booze_discussions_channel():
-            if self.bot.user.mentioned_in(message) and message.author != self.bot.user:
+    async def on_message(self, message: discord.Message):
+        TXT_COMMANDS = ['ping', 'exit', 'update', 'version', 'sync']
+        
+        if message.channel.id not in [get_primary_booze_discussions_channel(), get_wine_carrier_channel()]:
+            return
+        
+        if not self.bot.user.mentioned_in(message):
+            return
+        
+        if message.author == self.bot.user:
+            return
+        
+        if message.is_system():
+            return
+        
+        if message.reference:
+            return
+        
+        msg_split = message.content.split()
+        
+        if len(msg_split) >= 2 and msg_split[1].lower() in TXT_COMMANDS:
+            return
 
-                print(f'{message.author} mentioned PirateSteve.')
-                
-                await message.channel.send(
-                    random.choice(ping_response_messages).format(message_author_id=message.author.id), reference=message
-                )
+        print(f'{message.author} mentioned PirateSteve.')
+        
+        await message.channel.send(
+            random.choice(ping_response_messages).format(message_author_id=message.author.id), reference=message
+        )
 
     @commands.Cog.listener()
     async def on_disconnect(self):
