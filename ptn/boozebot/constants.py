@@ -124,6 +124,8 @@ EMBED_COLOUR_STATUS = 0xee3563
 
 WCO_ROLE_ICON_URL = "https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless"
 
+I_AM_STEVE_GIF = "https://pilotstradenetwork.com/wp-content/uploads/2025/07/I-Am-Steve.gif"
+
 # define the logger for discord client
 # TODO: use PTNLogger and extend to all Steve Logging
 log_handler = logging.StreamHandler(sys.stdout)
