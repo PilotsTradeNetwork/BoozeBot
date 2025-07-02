@@ -12,8 +12,8 @@ from discord.ext import commands, tasks
 from discord import app_commands, NotFound
 
 # local constants
-from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel, get_primary_booze_discussions_channel, \
-    server_council_role_ids, bot, error_gifs, ping_response_messages, server_sommelier_role_id
+from ptn.boozebot.constants import bot_guild_id, get_bot_control_channel, get_primary_booze_discussions_channel, \
+    server_council_role_ids, bot, error_gifs, ping_response_messages, server_sommelier_role_id, I_AM_STEVE_GIF
 from ptn.boozebot._metadata import __version__
 
 # local modules
@@ -104,8 +104,9 @@ class DiscordBotCommands(commands.Cog):
         print(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
         try:
             bot_channel = self.bot.get_channel(get_bot_control_channel())
-            await bot_channel.send(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
-            await bot_channel.send('https://tenor.com/view/minecraft-movie-minecraft-a-minecraft-movie-jack-black-i-am-steve-gif-13691645871022200802')
+            embed = discord.Embed(description=f"{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}")
+            embed.set_image(url=I_AM_STEVE_GIF)
+            await bot_channel.send(embed=embed)
         except AttributeError as e:
             logging.error(f"Error in on_ready: {e}")
 
@@ -140,7 +141,9 @@ class DiscordBotCommands(commands.Cog):
         :param discord.Context ctx: The Discord context object
         :returns: None
         """
-        await ctx.send(f"**Avast Ye Landlubber! {self.bot.user.name} is here!**")
+        embed = discord.Embed(description=f"**Avast Ye Landlubber! {self.bot.user.name} is here!**")
+        embed.set_image(url=I_AM_STEVE_GIF)
+        await ctx.send(embed=embed)
 
     # quit the bot
     @commands.command(name='exit', help="Stops the bots process on the VM, ending all functions.")
