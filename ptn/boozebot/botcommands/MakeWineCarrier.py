@@ -13,7 +13,7 @@ from discord.ext import commands
 from ptn.boozebot.constants import (
     WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot, get_primary_booze_discussions_channel, get_steve_says_channel,
     get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
-    server_sommelier_role_id, server_wine_carrier_role_id
+    server_sommelier_role_id, server_wine_carrier_role_id, bot_spam_channel
 )
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
@@ -91,7 +91,14 @@ class MakeWineCarrier(commands.Cog):
                 try:
                     await user.remove_roles(wc_role)
                     response = f"{user.display_name} no longer has the {wc_role.name} role."
-                    return await interaction.response.send_message(content=response)
+                    await interaction.response.send_message(content=response)
+                
+                    bot_spam = bot.get_channel(bot_spam_channel())
+                    embed = discord.Embed(
+                        description=f"{user.mention} ({user.name}) has been removed from the {wc_role.mention} role by {interaction.user.mention} ({interaction.user.name}).",
+                    )
+                    await bot_spam.send(embed=embed)
+                
                 except Exception as e:
                     print(e)
                     await interaction.response.send_message(f"Failed removing role {wc_role.name} from {user}: {e}", ephemeral=True)
@@ -133,7 +140,14 @@ async def make_user_wine_carrier(interaction, user):
                 await wine_channel.send(f"<@{user.id}>", embed=embed)
                     
                 await channel.send(content=response)
-                return await interaction.response.send_message(content=response, ephemeral=True)
+                await interaction.response.send_message(content=response, ephemeral=True)
+            
+                bot_spam = bot.get_channel(bot_spam_channel())
+                embed = discord.Embed(
+                    description=f"{user.mention} ({user.name}) has been given the {wc_role.mention} role by {interaction.user.mention} ({interaction.user.name}).",
+                )
+                await bot_spam.send(embed=embed)
+            
             except Exception as e:
                 print(e)
                 await interaction.response.send_message(f"Failed adding role {wc_role.name} to {user}: {e}", ephemeral=True)
