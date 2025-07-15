@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.14
+-    \#587 - Update CODEOWNERS (booze-dev-staff is now code owner) (IndorilReborn)
+-    \#577 - Remove channel mention from unload complete reminder (IndorilReborn)
+-    \#578 - Skip last unload reminder if an unload is open (IndorilReborn)
+-    \#580 - Update help command (conshmea)
+-    \#581 - Fix make wine carrier sending double welcomes (conshmea)
+-    \#583 - Use asyncio lock not threading lock (conshmea)
+-    \#584 - I am steve GIF (conshmea)
+-    \#586 - Add the role names in error for missing role (conshmea)
+-    \#585 - Trigger commands from bot mention (conshmea)
+-    \#588 - Remove help command (conshmea)
+-    \#589 - Use wine cellar unloading id on test server (conshmea)
+
 ## 2.0.13a
 -    \#570 - Make ph_check check the database (conshmea)
 -    \#571 - Fix last unload time not resetting with unloads (conshmea)
