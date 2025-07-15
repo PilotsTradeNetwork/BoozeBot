@@ -43,6 +43,10 @@ async def on_command_error(ctx, error):
     elif isinstance(error, commands.MissingPermissions):
         print({error})
         await ctx.send('**You must be a Carrier Owner to use this command.**')
+    elif isinstance(error, commands.MissingAnyRole):
+        print({error})
+        roles = ', '.join([ctx.guild.get_role(role_id).name for role_id in error.missing_roles])
+        await ctx.send(f'**You must have one of the following roles to use this command:** {roles}')
     else:
         await ctx.send(gif)
         print({error})
