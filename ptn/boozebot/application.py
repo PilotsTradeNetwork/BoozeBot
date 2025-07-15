@@ -18,7 +18,6 @@ from ptn.boozebot.database.database import build_database_on_startup
 from ptn.boozebot.botcommands.DiscordBotCommands import DiscordBotCommands
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.botcommands.DatabaseInteraction import DatabaseInteraction
-from ptn.boozebot.botcommands.Helper import Helper
 from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
 from ptn.boozebot.botcommands.MimicSteve import MimicSteve
 from ptn.boozebot.botcommands.Cleaner import Cleaner
@@ -45,7 +44,6 @@ async def boozebot():
         await bot.add_cog(DiscordBotCommands(bot))
         await bot.add_cog(Unloading(bot))
         await bot.add_cog(DatabaseInteraction(bot))
-        await bot.add_cog(Helper(bot))
         await bot.add_cog(PublicHoliday(bot))
         await bot.add_cog(MimicSteve(bot))
         await bot.add_cog(Cleaner(bot))
