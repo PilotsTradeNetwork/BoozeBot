@@ -71,7 +71,7 @@ class MakeWineCarrier(commands.Cog):
     
         
     @app_commands.command(name="remove_wine_carrier", description="Removes the Wine Carrier role from a user. Admin/Sommelier/Connoisseur role required.")
-    @describe(user="An @ mention of the Discord user to receive the role.")
+    @describe(user="An @ mention of the Discord user to remove the role from.")
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def remove_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
