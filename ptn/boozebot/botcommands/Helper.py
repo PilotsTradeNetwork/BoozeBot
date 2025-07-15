@@ -16,7 +16,7 @@ from discord import app_commands
 # local constants
 from ptn.boozebot.constants import get_steve_says_channel, get_wine_carrier_channel, wine_carrier_command_channel, \
     server_mod_role_id, server_sommelier_role_id, server_council_role_ids, server_connoisseur_role_id, server_wine_carrier_role_id, \
-    bot_guild_id
+    bot_guild_id, get_primary_booze_discussions_channel
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
@@ -41,13 +41,13 @@ class Helper(commands.Cog):
     # custom global error handler
     # attaching the handler when the cog is loaded
     # and storing the old handler
-    def cog_load(self):
+    async def cog_load(self):
         tree = self.bot.tree
         self._old_tree_error = tree.on_error
         tree.on_error = on_app_command_error
 
     # detaching the handler when the cog is unloaded
-    def cog_unload(self):
+    async def cog_unload(self):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
         
@@ -120,11 +120,11 @@ class Helper(commands.Cog):
                 },
                 {
                     "name": "send_channel",
-                    "description": "The channel to send the message in",
+                    "description": "The channel to send the message in. Defaults to the current channel.",
                     "type": "discord.TextChannel"
                 }
             ],
-            "channel_restrictions": [get_steve_says_channel()],
+            "channel_restrictions": [],
         }
         booze_started_admin_override = {
             "method_desc": "Override the Public Holiday Started State.",
@@ -133,6 +133,11 @@ class Helper(commands.Cog):
                 {
                     "name": "state",
                     "description": "The state to set the Public Holiday Started State to.",
+                    "type": "bool"
+                },
+                {
+                    "name": "force_update",
+                    "description": "Force the update of the holiday state, even if it is already set.",
                     "type": "bool"
                 }
             ],
@@ -168,10 +173,16 @@ class Helper(commands.Cog):
             "params": [],
             "channel_restrictions": [get_steve_says_channel()],
         }
-        set_wine_carrier_welcome = {
-            "method_desc": "Set the wine carrier welcome message.",
+        booze_update_blurb_message = {
+            "method_desc": "Update a blurb message (WCO welcome or status announcement).",
             "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
-            "params": [],
+            "params": [
+                {
+                    "name": "blurb",
+                    "description": "The blurb to update",
+                    "type": "str"
+                }
+            ],
             "channel_restrictions": [get_steve_says_channel()],
         }
         booze_pin_message = {
@@ -246,6 +257,135 @@ class Helper(commands.Cog):
             ],
             "channel_restrictions": [get_steve_says_channel()],
         }
+        start_task = {
+            "method_desc": "Start a background task.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [
+                {
+                    "name": "task_name",
+                    "description": "The name of the task to start.",
+                    "type": "str"
+                },
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        stop_task = {
+            "method_desc": "Stop a background task.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [
+                {
+                    "name": "task_name",
+                    "description": "The name of the task to stop.",
+                    "type": "str"
+                },
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        task_status = {
+            "method_desc": "Get the status of a background task.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [
+                {
+                    "name": "task_name",
+                    "description": "The name of the task to get the status of.",
+                    "type": "str"
+                },
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        booze_purge_full_carriers = {
+            "method_desc": "Purge all carriers from the database that have no wine.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        open_wine_carrier_feedback = {
+            "method_desc": "Open the wine carrier feedback channel.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        close_wine_carrier_feedback = {
+            "method_desc": "Close the wine carrier feedback channel.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        set_allowed_departures = {
+            "method_desc": "Set the allowed departures to be posted.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [
+                {
+                    "name": "status",
+                    "description": "The status to set the allowed departures to.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        toggle_timed_unloads = {
+            "method_desc": "Toggle timed unloads on or off.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        booze_timestamp_admin_override = {
+            "method_desc": "Override the Public Holiday start timestamp.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [
+                {
+                    "name": "timestamp",
+                    "description": "The timestamp to set the Public Holiday start timestamp to.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        booze_update_bc_status_embed = {
+            "method_desc": "Update the BC status embed.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [
+                {
+                    "name": "status",
+                    "description": "The status to set the BC status embed to.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        official_carrier_departure = {
+            "method_desc": "Post an official carrier departure notice.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()],
+            "params": [
+                {
+                    "name": "carrier_id",
+                    "description": "The ID of the carrier to post a departure notice for.",
+                    "type": "str"
+                },
+                {
+                    "name": "departure_location",
+                    "description": "The location the carrier is departing from.",
+                    "type": "str"
+                },
+                {
+                    "name": "arrival_location",
+                    "description": "The location the carrier is arriving to.",
+                    "type": "str"
+                },
+                {
+                    "name": "departure_time_type",
+                    "description": "The type of departure time to use. Start/End of PH or a specific time.",
+                    "type": "str"
+                },
+                {
+                    "name": "departure_timestamp",
+                    "description": "The unix timestamp, or discord timestamp of the carrier departure.",
+                    "type": "str"
+                }
+            ],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        
         
         # Connoisseur commands
         update_booze_db = {
@@ -269,7 +409,13 @@ class Helper(commands.Cog):
         booze_tally = {
             "method_desc": "Get the current booze tally.",
             "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
-            "params": [],
+            "params": [
+                {
+                    "name": "cruise_select",
+                    "description": "The cruise to get the tally for. Defaults to the current cruise.",
+                    "type": "str"
+                }    
+            ],
             "channel_restrictions": [],
         }
         booze_carrier_summary = {
@@ -281,7 +427,13 @@ class Helper(commands.Cog):
         booze_tally_extra_stats = {
             "method_desc": "Get the extra stats for the booze tally.",
             "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
-            "params": [],
+            "params": [
+                {
+                    "name": "cruise_select",
+                    "description": "The cruise to get the tally for. Defaults to the current cruise.",
+                    "type": "str"
+                }    
+            ],
             "channel_restrictions": [],
         }
         biggest_cruise_tally = {
@@ -296,6 +448,13 @@ class Helper(commands.Cog):
                 ],
             "channel_restrictions": [],
         }
+        booze_started = {
+            "method_desc": "Get the Public Holiday Started State.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()],
+            "params": [],
+            "channel_restrictions": [get_steve_says_channel()],
+        }
+        
         
         # Wine carrier commands
         find_carriers_with_wine = {
@@ -353,10 +512,22 @@ class Helper(commands.Cog):
                     "name": "body",
                     "description": "A string representing the location of the carrier, ie Star, P1, P2",
                     "type": "str"
+                }
+            ],
+            "channel_restrictions": [wine_carrier_command_channel()],
+        }
+        wine_timed_unload = {
+            "method_desc": "Post a new timed unload notice for a carrier.",
+            "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()],
+            "params": [
+                {
+                    "name": "carrier_id",
+                    "description": "The ID of the carrier to mark as unloaded.",
+                    "type": "str"
                 },
                 {
-                    "name": "market_type",
-                    "description": "The market conditions for the carrier",
+                    "name": "body",
+                    "description": "A string representing the location of the carrier, ie Star, P1, P2",
                     "type": "str"
                 },
                 {
@@ -436,7 +607,7 @@ class Helper(commands.Cog):
             "method_desc": "Get the remaining duration of the cruise.",
             "roles": [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id(), bot_guild_id()],
             "params": [],
-            "channel_restrictions": [],
+            "channel_restrictions": [steve_says(), get_primary_booze_discussions_channel()],
         }
         
     
