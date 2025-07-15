@@ -24,7 +24,7 @@ from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelie
 
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock
+from ptn.boozebot.database.database import pirate_steve_db
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error

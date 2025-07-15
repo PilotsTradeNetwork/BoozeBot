@@ -1,6 +1,6 @@
 import os
 import sqlite3
-import threading
+import asyncio
 
 from ptn.boozebot.constants import get_db_path, get_db_dumps_path
 
@@ -12,7 +12,7 @@ pirate_steve_db = pirate_steve_conn.cursor()
 pirate_steve_conn.set_trace_callback(print)
 
 db_sql_store = get_db_dumps_path()
-pirate_steve_lock = threading.Lock()
+pirate_steve_db_lock = asyncio.Lock()
 
 
 def dump_database():
