@@ -13,7 +13,7 @@ from discord.ext import commands
 from ptn.boozebot.constants import (
     WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot, get_primary_booze_discussions_channel, get_steve_says_channel,
     get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
-    server_sommelier_role_id, server_wine_carrier_role_id
+    server_sommelier_role_id, server_wine_carrier_role_id, bot_spam_channel
 )
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
@@ -77,67 +77,78 @@ class MakeWineCarrier(commands.Cog):
     async def remove_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
         print(f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to remove the Wine Carrier role")
 
-        await wine_carrier_toggle_lock.acquire()
+        async with wine_carrier_toggle_lock:
+            # set the target role
+            wc_role = discord.utils.get(interaction.guild.roles, id=server_wine_carrier_role_id())
+            print(f"Wine Carrier role name is {wc_role.name}")
+            
+            # Refetch the user from the interaction inside the lock
+            user = await interaction.guild.fetch_member(user.id)
 
-        # set the target role
-        wc_role = discord.utils.get(interaction.guild.roles, id=server_wine_carrier_role_id())
-        print(f"Wine Carrier role name is {wc_role.name}")
-
-
-        if wc_role in user.roles:
-            # remove role
-            print(f"{user} is a {wc_role.name}, removing the role.")
-            try:
-                await user.remove_roles(wc_role)
-                response = f"{user.display_name} no longer has the {wc_role.name} role."
-                wine_carrier_toggle_lock.release()
-                return await interaction.response.send_message(content=response)
-            except Exception as e:
-                print(e)
-                await interaction.response.send_message(f"Failed removing role {wc_role.name} from {user}: {e}", ephemeral=True)
-                wine_carrier_toggle_lock.release()
-                return
-        else:
-            print("User is not a wine carrier, doing nothing.")
-            wine_carrier_toggle_lock.release()
-            return await interaction.response.send_message(f"User is not a {wc_role.name}", ephemeral=True)
+            if wc_role in user.roles:
+                # remove role
+                print(f"{user} is a {wc_role.name}, removing the role.")
+                try:
+                    await user.remove_roles(wc_role)
+                    response = f"{user.display_name} no longer has the {wc_role.name} role."
+                    await interaction.response.send_message(content=response)
+                
+                    bot_spam = bot.get_channel(bot_spam_channel())
+                    embed = discord.Embed(
+                        description=f"{user.mention} ({user.name}) has been removed from the {wc_role.mention} role by {interaction.user.mention} ({interaction.user.name}).",
+                    )
+                    await bot_spam.send(embed=embed)
+                
+                except Exception as e:
+                    print(e)
+                    await interaction.response.send_message(f"Failed removing role {wc_role.name} from {user}: {e}", ephemeral=True)
+                    return
+            else:
+                print("User is not a wine carrier, doing nothing.")
+                return await interaction.response.send_message(f"User is not a {wc_role.name}", ephemeral=True)
 
 # function shared by make_wine_carrier and make_contextuser_wine_carrier
 async def make_user_wine_carrier(interaction, user):
 
-    await wine_carrier_toggle_lock.acquire()
-    channel = bot.get_channel(get_steve_says_channel())
-    # set the target role
-    wc_role = discord.utils.get(interaction.guild.roles, id=server_wine_carrier_role_id())
-    print(f"Wine Carrier role name is {wc_role.name}")
+    async with wine_carrier_toggle_lock:
+        channel = bot.get_channel(get_steve_says_channel())
+        # set the target role
+        wc_role = discord.utils.get(interaction.guild.roles, id=server_wine_carrier_role_id())
+        print(f"Wine Carrier role name is {wc_role.name}")
+        
+        # Refetch the user from the interaction inside the lock
+        user = await interaction.guild.fetch_member(user.id)
 
-    if wc_role in user.roles:
-        print(f"{user} is already a {wc_role.name}, doing nothing.")
-        wine_carrier_toggle_lock.release()
-        return await interaction.response.send_message(f"User is already a {wc_role.name}", ephemeral=True)
-    else:
-        # toggle on
-        print(f"{user} is not a {wc_role.name}, adding the role.")
-        try:
-            await user.add_roles(wc_role)
-            print(f"Added Wine Carrier role to {user}")
-            response = f"{user.display_name} now has the {wc_role.name} role."
+        if wc_role in user.roles:
+            print(f"{user} is already a {wc_role.name}, doing nothing.")
+            return await interaction.response.send_message(f"User is already a {wc_role.name}", ephemeral=True)
+        else:
+            # toggle on
+            print(f"{user} is not a {wc_role.name}, adding the role.")
+            try:
+                await user.add_roles(wc_role)
+                print(f"Added Wine Carrier role to {user}")
+                response = f"{user.display_name} now has the {wc_role.name} role."
 
-            # Open the file in read mode.
-            with open(WELCOME_MESSAGE_FILE_PATH, "r") as file:
-                wine_welcome_message = file.read() # read contents to variable
-            
-            wine_channel = bot.get_channel(get_wine_carrier_channel())
-            embed = discord.Embed(description=wine_welcome_message)
-            embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
-            await wine_channel.send(f"<@{user.id}>", embed=embed)
-
-            wine_carrier_toggle_lock.release()
+                # Open the file in read mode.
+                with open(WELCOME_MESSAGE_FILE_PATH, "r") as file:
+                    wine_welcome_message = file.read() # read contents to variable
                 
-            await channel.send(content=response)
-            return await interaction.response.send_message(content=response, ephemeral=True)
-        except Exception as e:
-            print(e)
-            await interaction.response.send_message(f"Failed adding role {wc_role.name} to {user}: {e}", ephemeral=True)
-            wine_carrier_toggle_lock.release()
-            return
+                wine_channel = bot.get_channel(get_wine_carrier_channel())
+                embed = discord.Embed(description=wine_welcome_message)
+                embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
+                await wine_channel.send(f"<@{user.id}>", embed=embed)
+                    
+                await channel.send(content=response)
+                await interaction.response.send_message(content=response, ephemeral=True)
+            
+                bot_spam = bot.get_channel(bot_spam_channel())
+                embed = discord.Embed(
+                    description=f"{user.mention} ({user.name}) has been given the {wc_role.mention} role by {interaction.user.mention} ({interaction.user.name}).",
+                )
+                await bot_spam.send(embed=embed)
+            
+            except Exception as e:
+                print(e)
+                await interaction.response.send_message(f"Failed adding role {wc_role.name} to {user}: {e}", ephemeral=True)
+                return
