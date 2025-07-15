@@ -12,14 +12,14 @@ from discord.ext import commands, tasks
 from discord import app_commands, NotFound
 
 # local constants
-from ptn.boozebot.constants import bot_guild_id, TOKEN, get_bot_control_channel, get_primary_booze_discussions_channel, \
-    server_council_role_ids, bot, error_gifs, ping_response_messages, server_sommelier_role_id
+from ptn.boozebot.constants import bot_guild_id, get_bot_control_channel, get_primary_booze_discussions_channel, \
+    server_council_role_ids, bot, error_gifs, ping_response_messages, server_sommelier_role_id, I_AM_STEVE_GIF, \
+    get_wine_carrier_channel
 from ptn.boozebot._metadata import __version__
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error, TimeoutError
 from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
-from ptn.boozebot.database.database import pirate_steve_db, pirate_steve_lock, pirate_steve_conn
 
 """
 A primitive global error handler for text commands.
@@ -34,16 +34,20 @@ async def on_command_error(ctx, error):
         await ctx.send(f'**Bad argument!** {error}')
         print({error})
     elif isinstance(error, commands.CommandNotFound):
-        await ctx.send("**Invalid command.**")
+        #await ctx.send("**Invalid command.**")
         print({error})
     elif isinstance(error, commands.MissingRequiredArgument):
         print({error})
-        await ctx.send("**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help <command>` for details."
+        await ctx.send("**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details."
                        "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation"
                        " marks are of the same type, i.e. all straight or matching open/close smartquotes.")
     elif isinstance(error, commands.MissingPermissions):
         print({error})
         await ctx.send('**You must be a Carrier Owner to use this command.**')
+    elif isinstance(error, commands.MissingAnyRole):
+        print({error})
+        roles = ', '.join([ctx.guild.get_role(role_id).name for role_id in error.missing_roles])
+        await ctx.send(f'**You must have one of the following roles to use this command:** {roles}')
     else:
         await ctx.send(gif)
         print({error})
@@ -104,22 +108,43 @@ class DiscordBotCommands(commands.Cog):
         print(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
         try:
             bot_channel = self.bot.get_channel(get_bot_control_channel())
-            await bot_channel.send(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
+            embed = discord.Embed(description=f"{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}")
+            embed.set_image(url=I_AM_STEVE_GIF)
+            await bot_channel.send(embed=embed)
         except AttributeError as e:
             logging.error(f"Error in on_ready: {e}")
 
         print('Starting the holiday checker.')
 
     @commands.Cog.listener()
-    async def on_message(self, message):
-        if message.channel.id == get_primary_booze_discussions_channel():
-            if self.bot.user.mentioned_in(message) and message.author != self.bot.user:
+    async def on_message(self, message: discord.Message):
+        TXT_COMMANDS = ['ping', 'exit', 'update', 'version', 'sync']
+        
+        if message.channel.id not in [get_primary_booze_discussions_channel(), get_wine_carrier_channel()]:
+            return
+        
+        if not self.bot.user.mentioned_in(message):
+            return
+        
+        if message.author == self.bot.user:
+            return
+        
+        if message.is_system():
+            return
+        
+        if message.reference:
+            return
+        
+        msg_split = message.content.split()
+        
+        if len(msg_split) >= 2 and msg_split[1].lower() in TXT_COMMANDS:
+            return
 
-                print(f'{message.author} mentioned PirateSteve.')
-                
-                await message.channel.send(
-                    random.choice(ping_response_messages).format(message_author_id=message.author.id), reference=message
-                )
+        print(f'{message.author} mentioned PirateSteve.')
+        
+        await message.channel.send(
+            random.choice(ping_response_messages).format(message_author_id=message.author.id), reference=message
+        )
 
     @commands.Cog.listener()
     async def on_disconnect(self):
@@ -139,7 +164,9 @@ class DiscordBotCommands(commands.Cog):
         :param discord.Context ctx: The Discord context object
         :returns: None
         """
-        await ctx.send(f"**Avast Ye Landlubber! {self.bot.user.name} is here!**")
+        embed = discord.Embed(description=f"**Avast Ye Landlubber! {self.bot.user.name} is here!**")
+        embed.set_image(url=I_AM_STEVE_GIF)
+        await ctx.send(embed=embed)
 
     # quit the bot
     @commands.command(name='exit', help="Stops the bots process on the VM, ending all functions.")

@@ -56,7 +56,7 @@ from ptn.boozebot.database.database import (
     pirate_steve_db,
     pirate_steve_conn,
     dump_database,
-    pirate_steve_lock,
+    pirate_steve_db_lock,
 )
 from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.pagination import createPagination
@@ -220,142 +220,139 @@ class DatabaseInteraction(commands.Cog):
 
         print(f"Total Carriers: {len(all_carriers_data)}")
 
-        for carrier_data in all_carriers_data.items():
+        async with pirate_steve_db_lock:
+            for carrier_data in all_carriers_data.items():
 
-            carrier_data = carrier_data[1]
+                carrier_data = carrier_data[1]
 
-            pirate_steve_db.execute(
-                "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)",
-                (f'%{carrier_data.carrier_identifier}%',),
-            )
-
-            old_carrier_data = [
-                BoozeCarrier(carrier_data) for carrier_data in pirate_steve_db.fetchall()
-            ]
-
-            if len(old_carrier_data) > 1:
-                raise ValueError(
-                    f"{len(old_carrier_data)} carriers are listed with this carrier ID:"
-                    f' {carrier_data.carrier_identifier}. Problem in the DB!'
+                pirate_steve_db.execute(
+                    "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)",
+                    (f'%{carrier_data.carrier_identifier}%',),
                 )
 
-            # If the carrier is in the database, check if the data is the same
-            if old_carrier_data:
-                old_carrier_data = old_carrier_data[0]
+                old_carrier_data = [
+                    BoozeCarrier(carrier_data) for carrier_data in pirate_steve_db.fetchall()
+                ]
 
-                print(f"EXPECTED: \t{carrier_data}")
-                print(f"RECORD: \t{old_carrier_data}")
-                print(f"EQUALITY: \t{carrier_data == old_carrier_data}")
-
-                # If the data is the same, skip over, otherwise update it
-                if old_carrier_data != carrier_data:
-
-                    print(
-                        f"The DB data for {carrier_data.carrier_name} does not equal the input in GoogleSheets "
-                        f"- Updating"
+                if len(old_carrier_data) > 1:
+                    raise ValueError(
+                        f"{len(old_carrier_data)} carriers are listed with this carrier ID:"
+                        f' {carrier_data.carrier_identifier}. Problem in the DB!'
                     )
-                    updated_count += 1
+
+                # If the carrier is in the database, check if the data is the same
+                if old_carrier_data:
+                    old_carrier_data = old_carrier_data[0]
+
+                    print(f"EXPECTED: \t{carrier_data}")
+                    print(f"RECORD: \t{old_carrier_data}")
+                    print(f"EQUALITY: \t{carrier_data == old_carrier_data}")
+
+                    # If the data is the same, skip over, otherwise update it
+                    if old_carrier_data != carrier_data:
+
+                        print(
+                            f"The DB data for {carrier_data.carrier_name} does not equal the input in GoogleSheets "
+                            f"- Updating"
+                        )
+                        updated_count += 1
+                        try:
+                            data = (
+                                carrier_data.carrier_name,
+                                carrier_data.wine_total,
+                                carrier_data.discord_username,
+                                carrier_data.timestamp,
+                                carrier_data.run_count,
+                                f"%{old_carrier_data.carrier_identifier}%",
+                            )
+
+                            pirate_steve_db.execute(
+                                """ UPDATE boozecarriers 
+                                SET carriername=?, winetotal=?, 
+                                discordusername=?, timestamp=?, runtotal=?
+                                WHERE carrierid LIKE (?) """,
+                                data,
+                            )
+
+                            updated_db = True
+
+                        except sqlite3.IntegrityError as ex:
+                            print(f"WARNING: {ex}")
+                            print(
+                                f"Error updating the carrier data in the db for: {carrier_data}"
+                            )
+                            raise ex
+
+                    else:
+                        print(
+                            f"The DB data for {carrier_data.carrier_name} is the same as the sheets record - "
+                            f"skipping over."
+                        )
+                        unchanged_count += 1
+
+                # If carrier is not in the database, add it
+                else:
+                    added_count += 1
+                    print(carrier_data.to_dictionary())
+                    print(
+                        f'Carrier {carrier_data.carrier_name} is not yet in the database - adding it'
+                    )
                     try:
-                        pirate_steve_lock.acquire()
-                        data = (
-                            carrier_data.carrier_name,
-                            carrier_data.wine_total,
-                            carrier_data.discord_username,
-                            carrier_data.timestamp,
-                            carrier_data.run_count,
-                            f"%{old_carrier_data.carrier_identifier}%",
-                        )
-
                         pirate_steve_db.execute(
-                            """ UPDATE boozecarriers 
-                            SET carriername=?, winetotal=?, 
-                            discordusername=?, timestamp=?, runtotal=?
-                            WHERE carrierid LIKE (?) """,
-                            data,
+                            """ 
+                        INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL) 
+                        """,
+                            (
+                                carrier_data.carrier_name,
+                                carrier_data.carrier_identifier,
+                                carrier_data.wine_total,
+                                carrier_data.platform,
+                                carrier_data.ptn_carrier,
+                                carrier_data.discord_username,
+                                carrier_data.timestamp,
+                                carrier_data.run_count,
+                                carrier_data.total_unloads,
+                                carrier_data.timezone,
+                            ),
                         )
-
-                        updated_db = True
-
                     except sqlite3.IntegrityError as ex:
                         print(f"WARNING: {ex}")
                         print(
-                            f"Error updating the carrier data in the db for: {carrier_data}"
+                            f"Error adding the carrier data in the db for: {carrier_data}"
                         )
                         raise ex
-                    finally:
-                        pirate_steve_lock.release()
+                            
+                    updated_db = True
+                    print("Added carrier to the database")
 
-                else:
-                    print(
-                        f"The DB data for {carrier_data.carrier_name} is the same as the sheets record - "
-                        f"skipping over."
+                    embed = discord.Embed(title="New WineCarrier signed up!")
+                    embed.add_field(
+                        name=f"Owner: {carrier_data.discord_username}: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})",
+                        value=f"{carrier_data.wine_total // carrier_data.run_count} tonnes of wine on {carrier_data.platform}",
+                        inline=False,
                     )
-                    unchanged_count += 1
+                    new_signups.append(embed)
 
-            # If carrier is not in the database, add it
-            else:
-                added_count += 1
-                print(carrier_data.to_dictionary())
-                print(
-                    f'Carrier {carrier_data.carrier_name} is not yet in the database - adding it'
-                )
-                try:
-                    pirate_steve_lock.acquire()
-                    pirate_steve_db.execute(
-                        """ 
-                    INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL) 
-                    """,
-                        (
-                            carrier_data.carrier_name,
-                            carrier_data.carrier_identifier,
-                            carrier_data.wine_total,
-                            carrier_data.platform,
-                            carrier_data.ptn_carrier,
-                            carrier_data.discord_username,
-                            carrier_data.timestamp,
-                            carrier_data.run_count,
-                            carrier_data.total_unloads,
-                            carrier_data.timezone,
-                        ),
-                    )
-                finally:
-                    pirate_steve_lock.release()
+            print(f"all_carrier_sheet_ids: {list(all_carriers_data.keys())}")
 
-                updated_db = True
-                print("Added carrier to the database")
+            # Now that the records are updated, make sure no carrier was removed - check for anything not matching the
+            # carrier id strings.
+            pirate_steve_db.execute(
+                "SELECT * FROM boozecarriers WHERE carrierid NOT IN ({})".format(
+                    ", ".join("?" * len(list(all_carriers_data.keys())))
+                ),
+                list(all_carriers_data.keys()),
+            )
 
-                embed = discord.Embed(title="New WineCarrier signed up!")
-                embed.add_field(
-                    name=f"Owner: {carrier_data.discord_username}: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})",
-                    value=f"{carrier_data.wine_total // carrier_data.run_count} tonnes of wine on {carrier_data.platform}",
-                    inline=False,
-                )
-                new_signups.append(embed)
+            invalid_database_entries = [
+                BoozeCarrier(invalid_carrier) for invalid_carrier in pirate_steve_db.fetchall()
+            ]
 
-        print(f"all_carrier_sheet_ids: {list(all_carriers_data.keys())}")
-
-        # Now that the records are updated, make sure no carrier was removed - check for anything not matching the
-        # carrier id strings.
-        pirate_steve_db.execute(
-            "SELECT * FROM boozecarriers WHERE carrierid NOT IN ({})".format(
-                ", ".join("?" * len(list(all_carriers_data.keys())))
-            ),
-            list(all_carriers_data.keys()),
-        )
-
-        invalid_database_entries = [
-            BoozeCarrier(invalid_carrier) for invalid_carrier in pirate_steve_db.fetchall()
-        ]
-
-        if updated_db:
-            # Write the database and then dump the updated SQL
-            try:
-                pirate_steve_lock.acquire()
+            if updated_db:
+                # Write the database and then dump the updated SQL
                 pirate_steve_conn.commit()
-            finally:
-                pirate_steve_lock.release()
-            dump_database()
-            print("Wrote the database and dumped the SQL")
+                dump_database()
+                print("Wrote the database and dumped the SQL")
 
         return {
             "updated_db": updated_db,
@@ -881,8 +878,7 @@ class DatabaseInteraction(commands.Cog):
                     )
 
                     # Go update the object in the database.
-                    try:
-                        pirate_steve_lock.acquire()
+                    async with pirate_steve_db_lock:
 
                         data = (f"%{carrier_data.carrier_identifier}%",)
                         pirate_steve_db.execute(
@@ -894,8 +890,6 @@ class DatabaseInteraction(commands.Cog):
                             data,
                         )
                         pirate_steve_conn.commit()
-                    finally:
-                        pirate_steve_lock.release()
 
                     print(
                         f"Database for unloaded forcefully updated by {interaction.user.name} for {carrier_id}"
@@ -1221,15 +1215,12 @@ class DatabaseInteraction(commands.Cog):
             message_id,
             channel_id,
         )
-        try:
+        async with pirate_steve_db_lock:
             print("Writing to the DB the message data")
-            pirate_steve_lock.acquire()
             pirate_steve_db.execute(
                 """INSERT INTO pinned_messages VALUES(NULL, ?, ?)""", data
             )
             pirate_steve_conn.commit()
-        finally:
-            pirate_steve_lock.release()
 
         if not message.pinned:
             print("Message is not pinned - do it now")
@@ -1274,16 +1265,13 @@ class DatabaseInteraction(commands.Cog):
                     reason=f"Pirate Steve unpinned at the request of: {interaction.user.name}"
                 )
                 print(f'Removed pinned message: {pin["message_id"]}.')
-            try:
+            async with pirate_steve_db_lock:
                 print("Writing to the DB the message data to clear the pins")
-                pirate_steve_lock.acquire()
                 pirate_steve_db.execute(
                     """DELETE FROM pinned_messages""",
                 )
                 pirate_steve_conn.commit()
                 print("Pinned messages removed")
-            finally:
-                pirate_steve_lock.release()
             print("Pinned messages removed")
             await interaction.edit_original_response(
                 content="Pirate Steve removed all the pinned stat messages"
@@ -1337,16 +1325,14 @@ class DatabaseInteraction(commands.Cog):
                     reason=f"Pirate Steve unpinned at the request of: {interaction.user.name}"
                 )
                 print(f'Removed pinned message: {pin["message_id"]}.')
-            try:
+            async with pirate_steve_db_lock:
                 print("Writing to the DB the message data to clear the pins")
-                pirate_steve_lock.acquire()
+
                 pirate_steve_db.execute(
                     """DELETE FROM pinned_messages""",
                 )
                 pirate_steve_conn.commit()
                 print("Pinned messages removed")
-            finally:
-                pirate_steve_lock.release()
             print("Pinned messages removed")
             await interaction.edit_original_response(
                 content=f"Pirate Steve removed the pinned stat message for {message_link}"
@@ -1602,8 +1588,7 @@ class DatabaseInteraction(commands.Cog):
                     )
 
                     # Go update the object in the database.
-                    try:
-                        pirate_steve_lock.acquire()
+                    async with pirate_steve_db_lock:
                         print(f"Removing the entry ({carrier_id}) from the database.")
                         pirate_steve_db.execute(
                             """ 
@@ -1615,8 +1600,6 @@ class DatabaseInteraction(commands.Cog):
                         pirate_steve_conn.commit()
                         dump_database()
                         print(f"Carrier ({carrier_id}) was removed from the database")
-                    finally:
-                        pirate_steve_lock.release()
 
                     return await interaction.edit_original_response(
                         content=f"Fleet carrier: {carrier_id} for user: {carrier_data.discord_username} was removed",
@@ -1749,8 +1732,7 @@ class DatabaseInteraction(commands.Cog):
                 print(f"User response to date is: {user_response.content}")
                 await user_response.delete()
 
-                try:
-                    pirate_steve_lock.acquire()
+                async with pirate_steve_db_lock:
                     start_date = resp_date
                     end_date = resp_date + timedelta(days=2)
                     data = (
@@ -1788,8 +1770,6 @@ class DatabaseInteraction(commands.Cog):
                     dump_database()
                     # Disable the updates after we commit the changes!
                     self.update_allowed = False
-                finally:
-                    pirate_steve_lock.release()
                 return await interaction.edit_original_response(
                     content=f"Pirate Steve rejigged his memory and saved the booze data starting "
                     f"on: {resp_date}!",
@@ -1968,8 +1948,7 @@ class DatabaseInteraction(commands.Cog):
                 print(f"{interaction.user.name} confirms to write the database now.")
                 await user_response.delete()
 
-                try:
-                    pirate_steve_lock.acquire()
+                async with pirate_steve_db_lock:
 
                     data = (
                         new_worksheet_key,
@@ -1986,8 +1965,6 @@ class DatabaseInteraction(commands.Cog):
 
                     pirate_steve_conn.commit()
                     dump_database()
-                finally:
-                    pirate_steve_lock.release()
 
                 self.worksheet_key = new_worksheet_key
                 self.worksheet_with_data_id = new_sheet_id
@@ -2285,21 +2262,20 @@ class DatabaseInteraction(commands.Cog):
                 print(f"User {interaction.user.name} accepted the request to purge full carriers.")
                 await interaction.edit_original_response(content="Purging Carriers...", embed=None)
                 failed_carriers = []
-                pirate_steve_lock.acquire()
-                try:
-                    carrier_ids = [carrier.carrier_identifier for carrier in carrier_data]
-                    pirate_steve_db.execute(
-                        "DELETE FROM boozecarriers WHERE carrierid IN ({})".format(
-                            ", ".join("?" * len(carrier_ids))
-                        ),
-                        carrier_ids,
-                    )
-                    pirate_steve_conn.commit()
-                except Exception as e:
-                    print(f"Error deleting carriers: {e}")
-                    failed_carriers.extend(carrier_ids)
-                finally:
-                    pirate_steve_lock.release()
+                
+                async with pirate_steve_db_lock:
+                    try:
+                        carrier_ids = [carrier.carrier_identifier for carrier in carrier_data]
+                        pirate_steve_db.execute(
+                            "DELETE FROM boozecarriers WHERE carrierid IN ({})".format(
+                                ", ".join("?" * len(carrier_ids))
+                            ),
+                            carrier_ids,
+                        )
+                        pirate_steve_conn.commit()
+                    except Exception as e:
+                        print(f"Error deleting carriers: {e}")
+                        failed_carriers.extend(carrier_ids)
 
                 if failed_carriers:
                     await interaction.followup.send(content=f"Failed to delete the following carriers: {', '.join(failed_carriers)}")

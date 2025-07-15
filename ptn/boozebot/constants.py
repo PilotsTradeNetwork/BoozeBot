@@ -46,7 +46,7 @@ load_dotenv(os.path.join(DATA_DIR, '.env'))
 TOKEN = os.getenv('DISCORD_TOKEN_PROD') if _production else os.getenv('DISCORD_TOKEN_TESTING')
 
 # define bot object
-bot = commands.Bot(command_prefix='b/', intents=discord.Intents.all())
+bot = commands.Bot(command_prefix=commands.when_mentioned_or('b/'), intents=discord.Intents.all())
 
 # Production variables
 PROD_DISCORD_GUILD = 800080948716503040  # PTN Discord server
@@ -84,7 +84,7 @@ PROD_PTN_BOOZE_CRUISE_ROLE_ID = 838516571571355689
 # Testing variables
 TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
 TEST_ASSASSIN_ID = 848957573792137247
-TEST_BOOZE_UNLOAD_ID = 849570829230014464
+TEST_BOOZE_UNLOAD_ID = 1107757340381425768
 TEST_ADMIN_IDS = (877586918228000819, 1227350727131660359) # Council, Council Advisor
 # TEST_ADMIN_IDS = (1364570643353571388,) # Somm-Dev - TODO: comment out
 TEST_SOMMELIER_ID = 849907019502059530
@@ -123,6 +123,8 @@ EMBED_COLOUR_ERROR = 0x800000
 EMBED_COLOUR_STATUS = 0xee3563
 
 WCO_ROLE_ICON_URL = "https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless"
+
+I_AM_STEVE_GIF = "https://pilotstradenetwork.com/wp-content/uploads/2025/07/I-Am-Steve.gif"
 
 # define the logger for discord client
 # TODO: use PTNLogger and extend to all Steve Logging
