@@ -4,6 +4,7 @@ Cog for granting and removing the wine carrier role
 """
 
 import asyncio
+import random
 
 import discord
 from discord import app_commands
@@ -13,7 +14,7 @@ from discord.ext import commands
 from ptn.boozebot.constants import (
     WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot, get_primary_booze_discussions_channel, get_steve_says_channel,
     get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
-    server_sommelier_role_id, server_wine_carrier_role_id, bot_spam_channel
+    server_sommelier_role_id, server_wine_carrier_role_id, bot_spam_channel, too_slow_gifs,
 )
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
@@ -121,7 +122,9 @@ async def make_user_wine_carrier(interaction, user) -> None:
 
         if wc_role in user.roles:
             print(f"{user} is already a {wc_role.name}, doing nothing.")
-            await interaction.response.send_message(f"User is already a {wc_role.name}", ephemeral=True)
+            embed = discord.Embed(description=f"{user.mention} is already a {wc_role.name}")
+            embed.set_image(url=random.choice(too_slow_gifs))
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         else:
             # toggle on
@@ -144,10 +147,10 @@ async def make_user_wine_carrier(interaction, user) -> None:
                 embed = discord.Embed(description=msg)
                 await channel.send(content=msg, silent=True)
                 await interaction.response.send_message(content=response, ephemeral=True)
-            
+
                 bot_spam = bot.get_channel(bot_spam_channel())
                 await bot_spam.send(embed=embed)
-            
+
             except Exception as e:
                 print(e)
                 await interaction.response.send_message(f"Failed adding role {wc_role.name} to {user}: {e}", ephemeral=True)
