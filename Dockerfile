@@ -1,4 +1,4 @@
-FROM python:3.10-slim-buster
+FROM python:3.10-slim-bookworm
 RUN mkdir -p /usr/src/bot
 WORKDIR /usr/src/bot
 COPY setup.py .
