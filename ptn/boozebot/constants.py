@@ -250,6 +250,13 @@ error_gifs = [
     'https://media.tenor.com/u-1jz7ttHhEAAAAC/angry-panda-rage.gif' # panda smash
 ]
 
+too_slow_gifs = [
+    'https://media.tenor.com/UttKJzNT7uwAAAAd/funny-very.gif',
+    'https://media.tenor.com/JtM1bnp03HEAAAAd/it-looks-like-you-are-too-slow-too-slow.gif',
+    'https://media.tenor.com/Et0Nwb11iwoAAAAd/lizard-worm.gif',
+    'https://media.tenor.com/uBBA5GTeGT0AAAAd/state-farm-gotta-be-quicker-than-that.gif',
+]
+
 N_SYSTEMS = {
     "N0": "HIP 58832",
     "N1": "HD 105341",
