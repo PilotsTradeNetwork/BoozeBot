@@ -5,7 +5,7 @@ Cog for unloading related commands
 
 # libraries
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # discord.py
 import discord
@@ -58,7 +58,7 @@ class Unloading(commands.Cog):
     """
     timed_unloads_allowed: bool = False
     last_unload_time: datetime | None = None
-    
+
     # On reaction check if its in the unloading channel and if the reaction is fc complete,
     # If it is and there are 5 reactions ping the poster
     @commands.Cog.listener()
@@ -87,18 +87,17 @@ class Unloading(commands.Cog):
             # Check if the FC complete reaction count meets the threshold
             for message_reaction in message.reactions:
                 if message_reaction.emoji.id == get_fc_complete_id() and message_reaction.count >= 5:
-                    
+
                     # Find carrier data for this message from the database
                     async with pirate_steve_db_lock:
                         # Get the carrier data based on the message ID
                         pirate_steve_db.execute(
-                            "SELECT * FROM boozecarriers WHERE discord_unload_in_progress = ?", 
+                            "SELECT * FROM boozecarriers WHERE discord_unload_in_progress = ?",
                             (message.id,)
                         )
                         carrier_data = pirate_steve_db.fetchone()
-                        
+
                         carrier_data = BoozeCarrier(carrier_data)
-                        
                         if carrier_data and carrier_data.discord_unload_poster_id:
                             wine_carrier_channel = bot.get_channel(wine_carrier_command_channel())
                             await wine_carrier_channel.send(
@@ -107,11 +106,11 @@ class Unloading(commands.Cog):
                                 f"has been marked completed. Please check, then run `/wine_unload_complete` to close it "
                                 "if it is correct."
                             )
-                            
+
                             # Set the poster ID to None to indicate they have already been notified
                             pirate_steve_db.execute(
                                 "UPDATE boozecarriers SET discord_unload_poster_id = NULL WHERE discord_unload_in_progress = ?",
-                                (message.id,)  
+                                (message.id,)
                             )
                             pirate_steve_conn.commit()
 
@@ -123,25 +122,25 @@ class Unloading(commands.Cog):
     """
     Market helper commands
     """
-    
+
     @commands.Cog.listener()
-    async def on_ready(self):           
+    async def on_ready(self):
         print("Starting the last unload time loop")
         if not self.last_unload_time_loop.is_running():
             self.last_unload_time_loop.start()
-    
+
     @tasks.loop(seconds=60.0)
     async def last_unload_time_loop(self):
         """
         Checks if the last unload time was more than 20 minutes ago and sends a reminder message to the RSTC channel.
         """
-        
+
         print("Running last unload time loop.")
-        
+
         if self.last_unload_time is None:
             print("Last unload time is not set, skipping reminder check.")
             return
-        
+
         if not ph_check():
             print("PH is not currently active, skipping reminder check.")
             return
@@ -165,7 +164,7 @@ class Unloading(commands.Cog):
                 print(f"Failed to notify RSTC channel about the last unload time: {e}")
         else:
             print("Last unload time was less than 20 minutes ago, skipping reminder.")
-            
+
 
     @app_commands.command(name="wine_helper_market_open", description="Creates a new unloading helper operation in this channel.")
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
@@ -233,7 +232,7 @@ class Unloading(commands.Cog):
         :returns: A message to the user
         :rtype: Union[discord.Message, dict]
         """
-        
+
         print(f'User {interaction.user.name} has requested a new wine unload operation for carrier: {carrier_id} around the '
               f'body: {planetary_body}.')
 
@@ -260,12 +259,12 @@ class Unloading(commands.Cog):
             return await interaction.response.send_message(f'Sorry, during unload we could not find a carrier for the data: {carrier_id}.')
 
         wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
-        
+
         if carrier_data.discord_unload_notification:
             print(f'Sorry, carrier {carrier_data.carrier_identifier} is already on a wine unload.')
             return await interaction.response.send_message(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is '
                                   f'already unloading wine. Check the notification in <#{wine_alert_channel.id}>.')
-            
+
         if carrier_data.total_unloads >= carrier_data.run_count:
             print(f'Sorry, carrier {carrier_data.carrier_identifier} has already run all of its unloads.')
             return await interaction.response.send_message(f'Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) has '
@@ -287,9 +286,9 @@ class Unloading(commands.Cog):
                                    icon_url=f'https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1')
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
         await message_send.delete()
-        
+
         self.last_unload_time = None
-        
+
         # Get the discord alert ID and drop it into the database
         discord_alert_id = wine_unload_alert.id
 
@@ -407,9 +406,9 @@ class Unloading(commands.Cog):
                                    icon_url=f'https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1')
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
         await message_send.delete()
-        
+
         self.last_unload_time = None
-        
+
         # Get the discord alert ID and drop it into the database
         discord_alert_id = wine_unload_alert.id
 
@@ -492,12 +491,18 @@ class Unloading(commands.Cog):
                     WHERE carrierid LIKE (?)
                 ''', data)
                 pirate_steve_conn.commit()
-                
+
             self.last_unload_time = datetime.now()
 
+            unload_duration = (datetime.now(timezone.utc) - message.created_at).total_seconds()
+            minutes, seconds = divmod(int(unload_duration), 60)
+            time_str = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
             await message.delete()
             print(f'Deleted the carrier discord notification for carrier: {carrier_id}')
-            response = f'Removed the unload notification for {carrier_data.carrier_name} ({carrier_id})'
+            response = (
+                f'Removed the unload notification for {carrier_data.carrier_name} ({carrier_id})\n'
+                f"-# Unload duration: {time_str}."
+            )
             allowed_mentions = discord.AllowedMentions.none()
             guild = bot.get_guild(bot_guild_id())
             conn_role = guild.get_role(server_connoisseur_role_id())
@@ -505,7 +510,7 @@ class Unloading(commands.Cog):
 
             await interaction.response.send_message(response, allowed_mentions=allowed_mentions)
             await interaction.edit_original_response(content=f"<@&{server_connoisseur_role_id()}> {response}", allowed_mentions=allowed_mentions)
-            
+
         else:
             print(f'No discord alert found for carrier, {carrier_id}. It likely ran an untracked market.')
             return await interaction.response.send_message(
