@@ -68,9 +68,7 @@ PROD_BOOZE_CRUISE_CHAT_CHANNEL = 819295547289501736     # Booze-Cruise
 PROD_BOOZE_CRUISE_SIGNUPS_CHANNEL = 838515030588653599
 PROD_WCO_ANNOUNCEMENTS_CHANNEL = 839495951131475988
 PROD_FC_COMPLETE_ID = 878216234653605968
-PROD_WINE_TANKER_ID = 978321720630980658
 PROD_HITCHHIKER_ID = 998344068524417175
-PROD_TANKER_UNLOAD_CHANNEL_ID = 987972565735727124
 PROD_BOT_SPAM_CHANNEL = 801258393205604372 # Certain bot logging messages go here
 PROD_BC_PUBLIC_CHANNEL_IDS = [838699587249242162, 849460909273120856, 932918003639648306, 819295547289501736, 837764138692378634, 849249916676603944, 1078840174227763301, 1079384804098854972]
 # booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
@@ -103,9 +101,7 @@ TEST_BOOZE_CRUISE_CHAT_CHANNEL = 1107757384069288056
 TEST_BOOZE_CRUISE_SIGNUPS_CHANNEL = 838515030588653599
 TEST_WCO_ANNOUNCEMENTS_CHANNEL = 839495951131475988
 TEST_FC_COMPLETE_ID = 884673510067286076
-TEST_WINE_TANKER_ID = 990601307771506708
 TEST_HITCHHIKER_ID = 1108112740800798750
-TEST_TANKER_UNLOAD_CHANNEL_ID = 995714783678570566
 TEST_BOT_SPAM_CHANNEL = 842525081858867211 # Bot logging messages on the test server
 TEST_BC_PUBLIC_CHANNEL_IDS = [1107757218318782586, 1107757285817712721, 1107757340381425768, 1107757384069288056, 1107757418517110955, 1107757456517505055, 1107757490940153956, 1107757548779601940]
 # booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
@@ -360,20 +356,12 @@ def server_wine_carrier_role_id():
 def server_pilot_role_id() -> int:
     return PROD_PILOT_ID if _production else TEST_PILOT_ID
 
-def server_wine_tanker_role_id():
-    """
-    Wrapper that returns the wine tanker owner role ID
-
-    :returns: Wine tanker role id
-    :rtype: int
-    """
-    return PROD_WINE_TANKER_ID if _production else TEST_WINE_TANKER_ID
 
 def server_hitchhiker_role_id():
     """
-    Wrapper that returns the wine tanker owner role ID
+    Wrapper that returns the wine hitchhiker owner role ID
 
-    :returns: Wine tanker role id
+    :returns: Wine hitchhiker role id
     :rtype: int
     """
     return PROD_HITCHHIKER_ID if _production else TEST_HITCHHIKER_ID
@@ -493,25 +481,6 @@ def get_steve_says_channel():
     """
     return PROD_STEVE_SAYS_CHANNEL if _production else TEST_STEVE_SAYS_CHANNEL
 
-
-def get_wine_tanker_role():
-    """
-    Returns the wine tanker role ID
-
-    :return: The role ID
-    :rtype: int
-    """
-    return PROD_WINE_TANKER_ID if _production else TEST_WINE_TANKER_ID
-
-
-def get_discord_tanker_unload_channel():
-    """
-    Gets the tanker unload notification channel
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_TANKER_UNLOAD_CHANNEL_ID if _production else TEST_TANKER_UNLOAD_CHANNEL_ID
 
 def get_public_channel_list():
     """
