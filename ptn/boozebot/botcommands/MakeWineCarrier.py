@@ -140,7 +140,7 @@ async def make_user_wine_carrier(interaction, user) -> None:
                 embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
                 await wine_channel.send(f"<@{user.id}>", embed=embed)
 
-                msg = f"{user.mention} ({user.name}) has been given the {wc_role.mention} role by {interaction.user.mention} ({interaction.user.name})."
+                msg = f"{user.mention} ({user.name}) has been given the {wc_role.name} role by {interaction.user.mention} ({interaction.user.name})."
                 embed = discord.Embed(description=msg)
                 await channel.send(content=msg, silent=True)
                 await interaction.response.send_message(content=response, ephemeral=True)
