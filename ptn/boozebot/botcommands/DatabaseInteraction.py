@@ -22,6 +22,7 @@ from google.oauth2.service_account import Credentials
 
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
+#local constants
 from ptn.boozebot.constants import (
     BOOZE_PROFIT_PER_TONNE_WINE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, all_faction_states, bot,
     bot_guild_id, get_pilot_role_id, get_primary_booze_discussions_channel, get_steve_says_channel,
@@ -31,7 +32,7 @@ from ptn.boozebot.constants import (
 from ptn.boozebot.database.database import dump_database, pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles
+from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.pagination import createPagination
 from ptn.boozebot.modules.PHcheck import ph_check
 
@@ -635,6 +636,7 @@ class DatabaseInteraction(commands.Cog):
             self.periodic_stat_update.start()
 
     @tasks.loop(minutes=10)
+    @track_last_run()
     async def periodic_stat_update(self):
         """
         Loops every hour and updates all pinned embeds and bot activity status.
@@ -2269,5 +2271,3 @@ class DatabaseInteraction(commands.Cog):
         except asyncio.TimeoutError:
             print("Timed out while waiting for confirmation response.")
             await interaction.edit_original_response(content="Waiting for user response - timed out", embed=None)
-
-

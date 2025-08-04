@@ -24,7 +24,7 @@ from ptn.boozebot.constants import (
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check
 
 """
@@ -130,6 +130,7 @@ class Unloading(commands.Cog):
             self.last_unload_time_loop.start()
 
     @tasks.loop(seconds=60.0)
+    @track_last_run()
     async def last_unload_time_loop(self):
         """
         Checks if the last unload time was more than 20 minutes ago and sends a reminder message to the RSTC channel.

@@ -56,12 +56,12 @@ class BackgroundTaskCommands(commands.Cog):
         task = self.get_task(task_name)
         if task:
             if task.is_running():
-                task.stop()
-                await interaction.response.send_message(f"Stopped task: {task_name}. (Task will finish its current iteration before stopping.)")
+                task.cancel()
+                await interaction.response.send_message(f"Stopped task: {task_name}.")
             else:
                 await interaction.response.send_message(f"Task {task_name} is not running.")
         else:
-            await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)            
+            await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)
           
     
     @app_commands.command(name="task_status", description="Gets the status of a background task.")
@@ -75,9 +75,24 @@ class BackgroundTaskCommands(commands.Cog):
     )
     async def task_status(self, interaction: discord.Interaction, task_name: str):
         task = self.get_task(task_name)
+
+        last_run_time = getattr(task, 'last_run_time', None)
+        if last_run_time:
+            unix_timestamp = int(last_run_time.timestamp())
+            last_run_str = f"at <t:{unix_timestamp}:f> (<t:{unix_timestamp}:R>)"
+        else:
+            last_run_str = "never"
+            
+        next_run_time = getattr(task, 'next_iteration', None)
+        if task.is_running():
+            next_run_unix = int(next_run_time.timestamp())
+            next_run_str = f", next at <t:{next_run_unix}:f> (<t:{next_run_unix}:R>)"
+        else:
+            next_run_str = ""
+
         if task:
             status = "running" if task.is_running() else "stopped"
-            await interaction.response.send_message(f"Task {task_name} is currently {status}.")
+            await interaction.response.send_message(f"Task {task_name} is currently {status}, last run was {last_run_str}{next_run_str}.")
         else:
             await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)
     
