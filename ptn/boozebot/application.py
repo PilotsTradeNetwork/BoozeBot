@@ -6,7 +6,6 @@ The Python script that starts the bot.
 # import libraries
 import asyncio
 import logging
-import os
 
 from discord import LoginFailure, GatewayNotFound, ConnectionClosed, HTTPException
 from discord.ext.prometheus import PrometheusCog

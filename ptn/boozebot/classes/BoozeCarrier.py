@@ -74,6 +74,17 @@ class BoozeCarrier:
         # A UTC representation of when the user usually is available. We use UTC as we need a common reference time,
         # and game time works for that.
         self.timezone = info_dict.get('user_timezone_in_utc', None)
+        
+        # The faction state that the peak was in during the booze cruise, for historical records
+        self.faction_state = info_dict.get('faction_state', None)
+        
+    def get_unload_stats(self, include_not_unloaded: bool = True) -> tuple[int, int]:
+        if include_not_unloaded:
+            return self.wine_total, self.run_count
+
+        else:
+            unloaded_wine = int(self.wine_total / self.run_count * self.total_unloads)
+            return unloaded_wine, self.total_unloads
 
     def to_dictionary(self):
         """
