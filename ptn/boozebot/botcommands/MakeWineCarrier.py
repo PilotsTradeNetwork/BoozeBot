@@ -73,7 +73,7 @@ class MakeWineCarrier(commands.Cog):
     @check_command_channel(get_steve_says_channel())
     async def remove_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
 
         print(f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to remove the Wine Carrier role")
 
