@@ -153,7 +153,7 @@ def track_last_run():
         async def wrapper(self, *args, **kwargs):
             result = await coro(self, *args, **kwargs)
             loop = getattr(self, coro.__name__)
-            loop.last_run_time = datetime.datetime.now(datetime.UTC)
+            loop.last_run_time = datetime.datetime.now(datetime.timezone.utc)
             return result
 
         return wrapper
