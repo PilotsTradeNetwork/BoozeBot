@@ -425,17 +425,26 @@ class DatabaseInteraction(commands.Cog):
         all_carrier_data: list[BoozeCarrier],
         target_date: str = None,
         include_timestamp:bool = False,
-        include_not_unloaded: bool = True
+        include_not_unloaded: str|None = None
     ) -> discord.Embed:
 
         # Get faction state from the first carrier, assuming all carriers have the same state
         faction_state = all_carrier_data[0].faction_state
 
-        if target_date and faction_state in ["Public Holiday", None] and not include_not_unloaded:
-            unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=False) for carrier in all_carrier_data if carrier.total_unloads > 0]
-
+        # If we have an override for the include_not_unloaded, use it
+        if include_not_unloaded:
+            if include_not_unloaded == "All Carriers":
+                unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
+            elif include_not_unloaded == "Only Unloaded":
+                unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=False) for carrier in all_carrier_data]
+        
+        # Else only show unloaded, except if it was not a public holiday or the current cruise
         else:
-            unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
+            if target_date and faction_state in ["Public Holiday", None]:
+                unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=False) for carrier in all_carrier_data if carrier.total_unloads > 0]
+
+            else:
+                unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
         
         total_wine = sum(unloaded[0] for unloaded in unloaded_stats)
         unique_carrier_count = len(unloaded_stats)
@@ -515,16 +524,25 @@ class DatabaseInteraction(commands.Cog):
         print("Returning embed to user")
         return stat_embed
 
-    def build_extended_stat_embed(self, all_carrier_data: list[BoozeCarrier], target_date: str = None, include_not_unloaded: bool = False) -> discord.Embed:
+    def build_extended_stat_embed(self, all_carrier_data: list[BoozeCarrier], target_date: str = None, include_not_unloaded: str|None = None) -> discord.Embed:
         
         # Get faction state from the first carrier, assuming all carriers have the same state
         faction_state = all_carrier_data[0].faction_state
 
-        if target_date and faction_state in ["Public Holiday", None] and not include_not_unloaded:
-            unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=False) for carrier in all_carrier_data if carrier.total_unloads > 0]
-
+        # If we have an override for the include_not_unloaded, use it
+        if include_not_unloaded:
+            if include_not_unloaded == "All Carriers":
+                unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
+            elif include_not_unloaded == "Only Unloaded":
+                unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=False) for carrier in all_carrier_data]
+        
+        # Else only show unloaded, except if it was not a public holiday or the current cruise
         else:
-            unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
+            if target_date and faction_state in ["Public Holiday", None]:
+                unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=False) for carrier in all_carrier_data if carrier.total_unloads > 0]
+
+            else:
+                unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
         
         total_wine = sum(unloaded[0] for unloaded in unloaded_stats)
 
@@ -1051,7 +1069,13 @@ class DatabaseInteraction(commands.Cog):
     )
     @describe(
         cruise_select="Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is this cruise.",
-        include_not_unloaded="Force include carriers that didn't unload, only applies to historical cruises.",
+        include_not_unloaded="Force select if we should include carriers that have not unloaded yet.",
+    )
+    @app_commands.choices(
+        include_not_unloaded=[
+            Choice(name="All Carriers", value="All Carriers"),
+            Choice(name="Only Unloaded", value="Only Unloaded"),
+        ]
     )
     @check_roles(
         [
@@ -1061,7 +1085,7 @@ class DatabaseInteraction(commands.Cog):
             server_connoisseur_role_id(),
         ]
     )
-    async def tally(self, interaction: discord.Interaction, cruise_select: int = 0, include_not_unloaded: bool = False):
+    async def tally(self, interaction: discord.Interaction, cruise_select: int = 0, include_not_unloaded: str|None = None):
         """
         Returns an embed inspired by (cloned from) @CMDR Suiseiseki's b.tally. Provided to keep things in one place
         is all.
@@ -1329,7 +1353,13 @@ class DatabaseInteraction(commands.Cog):
     )
     @describe(
         cruise_select="Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is this cruise.",
-        include_not_unloaded="Force include carriers that didn't unload, only applies to historical cruises.",
+        include_not_unloaded="Force select if we should include carriers that have not unloaded yet.",
+    )
+    @app_commands.choices(
+        include_not_unloaded=[
+            Choice(name="All Carriers", value="All Carriers"),
+            Choice(name="Only Unloaded", value="Only Unloaded"),
+        ]
     )
     @check_roles(
         [
@@ -1339,7 +1369,7 @@ class DatabaseInteraction(commands.Cog):
             server_connoisseur_role_id(),
         ]
     )
-    async def extended_tally_stats(self, interaction: discord.Interaction, cruise_select: int = 0, include_not_unloaded: bool = False):
+    async def extended_tally_stats(self, interaction: discord.Interaction, cruise_select: int = 0, include_not_unloaded: str|None = None):
         """
         Prints an extended tally stats as requested by RandomGazz.
         """
@@ -2082,8 +2112,17 @@ class DatabaseInteraction(commands.Cog):
 
     @app_commands.command(name="biggest_cruise_tally", description="Returns the tally for the cruise with the most wine.")
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
-    @describe(extended="If the extended stats should be shown", include_not_unloaded="If carriers that were not unloaded should be included")
-    async def biggest_cruise_tally(self, interaction: discord.Interaction, extended: bool = False, include_not_unloaded: bool = False):
+    @describe(
+        extended="If the extended stats should be shown",
+        include_not_unloaded="Force select if we should include carriers that have not unloaded yet.",
+    )
+    @app_commands.choices(
+        include_not_unloaded=[
+            Choice(name="All Carriers", value="All Carriers"),
+            Choice(name="Only Unloaded", value="Only Unloaded"),
+        ]
+    )
+    async def biggest_cruise_tally(self, interaction: discord.Interaction, extended: bool = False, include_not_unloaded: str|None = None):
         """
         Returns the tally for the cruise with the most wine.
 
@@ -2113,7 +2152,7 @@ class DatabaseInteraction(commands.Cog):
         if not extended:
             stat_embed = self.build_stat_embed(all_carrier_data, target_date, include_not_unloaded)
         else:
-            stat_embed = self.build_extended_stat_embed(all_carrier_data, target_date, include_not_unloaded=include_not_unloaded)
+            stat_embed = self.build_extended_stat_embed(all_carrier_data, target_date, include_not_unloaded)
 
         # Edit the original interaction response with the stat embed
         await interaction.edit_original_response(embed=stat_embed)
