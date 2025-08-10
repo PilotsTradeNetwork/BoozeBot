@@ -1,41 +1,26 @@
 # libraries
-import datetime
-import logging
-import os
 import random
-import sys
 
 # discord.py
 import discord
-from discord import NotFound, app_commands
-from discord.app_commands import Choice, Group, describe
-from discord.ext import commands, tasks
+from discord import app_commands
+from discord.ext import commands
 
 from ptn.boozebot._metadata import __version__
+from ptn.boozebot.classes.AutoResponse import AutoResponse
 
 # local constants
 from ptn.boozebot.constants import (
-    get_primary_booze_discussions_channel,
-    get_wine_carrier_channel,
-    ping_response_messages,
-    server_council_role_ids,
-    server_mod_role_id,
-    server_sommelier_role_id,
-    get_steve_says_channel,
-    server_connoisseur_role_id,
+    get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel,
+    get_wine_cellar_deliveries_channel, ping_response_messages, server_council_role_ids, server_mod_role_id,
+    server_sommelier_role_id
 )
 
 # local modules
+from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 from ptn.boozebot.modules.ErrorHandler import TimeoutError, on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.pagination import createPagination
-from ptn.boozebot.database.database import (
-    pirate_steve_db,
-    pirate_steve_conn,
-    pirate_steve_db_lock,
-)
-
-from ptn.boozebot.classes.AutoResponse import AutoResponse
 
 """
 LISTENERS
@@ -81,6 +66,7 @@ class AutoResponses(commands.Cog):
         if message.channel.id not in [
             get_primary_booze_discussions_channel(),
             get_wine_carrier_channel(),
+            get_wine_cellar_deliveries_channel(),
         ]:
             return
 
@@ -90,21 +76,9 @@ class AutoResponses(commands.Cog):
         if message.author == self.bot.user:
             return
 
-        is_staff = any(
-            [
-                role.id
-                in [
-                    *server_council_role_ids(),
-                    server_mod_role_id(),
-                    server_sommelier_role_id(),
-                    server_connoisseur_role_id(),
-                ]
-                for role in message.author.roles
-            ]
-        )
-
         for auto_response in self.auto_responses:
-            if auto_response.matches(message.content, is_staff):
+            if auto_response.matches(message):
+                print(f"Auto response triggered: {auto_response.name} by {message.author} in {message.channel.name}")
                 await message.channel.send(
                     auto_response.response,
                     reference=message,

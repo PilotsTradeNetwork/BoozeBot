@@ -78,6 +78,7 @@ PROD_FEEDBACK_CHANNEL_ID = 936218839362969621
 PROD_PILOT_ID = 800396412217982999
 PROD_WINE_CARRIER_GUIDE_CHANNEL_ID = 943919705763233822
 PROD_PTN_BOOZE_CRUISE_ROLE_ID = 838516571571355689
+PROD_WINE_CELLAR_DELIVERIES_ID = 837764138692378634
 
 # Testing variables
 TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
@@ -111,6 +112,7 @@ TEST_FEEDBACK_CHANNEL_ID = 1314640487587643532
 TEST_PILOT_ID = 818174614810787840
 TEST_WINE_CARRIER_GUIDE_CHANNEL_ID = 1333822679400059003
 TEST_PTN_BOOZE_CRUISE_ROLE_ID = 1333819581596303461
+TEST_WINE_CELLAR_DELIVERIES_ID = 1107757418517110955
 
 BOOZE_PROFIT_PER_TONNE_WINE = 256000
 RACKHAMS_PEAK_POP = 150000
@@ -295,7 +297,7 @@ if not os.path.exists(os.path.dirname(CARRIERS_DB_PATH)):
 if not os.path.exists(os.path.dirname(CARRIERS_DB_DUMPS_PATH)):
     print(f'Folder {os.path.dirname(CARRIERS_DB_DUMPS_PATH)} does not exist, making it now.')
     os.makedirs(os.path.dirname(CARRIERS_DB_DUMPS_PATH))
-    
+
 # check the settings folder exists
 if not os.path.exists(SETTINGS_PATH):
     print(f'Folder {SETTINGS_PATH} does not exist, making it now.')
@@ -305,15 +307,15 @@ if not os.path.exists(SETTINGS_PATH):
 old_db_path = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'booze_carriers.db')
 if os.path.exists(old_db_path) and not os.path.exists(CARRIERS_DB_PATH):
     os.rename(old_db_path, CARRIERS_DB_PATH)
-    
+
 old_db_dumps_path = os.path.join(os.path.expanduser('~'), 'boozedatabase', 'dumps', 'booze_carriers.sql')
 if os.path.exists(old_db_dumps_path) and not os.path.exists(CARRIERS_DB_DUMPS_PATH):
     os.rename(old_db_dumps_path, CARRIERS_DB_DUMPS_PATH)
-    
+
 old_wine_carrier_welcome = os.path.join('wine_carrier_welcome.txt')
 if os.path.exists(old_wine_carrier_welcome) and not os.path.exists(WELCOME_MESSAGE_FILE_PATH):
     os.rename(old_wine_carrier_welcome, WELCOME_MESSAGE_FILE_PATH)
-    
+
 old_google_oauth_credentials_path = os.path.join(os.path.expanduser('~'), '.ptnboozebot.json')
 if os.path.exists(old_google_oauth_credentials_path) and not os.path.exists(GOOGLE_OAUTH_CREDENTIALS_PATH):
     os.rename(old_google_oauth_credentials_path, GOOGLE_OAUTH_CREDENTIALS_PATH)
@@ -550,7 +552,7 @@ def get_feedback_channel_id():
     :rtype: int
     """
     return PROD_FEEDBACK_CHANNEL_ID if _production else TEST_FEEDBACK_CHANNEL_ID
-  
+
 def get_pilot_role_id():
     """
     Gets the ID of the pilot role
@@ -598,6 +600,15 @@ def get_wco_announcements_channel():
     :rtype: int
     """
     return PROD_WCO_ANNOUNCEMENTS_CHANNEL if _production else TEST_WCO_ANNOUNCEMENTS_CHANNEL
+
+def get_wine_cellar_deliveries_channel():
+    """
+    Gets the ID of the wine cellar deliveries channel
+
+    :return: The channel ID
+    :rtype: int
+    """
+    return PROD_WINE_CELLAR_DELIVERIES_ID if _production else TEST_WINE_CELLAR_DELIVERIES_ID
 
 
 _WCO_WELCOME_BLURB = (
