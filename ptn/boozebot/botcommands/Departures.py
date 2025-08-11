@@ -12,9 +12,9 @@ import logging
  
 # discord.py
 import discord
-from discord.app_commands import Group, describe, Choice
+from discord.app_commands import describe, Choice
 from discord.ext import commands, tasks
-from discord import app_commands, NotFound
+from discord import app_commands
 
 # local constants
 from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelier_role_id, \
@@ -27,8 +27,8 @@ from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.database.database import pirate_steve_db
 
 # local modules
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
-from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
+from ptn.boozebot.modules.ErrorHandler import on_app_command_error
+from ptn.boozebot.modules.helpers import check_roles, check_command_channel, track_last_run
 
 """
 UNLOADING COMMANDS
@@ -128,6 +128,7 @@ class Departures(commands.Cog):
             print(f"Failed to process reaction: {reaction_event}. Error: {e}")
 
     @tasks.loop(minutes = 5)
+    @track_last_run()
     async def check_departure_messages_loop(self):
         guild = bot.get_guild(bot_guild_id())
         departure_channel = guild.get_channel(get_departure_announcement_channel())

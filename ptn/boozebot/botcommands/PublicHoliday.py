@@ -20,7 +20,7 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check, api_ph_check
 
 """
@@ -145,6 +145,7 @@ class PublicHoliday(commands.Cog):
 
     @classmethod
     @tasks.loop(minutes=10)
+    @track_last_run()
     async def public_holiday_loop(cls):
         """
         Command triggers periodically to check the state at Rackhams Peak. Right now this triggers every 15 minutes.
