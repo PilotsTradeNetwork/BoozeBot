@@ -3,50 +3,37 @@ Cog for all the commands that interact with the database
 
 """
 
-# libraries
 import asyncio
 import logging
-import sqlite3
-from datetime import datetime, timedelta
 import math
 import os.path
 import re
+import sqlite3
+from datetime import datetime, timedelta
+from typing import Literal
+
+import discord
 import gspread
 import gspread_asyncio
-from google.oauth2.service_account import Credentials
-
-# discord.py
-import discord
-from discord.app_commands import Group, describe, Choice
+from discord import app_commands
+from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
-from discord import app_commands, NotFound
-
-# local constants
-from ptn.boozebot.constants import bot_guild_id, bot, server_council_role_ids, server_sommelier_role_id, \
-    BOOZE_PROFIT_PER_TONNE_WINE, RACKHAMS_PEAK_POP, server_mod_role_id, get_pilot_role_id, get_steve_says_channel, \
-    server_wine_carrier_role_id, server_connoisseur_role_id, get_wine_carrier_channel, \
-    get_primary_booze_discussions_channel, GOOGLE_OAUTH_CREDENTIALS_PATH, _production, \
-    all_faction_states
+from google.oauth2.service_account import Credentials
 
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
-
+from ptn.boozebot.constants import (
+    BOOZE_PROFIT_PER_TONNE_WINE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, all_faction_states, bot,
+    bot_guild_id, get_pilot_role_id, get_primary_booze_discussions_channel, get_steve_says_channel,
+    get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
+    server_sommelier_role_id, server_wine_carrier_role_id
+)
+from ptn.boozebot.database.database import dump_database, pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
-from ptn.boozebot.modules.ErrorHandler import (
-    on_app_command_error,
-    GenericError,
-    CustomError,
-    on_generic_error,
-)
-from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel, bc_channel_status
-from ptn.boozebot.database.database import (
-    pirate_steve_db,
-    pirate_steve_conn,
-    dump_database,
-    pirate_steve_db_lock,
-)
-from ptn.boozebot.modules.PHcheck import ph_check
+from ptn.boozebot.modules.ErrorHandler import on_app_command_error
+from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles
 from ptn.boozebot.modules.pagination import createPagination
+from ptn.boozebot.modules.PHcheck import ph_check
 
 """
 DATABASE INTERACTION COMMANDS
@@ -80,6 +67,8 @@ def get_creds():
         "https://www.googleapis.com/auth/drive",
     ])
     return scoped
+
+IncludeNotUnloadedChoices = Literal["All Carriers", "Only Unloaded"]
 
 class DatabaseInteraction(commands.Cog):
 
@@ -169,9 +158,7 @@ class DatabaseInteraction(commands.Cog):
             )
 
         elif not self.update_allowed:
-            print(
-                "Update not allowed, user has archived the data but not polled the latest set."
-            )
+            print("Update not allowed, user has archived the data but not polled the latest set.")
             return
 
         updated_db = False
@@ -425,7 +412,7 @@ class DatabaseInteraction(commands.Cog):
         all_carrier_data: list[BoozeCarrier],
         target_date: str = None,
         include_timestamp:bool = False,
-        include_not_unloaded: str|None = None
+        include_not_unloaded: IncludeNotUnloadedChoices | None = None
     ) -> discord.Embed:
 
         # Get faction state from the first carrier, assuming all carriers have the same state
@@ -435,7 +422,7 @@ class DatabaseInteraction(commands.Cog):
         if include_not_unloaded:
             if include_not_unloaded == "All Carriers":
                 unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
-            elif include_not_unloaded == "Only Unloaded":
+            else:  # include_not_unloaded == "Only Unloaded":
                 unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=False) for carrier in all_carrier_data]
         
         # Else only show unloaded, except if it was not a public holiday or the current cruise
@@ -524,7 +511,12 @@ class DatabaseInteraction(commands.Cog):
         print("Returning embed to user")
         return stat_embed
 
-    def build_extended_stat_embed(self, all_carrier_data: list[BoozeCarrier], target_date: str = None, include_not_unloaded: str|None = None) -> discord.Embed:
+    def build_extended_stat_embed(
+        self,
+        all_carrier_data: list[BoozeCarrier],
+        target_date: str = None,
+        include_not_unloaded: IncludeNotUnloadedChoices | None = None
+    ) -> discord.Embed:
         
         # Get faction state from the first carrier, assuming all carriers have the same state
         faction_state = all_carrier_data[0].faction_state
@@ -1071,12 +1063,6 @@ class DatabaseInteraction(commands.Cog):
         cruise_select="Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is this cruise.",
         include_not_unloaded="Force select if we should include carriers that have not unloaded yet.",
     )
-    @app_commands.choices(
-        include_not_unloaded=[
-            Choice(name="All Carriers", value="All Carriers"),
-            Choice(name="Only Unloaded", value="Only Unloaded"),
-        ]
-    )
     @check_roles(
         [
             *server_council_role_ids(),
@@ -1085,7 +1071,12 @@ class DatabaseInteraction(commands.Cog):
             server_connoisseur_role_id(),
         ]
     )
-    async def tally(self, interaction: discord.Interaction, cruise_select: int = 0, include_not_unloaded: str|None = None):
+    async def tally(
+        self,
+        interaction: discord.Interaction,
+        cruise_select: int = 0,
+        include_not_unloaded: IncludeNotUnloadedChoices | None = None
+    ):
         """
         Returns an embed inspired by (cloned from) @CMDR Suiseiseki's b.tally. Provided to keep things in one place
         is all.
@@ -1205,13 +1196,13 @@ class DatabaseInteraction(commands.Cog):
             message_embed = message.embeds[0]
 
         except IndexError:
-            print(f"The message entered is not a pirate steve stat embed")
+            print("The message entered is not a pirate steve stat embed")
             return await interaction.edit_original_response(
                 content=f"The message entered is not a pirate steve stat embed. {message_link}"
             )
 
         if message_embed.title != "Pirate Steve's Booze Cruise Tally":
-            print(f"The message entered is not a pirate steve stat embed")
+            print("The message entered is not a pirate steve stat embed")
             return await interaction.edit_original_response(
                 content=f"The message entered is not a pirate steve stat embed. {message_link}"
             )
@@ -1355,12 +1346,6 @@ class DatabaseInteraction(commands.Cog):
         cruise_select="Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is this cruise.",
         include_not_unloaded="Force select if we should include carriers that have not unloaded yet.",
     )
-    @app_commands.choices(
-        include_not_unloaded=[
-            Choice(name="All Carriers", value="All Carriers"),
-            Choice(name="Only Unloaded", value="Only Unloaded"),
-        ]
-    )
     @check_roles(
         [
             *server_council_role_ids(),
@@ -1369,7 +1354,12 @@ class DatabaseInteraction(commands.Cog):
             server_connoisseur_role_id(),
         ]
     )
-    async def extended_tally_stats(self, interaction: discord.Interaction, cruise_select: int = 0, include_not_unloaded: str|None = None):
+    async def extended_tally_stats(
+        self,
+        interaction: discord.Interaction,
+        cruise_select: int = 0,
+        include_not_unloaded: IncludeNotUnloadedChoices | None = None
+    ):
         """
         Prints an extended tally stats as requested by RandomGazz.
         """
@@ -1799,14 +1789,7 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        print(
-            f"{interaction.user.name} wants to reconfigure the booze cruise signup forms."
-        )
-
-        # Store the current states just in case we need them
-        original_sheet_id = self.worksheet_with_data_id
-        original_worksheet_key = self.worksheet_key
-        original_loader_signup_form = self.loader_signup_form_url
+        print(f"{interaction.user.name} wants to reconfigure the booze cruise signup forms.")
 
         # track the init value, we reset to this in case of bail out
         init_update_value = self.update_allowed
@@ -2116,19 +2099,19 @@ class DatabaseInteraction(commands.Cog):
         extended="If the extended stats should be shown",
         include_not_unloaded="Force select if we should include carriers that have not unloaded yet.",
     )
-    @app_commands.choices(
-        include_not_unloaded=[
-            Choice(name="All Carriers", value="All Carriers"),
-            Choice(name="Only Unloaded", value="Only Unloaded"),
-        ]
-    )
-    async def biggest_cruise_tally(self, interaction: discord.Interaction, extended: bool = False, include_not_unloaded: str|None = None):
+    async def biggest_cruise_tally(
+        self,
+        interaction: discord.Interaction,
+        extended: bool = False,
+        include_not_unloaded: IncludeNotUnloadedChoices | None = None
+    ):
         """
         Returns the tally for the cruise with the most wine.
 
-        :param interaction discord.Interaction: The discord interaction context.
+        :param discord.Interaction interaction: The discord interaction context.
         :param bool extended: If the extended stats should be shown.
-        :returns: None"
+        :param IncludeNotUnloadedChoices include_not_unloaded: If we should include carriers that did not unload
+        :returns: None
         """
 
         print(f"{interaction.user.name} requested the biggest cruise tally, extended: {extended}.")
