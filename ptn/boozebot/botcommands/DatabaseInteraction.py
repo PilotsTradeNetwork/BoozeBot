@@ -24,7 +24,7 @@ from google.oauth2.service_account import Credentials
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 #local constants
 from ptn.boozebot.constants import (
-    BOOZE_PROFIT_PER_TONNE_WINE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, all_faction_states, bot,
+    BOOZE_PROFIT_PER_TONNE_WINE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, bot,
     bot_guild_id, get_pilot_role_id, get_primary_booze_discussions_channel, get_steve_says_channel,
     get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
     server_sommelier_role_id, server_wine_carrier_role_id
@@ -70,6 +70,13 @@ def get_creds():
     return scoped
 
 IncludeNotUnloadedChoices = Literal["All Carriers", "Only Unloaded"]
+FactionStateChoices = Literal[
+    "Public Holiday", "Blight", "Boom", "Bust", "Civil liberty", "Civil unrest",
+    "Civil war", "Cold war", "Colonisation", "Drought", "Elections", "Expansion",
+    "Famine", "Historic event", "Infrastructure failure", "Investment", "Lockdown",
+    "Natural disaster", "Outbreak", "Pirate attack", "Retreat", "Revolution",
+    "Technological leap", "Terrorist attack"
+]
 
 class DatabaseInteraction(commands.Cog):
 
@@ -1602,21 +1609,6 @@ class DatabaseInteraction(commands.Cog):
                 content="**Cancelled - timed out**", embed=None
             )
 
-    # max of 25 choices so needs to be an autocomplete function
-    async def faction_state_autocomplete(
-        self,
-        interaction: discord.Interaction,
-        current: str,
-    ) -> list[app_commands.Choice[str]]:
-        """
-        Autocomplete for faction state choices.
-        """
-        
-        return [
-            app_commands.Choice(name=state, value=state)
-            for state in all_faction_states if current.lower() in state.lower()
-        ][:25]
-
     @app_commands.command(
         name="booze_archive_database",
         description="Archives the boozedatabase. Admin/Sommelier required.",
@@ -1625,12 +1617,11 @@ class DatabaseInteraction(commands.Cog):
         [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()]
     )
     @check_command_channel(get_steve_says_channel())
-    @app_commands.autocomplete(faction_state=faction_state_autocomplete)
     @describe(
         start_date="The start date of the cruise in DD-MM-YY format.",
         faction_state="The faction state to archive the data with (defaults to PH).",
     )
-    async def archive_database(self, interaction: discord.Interaction, start_date: str, faction_state: str = "Public Holiday"):
+    async def archive_database(self, interaction: discord.Interaction, start_date: str, faction_state: FactionStateChoices = "Public Holiday"):
         """
         Performs the steps to archive the current booze cruise database. Only possible if we are not in a PH
         currently and if the data has not been archived. Once archived it will be dropped.
@@ -1665,16 +1656,6 @@ class DatabaseInteraction(commands.Cog):
                 embed=None,
             )
             print("User input date was not in the correct format, aborting.")
-            return
-
-        if faction_state not in all_faction_states:
-            available_states = ", ".join([f'"{state}"' for state in all_faction_states])
-            await interaction.edit_original_response(
-                content=f"Pirate Steve does not know the faction state: {faction_state}. "
-                f"Available states are: {available_states}.",
-                embed=None,
-            )
-            print(f"User input faction state was not valid: {faction_state}, aborting.")
             return
 
         def check_yes_no(check_message):
