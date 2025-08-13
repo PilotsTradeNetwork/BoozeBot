@@ -6,7 +6,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ptn.boozebot._metadata import __version__
 from ptn.boozebot.classes.AutoResponse import AutoResponse
 # local constants
 from ptn.boozebot.constants import (
@@ -41,9 +40,7 @@ class AutoResponses(commands.Cog):
             SELECT * FROM auto_responses
         """
         )
-        self.auto_responses = [
-            AutoResponse(response) for response in pirate_steve_db.fetchall()
-        ]
+        self.auto_responses = [AutoResponse(response) for response in pirate_steve_db.fetchall()]
 
     # custom global error handler
     # attaching the handler when the cog is loaded
@@ -76,9 +73,7 @@ class AutoResponses(commands.Cog):
 
         for auto_response in self.auto_responses:
             if auto_response.matches(message):
-                print(
-                    f"Auto response triggered: {auto_response.name} by {message.author} in {message.channel.name}"
-                )
+                print(f"Auto response triggered: {auto_response.name} by {message.author} in {message.channel.name}")
                 await message.channel.send(
                     auto_response.response,
                     reference=message,
@@ -99,24 +94,18 @@ class AutoResponses(commands.Cog):
         print(f"{message.author} mentioned PirateSteve.")
 
         await message.channel.send(
-            random.choice(ping_response_messages).format(
-                message_author_id=message.author.id
-            ),
+            random.choice(ping_response_messages).format(message_author_id=message.author.id),
             reference=message,
         )
 
-    @app_commands.command(
-        name="booze_create_auto_response", description="Create a new auto response"
-    )
+    @app_commands.command(name="booze_create_auto_response", description="Create a new auto response")
     @app_commands.describe(
         name="Name of the auto response",
         trigger="Trigger phrase for the auto response",
         is_regex="Is the trigger a regex pattern?",
         response="Response message to send when the trigger is matched",
     )
-    @check_roles(
-        [*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()]
-    )
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def create_auto_response(
         self,
@@ -140,9 +129,7 @@ class AutoResponses(commands.Cog):
 
         async with pirate_steve_db_lock:
             # Check if the name already exists
-            pirate_steve_db.execute(
-                "SELECT * FROM auto_responses WHERE name = ?", (name,)
-            )
+            pirate_steve_db.execute("SELECT * FROM auto_responses WHERE name = ?", (name,))
             if pirate_steve_db.fetchone():
                 await interaction.edit_original_response(
                     content=f"An auto response with the name '{name}' already exists.",
@@ -168,17 +155,11 @@ class AutoResponses(commands.Cog):
             )
         )
 
-        await interaction.edit_original_response(
-            content=f"Auto response '{name}' created successfully."
-        )
+        await interaction.edit_original_response(content=f"Auto response '{name}' created successfully.")
 
-    @app_commands.command(
-        name="booze_delete_auto_response", description="Delete an auto response"
-    )
+    @app_commands.command(name="booze_delete_auto_response", description="Delete an auto response")
     @app_commands.describe(name="Name of the auto response to delete")
-    @check_roles(
-        [*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()]
-    )
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def delete_auto_response(self, interaction: discord.Interaction, name: str):
         """
@@ -192,34 +173,22 @@ class AutoResponses(commands.Cog):
 
         async with pirate_steve_db_lock:
             # Check if the auto response exists
-            pirate_steve_db.execute(
-                "SELECT * FROM auto_responses WHERE name = ?", (name,)
-            )
+            pirate_steve_db.execute("SELECT * FROM auto_responses WHERE name = ?", (name,))
             if not pirate_steve_db.fetchone():
-                await interaction.edit_original_response(
-                    content=f"No auto response found with the name '{name}'."
-                )
+                await interaction.edit_original_response(content=f"No auto response found with the name '{name}'.")
                 return
 
             # Delete the auto response
-            pirate_steve_db.execute(
-                "DELETE FROM auto_responses WHERE name = ?", (name,)
-            )
+            pirate_steve_db.execute("DELETE FROM auto_responses WHERE name = ?", (name,))
             pirate_steve_conn.commit()
 
         # Remove the auto response from the list
         self.auto_responses = [ar for ar in self.auto_responses if ar.name != name]
 
-        await interaction.edit_original_response(
-            content=f"Auto response '{name}' deleted successfully."
-        )
+        await interaction.edit_original_response(content=f"Auto response '{name}' deleted successfully.")
 
-    @app_commands.command(
-        name="booze_list_auto_responses", description="List all auto responses"
-    )
-    @check_roles(
-        [*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()]
-    )
+    @app_commands.command(name="booze_list_auto_responses", description="List all auto responses")
+    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def list_auto_responses(self, interaction: discord.Interaction):
         """
