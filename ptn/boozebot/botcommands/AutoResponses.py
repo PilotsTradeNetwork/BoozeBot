@@ -8,14 +8,12 @@ from discord.ext import commands
 
 from ptn.boozebot._metadata import __version__
 from ptn.boozebot.classes.AutoResponse import AutoResponse
-
 # local constants
 from ptn.boozebot.constants import (
     get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel,
     get_wine_cellar_deliveries_channel, ping_response_messages, server_council_role_ids, server_mod_role_id,
     server_sommelier_role_id
 )
-
 # local modules
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
@@ -78,7 +76,9 @@ class AutoResponses(commands.Cog):
 
         for auto_response in self.auto_responses:
             if auto_response.matches(message):
-                print(f"Auto response triggered: {auto_response.name} by {message.author} in {message.channel.name}")
+                print(
+                    f"Auto response triggered: {auto_response.name} by {message.author} in {message.channel.name}"
+                )
                 await message.channel.send(
                     auto_response.response,
                     reference=message,

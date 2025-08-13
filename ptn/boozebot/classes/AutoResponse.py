@@ -1,16 +1,12 @@
 import re
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import discord
 
 from ptn.boozebot.constants import (
-    server_connoisseur_role_id,
-    server_council_role_ids,
-    server_mod_role_id,
-    server_sommelier_role_id,
-    get_steve_says_channel,
-    bot,
+    bot, get_steve_says_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
+    server_sommelier_role_id
 )
 
 
