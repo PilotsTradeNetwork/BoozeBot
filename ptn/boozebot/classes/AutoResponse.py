@@ -2,10 +2,9 @@ import re
 import sqlite3
 from datetime import datetime, timedelta
 
-from discord import Message, TextChannel
-
+from discord import Message
 from ptn.boozebot.constants import (
-    bot, get_steve_says_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
+    server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
     server_sommelier_role_id
 )
 
@@ -35,14 +34,9 @@ class AutoResponse:
         if self.is_regex:
             try:
                 self.trigger = re.compile(info_dict.get("trigger", ""))
-            except re.error as e:
-                print(f"Invalid regex pattern: {info_dict.get('trigger', '')}. Error: {e}")
-                steve_says_channel: TextChannel = bot.get_channel(get_steve_says_channel())
-                steve_says_channel.send(
-                    f"Invalid regex pattern in auto response '{self.name}': {info_dict.get('trigger', '')}. Error: {e}"
-                )
+            except re.error:
+                self.trigger = info_dict.get("trigger", "")
                 self.is_regex = False
-                self.trigger = info_dict.get("trigger", "").lower()
 
     def to_tuple(self):
         """

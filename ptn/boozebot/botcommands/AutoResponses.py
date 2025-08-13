@@ -1,11 +1,11 @@
 # libraries
 import random
+import re
 
 # discord.py
 import discord
 from discord import app_commands
 from discord.ext import commands
-
 from ptn.boozebot.classes.AutoResponse import AutoResponse
 # local constants
 from ptn.boozebot.constants import (
@@ -34,13 +34,15 @@ class AutoResponses(commands.Cog):
         self.bot = bot
 
         self.text_commands = ["ping", "exit", "update", "version", "sync"]
-
+        
         pirate_steve_db.execute(
             """
             SELECT * FROM auto_responses
         """
         )
-        self.auto_responses = [AutoResponse(response) for response in pirate_steve_db.fetchall()]
+        self.auto_responses = [
+            AutoResponse(row) for row in pirate_steve_db.fetchall()
+        ]
 
     # custom global error handler
     # attaching the handler when the cog is loaded
@@ -126,6 +128,15 @@ class AutoResponses(commands.Cog):
         """
 
         await interaction.response.defer()
+        
+        if is_regex:
+            try:
+                re.compile(trigger)
+            except re.error as e:
+                await interaction.edit_original_response(
+                    content=f"Invalid regex pattern: {trigger}. Error: {e}"
+                )
+                return
 
         async with pirate_steve_db_lock:
             # Check if the name already exists
