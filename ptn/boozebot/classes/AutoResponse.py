@@ -90,12 +90,10 @@ class AutoResponse:
         """
 
         is_staff = {role.id for role in message.author.roles} & {
-            [
-                *server_council_role_ids(),
-                server_mod_role_id(),
-                server_sommelier_role_id(),
-                server_connoisseur_role_id(),
-            ]
+            *server_council_role_ids(),
+            server_mod_role_id(),
+            server_sommelier_role_id(),
+            server_connoisseur_role_id(),
         }
 
         if is_staff:
