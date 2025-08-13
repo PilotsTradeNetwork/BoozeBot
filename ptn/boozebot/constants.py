@@ -278,14 +278,6 @@ N_SYSTEMS = {
     "N16-Trit": "Mandhrithar"
 }
 
-all_faction_states = [
-    "Public Holiday", "Blight", "Boom", "Bust", "Civil liberty", "Civil unrest",
-    "Civil war", "Cold war", "Colonisation", "Drought", "Elections", "Expansion",
-    "Famine", "Historic event", "Incursion", "Infested", "Infrastructure failure",
-    "Investment", "Lockdown", "Natural disaster", "Outbreak", "Pirate attack",
-    "Retreat", "Revolution", "Technological leap", "Terrorist attack"
-]
-
 # Check the folder exists
 if not os.path.exists(os.path.dirname(CARRIERS_DB_PATH)):
     print(f'Folder {os.path.dirname(CARRIERS_DB_PATH)} does not exist, making it now.')
