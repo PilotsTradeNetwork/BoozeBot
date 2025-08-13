@@ -114,9 +114,9 @@ async def createPagination(interaction: discord.Interaction, title: str, content
                 await message.remove_reaction(reaction, user)
 
         except asyncio.TimeoutError:
-            print(f"Timeout hit during carrier request by: {interaction.user.name}")
+            print(f"Timeout hit during {title} list request by: {interaction.user.name}")
             await interaction.edit_original_response(
-                content=f"Closed the active carrier list request from: {interaction.user.name} due to no input in 60 seconds.",
+                content=f"Closed the active {title} list request from: {interaction.user.name} due to no input in 60 seconds.",
                 embed=None,
             )
             return await message.clear_reactions()

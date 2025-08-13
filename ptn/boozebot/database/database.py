@@ -76,6 +76,12 @@ def build_database_on_startup():
             'entry': 'INTEGER PRIMARY KEY AUTOINCREMENT',
             'message_id': 'TEXT UNIQUE',
             'channel_id': 'TEXT UNIQUE'
+        },
+        'auto_responses': {
+            'name': 'TEXT PRIMARY KEY',
+            'trigger': 'TEXT NOT NULL',
+            'is_regex': 'BOOLEAN NOT NULL DEFAULT 0',
+            'response': 'TEXT NOT NULL',
         }
     }
 
