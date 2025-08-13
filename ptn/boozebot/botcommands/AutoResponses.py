@@ -18,7 +18,7 @@ from ptn.boozebot.constants import (
 
 # local modules
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.ErrorHandler import TimeoutError, on_app_command_error
+from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.pagination import createPagination
 
