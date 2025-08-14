@@ -6,7 +6,6 @@ The Python script that starts the bot.
 # import libraries
 import asyncio
 import logging
-import os
 
 from discord import LoginFailure, GatewayNotFound, ConnectionClosed, HTTPException
 from discord.ext.prometheus import PrometheusCog
@@ -24,6 +23,7 @@ from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
+from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 
 # import bot object, token, production status
 from ptn.boozebot.constants import bot, TOKEN, _production, log_handler, LOG_LEVEL
@@ -50,6 +50,7 @@ async def boozebot():
         await bot.add_cog(MakeWineCarrier(bot))
         await bot.add_cog(Departures(bot))
         await bot.add_cog(BackgroundTaskCommands(bot))
+        await bot.add_cog(AutoResponses(bot))
         await bot.add_cog(PrometheusCog(bot))
 
         try:

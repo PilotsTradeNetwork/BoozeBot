@@ -6,6 +6,8 @@ Depends on: constants, ErrorHandler, database
 
 # import libraries
 import sys
+import datetime
+import functools
 
 # import discord.py
 import discord
@@ -142,3 +144,17 @@ def bc_channel_status():
     except Exception as e:
         print(f"Error checking bc channel status: {e}")
         return False
+    
+    
+# Decorator to track the last run time of a task
+def track_last_run():
+    def decorator(coro):
+        @functools.wraps(coro)
+        async def wrapper(self, *args, **kwargs):
+            result = await coro(self, *args, **kwargs)
+            loop = getattr(self, coro.__name__)
+            loop.last_run_time = datetime.datetime.now(datetime.timezone.utc)
+            return result
+
+        return wrapper
+    return decorator

@@ -1,6 +1,6 @@
-import os
 import sqlite3
 import asyncio
+from datetime import datetime
 
 from ptn.boozebot.constants import get_db_path, get_db_dumps_path
 
@@ -27,160 +27,161 @@ def dump_database():
 
 
 def build_database_on_startup():
-    print('Checking whether the booze carriers db exists')
-    pirate_steve_db.execute(
-        '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'boozecarriers' ''')
-    if not bool(pirate_steve_db.fetchone()[0]):
+    # Define the expected schema for each table
+    table_schemas = {
+        'boozecarriers': {
+            'entry': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            'carriername': 'TEXT NOT NULL',
+            'carrierid': 'TEXT UNIQUE',
+            'winetotal': 'INT',
+            'platform': 'TEXT NOT NULL',
+            'officialcarrier': 'BOOLEAN',
+            'discordusername': 'TEXT NOT NULL',
+            'timestamp': 'DATETIME',
+            'runtotal': 'INT',
+            'totalunloads': 'INT',
+            'discord_unload_in_progress': 'INT',
+            'discord_unload_poster_id': 'INT',
+            'user_timezone_in_utc': 'TEXT'
+        },
+        'historical': {
+            'entry': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            'holiday_start': 'DATE',
+            'holiday_end': 'DATE',
+            'carriername': 'TEXT NOT NULL',
+            'carrierid': 'TEXT',
+            'winetotal': 'INT',
+            'platform': 'TEXT NOT NULL',
+            'officialcarrier': 'BOOLEAN',
+            'discordusername': 'TEXT NOT NULL',
+            'timestamp': 'DATETIME',
+            'runtotal': 'INT',
+            'totalunloads': 'INT',
+            'discord_unload_in_progress': 'INT',
+            'user_timezone_in_utc': 'TEXT',
+            'faction_state': 'TEXT'
+        },
+        'holidaystate': {
+            'entry': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            'state': 'BOOL',
+            'timestamp': 'DATETIME'
+        },
+        'trackingforms': {
+            'entry': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            'worksheet_key': 'TEXT UNIQUE',
+            'loader_input_form_url': 'TEXT UNIQUE',
+            'worksheet_with_data_id': 'INT'
+        },
+        'pinned_messages': {
+            'entry': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            'message_id': 'TEXT UNIQUE',
+            'channel_id': 'TEXT UNIQUE'
+        },
+        'auto_responses': {
+            'name': 'TEXT PRIMARY KEY',
+            'trigger': 'TEXT NOT NULL',
+            'is_regex': 'BOOLEAN NOT NULL DEFAULT 0',
+            'response': 'TEXT NOT NULL',
+        }
+    }
 
-        if os.path.exists(db_sql_store):
-            # recreate from backup file
-            print('Recreating database from backup ...')
-            with open(db_sql_store) as f:
-                sql_script = f.read()
-                pirate_steve_db.executescript(sql_script)
+    # Iterate through each table schema and create or update the table
+    for table_name, schema in table_schemas.items():
+
+        # Create the table if it does not exist
+
+        pirate_steve_db.execute(f'''
+            SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = '{table_name}'
+        ''')
+        if not bool(pirate_steve_db.fetchone()[0]):
+            print(f'Table {table_name} does not exist, creating it now.')
+            pirate_steve_db.execute(f'''
+                CREATE TABLE {table_name} (
+                    {', '.join([f"{col} {col_type}" for col, col_type in schema.items()])}
+                )
+            ''')
+            pirate_steve_conn.commit()
+            print(f'Table {table_name} created successfully.')
+            continue
+
         else:
-            print('Creating a fresh database')
-            pirate_steve_db.execute('''
-                CREATE TABLE boozecarriers( 
-                    entry INTEGER PRIMARY KEY AUTOINCREMENT,
-                    carriername TEXT NOT NULL, 
-                    carrierid TEXT UNIQUE,
-                    winetotal INT,
-                    platform TEXT NOT NULL,
-                    officialcarrier BOOLEAN,
-                    discordusername TEXT NOT NULL,
-                    timestamp DATETIME,
-                    runtotal INT,
-                    totalunloads INT,
-                    discord_unload_in_progress INT,
-                    discord_unload_poster_id INT,
-                    user_timezone_in_utc TEXT
-                ) 
-            ''')
-            print('Database created')
-    else:
-        print('The booze carrier database already exists')
+            print(f'Table {table_name} already exists, checking columns for updates.')
 
-    print('Checking whether the holiday database db exists')
-    pirate_steve_db.execute(
-        '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'holidaystate' '''
-    )
-    if not bool(pirate_steve_db.fetchone()[0]):
-        print('Creating a fresh holiday database')
-        pirate_steve_db.execute('''
-            CREATE TABLE holidaystate(
-                entry INTEGER PRIMARY KEY AUTOINCREMENT,
-                state BOOL, 
-                timestamp DATETIME
-            ) 
-        ''')
-        # Write some defaults
-        pirate_steve_db.execute('''
-            INSERT INTO holidaystate VALUES(
-                NULL,
-                0,
-                CURRENT_TIMESTAMP
-                ) 
-            ''')
-        pirate_steve_conn.commit()
-        print('Database created')
-    else:
-        print('The holiday state database already exists')
+            pirate_steve_db.execute(f'''PRAGMA table_info ({table_name})''')
+            result = [dict(col) for col in pirate_steve_db.fetchall()]
+            # Get full column information including all attributes
+            existing_columns = {}
+            for element in result:
+                col_name = element['name']
+                col_type = element['type']
+                is_pk = element['pk']
+                not_null = element['notnull']
+                default_val = element['dflt_value']
+                
+                # Build full type specification
+                full_type = col_type
+                if is_pk:
+                    full_type += ' PRIMARY KEY'
+                    if 'AUTOINCREMENT' in schema.get(col_name, ''):
+                        full_type += ' AUTOINCREMENT'
+                if not_null and not is_pk:
+                    full_type += ' NOT NULL'
+                if default_val is not None:
+                    full_type += f' DEFAULT {default_val}'
+                if 'UNIQUE' in schema.get(col_name, ''):
+                    full_type += ' UNIQUE'
+                
+                existing_columns[col_name] = full_type
 
-    print('Checking whether the historical database exists')
-    pirate_steve_db.execute(
-        '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'historical' '''
-    )
-    if not bool(pirate_steve_db.fetchone()[0]):
-        print('Creating a fresh historical state database')
-        pirate_steve_db.execute('''
-            CREATE TABLE historical(
-                entry INTEGER PRIMARY KEY AUTOINCREMENT,
-                holiday_start DATE,
-                holiday_end DATE,
-                carriername TEXT NOT NULL, 
-                carrierid TEXT,
-                winetotal INT,
-                platform TEXT NOT NULL,
-                officialcarrier BOOLEAN,
-                discordusername TEXT NOT NULL,
-                timestamp DATETIME,
-                runtotal INT,
-                totalunloads INT,
-                discord_unload_in_progress INT,
-                user_timezone_in_utc TEXT
-            ) 
-        ''')
-        pirate_steve_conn.commit()
-        print('Historical Database created')
-    else:
-        print('The historical state database already exists')
+            # Add any missing columns
+            for column_name, column_type in schema.items():
+                if column_name not in existing_columns:
+                    print(f'Adding column {column_name} to table {table_name}')
+                    pirate_steve_db.execute(
+                        f'''ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}'''
+                    )
 
-    print('Checking whether the the input tracking database exists')
-    pirate_steve_db.execute(
-        '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'trackingforms' '''
-    )
-    if not bool(pirate_steve_db.fetchone()[0]):
-        print('Creating a fresh trackingforms database')
-        pirate_steve_db.execute('''
-                CREATE TABLE trackingforms(
-                    entry INTEGER PRIMARY KEY AUTOINCREMENT,
-                    worksheet_key TEXT UNIQUE,
-                    loader_input_form_url TEXT UNIQUE,
-                    worksheet_with_data_id INT
-                ) 
-            ''')
-        # Some default values in the case we need to make the table. These will need to be set accordingly,
-        # These are the values for the testing form.
-        pirate_steve_db.execute('''
-            INSERT INTO trackingforms VALUES(
-                NULL,
-                '1fhdNd1zM4cQrQA0mCWzJAQWy70uiR3I8NLhBO7TAIL8',
-                'https://forms.gle/U1YeSg9Szj1jcFHr5',
-                1
-            ) 
-        ''')
-        pirate_steve_conn.commit()
-        print('Forms Database created')
-    else:
-        print('The tracking forms database already exists')
-            
-    print('Checking whether the the pinned message tracking database exists')
-    pirate_steve_db.execute(
-        '''SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'pinned_messages' '''
-    )
-    if not bool(pirate_steve_db.fetchone()[0]):
-        print('Creating a fresh pinned_messages database')
-        pirate_steve_db.execute('''
-                CREATE TABLE pinned_messages(
-                    entry INTEGER PRIMARY KEY AUTOINCREMENT,
-                    message_id TEXT UNIQUE,
-                    channel_id TEXT UNIQUE
-                ) 
-            ''')
-        pirate_steve_conn.commit()
-        print('Pinned message Database created')
-    else:
-        print('The pinned message database already exists')
+            # Check for any incorrect column types
+            for column_name, column_type in existing_columns.items():
+                if column_name in schema:
+                    if column_type != schema[column_name]:
+                        print(f'Column {column_name} in table {table_name} has incorrect type {column_type}, expected {schema[column_name]}')
+                        raise EnvironmentError("Column type mismatch detected. Please check the database schema.")
 
-    # Check to add any new columns to the database tables.
-    pirate_steve_db.execute('''PRAGMA table_info (boozecarriers)''')
-    result = [dict(col) for col in pirate_steve_db.fetchall()]
-    col_names = [element['name'] for element in result]
+            pirate_steve_conn.commit()
 
-    if 'user_timezone_in_utc' not in col_names:
-        print('Adding the user_timezone_in_utc field.')
-        # Go add it
-        pirate_steve_db.execute(
-            '''ALTER TABLE boozecarriers ADD COLUMN user_timezone_in_utc TEXT'''
-        )
-        pirate_steve_conn.commit()
-        
-    if 'discord_unload_poster_id' not in col_names:
-        print('Adding the discord_unload_poster_id field.')
-        # Go add it
-        pirate_steve_db.execute(
-            '''ALTER TABLE boozecarriers ADD COLUMN discord_unload_poster_id INT'''
-        )
-        pirate_steve_conn.commit()
-        
+    print('Database schema check and update completed successfully.')
+
+    default_values = {
+        'holidaystate': [{
+            'state': 0,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }],
+        'trackingforms': [{
+            'worksheet_key': '1fhdNd1zM4cQrQA0mCWzJAQWy70uiR3I8NLhBO7TAIL8',
+            'loader_input_form_url': 'https://forms.gle/U1YeSg9Szj1jcFHr5',
+            'worksheet_with_data_id': 1
+        }]
+    }
+
+    # Insert default values into tables if they're empty
+    for table_name, records in default_values.items():
+        pirate_steve_db.execute(f'SELECT COUNT(*) FROM {table_name}')
+        if pirate_steve_db.fetchone()[0] == 0:
+            print(f'Inserting default values into {table_name} table.')
+            for record in records:
+                columns = ', '.join(record.keys())
+                placeholders = ', '.join(['?' for _ in record])
+                values = tuple(record.values())
+                pirate_steve_db.execute(f'''
+                    INSERT INTO {table_name} ({columns}) VALUES ({placeholders})
+                ''', values)
+            pirate_steve_conn.commit()
+            print(f'Default values inserted into {table_name} table.')
+        else:
+            print(f'{table_name} table already has data, skipping default insert.')
+
+    print('Database is ready for use.')
+
+if __name__ == "__main__":
+    build_database_on_startup()

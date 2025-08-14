@@ -64,9 +64,6 @@ on_ready
 on_disconnect
 - Logs the disconnect
 
-on_message
-- If pinged in #booze-cruise-chat respond
-
 ADMIN COMMANDS
 b/ping - admin
 b/update - admin
@@ -115,36 +112,6 @@ class DiscordBotCommands(commands.Cog):
             logging.error(f"Error in on_ready: {e}")
 
         print('Starting the holiday checker.')
-
-    @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
-        TXT_COMMANDS = ['ping', 'exit', 'update', 'version', 'sync']
-        
-        if message.channel.id not in [get_primary_booze_discussions_channel(), get_wine_carrier_channel()]:
-            return
-        
-        if not self.bot.user.mentioned_in(message):
-            return
-        
-        if message.author == self.bot.user:
-            return
-        
-        if message.is_system():
-            return
-        
-        if message.reference:
-            return
-        
-        msg_split = message.content.split()
-        
-        if len(msg_split) >= 2 and msg_split[1].lower() in TXT_COMMANDS:
-            return
-
-        print(f'{message.author} mentioned PirateSteve.')
-        
-        await message.channel.send(
-            random.choice(ping_response_messages).format(message_author_id=message.author.id), reference=message
-        )
 
     @commands.Cog.listener()
     async def on_disconnect(self):
