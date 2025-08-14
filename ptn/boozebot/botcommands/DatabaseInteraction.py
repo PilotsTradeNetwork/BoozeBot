@@ -424,7 +424,10 @@ class DatabaseInteraction(commands.Cog):
     ) -> discord.Embed:
 
         # Get faction state from the first carrier, assuming all carriers have the same state
-        faction_state = all_carrier_data[0].faction_state
+        if all_carrier_data:
+            faction_state = all_carrier_data[0].faction_state
+        else:
+            faction_state = None
 
         # If we have an override for the include_not_unloaded, use it
         if include_not_unloaded:
@@ -527,7 +530,10 @@ class DatabaseInteraction(commands.Cog):
     ) -> discord.Embed:
         
         # Get faction state from the first carrier, assuming all carriers have the same state
-        faction_state = all_carrier_data[0].faction_state
+        if all_carrier_data:
+            faction_state = all_carrier_data[0].faction_state
+        else:
+            faction_state = None
 
         # If we have an override for the include_not_unloaded, use it
         if include_not_unloaded:
