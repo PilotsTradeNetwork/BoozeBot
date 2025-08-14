@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.15
+-    \#595 - Update docker image base (IndorilReborn)
+-    \#596 - Log person granting WCO role (IndorilReborn)
+-    \#598 - Remove wine tanker unload cmd and ids (IndorilReborn)
+-    \#599 - Add unload duration to the complete notification message (IndorilReborn)
+-    \#597 - Too slow gifs (IndorilReborn)
+-    \#605 - Use Literal for choices, organise imports (IndorilReborn)
+-    \#601 - canceled cruise functionality (conshmea)
+-    \#603 - defer the make wine carrier commands (conshmea)
+-    \#602 - Add times to task status (conshmea)
+-    \#608 - Style fixes (IndorilReborn)
+-    \#606 - Auto responses (conshmea)
+-    \#607 - Remove goid states from state choices to bring it under 25 (conshmea)
+
 ## 2.0.14
 -    \#587 - Update CODEOWNERS (booze-dev-staff is now code owner) (IndorilReborn)
 -    \#577 - Remove channel mention from unload complete reminder (IndorilReborn)
