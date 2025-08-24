@@ -24,9 +24,9 @@ from google.oauth2.service_account import Credentials
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 #local constants
 from ptn.boozebot.constants import (
-    BOOZE_PROFIT_PER_TONNE_WINE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, bot,
-    bot_guild_id, get_pilot_role_id, get_primary_booze_discussions_channel, get_steve_says_channel,
-    get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
+    BOOZE_PROFIT_PER_TONNE_WINE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, bot, bot_guild_id,
+    get_pilot_role_id, get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel,
+    ptn_role_icon_emoji_id, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
     server_sommelier_role_id, server_wine_carrier_role_id
 )
 from ptn.boozebot.database.database import dump_database, pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
@@ -77,6 +77,16 @@ FactionStateChoices = Literal[
     "Famine", "Historic event", "Infrastructure failure", "Investment", "Lockdown",
     "Natural disaster", "Outbreak", "Pirate attack", "Retreat", "Revolution",
     "Technological leap", "Terrorist attack"
+]
+StatChoices = Literal[
+    "All",
+    "Rackhams Population",
+    "Server Population",
+    "USA Population",
+    "Scotland Population",
+    "London Busses",
+    "Swimming Pools",
+    "Volume Maths",
 ]
 
 class DatabaseInteraction(commands.Cog):
@@ -527,7 +537,8 @@ class DatabaseInteraction(commands.Cog):
         self,
         all_carrier_data: list[BoozeCarrier],
         target_date: str = None,
-        include_not_unloaded: IncludeNotUnloadedChoices | None = None
+        include_not_unloaded: IncludeNotUnloadedChoices | None = None,
+        stat: StatChoices = "All",
     ) -> discord.Embed:
 
         # Get faction state from the first carrier, assuming all carriers have the same state
@@ -577,12 +588,25 @@ class DatabaseInteraction(commands.Cog):
         )
 
         usa_population = 328200000
+        tons_per_us_pop = total_wine / usa_population
         wine_bottles_per_us_pop = wine_bottles_total / usa_population
+        wine_bottles_litres_per_us_pop = wine_bottles_litres_total / usa_population
         wine_boxes_per_us_pop = wine_boxes_total / usa_population
+        wine_boxes_litres_per_us_pop = wine_boxes_litres_total / usa_population
 
         scotland_population = 5454000
+        tons_per_scot_pop = total_wine / scotland_population
         wine_bottles_per_scot_pop = wine_bottles_total / scotland_population
+        wine_bottles_litres_per_scot_pop = wine_bottles_litres_total / scotland_population
         wine_boxes_per_scot_pop = wine_boxes_total / scotland_population
+        wine_boxes_litres_per_scot_pop = wine_boxes_litres_total / scotland_population
+
+        server_population = self.bot.get_guild(bot_guild_id()).member_count
+        tons_per_server_pop = total_wine / server_population
+        wine_bottles_per_server_pop = wine_bottles_total / server_population
+        wine_bottles_litres_per_server_pop = wine_bottles_litres_total / server_population
+        wine_boxes_per_server_pop = wine_boxes_total / server_population
+        wine_boxes_litres_per_server_pop = wine_boxes_litres_total / server_population
 
         olympic_swimming_pool_volume = 2500000
         pools_if_bottles = wine_bottles_litres_total / olympic_swimming_pool_volume
@@ -601,36 +625,105 @@ class DatabaseInteraction(commands.Cog):
         state_warning_msg = "### The Public Holiday did not happen for this cruise.\n### None of these carriers got unloaded.\n\n"
         state_text = state_warning_msg if faction_state not in ["Public Holiday", None] else ""
 
-        stat_embed = discord.Embed(
-            title=f"Pirate Steve's Extended Booze Tally {date_text}",
-            description=f"{state_text}"
-            f"Current Wine Tonnes: {total_wine:,}\n"
-            f"Wine per capita (Rackhams): {total_wine_per_capita:,.2f}\n\n"
+        volume_text = (
+            "### Volume Maths :straight_ruler:\n"
             f"Weight of 1 750ml bottle (kg): {wine_bottles_weight_kg}\n"
             f"Wine bottles per tonne: {wine_bottles_per_tonne}\n"
-            f"Wine bottles litres per tonne: {wine_bottles_litres_per_tonne}\n"
-            f"Wine bottles total: {wine_bottles_total:,}\n"
-            f"Wine bottles litres total: {wine_bottles_litres_total:,.2f}\n"
-            f"Wine bottles per capita (Rackhams): {wine_bottles_per_capita:,.2f}\n"
-            f"Wine bottles litres per capita (Rackhams): {wine_bottles_litres_per_capita:,.2f}\n\n"
+            f"Wine bottles litres per tonne: {wine_bottles_litres_per_tonne:,.2f}\n"
+            f"Wine bottles total: {wine_bottles_total:,.0f}\n"
+            f"Wine bottles litres total: {wine_bottles_litres_total:,.2f}\n\n"
             f"Weight of box wine 2.25L (kg): {wine_box_weight_kg:,.2f}\n"
             f"Wine boxes per tonne: {wine_boxes_per_tonne:,.2f}\n"
             f"Wine boxes litre per tonne: {wine_boxes_litres_per_tonne:,.2f}\n"
             f"Wine boxes total: {wine_boxes_total:,.2f}\n"
-            f"Wine boxes per capita (Rackhams): {wine_boxes_per_capita:,.2f}\n"
-            f"Wine boxes litres per capita (Rackhams): {wine_boxes_litres_per_capita:,.2f}\n\n"
-            f"USA population: {usa_population:,}\n"
-            f"Wine bottles per capita (:flag_us:): {wine_bottles_per_us_pop:,.2f}\n"
-            f"Wine boxes per capita (:flag_us:): {wine_boxes_per_us_pop:,.2f}\n\n"
-            f"Scotland population: {scotland_population:,}\n"
-            f"Wine bottles per capita (:scotland:): {wine_bottles_per_scot_pop:,.2f}\n"
-            f"Wine boxes per capita (:scotland:): {wine_boxes_per_scot_pop:,.2f}\n\n"
+            f"Wine boxes litres total: {wine_boxes_litres_total:,.2f}\n\n"
+        )
+
+        rackhams_text = (
+            "### Rackhams Peak Population Stats :wine_glass:\n"
+            f"Population: {RACKHAMS_PEAK_POP:,}\n"
+            f"Tonnes per capita: {total_wine_per_capita:,.2f}\n"
+            f"Bottles per capita: {wine_bottles_per_capita:,.2f}\n"
+            f"Bottles litres per capita: {wine_bottles_litres_per_capita:,.2f}\n"
+            f"Boxes per capita: {wine_boxes_per_capita:,.2f}\n"
+            f"Boxes litres per capita: {wine_boxes_litres_per_capita:,.2f}\n\n"
+        )
+
+        ptn_logo_emoji = self.bot.get_emoji(ptn_role_icon_emoji_id())
+        server_text = (
+            f"### Server Population Stats {ptn_logo_emoji}\n"
+            f"Population: {server_population:,}\n"
+            f"Tonnes per capita: {tons_per_server_pop:,.2f}\n"
+            f"Bottles per capita: {wine_bottles_per_server_pop:,.2f}\n"
+            f"Bottles litres per capita: {wine_bottles_litres_per_server_pop:,.2f}\n"
+            f"Boxes per capita: {wine_boxes_per_server_pop:,.2f}\n"
+            f"Boxes litres per capita: {wine_boxes_litres_per_server_pop:,.2f}\n\n"
+        )
+
+        usa_text = (
+            "### USA Population Stats :flag_us:\n"
+            f"Population: {usa_population:,}\n"
+            f"Tonnes per capita: {tons_per_us_pop:,.2f}\n"
+            f"Bottles per capita: {wine_bottles_per_us_pop:,.2f}\n"
+            f"Bottles litres per capita: {wine_bottles_litres_per_us_pop:,.2f}\n"
+            f"Boxes per capita: {wine_boxes_per_us_pop:,.2f}\n"
+            f"Boxes litres per capita: {wine_boxes_litres_per_us_pop:,.2f}\n\n"
+        )
+
+        scotland_text = (
+            "### Scotland Population Stats :scotland:\n"
+            f"Population: {scotland_population:,}\n"
+            f"Tonnes per capita: {tons_per_scot_pop:,.2f}\n"
+            f"Bottles per capita: {wine_bottles_per_scot_pop:,.2f}\n"
+            f"Bottles litres per capita: {wine_bottles_litres_per_scot_pop:,.2f}\n"
+            f"Boxes per capita: {wine_boxes_per_scot_pop:,.2f}\n"
+            f"Boxes litres per capita: {wine_boxes_litres_per_scot_pop:,.2f}\n\n"
+        )
+
+        busses_text = (
+            "### London Bus Volume\n"
+            f"London bus volume (L): {london_bus_volume_l:,}\n"
+            f"London busses if bottles of wine: {busses_if_bottles:,.2f}\n"
+            f"London busses if boxes of wine: {busses_if_boxes:,.2f}\n\n"
+        )
+
+        swimming_pools_text = (
+            "### Olympic Swimming Pool Volume\n"
             f"Olympic swimming pool volume (L): {olympic_swimming_pool_volume:,}\n"
             f"Olympic swimming pools if bottles of wine: {pools_if_bottles:,.2f}\n"
             f"Olympic swimming pools if boxes of wine: {pools_if_boxes:,.2f}\n\n"
-            f"London bus volume (L): {london_bus_volume_l:,}\n"
-            f"London busses if bottles of wine: {busses_if_bottles:,.2f}\n"
-            f"London busses if boxes of wine: {busses_if_boxes:,.2f}\n\n",
+        )
+
+        description_text = f"{state_text}" f"## Wine Tonnes: {total_wine:,}\n\n"
+
+        match stat:
+            case "All":
+                description_text += (
+                    volume_text
+                    + rackhams_text
+                    + server_text
+                    + usa_text
+                    + scotland_text
+                    + swimming_pools_text
+                    + busses_text
+                )
+            case "Rackhams Population":
+                description_text += rackhams_text
+            case "Server Population":
+                description_text += server_text
+            case "USA Population":
+                description_text += usa_text
+            case "Scotland Population":
+                description_text += scotland_text
+            case "London Busses":
+                description_text += busses_text
+            case "Swimming Pools":
+                description_text += swimming_pools_text
+            case "Volume Maths":
+                description_text += volume_text
+
+        stat_embed = discord.Embed(
+            title=f"Pirate Steve's Extended Booze Tally {date_text}", description=description_text
         )
         stat_embed.set_footer(
             text="Stats requested by RandomGazz.\nPirate Steve approves of these stats!"
@@ -1314,6 +1407,7 @@ class DatabaseInteraction(commands.Cog):
     @describe(
         cruise_select="Which cruise do you want data for. 0 is this cruise, 1 the last cruise etc. Default is this cruise.",
         include_not_unloaded="Force select if we should include carriers that have not unloaded yet.",
+        stat="The specific stat you want to see.",
     )
     @check_roles(
         [
@@ -1327,7 +1421,8 @@ class DatabaseInteraction(commands.Cog):
         self,
         interaction: discord.Interaction,
         cruise_select: int = 0,
-        include_not_unloaded: IncludeNotUnloadedChoices | None = None
+        include_not_unloaded: IncludeNotUnloadedChoices | None = None,
+        stat: StatChoices = "All",
     ):
         """
         Prints an extended tally stats as requested by RandomGazz.
@@ -1383,7 +1478,7 @@ class DatabaseInteraction(commands.Cog):
                 BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()
             ]
 
-        stat_embed = self.build_extended_stat_embed(all_carrier_data, target_date, include_not_unloaded)
+        stat_embed = self.build_extended_stat_embed(all_carrier_data, target_date, include_not_unloaded, stat)
         await interaction.edit_original_response(embed=stat_embed)
 
     @app_commands.command(
@@ -1933,12 +2028,14 @@ class DatabaseInteraction(commands.Cog):
     @describe(
         extended="If the extended stats should be shown",
         include_not_unloaded="Force select if we should include carriers that have not unloaded yet.",
+        stat="The specific stat you want to see. (Only applies for extended tallies)",
     )
     async def biggest_cruise_tally(
         self,
         interaction: discord.Interaction,
         extended: bool = False,
-        include_not_unloaded: IncludeNotUnloadedChoices | None = None
+        include_not_unloaded: IncludeNotUnloadedChoices | None = None,
+        stat: StatChoices = "All",
     ):
         """
         Returns the tally for the cruise with the most wine.
@@ -1972,7 +2069,7 @@ class DatabaseInteraction(commands.Cog):
         if not extended:
             stat_embed = self.build_stat_embed(all_carrier_data, target_date, include_not_unloaded)
         else:
-            stat_embed = self.build_extended_stat_embed(all_carrier_data, target_date, include_not_unloaded)
+            stat_embed = self.build_extended_stat_embed(all_carrier_data, target_date, include_not_unloaded, stat)
 
         # Edit the original interaction response with the stat embed
         await interaction.edit_original_response(embed=stat_embed)
