@@ -454,12 +454,33 @@ class Departures(commands.Cog):
         # Send the response message
         await interaction.edit_original_response(content=f"Departure announcements are now '{status}'.")
 
+    async def official_departure_name_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        """
+        Autocomplete function for official departure names.
+
+        Args:
+            interaction (discord.Interaction): The discord interaction context.
+            current (str): The current input string.
+
+        Returns:
+            list[app_commands.Choice[str]]: A list of autocomplete choices.
+        """
+        official_departure_names = ["Booze Snooze", "N2 Shuttle", "N3 Shuttle", "Garage"]
+        return [
+            app_commands.Choice(name=name, value=name)
+            for name in official_departure_names
+            if current.lower() in name.lower()
+        ][:25]
+
     @app_commands.command(name="official_carrier_departure", description="Post an official carrier departure message.")
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @check_command_channel(get_steve_says_channel())
     @describe(
         carrier_id="The XXX-XXX ID string for the carrier",
         operated_by="The user who is operating the carrier.",
+        departure_name="The name of the departure",
         departure_location="The location the carrier is departing from.",
         arrival_location="The location the carrier is arriving at.",
         departure_time_type="The type of departure time to use. Start/End of PH or a specific time.",
@@ -474,11 +495,13 @@ class Departures(commands.Cog):
             Choice(name="Custom (requires timestamp)", value="Custom (requires timestamp)"),
         ],
     )
+    @app_commands.autocomplete(departure_name=official_departure_name_autocomplete)
     async def official_carrier_departure(
         self,
         interaction: discord.Interaction,
         carrier_id: str,
         operated_by: discord.Member,
+        departure_name: str,
         departure_location: str,
         arrival_location: str,
         departure_time_type: str,
@@ -543,7 +566,8 @@ class Departures(commands.Cog):
             departure_time_text = f"Departing at <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>)"
 
         embed = discord.Embed(
-            description=f"## {carrier_name} ({carrier_id})\n"
+            description=f"# {departure_name}\n"
+            f"## {carrier_name} ({carrier_id})\n"
             f"## {departure_location} > {arrival_location}\n"
             f"{departure_time_text}\n"
             f"Operated by {operated_by.mention}",
