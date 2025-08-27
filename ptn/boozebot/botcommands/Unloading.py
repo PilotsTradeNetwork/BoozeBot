@@ -103,8 +103,9 @@ class Unloading(commands.Cog):
                             await wine_carrier_channel.send(
                                 f"<@{carrier_data.discord_unload_poster_id}> "
                                 f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
-                                f"has been marked completed. Please check, then run `/wine_unload_complete` to close it "
-                                "if it is correct."
+                                f"has been marked completed. Please check, then run the following command to close it "
+                                "if it is correct.\n"
+                                f"```/wine_unload_complete carrier_id:{carrier_data.carrier_identifier}```"
                             )
 
                             # Set the poster ID to None to indicate they have already been notified
