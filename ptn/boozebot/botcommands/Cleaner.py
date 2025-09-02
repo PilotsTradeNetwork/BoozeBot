@@ -80,7 +80,7 @@ class Cleaner(commands.Cog):
             title="Open Booze Cruise Channels",
             description="You have requested to open the booze cruise channels:"
         )
-        confirm = ConfirmView()
+        confirm = ConfirmView(interaction.user)
         await interaction.edit_original_response(embed=check_embed, view=confirm)
         await confirm.wait()
         if confirm.value:
@@ -133,28 +133,45 @@ class Cleaner(commands.Cog):
         print(f'User {interaction.user.name} requested BC channel closing in channel: {interaction.channel.name}.')
 
         await interaction.response.defer()
-
-        ids_list = get_public_channel_list()
-        guild = bot.get_guild(bot_guild_id())
-
-        embed = discord.Embed()
-        pilot_role = guild.get_role(server_pilot_role_id())
-        channels = {channel_id: pilot_role for channel_id in ids_list}
-        channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
-
-        for channel_id, role in channels.items():
-            channel = bot.get_channel(channel_id)
-            try:
-                overwrite = channel.overwrites_for(role)
-                overwrite.view_channel = False # less confusing alias for read_messages
-                await channel.set_permissions(role, overwrite=overwrite)
-                embed.add_field(name="Closed", value="<#" + str(channel_id) +">", inline=False)
-            except Exception as e:
-                embed.add_field(name="FAILED to close", value="<#" + str(channel_id) + f">: {e}", inline=False)
-        await self.update_status_embed("bc_end")
-        await interaction.edit_original_response(
-            content=f"<@&{server_sommelier_role_id()}> That's the end of that, me hearties.", embed=embed
+        check_embed = discord.Embed(
+            title="Close Booze Cruise Channels",
+            description="You have requested to close the booze cruise channels:"
         )
+        confirm = ConfirmView(interaction.user)
+        await interaction.edit_original_response(embed=check_embed, view=confirm)
+        await confirm.wait()
+        if confirm.value:
+            ids_list = get_public_channel_list()
+            guild = bot.get_guild(bot_guild_id())
+
+            embed = discord.Embed()
+            pilot_role = guild.get_role(server_pilot_role_id())
+            channels = dict.fromkeys(ids_list, pilot_role)
+            channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
+
+            for channel_id, role in channels.items():
+                channel = bot.get_channel(channel_id)
+                try:
+                    overwrite = channel.overwrites_for(role)
+                    overwrite.view_channel = False  # less confusing alias for read_messages
+                    await channel.set_permissions(role, overwrite=overwrite)
+                    embed.add_field(name="Closed", value="<#" + str(channel_id) + ">", inline=False)
+                except Exception as e:
+                    embed.add_field(name="FAILED to close", value="<#" + str(channel_id) + f">: {e}", inline=False)
+            await self.update_status_embed("bc_end")
+            await interaction.edit_original_response(
+                content=f"<@&{server_sommelier_role_id()}> That's the end of that, me hearties.", embed=embed
+            )
+        elif confirm.value is False:
+            print(f"User {interaction.user.name} wants to abort the close process.")
+            await interaction.edit_original_response(
+                content="You aborted the request to close the channels", embed=None, view=None
+            )
+        else:  # (confirm.value is None) Timeout on the view buttons
+            await interaction.edit_original_response(
+                content="**Waiting for user response - timed out**", embed=None, view=None
+            )
+
 
 
     @app_commands.command(
@@ -171,39 +188,56 @@ class Cleaner(commands.Cog):
         :returns: A discord embed
         """
         print(f'User {interaction.user.name} requested clearing all Booze related roles in channel: {interaction.channel.name}.')
+        await interaction.response.defer()
+        check_embed = discord.Embed(
+            title="Remove Booze Cruise Roles",
+            description="You have requested to clear all Booze related roles"
+        )
+        confirm = ConfirmView(interaction.user)
+        await interaction.edit_original_response(embed=check_embed, view=confirm)
+        await confirm.wait()
+        if confirm.value:
+            wine_role_id = server_wine_carrier_role_id()
+            wine_carrier_role = discord.utils.get(interaction.guild.roles, id=wine_role_id)
 
-        wine_role_id = server_wine_carrier_role_id()
-        wine_carrier_role = discord.utils.get(interaction.guild.roles, id=wine_role_id)
+            hitch_role_id = server_hitchhiker_role_id()
+            hitch_role = discord.utils.get(interaction.guild.roles, id=hitch_role_id)
 
-        hitch_role_id = server_hitchhiker_role_id()
-        hitch_role = discord.utils.get(interaction.guild.roles, id=hitch_role_id)
+            wine_count = 0
+            hitch_count = 0
+            await interaction.followup.send(content='This may take a minute...')
+            try:
+                for member in wine_carrier_role.members:
+                    try:
+                        await member.remove_roles(wine_carrier_role)
+                        wine_count += 1
+                    except Exception as e:
+                        print(e)
+                        await interaction.channel.send(f"Unable to remove { wine_carrier_role } from { member }")
+                for member in hitch_role.members:
+                    try:
+                        await member.remove_roles(hitch_role)
+                        hitch_count += 1
+                    except Exception as e:
+                        print(e)
+                        await interaction.channel.send(f"Unable to remove { hitch_role } from { member }")
 
-        wine_count = 0
-        hitch_count = 0
-        await interaction.response.send_message('This may take a minute...')
-        try:
-            for member in wine_carrier_role.members:
-                try:
-                    await member.remove_roles(wine_carrier_role)
-                    wine_count += 1
-                except Exception as e:
-                    print(e)
-                    await interaction.channel.send(f"Unable to remove { wine_carrier_role } from { member }")
-            for member in hitch_role.members:
-                try:
-                    await member.remove_roles(hitch_role)
-                    hitch_count += 1
-                except Exception as e:
-                    print(e)
-                    await interaction.channel.send(f"Unable to remove { hitch_role } from { member }")
-
-            await interaction.channel.send(
-                content=f'Successfully removed { hitch_count } users from the Hitchhiker role.\n'
-                        f'Successfully removed { wine_count } users from the Wine Carrier role.',
+                await interaction.channel.send(
+                    content=f'Successfully removed { hitch_count } users from the Hitchhiker role.\n'
+                            f'Successfully removed { wine_count } users from the Wine Carrier role.',
+                )
+            except Exception as e:
+                print(e)
+                await interaction.channel.send('Clear roles command failed. Contact admin.')
+        elif confirm.value is False:
+            print(f"User {interaction.user.name} wants to abort the role-clearing process.")
+            await interaction.edit_original_response(
+                content="You aborted the request to clear booze roles", embed=None, view=None
             )
-        except Exception as e:
-            print(e)
-            await interaction.channel.send('Clear roles command failed. Contact admin.')
+        else:  # (confirm.value is None) Timeout on the view buttons
+            await interaction.edit_original_response(
+                content="**Waiting for user response - timed out**", embed=None, view=None
+            )
 
     @app_commands.command(name="booze_update_blurb_message", description="Update a blurb message (WCO welcome or announcement).")
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])

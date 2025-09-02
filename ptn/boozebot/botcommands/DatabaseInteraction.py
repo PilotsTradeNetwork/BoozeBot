@@ -854,7 +854,7 @@ class DatabaseInteraction(commands.Cog):
             f"Total Unloads: **{carrier_data.total_unloads}**\n"
             f"Operated by: {carrier_data.discord_username}",
         )
-        confirm = ConfirmView()
+        confirm = ConfirmView(interaction.user)
         # Send the embed
         await interaction.edit_original_response(embed=carrier_embed, view=confirm)
         await confirm.wait()
@@ -1482,7 +1482,7 @@ class DatabaseInteraction(commands.Cog):
         )
 
         # Send the embed
-        confirm = ConfirmView()
+        confirm = ConfirmView(interaction.user)
         # Send the embed
         await interaction.edit_original_response(embed=carrier_embed, view=confirm)
         await confirm.wait()
@@ -1594,7 +1594,7 @@ class DatabaseInteraction(commands.Cog):
             f'**Holiday End:** {(start_date + timedelta(days=2)).strftime("%d-%m-%y")}\n'
             f'**Faction State:** {faction_state}\n'
         )
-        confirm = ConfirmView()
+        confirm = ConfirmView(interaction.user)
         # Send the embed
         await interaction.edit_original_response(content=None, embed=check_embed, view=confirm)
         await confirm.wait()
@@ -1779,7 +1779,7 @@ class DatabaseInteraction(commands.Cog):
             f"**New worksheet key:** {new_worksheet_key}\n"
             f"**New worksheet ID:** {new_sheet_id + 1}.",
         )
-        confirm = ConfirmView()
+        confirm = ConfirmView(interaction.user)
         # Send the embed
         await interaction.edit_original_response(content=None, embed=confirm_embed, view=confirm)
         await confirm.wait()
@@ -1879,7 +1879,7 @@ class DatabaseInteraction(commands.Cog):
             f"**Worksheet key:** {original_worksheet_key}\n"
             f"**Worksheet ID:** {original_sheet_id + 1}.",
         )
-        confirm = ConfirmView()
+        confirm = ConfirmView(interaction.user)
         # Send the embed
         await interaction.edit_original_response(embed=confirm_embed, view=confirm)
         await confirm.wait()
@@ -2060,14 +2060,14 @@ class DatabaseInteraction(commands.Cog):
             description="Are you sure you want to delete all the remaining full carriers?",
         )
 
-        confirm = ConfirmView()
+        confirm = ConfirmView(interaction.user)
         # Send the embed
         await interaction.edit_original_response(embed=confirmation_embed, view=confirm)
         await confirm.wait()
 
         if confirm.value:
             print(f"User {interaction.user.name} accepted the request to purge full carriers.")
-            await interaction.edit_original_response(content="Purging Carriers...", embed=None)
+            await interaction.edit_original_response(content="Purging Carriers...", embed=None, view=None)
             failed_carriers = []
 
             async with pirate_steve_db_lock:
