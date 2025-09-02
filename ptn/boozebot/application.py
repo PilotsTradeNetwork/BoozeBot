@@ -29,6 +29,9 @@ from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 from ptn.boozebot.constants import bot, TOKEN, _production, log_handler, LOG_LEVEL
 from discord.utils import setup_logging
 
+# import error handler
+from ptn.boozebot.modules.ErrorHandler import on_generic_error, on_app_command_error
+
 
 print(f"Booze bot is connecting against production: {_production}.")
 
@@ -52,6 +55,9 @@ async def boozebot():
         await bot.add_cog(BackgroundTaskCommands(bot))
         await bot.add_cog(AutoResponses(bot))
         await bot.add_cog(PrometheusCog(bot))
+        
+        bot.on_command_error = on_generic_error
+        bot.tree.on_error = on_app_command_error
 
         try:
             await bot.login(TOKEN)

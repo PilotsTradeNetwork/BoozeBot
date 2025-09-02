@@ -5,7 +5,7 @@ from discord import app_commands
 from discord.app_commands import Choice, describe
 
 # local constants
-from ptn.boozebot.constants import bot, server_mod_role_id, server_sommelier_role_id, server_connoisseur_role_id, server_council_role_ids, get_steve_says_channel
+from ptn.boozebot.constants import bot, server_mod_role_id, server_sommelier_role_id, server_council_role_ids, get_steve_says_channel
 
 # local modules
 from ptn.boozebot.modules.helpers import check_roles, check_command_channel

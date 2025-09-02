@@ -15,9 +15,9 @@ from ptn.boozebot.constants import (
 )
 # local modules
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.pagination import createPagination
+
 
 """
 LISTENERS
@@ -43,19 +43,6 @@ class AutoResponses(commands.Cog):
         self.auto_responses = [
             AutoResponse(row) for row in pirate_steve_db.fetchall()
         ]
-
-    # custom global error handler
-    # attaching the handler when the cog is loaded
-    # and storing the old handler
-    async def cog_load(self):
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = on_app_command_error
-
-    # detaching the handler when the cog is unloaded
-    async def cog_unload(self):
-        tree = self.bot.tree
-        tree.on_error = self._old_tree_error
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -100,7 +87,7 @@ class AutoResponses(commands.Cog):
             reference=message,
         )
 
-    @app_commands.command(name="booze_create_auto_response", description="Create a new auto response")
+    @app_commands.command(name="create_auto_response", description="Create a new auto response")
     @app_commands.describe(
         name="Name of the auto response",
         trigger="Trigger phrase for the auto response",
@@ -168,7 +155,7 @@ class AutoResponses(commands.Cog):
 
         await interaction.edit_original_response(content=f"Auto response '{name}' created successfully.")
 
-    @app_commands.command(name="booze_delete_auto_response", description="Delete an auto response")
+    @app_commands.command(name="delete_auto_response", description="Delete an auto response")
     @app_commands.describe(name="Name of the auto response to delete")
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel(get_steve_says_channel())
@@ -198,7 +185,7 @@ class AutoResponses(commands.Cog):
 
         await interaction.edit_original_response(content=f"Auto response '{name}' deleted successfully.")
 
-    @app_commands.command(name="booze_list_auto_responses", description="List all auto responses")
+    @app_commands.command(name="list_auto_responses", description="List all auto responses")
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def list_auto_responses(self, interaction: discord.Interaction):

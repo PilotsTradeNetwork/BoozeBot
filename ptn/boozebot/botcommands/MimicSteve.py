@@ -3,12 +3,8 @@ Cog for the commands related to opening and closing the cruise channels and role
 
 """
 
-# libraries
-import re
-
 # discord.py
 import discord
-from discord.app_commands import Group, describe, Choice
 from discord.ext import commands
 from discord import app_commands
 
@@ -16,8 +12,7 @@ from discord import app_commands
 from ptn.boozebot.constants import server_council_role_ids, server_sommelier_role_id, server_mod_role_id, bot, get_steve_says_channel, bot_guild_id
 
 # local modules
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
-from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
+from ptn.boozebot.modules.helpers import check_roles
 
 
 """
@@ -29,24 +24,15 @@ MIMIC STEVE COMMAND
 class MimicSteve(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    def cog_load(self):
         self.ctx_menu = app_commands.ContextMenu(
             name="Reply as Steve",
             callback=self.reply_as_steve
         )
         self.bot.tree.add_command(self.ctx_menu)
 
-    # custom global error handler
-    # attaching the handler when the cog is loaded
-    # and storing the old handler
-    def cog_load(self):
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = on_app_command_error
-
-    # detaching the handler when the cog is unloaded
     def cog_unload(self):
-        tree = self.bot.tree
-        tree.on_error = self._old_tree_error
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
