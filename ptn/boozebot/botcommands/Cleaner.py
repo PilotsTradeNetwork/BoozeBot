@@ -19,6 +19,7 @@ from ptn.boozebot.constants import (
     server_sommelier_role_id, server_wine_carrier_role_id, BC_STATUS
 )
 from ptn.boozebot.modules.ErrorHandler import TimeoutError, on_app_command_error
+from ptn.boozebot.modules.Views import ConfirmView
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
 """
@@ -75,64 +76,48 @@ class Cleaner(commands.Cog):
         print(f'User {interaction.user.name} requested BC channel opening in channel: {interaction.channel.name}.')
 
         await interaction.response.defer()
-
-        def check_yes_no(check_message):
-            return (
-                check_message.author == interaction.user
-                and check_message.channel == interaction.channel
-                and check_message.content.lower() in ["y", "n"]
-            )
-
         check_embed = discord.Embed(
-            title="Validate the request",
+            title="Open Booze Cruise Channels",
             description="You have requested to open the booze cruise channels:"
         )
-        check_embed.set_footer(text="Respond with y/n.")
-        await interaction.edit_original_response(content=None, embed=check_embed)
+        confirm = ConfirmView()
+        await interaction.edit_original_response(embed=check_embed, view=confirm)
+        await confirm.wait()
+        if confirm.value:
+            ids_list = get_public_channel_list()
+            guild = bot.get_guild(bot_guild_id())
 
-        try:
-            user_response = await bot.wait_for(
-                "message", check=check_yes_no, timeout=30
+            embed = discord.Embed()
+            Departures.departure_announcement_status = "Disabled"
+            Unloading.timed_unloads_allowed = False
+            pilot_role = guild.get_role(server_pilot_role_id())
+            channels = {channel_id: pilot_role for channel_id in ids_list}
+            channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
+
+            await self.update_status_embed("bc_prep")
+
+            for channel_id, role in channels.items():
+                channel = bot.get_channel(channel_id)
+                try:
+                    overwrite = channel.overwrites_for(role)
+                    overwrite.view_channel = True # less confusing alias for read_messages
+                    await channel.set_permissions(role, overwrite=overwrite)
+                    embed.add_field(name="Opened", value="<#" + str(channel_id) +">", inline=False)
+                except Exception as e:
+                    embed.add_field(name="FAILED to open", value="<#" + str(channel_id) + f">: {e}", inline=False)
+
+            await interaction.edit_original_response(
+                content=f"<@&{server_sommelier_role_id()}> Avast! We're ready to set sail!", embed=embed, view=None
             )
-            if user_response.content.lower() == "y":
-
-                ids_list = get_public_channel_list()
-                guild = bot.get_guild(bot_guild_id())
-
-                embed = discord.Embed()
-                Departures.departure_announcement_status = "Disabled"
-                Unloading.timed_unloads_allowed = False
-                pilot_role = guild.get_role(server_pilot_role_id())
-                channels = {channel_id: pilot_role for channel_id in ids_list}
-                channels[get_wine_carrier_guide_channel_id()] = guild.get_role(get_ptn_booze_cruise_role_id())
-
-                await self.update_status_embed("bc_prep")
-
-                for channel_id, role in channels.items():
-                    channel = bot.get_channel(channel_id)
-                    try:
-                        overwrite = channel.overwrites_for(role)
-                        overwrite.view_channel = True # less confusing alias for read_messages
-                        await channel.set_permissions(role, overwrite=overwrite)
-                        embed.add_field(name="Opened", value="<#" + str(channel_id) +">", inline=False)
-                    except Exception as e:
-                        embed.add_field(name="FAILED to open", value="<#" + str(channel_id) + f">: {e}", inline=False)
-
-                await interaction.edit_original_response(content=f"<@&{server_sommelier_role_id()}> Avast! We\'re ready to set sail!", embed=embed)
-                await user_response.delete()
-                print("Channels opened successfully.")
-                return
-
-            elif user_response.content.lower() == "n":
-                print(f"User {interaction.user.name} wants to abort the open process.")
-                await user_response.delete()
-                return await interaction.edit_original_response(
-                    content="You aborted the request to open the channels.", embed=None
-                )
-
-        except asyncio.TimeoutError:
-            return await interaction.edit_original_response(
-                content="**Waiting for user response - timed out**", embed=None
+            print("Channels opened successfully.")
+        elif confirm.value is False:
+            print(f"User {interaction.user.name} wants to abort the open process.")
+            await interaction.edit_original_response(
+                content="You aborted the request to open the channels", embed=None, view=None
+            )
+        else:  # (confirm.value is None) Timeout on the view buttons
+            await interaction.edit_original_response(
+                content="**Waiting for user response - timed out**", embed=None, view=None
             )
 
     @app_commands.command(name="booze_channels_close", description="Closes the Booze Cruise channels to the public.")
@@ -167,11 +152,15 @@ class Cleaner(commands.Cog):
             except Exception as e:
                 embed.add_field(name="FAILED to close", value="<#" + str(channel_id) + f">: {e}", inline=False)
         await self.update_status_embed("bc_end")
+        await interaction.edit_original_response(
+            content=f"<@&{server_sommelier_role_id()}> That's the end of that, me hearties.", embed=embed
+        )
 
-        await interaction.edit_original_response(content=f"<@&{server_sommelier_role_id()}> That\'s the end of that, me hearties.", embed=embed)
 
-
-    @app_commands.command(name="clear_booze_roles", description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution.")
+    @app_commands.command(
+        name="clear_booze_roles",
+        description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution."
+    )
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel([get_steve_says_channel()])
     async def clear_booze_roles(self, interaction: discord.Interaction):
