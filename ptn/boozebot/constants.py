@@ -124,6 +124,8 @@ WCO_ROLE_ICON_URL = "https://cdn.discordapp.com/role-icons/839149899596955708/2d
 
 I_AM_STEVE_GIF = "https://pilotstradenetwork.com/wp-content/uploads/2025/07/I-Am-Steve.gif"
 
+INTERACTION_CHECK_GIF = "https://c.tenor.com/91firFcrcYsAAAAC/tenor.gif"
+
 # define the logger for discord client
 # TODO: use PTNLogger and extend to all Steve Logging
 log_handler = logging.StreamHandler(sys.stdout)
@@ -512,7 +514,7 @@ def bot_spam_channel():
 def wine_carrier_command_channel():
     """
     Gets the rackhams space traffic control channel
-    
+
     :return: The channel ID
     :rtype: int
     """
