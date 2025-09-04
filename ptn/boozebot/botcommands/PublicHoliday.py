@@ -15,12 +15,12 @@ from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.constants import (
     bot, get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel, holiday_ended_gif,
     holiday_query_not_started_gifs, holiday_query_started_gifs, holiday_start_gif, rackhams_holiday_channel,
-    server_connoisseur_role_id, server_council_role_ids, server_mod_role_id, server_sommelier_role_id,
-    wine_carrier_command_channel
+    server_council_role_ids, server_sommelier_role_id, wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
+from ptn.boozebot.modules.helpers import check_command_channel, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check, api_ph_check
+from ptn.boozebot.modules.CommandGroups import somm_command_group, conn_command_group, everyone_command_group
 
 """
 PUBLIC HOLIDAY TASK LOOP
@@ -146,8 +146,7 @@ class PublicHoliday(commands.Cog):
             print(f'Error in the public holiday loop: {e}')
 
     
-    @app_commands.command(name="booze_started", description="Returns a GIF for whether the holiday has started.")
-    @check_roles([server_connoisseur_role_id(), server_sommelier_role_id(), server_mod_role_id(), *server_council_role_ids()])
+    @conn_command_group.command(name="booze_started", description="Returns a GIF for whether the holiday has started.")
     async def holiday_query(self, interaction: discord.Interaction):
         await interaction.response.defer()
         print(f'User {interaction.user.name} wanted to know if the holiday has started.')
@@ -171,10 +170,9 @@ class PublicHoliday(commands.Cog):
                 await interaction.followup.send('Pirate Steve could not parse the gif. Try again and tell Council to check the log.')
 
 
-    @app_commands.command(name="booze_started_admin_override",
+    @somm_command_group.command(name="started__override",
                           description="Overrides the holiday admin flag."
                                       "Used to set the holiday state before the polling API catches it.")
-    @check_roles([server_sommelier_role_id(), server_mod_role_id(), *server_council_role_ids()])
     @describe(state="True or False to override the holiday check flag.",
               force_update="Force the update of the holiday state, even if it is already set.")
     @check_command_channel([get_steve_says_channel()])
@@ -183,10 +181,9 @@ class PublicHoliday(commands.Cog):
         success, message = await self._set_public_holiday_state(state, force_update)
         await interaction.response.send_message(f'{message}. Check with /booze_started.')
         
-    @app_commands.command(name="booze_timestamp_admin_override",
+    @somm_command_group.command(name="timestamp_override",
                           description="Overrides the holiday start time."
                                       "Used to set the cruise start time used to get the duration")
-    @check_roles([server_sommelier_role_id(), server_mod_role_id(), *server_council_role_ids()])
     @describe(timestamp="Date time of the the cruise starting in the format YYYY-MM-DD HH:MI:SS")
     @check_command_channel([get_steve_says_channel()])
     async def admin_override_start_timestamp(self, interaction: discord.Interaction, timestamp: str):
@@ -220,7 +217,7 @@ class PublicHoliday(commands.Cog):
             await interaction.response.send_message(f'No holiday has been detected yet, Wait until steve detects the holiday before using this command.')
         
 
-    @app_commands.command(name="booze_duration_remaining", description="Returns roughly how long the holiday has remaining.")
+    @everyone_command_group.command(name="duration_remaining", description="Returns roughly how long the holiday has remaining.")
     @check_command_channel([get_wine_carrier_channel(), get_steve_says_channel(), wine_carrier_command_channel(), get_primary_booze_discussions_channel()])
     async def remaining_time(self, interaction: discord. Interaction):
         print(f'User {interaction.user.name} wanted to know if the remaining time of the holiday.')

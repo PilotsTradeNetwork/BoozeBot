@@ -17,6 +17,7 @@ from ptn.boozebot.constants import (
     server_wine_carrier_role_id, bot_spam_channel, too_slow_gifs
 )
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.CommandGroups import somm_command_group, conn_command_group
 
 """
 MAKE WINE CARRIER COMMANDS
@@ -49,18 +50,16 @@ class MakeWineCarrier(commands.Cog):
         print(f"Context menu make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user}")
         await make_user_wine_carrier(interaction, user)
 
-    @app_commands.command(name="make_wine_carrier", description="Give user the Wine Carrier role. Admin/Sommelier/Connoisseur role required.")
+    @conn_command_group.command(name="make_wine_carrier", description="Give user the Wine Carrier role. Admin/Sommelier/Connoisseur role required.")
     @describe(user="An @ mention of the Discord user to receive the role.")
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
     async def make_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
         print(f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to set the Wine Carrier role")
 
         await make_user_wine_carrier(interaction, user)
 
 
-    @app_commands.command(name="remove_wine_carrier", description="Removes the Wine Carrier role from a user. Admin/Sommelier/Connoisseur role required.")
+    @somm_command_group.command(name="remove_wine_carrier", description="Removes the Wine Carrier role from a user. Admin/Sommelier/Connoisseur role required.")
     @describe(user="An @ mention of the Discord user to remove the role from.")
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def remove_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
 

@@ -10,14 +10,13 @@ from ptn.boozebot.classes.AutoResponse import AutoResponse
 # local constants
 from ptn.boozebot.constants import (
     get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel,
-    get_wine_cellar_deliveries_channel, ping_response_messages, server_council_role_ids, server_mod_role_id,
-    server_sommelier_role_id
+    get_wine_cellar_deliveries_channel, ping_response_messages
 )
 # local modules
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.CommandGroups import somm_command_group
+from ptn.boozebot.modules.helpers import check_command_channel
 from ptn.boozebot.modules.pagination import createPagination
-
 
 """
 LISTENERS
@@ -34,15 +33,13 @@ class AutoResponses(commands.Cog):
         self.bot = bot
 
         self.text_commands = ["ping", "exit", "update", "version", "sync"]
-        
+
         pirate_steve_db.execute(
             """
             SELECT * FROM auto_responses
         """
         )
-        self.auto_responses = [
-            AutoResponse(row) for row in pirate_steve_db.fetchall()
-        ]
+        self.auto_responses = [AutoResponse(row) for row in pirate_steve_db.fetchall()]
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -87,14 +84,13 @@ class AutoResponses(commands.Cog):
             reference=message,
         )
 
-    @app_commands.command(name="create_auto_response", description="Create a new auto response")
+    @somm_command_group.command(name="create_auto_response", description="Create a new auto response")
     @app_commands.describe(
         name="Name of the auto response",
         trigger="Trigger phrase for the auto response",
         is_regex="Is the trigger a regex pattern?",
         response="Response message to send when the trigger is matched",
     )
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def create_auto_response(
         self,
@@ -115,14 +111,12 @@ class AutoResponses(commands.Cog):
         """
 
         await interaction.response.defer()
-        
+
         if is_regex:
             try:
                 re.compile(trigger)
             except re.error as e:
-                await interaction.edit_original_response(
-                    content=f"Invalid regex pattern: {trigger}. Error: {e}"
-                )
+                await interaction.edit_original_response(content=f"Invalid regex pattern: {trigger}. Error: {e}")
                 return
 
         async with pirate_steve_db_lock:
@@ -155,9 +149,8 @@ class AutoResponses(commands.Cog):
 
         await interaction.edit_original_response(content=f"Auto response '{name}' created successfully.")
 
-    @app_commands.command(name="delete_auto_response", description="Delete an auto response")
+    @somm_command_group.command(name="delete_auto_response", description="Delete an auto response")
     @app_commands.describe(name="Name of the auto response to delete")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def delete_auto_response(self, interaction: discord.Interaction, name: str):
         """
@@ -185,8 +178,7 @@ class AutoResponses(commands.Cog):
 
         await interaction.edit_original_response(content=f"Auto response '{name}' deleted successfully.")
 
-    @app_commands.command(name="list_auto_responses", description="List all auto responses")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @somm_command_group.command(name="list_auto_responses", description="List all auto responses")
     @check_command_channel(get_steve_says_channel())
     async def list_auto_responses(self, interaction: discord.Interaction):
         """

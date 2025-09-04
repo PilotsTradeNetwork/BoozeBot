@@ -7,19 +7,19 @@ from asyncio import TimeoutError
 from datetime import datetime, timezone
 
 import discord
-from discord import app_commands
 from discord.ext import commands
 
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import (
     BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot, bot_guild_id, get_feedback_channel_id, get_ptn_booze_cruise_role_id,
-    get_public_channel_list, get_steve_says_channel, get_wine_carrier_guide_channel_id, server_council_role_ids,
-    get_wine_status_channel, server_hitchhiker_role_id, server_mod_role_id, server_pilot_role_id,
+    get_public_channel_list, get_steve_says_channel, get_wine_carrier_guide_channel_id,
+    get_wine_status_channel, server_hitchhiker_role_id, server_pilot_role_id,
     server_sommelier_role_id, server_wine_carrier_role_id, BC_STATUS
 )
 from ptn.boozebot.modules.Views import ConfirmView
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.helpers import check_command_channel
+from ptn.boozebot.modules.CommandGroups import somm_command_group
 
 """
 CLEANER COMMANDS
@@ -49,8 +49,7 @@ class Cleaner(commands.Cog):
     This class handles role and channel cleanup after a cruise, as well as opening channels in preparation for a cruise.
     """
 
-    @app_commands.command(name="booze_channels_open", description="Opens the Booze Cruise channels to the public.")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @somm_command_group.command(name="open_channels", description="Opens the Booze Cruise channels to the public.")
     @check_command_channel([get_steve_says_channel()])
     async def booze_channels_open(self, interaction: discord.Interaction):
         """
@@ -106,8 +105,7 @@ class Cleaner(commands.Cog):
                 content="**Waiting for user response - timed out**", embed=None, view=None
             )
 
-    @app_commands.command(name="booze_channels_close", description="Closes the Booze Cruise channels to the public.")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @somm_command_group.command(name="close_channels", description="Closes the Booze Cruise channels to the public.")
     @check_command_channel([get_steve_says_channel()])
     async def booze_channels_close(self, interaction: discord.Interaction):
         """
@@ -160,11 +158,10 @@ class Cleaner(commands.Cog):
 
 
 
-    @app_commands.command(
-        name="clear_booze_roles",
+    @somm_command_group.command(
+        name="clear_roles",
         description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution."
     )
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     @check_command_channel([get_steve_says_channel()])
     async def clear_booze_roles(self, interaction: discord.Interaction):
         """
@@ -225,8 +222,7 @@ class Cleaner(commands.Cog):
                 content="**Waiting for user response - timed out**", embed=None, view=None
             )
 
-    @app_commands.command(name="booze_update_blurb_message", description="Update a blurb message (WCO welcome or announcement).")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @somm_command_group.command(name="update_blurb_message", description="Update a blurb message (WCO welcome or announcement).")
     @check_command_channel([get_steve_says_channel()])
     async def update_blurb_message(self, interaction: discord.Interaction, blurb: BLURB_KEYS):
         print(f'User {interaction.user.name} is changing the {blurb} message in {interaction.channel.name}.')
@@ -267,8 +263,7 @@ class Cleaner(commands.Cog):
             await message.delete()
 
 
-    @app_commands.command(name="open_wine_carrier_feedback", description="Opens the Wine Carrier feedback channel.")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @somm_command_group.command(name="open_wine_carrier_feedback", description="Opens the Wine Carrier feedback channel.")
     @check_command_channel([get_steve_says_channel()])
     async def open_wine_carrier_feedback(self, interaction: discord.Interaction):
         print(f'User {interaction.user.name} is opening the wine carrier feedback channel in {interaction.channel.name}.')
@@ -280,8 +275,7 @@ class Cleaner(commands.Cog):
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
         await interaction.response.send_message("Opened the Wine Carrier feedback channel.", embed=None)
 
-    @app_commands.command(name="close_wine_carrier_feedback", description="Closes the Wine Carrier feedback channel.")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @somm_command_group.command(name="close_wine_carrier_feedback", description="Closes the Wine Carrier feedback channel.")
     @check_command_channel([get_steve_says_channel()])
     async def close_wine_carrier_feedback(self, interaction: discord.Interaction):
         print(f'User {interaction.user.name} is closing the wine carrier feedback channel in {interaction.channel.name}.')
@@ -293,8 +287,7 @@ class Cleaner(commands.Cog):
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
         await interaction.response.send_message("Closed the Wine Carrier feedback channel.", embed=None)
 
-    @app_commands.command(name="booze_update_bc_status_embed", description="Updates the booze-cruise-status embed.")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @somm_command_group.command(name="update_bc_status_embed", description="Updates the booze-cruise-status embed.")
     @check_command_channel([get_steve_says_channel()])
     async def update_bc_status_embed(self, interaction: discord.Interaction, status: BC_STATUS):
         await interaction.response.defer()

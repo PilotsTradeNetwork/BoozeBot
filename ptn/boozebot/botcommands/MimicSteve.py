@@ -13,7 +13,7 @@ from ptn.boozebot.constants import server_council_role_ids, server_sommelier_rol
 
 # local modules
 from ptn.boozebot.modules.helpers import check_roles
-
+from ptn.boozebot.modules.CommandGroups import somm_command_group
 
 """
 MIMIC STEVE COMMAND
@@ -50,11 +50,10 @@ class MimicSteve(commands.Cog):
     """
     This class implements functionality for a user to send commands as PirateSteve
     """
-    @app_commands.command(name="steve_says", description="Send a message as PirateSteve.")
+    @somm_command_group.command(name="steve_says", description="Send a message as PirateSteve.")
     @app_commands.describe(message="The message to send",
                            send_channel="The channel to send the message in",
                             )
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
     async def mimic_steve(self, interaction: discord.Interaction, message: str, send_channel: discord.TextChannel = None):
         """
         Command to send a message as pirate steve. Generates a message in the channel that it ran in.

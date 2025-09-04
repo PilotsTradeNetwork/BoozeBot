@@ -17,12 +17,12 @@ from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
     bot, bot_guild_id, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
-    get_primary_booze_discussions_channel, get_steve_says_channel, server_connoisseur_role_id, server_council_role_ids,
-    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
+    get_primary_booze_discussions_channel, get_steve_says_channel, server_connoisseur_role_id, wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
+from ptn.boozebot.modules.CommandGroups import somm_command_group, wine_carrier_command_group
 # local modules
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
+from ptn.boozebot.modules.helpers import check_command_channel, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check
 
 """
@@ -153,17 +153,8 @@ class Unloading(commands.Cog):
         else:
             print("Last unload time was less than 20 minutes ago, skipping reminder.")
 
-    @app_commands.command(
-        name="wine_helper_market_open", description="Creates a new unloading helper operation in this channel."
-    )
-    @check_roles(
-        [
-            *server_council_role_ids(),
-            server_mod_role_id(),
-            server_sommelier_role_id(),
-            server_connoisseur_role_id(),
-            server_wine_carrier_role_id(),
-        ]
+    @wine_carrier_command_group.command(
+        name="helper_market_open", description="Creates a new unloading helper operation in this channel."
     )
     async def booze_unload_market(self, interaction: discord.Interaction):
         print(f"User {interaction.user.name} requested a new booze unload in channel: {interaction.channel.name}.")
@@ -185,18 +176,9 @@ class Unloading(commands.Cog):
         await message.add_reaction(f"<:Assassin:{str(get_custom_assassin_id())}>")
         await message.add_reaction("🍷")
 
-    @app_commands.command(
-        name="wine_helper_market_closed",
+    @wine_carrier_command_group.command(
+        name="helper_market_closed",
         description="Sends a message to indicate you have closed your market. Command sent in active channel.",
-    )
-    @check_roles(
-        [
-            *server_council_role_ids(),
-            server_mod_role_id(),
-            server_sommelier_role_id(),
-            server_connoisseur_role_id(),
-            server_wine_carrier_role_id(),
-        ]
     )
     async def booze_market_closed(self, interaction: discord.Interaction):
         print(f"User {interaction.user.name} requested a to close the market in channel: {interaction.channel.name}.")
@@ -225,8 +207,8 @@ class Unloading(commands.Cog):
         Choice(name="Planet 6", value="Planet 6"),
     ]
 
-    @app_commands.command(
-        name="wine_unload",
+    @wine_carrier_command_group.command(
+        name="unload",
         description="Posts a new unload notice for a carrier. Admin/Sommelier/WineCarrier role required.",
     )
     @describe(
@@ -234,15 +216,6 @@ class Unloading(commands.Cog):
         planetary_body="A string representing the location of the carrier, ie Star, P1, P2",
     )
     @app_commands.choices(planetary_body=PLANETARY_CHOICES)
-    @check_roles(
-        [
-            *server_council_role_ids(),
-            server_mod_role_id(),
-            server_sommelier_role_id(),
-            server_connoisseur_role_id(),
-            server_wine_carrier_role_id(),
-        ]
-    )
     @check_command_channel(wine_carrier_command_channel())
     async def wine_carrier_unload(self, interaction: discord.Interaction, carrier_id: str, planetary_body: str):
         """
@@ -347,8 +320,8 @@ class Unloading(commands.Cog):
             f"processed successfully. Market: **{market_conditions}**."
         )
 
-    @app_commands.command(
-        name="wine_timed_unload",
+    @wine_carrier_command_group.command(
+        name="timed_unload",
         description="Posts a new timed unload notice for a carrier. Admin/Sommelier/WineCarrier role required.",
     )
     @describe(
@@ -356,15 +329,6 @@ class Unloading(commands.Cog):
         planetary_body="A string representing the location of the carrier, ie Star, P1, P2",
     )
     @app_commands.choices(planetary_body=PLANETARY_CHOICES)
-    @check_roles(
-        [
-            *server_council_role_ids(),
-            server_mod_role_id(),
-            server_sommelier_role_id(),
-            server_connoisseur_role_id(),
-            server_wine_carrier_role_id(),
-        ]
-    )
     @check_command_channel(wine_carrier_command_channel())
     async def wine_carrier_timed_unload(self, interaction: discord.Interaction, carrier_id: str, planetary_body: str):
         """
@@ -478,20 +442,11 @@ class Unloading(commands.Cog):
             f"Open the market at {open_time_str} (In game time)."
         )
 
-    @app_commands.command(
-        name="wine_unload_complete",
+    @wine_carrier_command_group.command(
+        name="unload_complete",
         description="Removes any trade channel notification for unloading wine. Somm/Conn/Wine Carrier role required.",
     )
     @describe(carrier_id="the XXX-XXX ID string for the carrier")
-    @check_roles(
-        [
-            *server_council_role_ids(),
-            server_mod_role_id(),
-            server_sommelier_role_id(),
-            server_connoisseur_role_id(),
-            server_wine_carrier_role_id(),
-        ]
-    )
     @check_command_channel(wine_carrier_command_channel())
     async def wine_unloading_complete(self, interaction: discord.Interaction, carrier_id: str):
         print(f"Wine unloading complete for {carrier_id} flagged by {interaction.user.name}.")
@@ -569,8 +524,7 @@ class Unloading(commands.Cog):
             content=f"<@&{server_connoisseur_role_id()}> {response}", allowed_mentions=allowed_mentions
         )
 
-    @app_commands.command(name="toggle_timed_unloads", description="Toggle the status of timed unloads.")
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
+    @somm_command_group.command(name="toggle_timed_unloads", description="Toggle the status of timed unloads.")
     async def toggle_timed_unloads(self, interaction: discord.Interaction):
         """
         Toggle allowing timed unloads.
@@ -592,11 +546,10 @@ class Unloading(commands.Cog):
         # Send the response message
         await interaction.edit_original_response(content=f"Timed unloads are now '{new_status}'.")
 
-    @app_commands.command(
+    @somm_command_group.command(
         name="set_timed_unload_hold_duration", description="Set the hold duration for timed unloads in minutes."
     )
     @describe(duration_minutes="Duration in minutes to hold the timed unload market before it is opened.")
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def set_timed_unload_hold_duration(self, interaction: discord.Interaction, duration_minutes: float):
         """

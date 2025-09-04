@@ -32,7 +32,6 @@ from discord.utils import setup_logging
 # import error handler
 from ptn.boozebot.modules.ErrorHandler import on_generic_error, on_app_command_error
 
-
 print(f"Booze bot is connecting against production: {_production}.")
 
 
@@ -43,8 +42,7 @@ def run():
 async def boozebot():
     setup_logging(handler=log_handler, level=LOG_LEVEL)
     build_database_on_startup()
-    async with bot:
-        await bot.add_cog(DiscordBotCommands(bot))
+    async with bot:        
         await bot.add_cog(Unloading(bot))
         await bot.add_cog(DatabaseInteraction(bot))
         await bot.add_cog(PublicHoliday(bot))
@@ -55,6 +53,7 @@ async def boozebot():
         await bot.add_cog(BackgroundTaskCommands(bot))
         await bot.add_cog(AutoResponses(bot))
         await bot.add_cog(PrometheusCog(bot))
+        await bot.add_cog(DiscordBotCommands(bot))
         
         bot.on_command_error = on_generic_error
         bot.tree.on_error = on_app_command_error

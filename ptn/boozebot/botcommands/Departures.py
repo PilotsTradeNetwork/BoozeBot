@@ -17,9 +17,8 @@ from discord.ext import commands, tasks
 from discord import app_commands
 
 # local constants
-from ptn.boozebot.constants import bot, server_council_role_ids, server_sommelier_role_id, \
-    server_wine_carrier_role_id, server_mod_role_id, wine_carrier_command_channel, \
-    server_hitchhiker_role_id, get_departure_announcement_channel, server_connoisseur_role_id, \
+from ptn.boozebot.constants import bot, wine_carrier_command_channel, \
+    server_hitchhiker_role_id, get_departure_announcement_channel, \
     get_thoon_emoji_id, bot_guild_id, get_wine_carrier_channel, get_steve_says_channel, N_SYSTEMS
 
 # local classes
@@ -27,7 +26,8 @@ from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.database.database import pirate_steve_db
 
 # local modules
-from ptn.boozebot.modules.helpers import check_roles, check_command_channel, track_last_run
+from ptn.boozebot.modules.helpers import check_command_channel, track_last_run
+from ptn.boozebot.modules.CommandGroups import somm_command_group, wine_carrier_command_group
 
 """
 UNLOADING COMMANDS
@@ -174,7 +174,7 @@ class Departures(commands.Cog):
             except Exception as e:
                 print(f"Failed to process departure message while checking for time passed. message: {message.id}. Error: {e}")
 
-    @app_commands.command(name="wine_carrier_departure",
+    @wine_carrier_command_group.command(name="departure",
                           description="Post a departure message for a wine carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier",
               departure_location="The location the carrier is departing from.",
@@ -182,7 +182,6 @@ class Departures(commands.Cog):
               departing_at="The unix timestamp, or discord timestamp of the carrier departure.",
               departing_in="The time in minutes until the carrier departs."
               )
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id(), server_wine_carrier_role_id()])
     @check_command_channel(wine_carrier_command_channel())
     @app_commands.choices(arrival_location=system_choices, departure_location=system_choices)
     async def wine_carrier_departure(self, interaction: discord.Interaction, carrier_id: str, departure_location: str, arrival_location: str, departing_at: str = None, departing_in: str = None):
@@ -366,8 +365,7 @@ class Departures(commands.Cog):
         # Edit the original interaction response with the jump URL of the departure message
         await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
 
-    @app_commands.command(name="set_allowed_departures", description="Set the status of departure announcements.")
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
+    @somm_command_group.command(name="set_allowed_departures", description="Set the status of departure announcements.")
     @describe(status="The status to set for departure announcements.")
     async def set_allowed_departures(self, interaction: discord.Interaction, status: Literal["Disabled", "Upwards", "All"]):
         """
@@ -391,8 +389,7 @@ class Departures(commands.Cog):
         # Send the response message
         await interaction.edit_original_response(content=f"Departure announcements are now '{status}'.")
     
-    @app_commands.command(name="official_carrier_departure", description="Post an official carrier departure message.")
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
+    @somm_command_group.command(name="official_carrier_departure", description="Post an official carrier departure message.")
     @check_command_channel(get_steve_says_channel())
     @describe(carrier_id="The XXX-XXX ID string for the carrier",
               operated_by="The user who is operating the carrier.",

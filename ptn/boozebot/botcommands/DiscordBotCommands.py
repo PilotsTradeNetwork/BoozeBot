@@ -12,8 +12,8 @@ from ptn.boozebot.constants import bot_guild_id, get_bot_control_channel, \
     server_council_role_ids, bot, server_sommelier_role_id, I_AM_STEVE_GIF
 from ptn.boozebot._metadata import __version__
 
-from ptn.boozebot.modules.ErrorHandler import CustomError
-    
+# Import command groups
+from ptn.boozebot.modules.CommandGroups import somm_command_group, conn_command_group, wine_carrier_command_group, everyone_command_group
 
 """
 LISTENERS
@@ -50,6 +50,13 @@ class DiscordBotCommands(commands.Cog):
 
         :returns: None
         """
+        
+        # Register command groups
+        self.bot.tree.add_command(somm_command_group.register_commands(bot.cogs))
+        self.bot.tree.add_command(conn_command_group.register_commands(bot.cogs))
+        self.bot.tree.add_command(wine_carrier_command_group.register_commands(bot.cogs))
+        self.bot.tree.add_command(everyone_command_group.register_commands(bot.cogs))
+        
         print(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
         try:
             bot_channel = self.bot.get_channel(get_bot_control_channel())
@@ -94,7 +101,7 @@ class DiscordBotCommands(commands.Cog):
         :returns: None
         """
         print(f'User {ctx.author} requested to exit')
-        await ctx.send(f"Ahoy! k thx bye")
+        await ctx.send("Ahoy! k thx bye")
         await sys.exit("User requested exit.")
 
     @commands.command(name='update', help="Restarts the bot.")
@@ -125,8 +132,9 @@ class DiscordBotCommands(commands.Cog):
         print(f"Interaction sync called from {ctx.author.display_name}")
         async with ctx.typing():
             try:
-                bot.tree.copy_global_to(guild=discord.Object(bot_guild_id()))
-                await bot.tree.sync(guild=discord.Object(bot_guild_id()))
+                guild = discord.Object(bot_guild_id())
+                bot.tree.copy_global_to(guild=guild)
+                await bot.tree.sync(guild=guild)
                 print("Synchronized bot tree.")
                 await ctx.send("Synchronized bot tree.")
             except Exception as e:

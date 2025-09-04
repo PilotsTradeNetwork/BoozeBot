@@ -5,10 +5,11 @@ from discord import app_commands
 from discord.app_commands import Choice, describe
 
 # local constants
-from ptn.boozebot.constants import bot, server_mod_role_id, server_sommelier_role_id, server_council_role_ids, get_steve_says_channel
+from ptn.boozebot.constants import bot, get_steve_says_channel
 
 # local modules
-from ptn.boozebot.modules.helpers import check_roles, check_command_channel
+from ptn.boozebot.modules.helpers import check_command_channel
+from ptn.boozebot.modules.CommandGroups import somm_command_group
 
 class BackgroundTaskCommands(commands.Cog):
     
@@ -22,8 +23,7 @@ class BackgroundTaskCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="start_task", description="Starts a background task.")
-    @check_roles([server_mod_role_id(), server_sommelier_role_id(), *server_council_role_ids()])
+    @somm_command_group.command(name="start_task", description="Starts a background task.")
     @check_command_channel(get_steve_says_channel())
     @describe(
         task_name="The name of the task to start."
@@ -43,8 +43,7 @@ class BackgroundTaskCommands(commands.Cog):
             await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)
 
 
-    @app_commands.command(name="stop_task", description="Stops a background task.")
-    @check_roles([server_mod_role_id(), server_sommelier_role_id(), *server_council_role_ids()])
+    @somm_command_group.command(name="stop_task", description="Stops a background task.")
     @check_command_channel(get_steve_says_channel())
     @describe(
         task_name="The name of the task to stop."
@@ -64,8 +63,7 @@ class BackgroundTaskCommands(commands.Cog):
             await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)
           
     
-    @app_commands.command(name="task_status", description="Gets the status of a background task.")
-    @check_roles([server_mod_role_id(), server_sommelier_role_id(), *server_council_role_ids()])
+    @somm_command_group.command(name="task_status", description="Gets the status of a background task.")
     @check_command_channel(get_steve_says_channel())
     @describe(
         task_name="The name of the task to check."
