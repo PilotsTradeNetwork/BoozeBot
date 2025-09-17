@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.16
+-    \#618 - Add copy/paste snippet for /wine_unload_complete (IndorilReborn)
+-    \#612 - Fix tally error when no carriers in data (conshmea)
+-    \#619 - Updated timed unloads (conshmea)
+-    \#622 - Convert all y/n confirmations to buttons (IndorilReborn)
+-    \#615 - Updated extra stats (conshmea)
+-    \#616 - Official departure names (conshmea)
+-    \#617 - Update auto response list with edit functionality (conshmea)
+
 ## 2.0.15
 -    \#595 - Update docker image base (IndorilReborn)
 -    \#596 - Log person granting WCO role (IndorilReborn)
