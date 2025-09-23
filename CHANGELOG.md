@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.0.16a
+-    \#626 - Await deferring the unload command (conshmea)
+
 ## 2.0.16
 -    \#618 - Add copy/paste snippet for /wine_unload_complete (IndorilReborn)
 -    \#612 - Fix tally error when no carriers in data (conshmea)
