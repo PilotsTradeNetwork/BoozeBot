@@ -269,7 +269,7 @@ class Unloading(commands.Cog):
         :rtype: Union[discord.Message, dict]
         """
 
-        interaction.response.defer()
+        await interaction.response.defer()
         print(
             f"User {interaction.user.name} has requested a new wine unload operation for carrier: {carrier_id} around the "
             f"body: {planetary_body}."
