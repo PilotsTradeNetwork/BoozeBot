@@ -24,6 +24,7 @@ from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 from ptn.boozebot.botcommands.AutoResponses import AutoResponses
+from ptn.boozebot.botcommands.Corked import Corked
 
 # import bot object, token, production status
 from ptn.boozebot.constants import bot, TOKEN, _production, log_handler, LOG_LEVEL
@@ -51,6 +52,7 @@ async def boozebot():
         await bot.add_cog(Departures(bot))
         await bot.add_cog(BackgroundTaskCommands(bot))
         await bot.add_cog(AutoResponses(bot))
+        await bot.add_cog(Corked(bot))
         await bot.add_cog(PrometheusCog(bot))
 
         try:

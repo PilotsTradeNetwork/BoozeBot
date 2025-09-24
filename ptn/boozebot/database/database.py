@@ -82,6 +82,11 @@ def build_database_on_startup():
             'trigger': 'TEXT NOT NULL',
             'is_regex': 'BOOLEAN NOT NULL DEFAULT 0',
             'response': 'TEXT NOT NULL',
+        },
+        'corked_users': {
+            'entry': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            'user_id': 'TEXT UNIQUE',
+            'timestamp': 'DATETIME'
         }
     }
 
