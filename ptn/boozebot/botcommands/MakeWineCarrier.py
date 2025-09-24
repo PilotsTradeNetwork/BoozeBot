@@ -10,12 +10,12 @@ import discord
 from discord import app_commands
 from discord.app_commands import describe
 from discord.ext import commands
-
 from ptn.boozebot.constants import (
-    WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot, get_steve_says_channel, get_wine_carrier_channel, \
-    server_connoisseur_role_id, server_council_role_ids, server_mod_role_id, server_sommelier_role_id, \
-    server_wine_carrier_role_id, bot_spam_channel, too_slow_gifs
+    WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot, bot_spam_channel, get_steve_says_channel,
+    get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
+    server_sommelier_role_id, server_wine_carrier_role_id, too_slow_gifs
 )
+from ptn.boozebot.database.database import pirate_steve_db
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
@@ -30,14 +30,12 @@ Member context menu: make_wine_carrier - conn/somm/mod/admin
 # lock for wine carrier toggle
 wine_carrier_toggle_lock = asyncio.Lock()
 
+
 # initialise the Cog and attach our global error handler
 class MakeWineCarrier(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.ctx_menu = app_commands.ContextMenu(
-            name="Make Wine Carrier",
-            callback=self.context_menu_make_wine_carrier
-        )
+        self.ctx_menu = app_commands.ContextMenu(name="Make Wine Carrier", callback=self.context_menu_make_wine_carrier)
         self.bot.tree.add_command(self.ctx_menu)
 
     # custom global error handler
@@ -53,21 +51,34 @@ class MakeWineCarrier(commands.Cog):
         tree = self.bot.tree
         tree.on_error = self._old_tree_error
 
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
+    @check_roles(
+        [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()]
+    )
     async def context_menu_make_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
-        print(f"Context menu make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user}")
+        print(
+            f"Context menu make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user}"
+        )
         await make_user_wine_carrier(interaction, user)
 
-    @app_commands.command(name="make_wine_carrier", description="Give user the Wine Carrier role. Admin/Sommelier/Connoisseur role required.")
+    @app_commands.command(
+        name="make_wine_carrier",
+        description="Give user the Wine Carrier role. Admin/Sommelier/Connoisseur role required.",
+    )
     @describe(user="An @ mention of the Discord user to receive the role.")
-    @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()])
+    @check_roles(
+        [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()]
+    )
     async def make_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
-        print(f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to set the Wine Carrier role")
+        print(
+            f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to set the Wine Carrier role"
+        )
 
         await make_user_wine_carrier(interaction, user)
 
-
-    @app_commands.command(name="remove_wine_carrier", description="Removes the Wine Carrier role from a user. Admin/Sommelier/Connoisseur role required.")
+    @app_commands.command(
+        name="remove_wine_carrier",
+        description="Removes the Wine Carrier role from a user. Admin/Sommelier/Connoisseur role required.",
+    )
     @describe(user="An @ mention of the Discord user to remove the role from.")
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @check_command_channel(get_steve_says_channel())
@@ -75,7 +86,9 @@ class MakeWineCarrier(commands.Cog):
 
         await interaction.response.defer()
 
-        print(f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to remove the Wine Carrier role")
+        print(
+            f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to remove the Wine Carrier role"
+        )
 
         async with wine_carrier_toggle_lock:
             # set the target role
@@ -101,11 +114,14 @@ class MakeWineCarrier(commands.Cog):
 
                 except discord.DiscordException as e:
                     print(e)
-                    await interaction.edit_original_response(content=f"Failed removing role {wc_role.name} from {user}: {e}")
+                    await interaction.edit_original_response(
+                        content=f"Failed removing role {wc_role.name} from {user}: {e}"
+                    )
                     return
             else:
                 print("User is not a wine carrier, doing nothing.")
                 return await interaction.edit_original_response(content=f"User is not a {wc_role.name}")
+
 
 # function shared by make_wine_carrier and make_contextuser_wine_carrier
 async def make_user_wine_carrier(interaction: discord.Interaction, user: discord.Member) -> None:
@@ -120,6 +136,18 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
 
         # Refetch the user from the interaction inside the lock
         user = await interaction.guild.fetch_member(user.id)
+
+        pirate_steve_db.execute(
+            "SELECT * FROM corked_users WHERE user_id = ?",
+            (str(user.id),),
+        )
+        result = pirate_steve_db.fetchone()
+
+        if result:
+            print(f"User {user} is corked, cannot make wine carrier.")
+            return await interaction.edit_original_response(
+                content=f"User {user.mention} ({user.name}) is corked and cannot be made a {wc_role.name}."
+            )
 
         if wc_role in user.roles:
             print(f"{user} is already a {wc_role.name}, doing nothing.")
@@ -137,7 +165,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
 
                 # Open the file in read mode.
                 with open(WELCOME_MESSAGE_FILE_PATH, "r", encoding="utf-8") as file:
-                    wine_welcome_message = file.read() # read contents to variable
+                    wine_welcome_message = file.read()  # read contents to variable
 
                 wine_channel = bot.get_channel(get_wine_carrier_channel())
                 embed = discord.Embed(description=wine_welcome_message)

@@ -1,3 +1,6 @@
+from ptn.boozebot.constants import bot
+
+
 class CorkedUser:
     def __init__(self, info_dict=None):
         """
@@ -14,6 +17,14 @@ class CorkedUser:
 
         self.user_id = info_dict.get("user_id", None)
         self.timestamp = info_dict.get("timestamp", None)
+
+    def get_member(self):
+        """
+        Returns the discord.Member object for the corked user.
+
+        :rtype: discord.Member | None
+        """
+        return bot.get_user(int(self.user_id))
 
     def __str__(self):
         """

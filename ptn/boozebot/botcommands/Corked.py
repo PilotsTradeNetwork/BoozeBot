@@ -63,7 +63,7 @@ class Corked(commands.Cog):
 
         if result:
             print(f"User {user} is already corked")
-            await interaction.followup.send(f"User {user.mention} is already corked.")
+            await interaction.followup.send(f"User {user.mention} ({user.name}) is already corked.")
             return
 
         channels_to_hide = get_public_channel_list() + [get_booze_cruise_signups_channel(), get_wine_status_channel()]
@@ -93,7 +93,9 @@ class Corked(commands.Cog):
             pirate_steve_conn.commit()
 
         print(f"User {user} has been corked")
-        await interaction.followup.send(f"User {user.mention} has been corked from the booze cruise channels.")
+        await interaction.followup.send(
+            f"User {user.mention} ({user.name}) has been corked from the booze cruise channels."
+        )
 
     @app_commands.command(name="booze_admin_uncork", description="Uncork a user from the booze cruise channels")
     @app_commands.describe(user="The user to uncork")
@@ -120,7 +122,7 @@ class Corked(commands.Cog):
 
         if not result:
             print(f"User {user} is not corked")
-            await interaction.followup.send(f"User {user.mention} is not corked.")
+            await interaction.followup.send(f"User {user.mention} ({user.name}) is not corked.")
             return
 
         channels_to_show = get_public_channel_list() + [get_booze_cruise_signups_channel(), get_wine_status_channel()]
@@ -143,7 +145,9 @@ class Corked(commands.Cog):
             pirate_steve_conn.commit()
 
         print(f"User {user} has been uncorked")
-        await interaction.followup.send(f"User {user.mention} has been uncorked from the booze cruise channels.")
+        await interaction.followup.send(
+            f"User {user.mention} ({user.name}) has been uncorked from the booze cruise channels."
+        )
 
     @app_commands.command(name="booze_admin_list_corked", description="List all corked users")
     @check_roles([*server_council_role_ids(), server_mod_role_id()])
@@ -172,10 +176,10 @@ class Corked(commands.Cog):
 
         corked_user_data = [
             (
-                self.bot.get_user(int(user.user_id)).name,
-                f"{self.bot.get_user(int(user.user_id)).mention} Corked at {user.timestamp}",
+                user.get_member().name,
+                f"{user.get_member().mention} Corked at {user.timestamp}",
             )
             for user in corked_users
         ]
 
-        await createPagination(interaction, "corked Users", corked_user_data)
+        await createPagination(interaction, "Corked Users", corked_user_data)
