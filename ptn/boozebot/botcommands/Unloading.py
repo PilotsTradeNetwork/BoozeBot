@@ -147,7 +147,7 @@ class Unloading(commands.Cog):
             print("PH is not currently active, skipping reminder check.")
             return
 
-        if datetime.now() - self.last_unload_time >= timedelta(minutes=20):
+        if datetime.now(tz=timezone.utc) - self.last_unload_time >= timedelta(minutes=20):
             pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE discord_unload_in_progress IS NOT NULL")
             if pirate_steve_db.fetchone():
                 print("There is an active unload in progress, skipping reminder check.")
@@ -313,7 +313,7 @@ class Unloading(commands.Cog):
             )
 
         print(f"Starting to post un-load operation for carrier: {carrier_data}")
-        message_send = await interaction.channel.send("**Sending to Discord...**")
+        await interaction.edit_original_response(content="**Sending to Discord...**")
 
         market_conditions = "Open for all"
 
@@ -329,7 +329,6 @@ class Unloading(commands.Cog):
             icon_url=f"https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1",
         )
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
-        await message_send.delete()
 
         self.last_unload_time = None
 
@@ -440,7 +439,7 @@ class Unloading(commands.Cog):
             )
 
         print(f"Starting to post un-load operation for carrier: {carrier_data}")
-        message_send = await interaction.channel.send("**Sending to Discord...**")
+        await interaction.edit_original_response(content="**Sending to Discord...**")
 
         current_time = datetime.now(timezone.utc)
         open_time = current_time + timedelta(minutes=self.timed_unload_hold_duration)
@@ -460,7 +459,6 @@ class Unloading(commands.Cog):
             icon_url=f"https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1",
         )
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
-        await message_send.delete()
 
         self.last_unload_time = None
 
@@ -531,8 +529,8 @@ class Unloading(commands.Cog):
 
         if not carrier_data.discord_unload_notification or carrier_data.discord_unload_notification == "NULL":
             print(f"No discord alert found for carrier, {carrier_id}. It likely ran an untracked market.")
-            return await interaction.response.send_message(
-                f"Sorry {interaction.user.name}, we have no carrier unload notification found in the database for "
+            return await interaction.edit_original_response(
+                content=f"Sorry {interaction.user.name}, we have no carrier unload notification found in the database for "
                 f"{carrier_id}."
             )
 
