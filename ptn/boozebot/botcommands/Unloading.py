@@ -18,7 +18,7 @@ from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import (
     bot, bot_guild_id, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
     get_primary_booze_discussions_channel, get_steve_says_channel, server_connoisseur_role_id, server_council_role_ids,
-    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
+    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel, CARRIER_ID_RE
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
@@ -279,7 +279,7 @@ class Unloading(commands.Cog):
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
-        if not re.match(r"\w{3}-\w{3}", carrier_id):
+        if not CARRIER_ID_RE.match(carrier_id):
             msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             print(msg)
             return await interaction.edit_original_response(content=msg)
@@ -406,7 +406,7 @@ class Unloading(commands.Cog):
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
-        if not re.match(r"\w{3}-\w{3}", carrier_id):
+        if not CARRIER_ID_RE.match(carrier_id):
             msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             print(msg)
             return await interaction.followup.send(msg)
@@ -514,7 +514,7 @@ class Unloading(commands.Cog):
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
-        if not re.match(r"\w{3}-\w{3}", carrier_id):
+        if not CARRIER_ID_RE.match(carrier_id):
             msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             print(msg)
             return await interaction.edit_original_response(content=msg)

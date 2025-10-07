@@ -7,6 +7,7 @@ Constants used throughout BoozeBot.
 import ast
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Literal, TypedDict
@@ -170,6 +171,8 @@ match loglevel_input:
 
     case _:
         LOG_LEVEL = logging.INFO
+
+CARRIER_ID_RE = re.compile(r"[A-HJ-NP-Za-hj-np-z0-9]{3}-[A-HJ-NP-Za-hj-np-z0-9]{3}|\w{4}")
 
 ping_response_messages = [
     "Yarrr, <@{message_author_id}>, you summoned me?",
