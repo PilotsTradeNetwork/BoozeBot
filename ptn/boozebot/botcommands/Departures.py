@@ -27,6 +27,7 @@ from ptn.boozebot.database.database import pirate_steve_db
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
+from ptn.boozebot.modules.Settings import settings
 
 """
 UNLOADING COMMANDS
@@ -59,8 +60,6 @@ class Departures(commands.Cog):
     system_choices = [
         Choice(name=f"{system_id} ({system_name})", value=system_id) for system_id, system_name in N_SYSTEMS.items()
     ]
-
-    departure_announcement_status: Literal["Disabled", "Upwards", "All"] = "Disabled"
 
     # On ready check for any completed departure messages and remove them.
     @commands.Cog.listener()
@@ -402,9 +401,9 @@ class Departures(commands.Cog):
 
         # Check if departure announcements are enabled
         msg = ""
-        if self.departure_announcement_status == "Disabled":
+        if settings.get_setting("departure_announcement_status") == "Disabled":
             msg = "Departure announcements are currently disabled."
-        elif self.departure_announcement_status == "Upwards" and direction_arrow == "⬇️":
+        elif settings.get_setting("departure_announcement_status") == "Upwards" and direction_arrow == "⬇️":
             msg = "Departure announcements are currently only enabled for jumps moving up towards N0"
         if msg:
             print(msg)
@@ -450,7 +449,7 @@ class Departures(commands.Cog):
         print(f"{interaction.user.name} {msg}")
         await steve_says_channel.send(f"{interaction.user.mention} {msg}", silent=True)
         # Set the departure announcement status
-        self.departure_announcement_status = status
+        settings.set_setting("departure_announcement_status", status)
         # Send the response message
         await interaction.edit_original_response(content=f"Departure announcements are now '{status}'.")
 

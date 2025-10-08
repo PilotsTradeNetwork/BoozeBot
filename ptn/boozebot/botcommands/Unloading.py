@@ -25,6 +25,7 @@ from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, p
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check
+from ptn.boozebot.modules.Settings import settings
 
 """
 UNLOADING COMMANDS
@@ -56,8 +57,6 @@ class Unloading(commands.Cog):
     """
     This class is a collection functionality for tracking a booze cruise unload operations
     """
-    timed_unloads_allowed: bool = False
-    timed_unload_hold_duration: float = 5.0  # in minutes
     last_unload_time: datetime | None = None
 
     # On reaction check if its in the unloading channel and if the reaction is fc complete,
@@ -396,7 +395,7 @@ class Unloading(commands.Cog):
             f"around the body: {planetary_body}."
         )
 
-        if self.timed_unloads_allowed is False:
+        if settings.get_setting("timed_unloads_allowed") is False:
             msg = "Timed unloads are not allowed at this time."
             print(msg)
             await interaction.followup.send(msg)
@@ -443,7 +442,7 @@ class Unloading(commands.Cog):
         message_send = await interaction.channel.send("**Sending to Discord...**")
 
         current_time = datetime.now(timezone.utc)
-        open_time = current_time + timedelta(minutes=self.timed_unload_hold_duration)
+        open_time = current_time + timedelta(minutes=settings.get_setting("timed_unload_hold_duration"))
         open_time = open_time + timedelta(seconds=60 - open_time.second)
         open_time_str = open_time.strftime("%H:%M:%S")
 
@@ -557,7 +556,7 @@ class Unloading(commands.Cog):
 
         if message.embeds[0].title.startswith("Timed"):
             unload_start = message.created_at.replace(tzinfo=timezone.utc) + timedelta(
-                minutes=self.timed_unload_hold_duration
+                minutes=settings.get_setting("timed_unload_hold_duration")
             )
             unload_start = unload_start + timedelta(seconds=60 - unload_start.second)
         else:
@@ -598,11 +597,11 @@ class Unloading(commands.Cog):
         # Log the request
         guild = bot.get_guild(bot_guild_id())
         steve_says_channel = guild.get_channel(get_steve_says_channel())
-        new_status = "Disabled" if self.timed_unloads_allowed else "Enabled"
+        new_status = "Disabled" if settings.get_setting("timed_unloads_allowed") else "Enabled"
         msg = f"requested to toggle the timed unloads status to: '{new_status}'."
         print(f"{interaction.user.name} {msg}")
         await steve_says_channel.send(f"{interaction.user.mention} {msg}", silent=True)
-        self.timed_unloads_allowed = not self.timed_unloads_allowed
+        settings.set_setting("timed_unloads_allowed", not settings.get_setting("timed_unloads_allowed"))
         # Send the response message
         await interaction.edit_original_response(content=f"Timed unloads are now '{new_status}'.")
 
@@ -624,5 +623,5 @@ class Unloading(commands.Cog):
         await interaction.response.defer()
         print(f"{interaction.user.name} requested to set the timed unload hold duration to {duration_minutes} minutes.")
 
-        self.timed_unload_hold_duration = duration_minutes
+        settings.set_setting("timed_unload_hold_duration", duration_minutes)
         await interaction.followup.send(f"Timed unload hold duration set to {duration_minutes} minutes.")
