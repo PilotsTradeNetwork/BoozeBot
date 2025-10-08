@@ -5,7 +5,6 @@ Cog for unloading related commands
 
 import logging
 # libraries
-import re
 import time
 from datetime import datetime, timedelta
 from typing import Literal
@@ -19,9 +18,10 @@ from discord.ext import commands, tasks
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
-    N_SYSTEMS, bot, bot_guild_id, get_departure_announcement_channel, get_steve_says_channel, get_thoon_emoji_id,
-    get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_hitchhiker_role_id,
-    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
+    CARRIER_ID_RE, N_SYSTEMS, bot, bot_guild_id, get_departure_announcement_channel, get_steve_says_channel,
+    get_thoon_emoji_id, get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids,
+    server_hitchhiker_role_id, server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id,
+    wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_db
 # local modules
@@ -252,7 +252,7 @@ class Departures(commands.Cog):
         guild = bot.get_guild(bot_guild_id())
         steve_says_channel = guild.get_channel(get_steve_says_channel())
         # Validate the carrier ID format
-        if not re.fullmatch(r"\w{3}-\w{3}", carrier_id):
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = f'{interaction.user.name}, the carrier ID was invalid, "XXX-XXX" expected, received "{carrier_id}".'
             print(msg)
             await interaction.edit_original_response(content=msg)
@@ -515,7 +515,7 @@ class Departures(commands.Cog):
         carrier_id = carrier_id.upper().strip()
 
         # Validate the carrier ID format
-        if not re.fullmatch(r"\w{3}-\w{3}", carrier_id):
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = f'{interaction.user.name}, the carrier ID was invalid, "XXX-XXX" expected, received "{carrier_id}".'
             print(msg)
             await interaction.edit_original_response(content=msg)

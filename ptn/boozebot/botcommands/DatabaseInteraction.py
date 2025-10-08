@@ -19,15 +19,14 @@ from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
 from google.oauth2.service_account import Credentials
-
 # local classes
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
-    BOOZE_PROFIT_PER_TONNE_WINE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, bot, bot_guild_id,
-    get_pilot_role_id, get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel,
-    ptn_role_icon_emoji_id, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
-    server_sommelier_role_id, server_wine_carrier_role_id
+    BOOZE_PROFIT_PER_TONNE_WINE, CARRIER_ID_RE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, bot,
+    bot_guild_id, get_pilot_role_id, get_primary_booze_discussions_channel, get_steve_says_channel,
+    get_wine_carrier_channel, ptn_role_icon_emoji_id, server_connoisseur_role_id, server_council_role_ids,
+    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id
 )
 from ptn.boozebot.database.database import dump_database, pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
@@ -911,7 +910,7 @@ class DatabaseInteraction(commands.Cog):
     def _validate_existing_carrier(self, carrier_id: str) -> BoozeCarrier:
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper().strip()
-        if not re.fullmatch(r"\w{3}-\w{3}", carrier_id):
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
             raise CustomError(f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.")
         # Check if it is in the database already
         pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f"%{carrier_id}%",))
