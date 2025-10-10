@@ -282,7 +282,7 @@ class Unloading(commands.Cog):
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
-        if not CARRIER_ID_RE.match(carrier_id):
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             print(msg)
             return await interaction.edit_original_response(content=msg)
@@ -408,7 +408,7 @@ class Unloading(commands.Cog):
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
-        if not CARRIER_ID_RE.match(carrier_id):
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             print(msg)
             return await interaction.followup.send(msg)
@@ -515,7 +515,7 @@ class Unloading(commands.Cog):
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
-        if not CARRIER_ID_RE.match(carrier_id):
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             print(msg)
             return await interaction.edit_original_response(content=msg)

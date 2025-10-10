@@ -39,7 +39,7 @@ class BoozeCarrier:
             self.carrier_identifier = str(self.carrier_identifier).upper()
 
             # make sure it matches the regex
-            if not CARRIER_ID_RE.match(self.carrier_identifier):
+            if not CARRIER_ID_RE.fullmatch(self.carrier_identifier):
                 raise ValueError(f"Incompatible carrier ID found: {self.carrier_identifier} - {self.carrier_name}")
 
         self.platform = "PC (Horizons + Odyssey)"
