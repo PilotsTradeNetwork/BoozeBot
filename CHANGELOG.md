@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.0
+-    \#636 - Persistent Settings (conshmea)
+-    \#637 - Support SqC Ids (conshmea)
+-    \#635 - Fix cleaner buttons (conshmea)
+-    \#633 - Unloading bug fixes (conshmea)
+-    \#632 - add corking commands (conshmea)
+-    \#638 - Auto-remove all emojis except fc-complete from unloads (IndorilReborn)
+-    \#642 - Fix carrier id regex to not match if there is other text (conshmea)
+
 ## 2.0.16a
 -    \#626 - Await deferring the unload command (conshmea)
 

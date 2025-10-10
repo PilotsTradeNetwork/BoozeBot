@@ -7,6 +7,7 @@ Constants used throughout BoozeBot.
 import ast
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Literal, TypedDict
@@ -31,6 +32,7 @@ DB_DUMPS_PATH = os.path.join(DATA_DIR, "database")
 CARRIERS_DB_PATH = os.path.join(DATA_DIR, "database", "booze_carriers.db")
 CARRIERS_DB_DUMPS_PATH = os.path.join(DATA_DIR, "sql", "booze_carriers.sql")
 SETTINGS_PATH = os.path.join(DATA_DIR, "settings")
+SETTINGS_FILE_PATH = Path(SETTINGS_PATH, "settings.json")
 WELCOME_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "welcome_message.txt")
 BC_PREP_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_prep_message.txt")
 BC_START_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_start_message.txt")
@@ -111,7 +113,7 @@ TEST_WINE_STATUS_CHANNEL = 1364573272531927132  # booze-cruise-status
 TEST_MOD_ID = 818174400997228545
 TEST_HOLIDAY_ANNOUNCE_CHANNEL_ID = 818174236480897058
 TEST_BOOZE_CRUISE_CHAT_CHANNEL = 1107757384069288056
-TEST_BOOZE_CRUISE_SIGNUPS_CHANNEL = 838515030588653599
+TEST_BOOZE_CRUISE_SIGNUPS_CHANNEL = 1420421580944838748
 TEST_WCO_ANNOUNCEMENTS_CHANNEL = 839495951131475988
 TEST_FC_COMPLETE_ID = 884673510067286076
 TEST_HITCHHIKER_ID = 1108112740800798750
@@ -170,6 +172,8 @@ match loglevel_input:
 
     case _:
         LOG_LEVEL = logging.INFO
+
+CARRIER_ID_RE = re.compile(r"[A-HJ-NP-Za-hj-np-z0-9]{3}-[A-HJ-NP-Za-hj-np-z0-9]{3}|\w{4}")
 
 ping_response_messages = [
     "Yarrr, <@{message_author_id}>, you summoned me?",

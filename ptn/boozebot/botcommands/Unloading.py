@@ -18,13 +18,14 @@ from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import (
     bot, bot_guild_id, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
     get_primary_booze_discussions_channel, get_steve_says_channel, server_connoisseur_role_id, server_council_role_ids,
-    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
+    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel, CARRIER_ID_RE
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check
+from ptn.boozebot.modules.Settings import settings
 
 """
 UNLOADING COMMANDS
@@ -56,11 +57,9 @@ class Unloading(commands.Cog):
     """
     This class is a collection functionality for tracking a booze cruise unload operations
     """
-    timed_unloads_allowed: bool = False
-    timed_unload_hold_duration: float = 5.0  # in minutes
     last_unload_time: datetime | None = None
 
-    # On reaction check if its in the unloading channel and if the reaction is fc complete,
+    # On reaction check if it's in the unloading channel and if the reaction is fc complete,
     # If it is and there are 5 reactions ping the poster
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, reaction_event):
@@ -82,7 +81,11 @@ class Unloading(commands.Cog):
             if message.author.id != bot.user.id:
                 return
 
+            reaction_allowed_roles = {server_council_role_ids(), server_mod_role_id(), server_connoisseur_role_id()}
             if reaction_event.emoji.id != get_fc_complete_id():
+                if not {role.id for role in user.roles} & reaction_allowed_roles:
+                    await message.remove_reaction(reaction_event.emoji, reaction_event.member)
+                    print(f"Removed unload reaction {reaction_event.emoji} from user {user.name}")
                 return
 
             # Check if the FC complete reaction count meets the threshold
@@ -147,7 +150,7 @@ class Unloading(commands.Cog):
             print("PH is not currently active, skipping reminder check.")
             return
 
-        if datetime.now() - self.last_unload_time >= timedelta(minutes=20):
+        if datetime.now(tz=timezone.utc) - self.last_unload_time >= timedelta(minutes=20):
             pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE discord_unload_in_progress IS NOT NULL")
             if pirate_steve_db.fetchone():
                 print("There is an active unload in progress, skipping reminder check.")
@@ -279,7 +282,7 @@ class Unloading(commands.Cog):
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
-        if not re.match(r"\w{3}-\w{3}", carrier_id):
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             print(msg)
             return await interaction.edit_original_response(content=msg)
@@ -313,7 +316,7 @@ class Unloading(commands.Cog):
             )
 
         print(f"Starting to post un-load operation for carrier: {carrier_data}")
-        message_send = await interaction.channel.send("**Sending to Discord...**")
+        await interaction.edit_original_response(content="**Sending to Discord...**")
 
         market_conditions = "Open for all"
 
@@ -329,7 +332,6 @@ class Unloading(commands.Cog):
             icon_url=f"https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1",
         )
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
-        await message_send.delete()
 
         self.last_unload_time = None
 
@@ -396,7 +398,7 @@ class Unloading(commands.Cog):
             f"around the body: {planetary_body}."
         )
 
-        if self.timed_unloads_allowed is False:
+        if settings.get_setting("timed_unloads_allowed") is False:
             msg = "Timed unloads are not allowed at this time."
             print(msg)
             await interaction.followup.send(msg)
@@ -406,7 +408,7 @@ class Unloading(commands.Cog):
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
-        if not re.match(r"\w{3}-\w{3}", carrier_id):
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             print(msg)
             return await interaction.followup.send(msg)
@@ -440,10 +442,10 @@ class Unloading(commands.Cog):
             )
 
         print(f"Starting to post un-load operation for carrier: {carrier_data}")
-        message_send = await interaction.channel.send("**Sending to Discord...**")
+        await interaction.edit_original_response(content="**Sending to Discord...**")
 
         current_time = datetime.now(timezone.utc)
-        open_time = current_time + timedelta(minutes=self.timed_unload_hold_duration)
+        open_time = current_time + timedelta(minutes=settings.get_setting("timed_unload_hold_duration"))
         open_time = open_time + timedelta(seconds=60 - open_time.second)
         open_time_str = open_time.strftime("%H:%M:%S")
 
@@ -460,7 +462,6 @@ class Unloading(commands.Cog):
             icon_url=f"https://cdn.discordapp.com/emojis/{get_fc_complete_id()}.png?v=1",
         )
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
-        await message_send.delete()
 
         self.last_unload_time = None
 
@@ -514,7 +515,7 @@ class Unloading(commands.Cog):
         carrier_id = carrier_id.upper()
 
         # Check the carrier ID regex
-        if not re.match(r"\w{3}-\w{3}", carrier_id):
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
             print(msg)
             return await interaction.edit_original_response(content=msg)
@@ -531,8 +532,8 @@ class Unloading(commands.Cog):
 
         if not carrier_data.discord_unload_notification or carrier_data.discord_unload_notification == "NULL":
             print(f"No discord alert found for carrier, {carrier_id}. It likely ran an untracked market.")
-            return await interaction.response.send_message(
-                f"Sorry {interaction.user.name}, we have no carrier unload notification found in the database for "
+            return await interaction.edit_original_response(
+                content=f"Sorry {interaction.user.name}, we have no carrier unload notification found in the database for "
                 f"{carrier_id}."
             )
 
@@ -557,7 +558,7 @@ class Unloading(commands.Cog):
 
         if message.embeds[0].title.startswith("Timed"):
             unload_start = message.created_at.replace(tzinfo=timezone.utc) + timedelta(
-                minutes=self.timed_unload_hold_duration
+                minutes=settings.get_setting("timed_unload_hold_duration")
             )
             unload_start = unload_start + timedelta(seconds=60 - unload_start.second)
         else:
@@ -598,11 +599,11 @@ class Unloading(commands.Cog):
         # Log the request
         guild = bot.get_guild(bot_guild_id())
         steve_says_channel = guild.get_channel(get_steve_says_channel())
-        new_status = "Disabled" if self.timed_unloads_allowed else "Enabled"
+        new_status = "Disabled" if settings.get_setting("timed_unloads_allowed") else "Enabled"
         msg = f"requested to toggle the timed unloads status to: '{new_status}'."
         print(f"{interaction.user.name} {msg}")
         await steve_says_channel.send(f"{interaction.user.mention} {msg}", silent=True)
-        self.timed_unloads_allowed = not self.timed_unloads_allowed
+        settings.set_setting("timed_unloads_allowed", not settings.get_setting("timed_unloads_allowed"))
         # Send the response message
         await interaction.edit_original_response(content=f"Timed unloads are now '{new_status}'.")
 
@@ -624,5 +625,5 @@ class Unloading(commands.Cog):
         await interaction.response.defer()
         print(f"{interaction.user.name} requested to set the timed unload hold duration to {duration_minutes} minutes.")
 
-        self.timed_unload_hold_duration = duration_minutes
+        settings.set_setting("timed_unload_hold_duration", duration_minutes)
         await interaction.followup.send(f"Timed unload hold duration set to {duration_minutes} minutes.")
