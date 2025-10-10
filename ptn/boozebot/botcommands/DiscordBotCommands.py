@@ -19,7 +19,7 @@ from ptn.boozebot._metadata import __version__
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error, TimeoutError
-from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
+from ptn.boozebot.modules.helpers import get_role, get_channel
 
 """
 A primitive global error handler for text commands.
@@ -46,7 +46,7 @@ async def on_command_error(ctx, error):
         await ctx.send('**You must be a Carrier Owner to use this command.**')
     elif isinstance(error, commands.MissingAnyRole):
         print({error})
-        roles = ', '.join([ctx.guild.get_role(role_id).name for role_id in error.missing_roles])
+        roles = ', '.join([await get_role(role_id).name for role_id in error.missing_roles])
         await ctx.send(f'**You must have one of the following roles to use this command:** {roles}')
     else:
         await ctx.send(gif)
@@ -104,7 +104,7 @@ class DiscordBotCommands(commands.Cog):
         """
         print(f'{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}')
         try:
-            bot_channel = self.bot.get_channel(get_bot_control_channel())
+            bot_channel = await get_channel(get_bot_control_channel())
             embed = discord.Embed(description=f"{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}")
             embed.set_image(url=I_AM_STEVE_GIF)
             await bot_channel.send(embed=embed)

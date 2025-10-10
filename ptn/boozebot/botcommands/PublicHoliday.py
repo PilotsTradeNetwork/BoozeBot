@@ -20,7 +20,7 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run, get_channel
 from ptn.boozebot.modules.PHcheck import ph_check, api_ph_check
 
 """
@@ -70,7 +70,7 @@ class PublicHoliday(commands.Cog):
     async def _set_public_holiday_state(state: bool, force_update: bool = False) -> tuple[bool, str]:
         if state:
             print('PH detected, triggering the notifications.')
-            holiday_announce_channel = bot.get_channel(rackhams_holiday_channel())
+            holiday_announce_channel = await get_channel(rackhams_holiday_channel())
 
             # Check if we had a holiday flagged already
             pirate_steve_db.execute(
@@ -115,7 +115,7 @@ class PublicHoliday(commands.Cog):
             if current_time_utc > end_time or force_update:
                 # Current time is after the end time, go turn the checks off.
                 print('Holiday duration expired, turning the check off.')
-                holiday_announce_channel = bot.get_channel(rackhams_holiday_channel())
+                holiday_announce_channel = await get_channel(rackhams_holiday_channel())
 
                 # Check if we had a holiday flagged already
                 pirate_steve_db.execute(

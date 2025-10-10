@@ -17,7 +17,7 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.database.database import pirate_steve_db
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_member, get_channel, get_role
 
 """
 MAKE WINE CARRIER COMMANDS
@@ -92,11 +92,11 @@ class MakeWineCarrier(commands.Cog):
 
         async with wine_carrier_toggle_lock:
             # set the target role
-            wc_role = discord.utils.get(interaction.guild.roles, id=server_wine_carrier_role_id())
+            wc_role = await get_role(server_wine_carrier_role_id())
             print(f"Wine Carrier role name is {wc_role.name}")
 
             # Refetch the user from the interaction inside the lock
-            user = await interaction.guild.fetch_member(user.id)
+            user = await get_member(user.id)
 
             if wc_role in user.roles:
                 # remove role
@@ -106,7 +106,7 @@ class MakeWineCarrier(commands.Cog):
                     response = f"{user.mention} ({user.name}) no longer has the {wc_role.name} role."
                     await interaction.edit_original_response(content=response)
 
-                    bot_spam = bot.get_channel(bot_spam_channel())
+                    bot_spam = await get_channel(bot_spam_channel())
                     embed = discord.Embed(
                         description=f"{user.mention} ({user.name}) has been removed from the {wc_role.mention} role by {interaction.user.mention} ({interaction.user.name}).",
                     )
@@ -129,13 +129,13 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
     await interaction.response.defer(ephemeral=True)
 
     async with wine_carrier_toggle_lock:
-        channel = bot.get_channel(get_steve_says_channel())
+        channel = await get_channel(get_steve_says_channel())
         # set the target role
-        wc_role = discord.utils.get(interaction.guild.roles, id=server_wine_carrier_role_id())
+        wc_role = await get_role(server_wine_carrier_role_id())
         print(f"Wine Carrier role name is {wc_role.name}")
 
         # Refetch the user from the interaction inside the lock
-        user = await interaction.guild.fetch_member(user.id)
+        user = await get_member(user.id)
 
         pirate_steve_db.execute(
             "SELECT * FROM corked_users WHERE user_id = ?",
@@ -167,7 +167,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
                 with open(WELCOME_MESSAGE_FILE_PATH, "r", encoding="utf-8") as file:
                     wine_welcome_message = file.read()  # read contents to variable
 
-                wine_channel = bot.get_channel(get_wine_carrier_channel())
+                wine_channel = await get_channel(get_wine_carrier_channel())
                 embed = discord.Embed(description=wine_welcome_message)
                 embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
                 await wine_channel.send(f"<@{user.id}>", embed=embed)
@@ -177,7 +177,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
                 await channel.send(content=msg, silent=True)
                 await interaction.edit_original_response(content=response)
 
-                bot_spam = bot.get_channel(bot_spam_channel())
+                bot_spam = await get_channel(bot_spam_channel())
                 await bot_spam.send(embed=embed)
 
             except discord.DiscordException as e:

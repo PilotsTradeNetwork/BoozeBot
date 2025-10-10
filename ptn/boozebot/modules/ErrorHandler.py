@@ -18,6 +18,7 @@ from discord.app_commands import AppCommandError
 # import local constants
 import ptn.boozebot.constants as constants
 from ptn.boozebot.constants import bot, bot_spam_channel
+from ptn.boozebot.modules.helpers import get_channel
 
 # custom errors
 class CommandChannelError(app_commands.CheckFailure): # channel check error
@@ -70,7 +71,7 @@ async def on_generic_error(
         else:
             emoji = '❌ Error'
 
-        spam_channel = bot.get_channel(bot_spam_channel())
+        spam_channel = get_channel(bot_spam_channel())
         spam_embed = discord.Embed(
             description=f"{emoji} from `{interaction.command.name}` in <#{interaction.channel.id}> called by <@{interaction.user.id}>: ```{error}```",
             color=constants.EMBED_COLOUR_ERROR

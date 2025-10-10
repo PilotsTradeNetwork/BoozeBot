@@ -17,7 +17,7 @@ from ptn.boozebot.constants import server_council_role_ids, server_sommelier_rol
 
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
-from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
+from ptn.boozebot.modules.helpers import check_roles, get_channel
 
 
 """
@@ -78,7 +78,7 @@ class MimicSteve(commands.Cog):
         :param TextChannel send_channel: The channel for the bot to send the message to.
         :returns: 2 discord messages, 1 in the channel it is run and 1 as the output.
         """
-        if send_channel == None:
+        if not send_channel:
             send_channel = interaction.channel
         
         print(f"User {interaction.user.name} has requested to send the message {message} as PirateSteve in: {send_channel.name}.")
@@ -89,8 +89,7 @@ class MimicSteve(commands.Cog):
 
     @staticmethod
     async def _steve_speak(interaction: discord.Interaction, message: str, send_channel: discord.TextChannel = None, reply_message: discord.Message = None):
-        guild = bot.get_guild(bot_guild_id())
-        steve_says_channel = guild.get_channel(get_steve_says_channel())
+        steve_says_channel = await get_channel(get_steve_says_channel())
         try:
             if reply_message:
                 send_channel = reply_message.channel
@@ -98,7 +97,7 @@ class MimicSteve(commands.Cog):
             elif send_channel:
                 msg = await send_channel.send(content=message)
             else:
-                await interaction.edit_original_response(content=f"No channel specified")
+                await interaction.edit_original_response(content="No channel specified")
                 print("No channel specified")
                 return
             
