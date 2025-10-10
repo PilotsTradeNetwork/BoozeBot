@@ -15,14 +15,14 @@ from discord.ext import commands, tasks
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
-    CARRIER_ID_RE, bot, bot_guild_id, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
+    CARRIER_ID_RE, bot, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
     get_primary_booze_discussions_channel, get_steve_says_channel, server_connoisseur_role_id, server_council_role_ids,
     server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run, get_channel, get_role
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_role, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.Settings import settings
 
@@ -220,7 +220,7 @@ class Unloading(commands.Cog):
             name="Go fight the sidewinder for the landing pad.",
             value="Hopefully you got some booty, now go get your doubloons!",
         )
-        embed.set_footer(text="Notified by your friendly neighborhood pirate bot.")
+        embed.set_footer(text="Notified by your friendly neighbourhood pirate bot.")
         await interaction.response.send_message(embed=embed)
         # Retrieve the message object
         message = await interaction.original_response()

@@ -24,14 +24,15 @@ from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
     BOOZE_PROFIT_PER_TONNE_WINE, CARRIER_ID_RE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, bot,
-    bot_guild_id, get_pilot_role_id, get_primary_booze_discussions_channel, get_steve_says_channel,
-    get_wine_carrier_channel, ptn_role_icon_emoji_id, server_connoisseur_role_id, server_council_role_ids,
-    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id
+    get_steve_says_channel, get_wine_carrier_channel, ptn_role_icon_emoji_id, server_connoisseur_role_id,
+    server_council_role_ids, server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id
 )
 from ptn.boozebot.database.database import dump_database, pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
 from ptn.boozebot.modules.ErrorHandler import CustomError, on_app_command_error
-from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles, track_last_run, get_emoji, get_guild, get_role, get_channel
+from ptn.boozebot.modules.helpers import (
+    bc_channel_status, check_command_channel, check_roles, get_channel, get_emoji, get_guild, track_last_run
+)
 from ptn.boozebot.modules.pagination import createPagination
 from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.Views import ConfirmView
@@ -433,7 +434,7 @@ class DatabaseInteraction(commands.Cog):
         all_carrier_data: list[BoozeCarrier],
         target_date: str = None,
         include_timestamp: bool = False,
-        include_not_unloaded: IncludeNotUnloadedChoices | None = None
+        include_not_unloaded: IncludeNotUnloadedChoices | None = None,
     ) -> discord.Embed:
         # Get faction state from the first carrier, assuming all carriers have the same state
         if all_carrier_data:

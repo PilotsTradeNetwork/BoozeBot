@@ -11,13 +11,13 @@ from discord import app_commands
 from discord.app_commands import describe
 from discord.ext import commands
 from ptn.boozebot.constants import (
-    WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot, bot_spam_channel, get_steve_says_channel,
-    get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
-    server_sommelier_role_id, server_wine_carrier_role_id, too_slow_gifs
+    WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot_spam_channel, get_steve_says_channel, get_wine_carrier_channel,
+    server_connoisseur_role_id, server_council_role_ids, server_mod_role_id, server_sommelier_role_id,
+    server_wine_carrier_role_id, too_slow_gifs
 )
 from ptn.boozebot.database.database import pirate_steve_db
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_member, get_channel, get_role
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_member, get_role
 
 """
 MAKE WINE CARRIER COMMANDS
@@ -83,7 +83,6 @@ class MakeWineCarrier(commands.Cog):
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def remove_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
-
         await interaction.response.defer()
 
         print(
@@ -125,7 +124,6 @@ class MakeWineCarrier(commands.Cog):
 
 # function shared by make_wine_carrier and make_contextuser_wine_carrier
 async def make_user_wine_carrier(interaction: discord.Interaction, user: discord.Member) -> None:
-
     await interaction.response.defer(ephemeral=True)
 
     async with wine_carrier_toggle_lock:

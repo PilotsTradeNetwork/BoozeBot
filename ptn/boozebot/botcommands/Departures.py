@@ -18,15 +18,14 @@ from discord.ext import commands, tasks
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
-    CARRIER_ID_RE, N_SYSTEMS, bot, bot_guild_id, get_departure_announcement_channel, get_steve_says_channel,
-    get_thoon_emoji_id, get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids,
-    server_hitchhiker_role_id, server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id,
-    wine_carrier_command_channel
+    CARRIER_ID_RE, N_SYSTEMS, bot, get_departure_announcement_channel, get_steve_says_channel, get_thoon_emoji_id,
+    get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_hitchhiker_role_id,
+    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run, get_emoji, get_channel
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_emoji, track_last_run
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView
 

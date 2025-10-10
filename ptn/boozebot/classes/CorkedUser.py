@@ -1,5 +1,5 @@
-from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.helpers import get_member
+
 
 class CorkedUser:
     def __init__(self, info_dict=None):

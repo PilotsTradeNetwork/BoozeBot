@@ -11,10 +11,10 @@ from discord.ext import commands
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import (
-    BC_STATUS, BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot, bot_guild_id, get_feedback_channel_id,
-    get_ptn_booze_cruise_role_id, get_public_channel_list, get_steve_says_channel, get_wine_carrier_guide_channel_id,
-    get_wine_status_channel, server_council_role_ids, server_hitchhiker_role_id, server_mod_role_id,
-    server_pilot_role_id, server_sommelier_role_id, server_wine_carrier_role_id
+    BC_STATUS, BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot, get_feedback_channel_id, get_ptn_booze_cruise_role_id,
+    get_public_channel_list, get_steve_says_channel, get_wine_carrier_guide_channel_id, get_wine_status_channel,
+    server_council_role_ids, server_hitchhiker_role_id, server_mod_role_id, server_pilot_role_id,
+    server_sommelier_role_id, server_wine_carrier_role_id
 )
 from ptn.boozebot.modules.ErrorHandler import TimeoutError, on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_role
@@ -210,18 +210,18 @@ class Cleaner(commands.Cog):
                         wine_count += 1
                     except Exception as e:
                         print(e)
-                        await interaction.channel.send(f"Unable to remove { wine_carrier_role } from { member }")
+                        await interaction.channel.send(f"Unable to remove {wine_carrier_role} from {member}")
                 for member in hitch_role.members:
                     try:
                         await member.remove_roles(hitch_role)
                         hitch_count += 1
                     except Exception as e:
                         print(e)
-                        await interaction.channel.send(f"Unable to remove { hitch_role } from { member }")
+                        await interaction.channel.send(f"Unable to remove {hitch_role} from {member}")
 
                 await interaction.edit_original_response(
-                    content=f"Successfully removed { hitch_count } users from the Hitchhiker role.\n"
-                    f"Successfully removed { wine_count } users from the Wine Carrier role.",
+                    content=f"Successfully removed {hitch_count} users from the Hitchhiker role.\n"
+                    f"Successfully removed {wine_count} users from the Wine Carrier role.",
                     embed=None,
                     view=None,
                 )
