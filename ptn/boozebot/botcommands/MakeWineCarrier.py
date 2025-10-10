@@ -38,19 +38,6 @@ class MakeWineCarrier(commands.Cog):
         self.ctx_menu = app_commands.ContextMenu(name="Make Wine Carrier", callback=self.context_menu_make_wine_carrier)
         self.bot.tree.add_command(self.ctx_menu)
 
-    # custom global error handler
-    # attaching the handler when the cog is loaded
-    # and storing the old handler
-    async def cog_load(self):
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = on_app_command_error
-
-    # detaching the handler when the cog is unloaded
-    async def cog_unload(self):
-        tree = self.bot.tree
-        tree.on_error = self._old_tree_error
-
     @check_roles(
         [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()]
     )

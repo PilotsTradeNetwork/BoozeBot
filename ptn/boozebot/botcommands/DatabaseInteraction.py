@@ -115,8 +115,6 @@ StatChoices = Literal[
 class DatabaseInteraction(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Things that will be set later in the async functions
-        self._old_tree_error = None
         self.client = None
         self.tracking_sheet = None
         self.worksheet_key = None
@@ -132,14 +130,7 @@ class DatabaseInteraction(commands.Cog):
         # authorize the client sheet
         self.client_manager = gspread_asyncio.AsyncioGspreadClientManager(get_creds)
 
-    # custom global error handler
-    # attaching the handler when the cog is loaded
-    # and storing the old handler
     async def cog_load(self):
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = on_app_command_error
-
         pirate_steve_db.execute("SELECT * FROM trackingforms")
         forms = dict(pirate_steve_db.fetchone())
 
@@ -155,11 +146,6 @@ class DatabaseInteraction(commands.Cog):
 
         await self._reconfigure_workbook_and_form()
         await self._update_db()  # On instantiation, go build the DB
-
-    # detaching the handler when the cog is unloaded
-    async def cog_unload(self):
-        tree = self.bot.tree
-        tree.on_error = self._old_tree_error
 
     async def _reconfigure_workbook_and_form(self):
         """
