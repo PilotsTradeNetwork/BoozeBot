@@ -59,7 +59,7 @@ class Unloading(commands.Cog):
     """
     last_unload_time: datetime | None = None
 
-    # On reaction check if its in the unloading channel and if the reaction is fc complete,
+    # On reaction check if it's in the unloading channel and if the reaction is fc complete,
     # If it is and there are 5 reactions ping the poster
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, reaction_event):
@@ -81,7 +81,11 @@ class Unloading(commands.Cog):
             if message.author.id != bot.user.id:
                 return
 
+            reaction_allowed_roles = {server_council_role_ids(), server_mod_role_id(), server_connoisseur_role_id()}
             if reaction_event.emoji.id != get_fc_complete_id():
+                if not {role.id for role in user.roles} & reaction_allowed_roles:
+                    await message.remove_reaction(reaction_event.emoji, reaction_event.member)
+                    print(f"Removed unload reaction {reaction_event.emoji} from user {user.name}")
                 return
 
             # Check if the FC complete reaction count meets the threshold
