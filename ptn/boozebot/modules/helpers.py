@@ -158,3 +158,8 @@ def track_last_run():
 
         return wrapper
     return decorator
+
+async def sync_command_tree():
+    bot.tree.copy_global_to(guild=discord.Object(bot_guild_id()))
+    await bot.tree.sync(guild=discord.Object(bot_guild_id()))
+    print("Synchronized bot tree.")

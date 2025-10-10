@@ -14,7 +14,7 @@ from discord import app_commands, NotFound
 # local constants
 from ptn.boozebot.constants import bot_guild_id, get_bot_control_channel, get_primary_booze_discussions_channel, \
     server_council_role_ids, bot, error_gifs, ping_response_messages, server_sommelier_role_id, I_AM_STEVE_GIF, \
-    get_wine_carrier_channel
+    get_wine_carrier_channel, server_mod_role_id
 from ptn.boozebot._metadata import __version__
 
 # local modules
@@ -170,17 +170,3 @@ class DiscordBotCommands(commands.Cog):
         """
         print(f'User {ctx.author} requested the version: {__version__}.')
         await ctx.send(f"Avast Ye Landlubber! {self.bot.user.name} is on version: {__version__}.")
-        
-    @commands.command(name='sync', help='Synchronize bot interactions with server')
-    @commands.has_any_role(*server_council_role_ids())
-    async def sync(self, ctx):
-        print(f"Interaction sync called from {ctx.author.display_name}")
-        async with ctx.typing():
-            try:
-                bot.tree.copy_global_to(guild=discord.Object(bot_guild_id()))
-                await bot.tree.sync(guild=discord.Object(bot_guild_id()))
-                print("Synchronized bot tree.")
-                await ctx.send("Synchronized bot tree.")
-            except Exception as e:
-                print(f"Tree sync failed: {e}.")
-                return await ctx.send(f"Failed to sync bot tree: {e}")
