@@ -1,15 +1,7 @@
-"""
-ErrorHandler.py
-
-Our custom global error handler for the bot.
-
-Depends on: constants
-"""
-
 import logging
 
-# import discord.py
 import discord
+
 # import local constants
 import ptn.boozebot.constants as constants
 from discord import Interaction, app_commands, InteractionResponded
@@ -19,7 +11,9 @@ from ptn.boozebot.modules.helpers import get_channel
 
 
 # custom errors
-class CommandChannelError(app_commands.CheckFailure):  # channel check error
+class CommandChannelError(app_commands.CheckFailure):
+    """Channel check error"""
+
     def __init__(self, permitted_channel, formatted_channel_list):
         self.permitted_channel = permitted_channel
         self.formatted_channel_list = formatted_channel_list
@@ -28,7 +22,8 @@ class CommandChannelError(app_commands.CheckFailure):  # channel check error
     pass
 
 
-class CommandRoleError(app_commands.CheckFailure):  # role check error
+class CommandRoleError(app_commands.CheckFailure):
+    """Role check error"""
     def __init__(self, permitted_roles, formatted_role_list):
         self.permitted_roles = permitted_roles
         self.formatted_role_list = formatted_role_list
@@ -38,6 +33,8 @@ class CommandRoleError(app_commands.CheckFailure):  # role check error
 
 
 class AsyncioTimeoutError(Exception):
+    """Timeout error"""
+
     def __init__(self, message, is_private=True):
         self.message = message
         self.is_private = is_private
@@ -45,17 +42,22 @@ class AsyncioTimeoutError(Exception):
     pass
 
 
-class SilentError(Exception):  # generic error
+
+class SilentError(Exception):
+    """An error that does not notify the user"""
+
     pass
 
 
-class GenericError(Exception):  # generic error
+class GenericError(Exception):
+    """A generic error that notifies the user with the Exception text"""
+
     pass
 
 
-class CustomError(
-    Exception
-):  # an error handler that hides the Exception text from the user, but shows custom text sent from the source instead
+class CustomError(Exception):
+    """A custom error that notifies the user with a custom message"""
+
     def __init__(self, message, is_private=True):
         self.message = message
         self.is_private = is_private
@@ -63,9 +65,8 @@ class CustomError(
 
 
 
-async def on_app_command_error(
-    interaction: Interaction, error: AppCommandError
-):  # an error handler for discord.py errors
+async def on_app_command_error(interaction: Interaction, error: AppCommandError):
+    """Global error handler for application commands"""
     print(
         f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
     )
