@@ -67,28 +67,24 @@ class CustomError(Exception):
 async def on_text_command_error(ctx: commands.Context, error: Exception):
     """Global error handler for text commands"""
     gif = random.choice(error_gifs)
+    print(f"Error from {ctx.command} in {ctx.channel} called by {ctx.author}: {error}")
     if isinstance(error, commands.BadArgument):
         await ctx.send(f"**Bad argument!** {error}")
-        print({error})
     elif isinstance(error, commands.CommandNotFound):
-        print({error})
+        pass # Dont care
     elif isinstance(error, commands.MissingRequiredArgument):
-        print({error})
         await ctx.send(
             "**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details."
             "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation"
             " marks are of the same type, i.e. all straight or matching open/close smartquotes."
         )
     elif isinstance(error, commands.MissingPermissions):
-        print({error})
         await ctx.send("**You do not have the required permissions to run this command**")
     elif isinstance(error, commands.MissingAnyRole):
-        print({error})
         roles = ", ".join([ctx.guild.get_role(role_id).name for role_id in error.missing_roles])
         await ctx.send(f"**You must have one of the following roles to use this command:** {roles}")
     else:
         await ctx.send(gif)
-        print({error})
         await ctx.send(f"Sorry, that didn't work: {error}")
 
 

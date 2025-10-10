@@ -1,15 +1,12 @@
 import asyncio
 
-# discord.py
 import discord
-from discord.app_commands import Group, describe, Choice
-from discord.ext import commands, tasks
-from discord import app_commands, NotFound
-
-# local constants
 from ptn.boozebot.constants import bot
 
-async def createPagination(interaction: discord.Interaction, title: str, content: list[tuple[str, str]], pageLength: int = 10):
+
+async def createPagination(
+    interaction: discord.Interaction, title: str, content: list[tuple[str, str]], pageLength: int = 10
+):
     print("Creating a pagination.")
 
     def chunk(chunk_list, max_size=10):
@@ -27,23 +24,20 @@ async def createPagination(interaction: discord.Interaction, title: str, content
         Validates the user response
         """
         return user == interaction.user and str(react.emoji) in ["◀️", "▶️"]
-    
+
     def createPageEmbed():
-        embed = discord.Embed(
-            title=f"{len(content)} {title}. Page: #{current_page} of {max_pages}"
-        )
-        
-        count = (current_page-1) * pageLength
-        
+        embed = discord.Embed(title=f"{len(content)} {title}. Page: #{current_page} of {max_pages}")
+
+        count = (current_page - 1) * pageLength
+
         for entry in pages[current_page - 1]:
-                    count += 1
-                    embed.add_field(
-                        name=f"{count}: {entry[0]}",
-                        value=f"{entry[1]}",
-                        inline=False,
-                    )
+            count += 1
+            embed.add_field(
+                name=f"{count}: {entry[0]}",
+                value=f"{entry[1]}",
+                inline=False,
+            )
         return embed
-        
 
     pages = [page for page in chunk(content)]
     max_pages = len(pages)
@@ -59,9 +53,7 @@ async def createPagination(interaction: discord.Interaction, title: str, content
     # 60 seconds time out gets raised by Asyncio
     while True:
         try:
-            reaction, user = await bot.wait_for(
-                "reaction_add", timeout=60, check=validate_response
-            )
+            reaction, user = await bot.wait_for("reaction_add", timeout=60, check=validate_response)
 
             if str(reaction.emoji) == "▶️":
                 if current_page == max_pages:
@@ -71,9 +63,9 @@ async def createPagination(interaction: discord.Interaction, title: str, content
 
                 print(f"{interaction.user.name} requested to go forward a page.")
                 current_page += 1
-                
+
                 await message.edit(content=None, embed=createPageEmbed())
-                
+
                 if current_page == max_pages:
                     await message.clear_reaction("▶️")
 
@@ -85,18 +77,18 @@ async def createPagination(interaction: discord.Interaction, title: str, content
                     print(f"{interaction.user.name} requested to go back a page but was on the first page.")
                     await message.remove_reaction(reaction, user)
                     continue
-                
+
                 print(f"{interaction.user.name} requested to go back a page.")
                 current_page -= 1
 
                 await message.edit(content=None, embed=createPageEmbed())
-                
+
                 if current_page == 1:
                     await message.clear_reaction("◀️")
 
                 await message.remove_reaction(reaction, user)
                 await message.add_reaction("▶️")
-                
+
             else:
                 # It should be impossible to hit this part, but lets gate it just in case.
                 print(
@@ -104,9 +96,7 @@ async def createPagination(interaction: discord.Interaction, title: str, content
                     f"and on page: {current_page}."
                 )
                 # HAl-9000 error response.
-                error_embed = discord.Embed(
-                    title=f"I'm sorry {interaction.user.name}, I'm afraid I can't do that."
-                )
+                error_embed = discord.Embed(title=f"I'm sorry {interaction.user.name}, I'm afraid I can't do that.")
                 await message.edit(content=None, embed=error_embed)
                 await message.remove_reaction(reaction, user)
 
