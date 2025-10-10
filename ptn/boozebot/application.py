@@ -22,8 +22,8 @@ from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import LOG_LEVEL, TOKEN, _production, bot, log_handler
 from ptn.boozebot.database.database import build_database_on_startup
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import sync_command_tree
+from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
 
 print(f"Booze bot is connecting against production: {_production}.")
 
@@ -49,7 +49,9 @@ async def boozebot():
         await bot.add_cog(Corked(bot))
         await bot.add_cog(PrometheusCog(bot))
 
+        # Start error handlers
         bot.tree.on_error = on_app_command_error
+        bot.add_listener(on_text_command_error, "on_command_error")
 
         try:
             await bot.login(TOKEN)

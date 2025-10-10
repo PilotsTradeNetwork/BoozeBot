@@ -1,51 +1,14 @@
 import logging
 import os
-import random
 import sys
 
 import discord
 from discord.ext import commands
 from ptn.boozebot._metadata import __version__
 from ptn.boozebot.constants import (
-    I_AM_STEVE_GIF, bot, error_gifs, get_bot_control_channel, server_council_role_ids, server_sommelier_role_id
+    I_AM_STEVE_GIF, get_bot_control_channel, server_council_role_ids, server_sommelier_role_id
 )
-from ptn.boozebot.modules.helpers import get_channel, get_role
-
-"""
-A primitive global error handler for text commands.
-
-returns: error message to user and log
-"""
-
-
-@bot.listen()
-async def on_command_error(ctx, error):
-    gif = random.choice(error_gifs)
-    if isinstance(error, commands.BadArgument):
-        await ctx.send(f"**Bad argument!** {error}")
-        print({error})
-    elif isinstance(error, commands.CommandNotFound):
-        # await ctx.send("**Invalid command.**")
-        print({error})
-    elif isinstance(error, commands.MissingRequiredArgument):
-        print({error})
-        await ctx.send(
-            "**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details."
-            "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation"
-            " marks are of the same type, i.e. all straight or matching open/close smartquotes."
-        )
-    elif isinstance(error, commands.MissingPermissions):
-        print({error})
-        await ctx.send("**You must be a Carrier Owner to use this command.**")
-    elif isinstance(error, commands.MissingAnyRole):
-        print({error})
-        roles = ", ".join([await get_role(role_id).name for role_id in error.missing_roles])
-        await ctx.send(f"**You must have one of the following roles to use this command:** {roles}")
-    else:
-        await ctx.send(gif)
-        print({error})
-        await ctx.send(f"Sorry, that didn't work: {error}")
-
+from ptn.boozebot.modules.helpers import get_channel
 
 """
 LISTENERS
