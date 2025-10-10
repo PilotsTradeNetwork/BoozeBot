@@ -16,7 +16,7 @@ from ptn.boozebot.constants import (
     server_council_role_ids, server_hitchhiker_role_id, server_mod_role_id, server_pilot_role_id,
     server_sommelier_role_id, server_wine_carrier_role_id
 )
-from ptn.boozebot.modules.ErrorHandler import TimeoutError, on_app_command_error
+from ptn.boozebot.modules.ErrorHandler import TimeoutError
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_role
 from ptn.boozebot.modules.Views import ConfirmView
 

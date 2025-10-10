@@ -9,9 +9,6 @@ from discord import app_commands, NotFound
 # local constants
 from ptn.boozebot.constants import bot
 
-# local modules
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
-
 async def createPagination(interaction: discord.Interaction, title: str, content: list[tuple[str, str]], pageLength: int = 10):
     print("Creating a pagination.")
 

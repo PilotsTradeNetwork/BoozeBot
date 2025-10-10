@@ -9,7 +9,6 @@ from ptn.boozebot._metadata import __version__
 from ptn.boozebot.constants import (
     I_AM_STEVE_GIF, bot, error_gifs, get_bot_control_channel, server_council_role_ids, server_sommelier_role_id
 )
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import get_channel, get_role
 
 """

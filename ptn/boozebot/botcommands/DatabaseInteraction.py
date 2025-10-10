@@ -29,7 +29,7 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.database.database import dump_database, pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
-from ptn.boozebot.modules.ErrorHandler import CustomError, on_app_command_error
+from ptn.boozebot.modules.ErrorHandler import CustomError
 from ptn.boozebot.modules.helpers import (
     bc_channel_status, check_command_channel, check_roles, get_channel, get_emoji, get_guild, track_last_run
 )

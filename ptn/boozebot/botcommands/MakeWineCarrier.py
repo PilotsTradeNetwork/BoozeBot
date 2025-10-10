@@ -16,7 +16,6 @@ from ptn.boozebot.constants import (
     server_wine_carrier_role_id, too_slow_gifs
 )
 from ptn.boozebot.database.database import pirate_steve_db
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_member, get_role
 
 """
