@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.17
+## 2.1.0
 -    \#636 - Persistent Settings (conshmea)
 -    \#637 - Support SqC Ids (conshmea)
 -    \#635 - Fix cleaner buttons (conshmea)
