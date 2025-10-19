@@ -800,7 +800,7 @@ class DatabaseInteraction(commands.Cog):
             channels_open = booze_cruise_chat.permissions_for(pilot_role).view_channel
 
             state_text = (
-                f"Total Wine Tracked: {total_wine}"
+                f"Total Wine Tracked: {total_wine:,}"
                 if channels_open
                 else "Arrr, the wine be drained, ye thirsty scallywags!"
             )
