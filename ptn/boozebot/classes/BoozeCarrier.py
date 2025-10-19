@@ -78,6 +78,9 @@ class BoozeCarrier:
 
         # The faction state that the peak was in during the booze cruise, for historical records
         self.faction_state = info_dict.get("faction_state", None)
+        
+        # The Discord message ID for the departure message
+        self.discord_departure_message_id = info_dict.get("discord_departure_message_id", None)
 
     def get_unload_stats(self, include_not_unloaded: bool = True) -> tuple[int, int]:
         if include_not_unloaded:
