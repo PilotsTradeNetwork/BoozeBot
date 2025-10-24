@@ -43,6 +43,7 @@ def build_database_on_startup():
             "discord_unload_in_progress": "INT",
             "discord_unload_poster_id": "INT",
             "user_timezone_in_utc": "TEXT",
+            "discord_departure_message_id": "INT",
         },
         "historical": {
             "entry": "INTEGER PRIMARY KEY AUTOINCREMENT",

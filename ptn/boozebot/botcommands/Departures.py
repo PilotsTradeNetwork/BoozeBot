@@ -23,11 +23,12 @@ from ptn.boozebot.constants import (
     server_hitchhiker_role_id, server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id,
     wine_carrier_command_channel
 )
-from ptn.boozebot.database.database import pirate_steve_db
+from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.Settings import settings
+from ptn.boozebot.modules.Views import ConfirmView
 
 """
 UNLOADING COMMANDS
@@ -139,7 +140,6 @@ class Departures(commands.Cog):
 
         print("Checking for passed departure messages.")
         async for message in departure_channel.history(limit=100):
-
             try:
                 if message.pinned:
                     continue
@@ -478,7 +478,7 @@ class Departures(commands.Cog):
     @check_command_channel(get_steve_says_channel())
     @describe(
         carrier_id="The XXX-XXX ID string for the carrier",
-        operated_by="The user who is operating the carrier.",
+        operated_by="The user/role who is operating the carrier.",
         departure_name="The name of the departure",
         departure_location="The location the carrier is departing from.",
         arrival_location="The location the carrier is arriving at.",
@@ -499,7 +499,7 @@ class Departures(commands.Cog):
         self,
         interaction: discord.Interaction,
         carrier_id: str,
-        operated_by: discord.Member,
+        operated_by: discord.Member | discord.Role,
         departure_name: str,
         departure_location: str,
         arrival_location: str,
@@ -572,13 +572,50 @@ class Departures(commands.Cog):
             f"Operated by {operated_by.mention}",
             color=15611236,
         )
-
+        
         departure_channel = bot.get_channel(get_departure_announcement_channel())
-        departure_message = await departure_channel.send(embed=embed)
-        await departure_message.add_reaction("🛬")
-        await interaction.edit_original_response(
-            content=f"Official carrier departure message sent: {departure_message.jump_url}"
-        )
+
+        # Check for existing departure message
+        existing_departure_message = None
+        if carrier_data.discord_departure_message_id:
+            try:
+                existing_departure_message = await departure_channel.fetch_message(
+                    carrier_data.discord_departure_message_id
+                )
+            except discord.DiscordException:
+                existing_departure_message = None
+
+        if existing_departure_message:
+            check_embed = discord.Embed(
+                title="Existing Official Departure Message Found",
+                description="Do you want to edit the existing official departure message?",
+            )
+            confirm = ConfirmView(interaction.user)
+            await interaction.edit_original_response(embed=check_embed, view=confirm)
+            await confirm.wait()
+            if not confirm.value:
+                await interaction.edit_original_response(
+                    content="Official departure edit cancelled.", embed=None, view=None
+                )
+                return
+            await existing_departure_message.edit(embed=embed)
+            await interaction.edit_original_response(
+                content=f"Official carrier departure message edited: {existing_departure_message.jump_url}",
+                embed=None,
+                view=None,
+            )
+        else:
+            departure_message = await departure_channel.send(embed=embed)
+            await departure_message.add_reaction("🛬")
+            await interaction.edit_original_response(
+                content=f"Official carrier departure message sent: {departure_message.jump_url}"
+            )
+            async with pirate_steve_db_lock:
+                pirate_steve_db.execute(
+                    "UPDATE boozecarriers SET discord_departure_message_id = ? WHERE carrierid = ?",
+                    (departure_message.id, carrier_id),
+                )
+                pirate_steve_conn.commit()
 
     def get_departure_author_id(self, message):
         try:
