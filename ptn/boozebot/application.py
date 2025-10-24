@@ -7,7 +7,7 @@ The Python script that starts the bot.
 import asyncio
 import logging
 
-from discord import LoginFailure, GatewayNotFound, ConnectionClosed, HTTPException
+from discord import LoginFailure, GatewayNotFound, ConnectionClosed, HTTPException, DiscordException
 from discord.ext.prometheus import PrometheusCog
 
 # import build functions
@@ -29,6 +29,7 @@ from ptn.boozebot.botcommands.Corked import Corked
 # import bot object, token, production status
 from ptn.boozebot.constants import bot, TOKEN, _production, log_handler, LOG_LEVEL
 from discord.utils import setup_logging
+from ptn.boozebot.modules.helpers import sync_command_tree
 
 
 print(f"Booze bot is connecting against production: {_production}.")
@@ -61,9 +62,15 @@ async def boozebot():
             logging.error(f"Error in bot login: {e}")
 
         try:
+            await sync_command_tree()
+        except DiscordException as e:
+            logging.error(f"Error in syncing command tree: {e}")
+
+        try:
             await bot.connect()
         except (GatewayNotFound, ConnectionClosed) as e:
             logging.error(f"Error in bot connection: {e}")
+
 
 if __name__ == "__main__":
     """
