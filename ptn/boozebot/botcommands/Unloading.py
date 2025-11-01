@@ -4,7 +4,6 @@ Cog for unloading related commands
 """
 
 # libraries
-import re
 from datetime import datetime, timedelta, timezone
 
 # discord.py
@@ -16,9 +15,9 @@ from discord.ext import commands, tasks
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
-    bot, bot_guild_id, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
+    CARRIER_ID_RE, bot, bot_guild_id, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
     get_primary_booze_discussions_channel, get_steve_says_channel, server_connoisseur_role_id, server_council_role_ids,
-    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel, CARRIER_ID_RE
+    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
@@ -91,7 +90,6 @@ class Unloading(commands.Cog):
             # Check if the FC complete reaction count meets the threshold
             for message_reaction in message.reactions:
                 if message_reaction.emoji.id == get_fc_complete_id() and message_reaction.count >= 5:
-
                     # Find carrier data for this message from the database
                     async with pirate_steve_db_lock:
                         # Get the carrier data based on the message ID
@@ -285,7 +283,7 @@ class Unloading(commands.Cog):
         if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
-                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
             )
             print(msg)
             return await interaction.edit_original_response(content=msg)
@@ -414,7 +412,7 @@ class Unloading(commands.Cog):
         if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
-                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
             )
             print(msg)
             return await interaction.followup.send(msg)
@@ -524,7 +522,7 @@ class Unloading(commands.Cog):
         if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
-                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
             )
             print(msg)
             return await interaction.edit_original_response(content=msg)

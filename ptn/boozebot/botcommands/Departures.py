@@ -255,7 +255,7 @@ class Departures(commands.Cog):
         if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
-                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
             )
             print(msg)
             await interaction.edit_original_response(content=msg)
@@ -521,7 +521,7 @@ class Departures(commands.Cog):
         if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
-                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
             )
             print(msg)
             await interaction.edit_original_response(content=msg)
@@ -578,7 +578,7 @@ class Departures(commands.Cog):
             f"Operated by {operated_by.mention}",
             color=15611236,
         )
-        
+
         departure_channel = bot.get_channel(get_departure_announcement_channel())
 
         # Check for existing departure message
