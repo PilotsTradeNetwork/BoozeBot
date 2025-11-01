@@ -911,7 +911,10 @@ class DatabaseInteraction(commands.Cog):
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper().strip()
         if not CARRIER_ID_RE.fullmatch(carrier_id):
-            raise CustomError(f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.")
+            raise CustomError(
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+            )
         # Check if it is in the database already
         pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f"%{carrier_id}%",))
         # Really only expect a single entry here, unique field and all that

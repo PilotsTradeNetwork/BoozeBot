@@ -283,7 +283,10 @@ class Unloading(commands.Cog):
 
         # Check the carrier ID regex
         if not CARRIER_ID_RE.fullmatch(carrier_id):
-            msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
+            msg = (
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+            )
             print(msg)
             return await interaction.edit_original_response(content=msg)
 
@@ -409,7 +412,10 @@ class Unloading(commands.Cog):
 
         # Check the carrier ID regex
         if not CARRIER_ID_RE.fullmatch(carrier_id):
-            msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
+            msg = (
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+            )
             print(msg)
             return await interaction.followup.send(msg)
 
@@ -516,7 +522,10 @@ class Unloading(commands.Cog):
 
         # Check the carrier ID regex
         if not CARRIER_ID_RE.fullmatch(carrier_id):
-            msg = f"{interaction.user.name}, the carrier ID was invalid, XXX-XXX expected received, {carrier_id}."
+            msg = (
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+            )
             print(msg)
             return await interaction.edit_original_response(content=msg)
 

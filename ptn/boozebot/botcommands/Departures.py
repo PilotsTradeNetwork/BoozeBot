@@ -253,7 +253,10 @@ class Departures(commands.Cog):
         steve_says_channel = guild.get_channel(get_steve_says_channel())
         # Validate the carrier ID format
         if not CARRIER_ID_RE.fullmatch(carrier_id):
-            msg = f'{interaction.user.name}, the carrier ID was invalid, "XXX-XXX" expected, received "{carrier_id}".'
+            msg = (
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+            )
             print(msg)
             await interaction.edit_original_response(content=msg)
             await steve_says_channel.send(
@@ -516,7 +519,10 @@ class Departures(commands.Cog):
 
         # Validate the carrier ID format
         if not CARRIER_ID_RE.fullmatch(carrier_id):
-            msg = f'{interaction.user.name}, the carrier ID was invalid, "XXX-XXX" expected, received "{carrier_id}".'
+            msg = (
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain 'O's or 'I's, only '0's and '1's respectively."
+            )
             print(msg)
             await interaction.edit_original_response(content=msg)
             return
