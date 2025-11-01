@@ -103,7 +103,7 @@ class MakeWineCarrier(commands.Cog):
                 print(f"{user} is a {wc_role.name}, removing the role.")
                 try:
                     await user.remove_roles(wc_role)
-                    response = f"{user.display_name} no longer has the {wc_role.name} role."
+                    response = f"{user.mention} ({user.name}) no longer has the {wc_role.name} role."
                     await interaction.edit_original_response(content=response)
 
                     bot_spam = bot.get_channel(bot_spam_channel())
