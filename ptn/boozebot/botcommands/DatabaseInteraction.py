@@ -112,7 +112,6 @@ StatChoices = Literal[
 
 
 class DatabaseInteraction(commands.Cog):
-
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         # Things that will be set later in the async functions
@@ -221,7 +220,6 @@ class DatabaseInteraction(commands.Cog):
 
                 # Check if there is already a object for this carrier and update it if so
                 if carrier_data.carrier_identifier in all_carriers_data:
-
                     all_carriers_data[carrier_data.carrier_identifier].wine_total += carrier_data.wine_total
                     all_carriers_data[carrier_data.carrier_identifier].run_count += 1
 
@@ -235,7 +233,6 @@ class DatabaseInteraction(commands.Cog):
 
         async with pirate_steve_db_lock:
             for carrier_data in all_carriers_data.items():
-
                 carrier_data = carrier_data[1]
 
                 pirate_steve_db.execute(
@@ -261,7 +258,6 @@ class DatabaseInteraction(commands.Cog):
 
                     # If the data is the same, skip over, otherwise update it
                     if old_carrier_data != carrier_data:
-
                         print(
                             f"The DB data for {carrier_data.carrier_name} does not equal the input in GoogleSheets "
                             f"- Updating"
@@ -368,14 +364,13 @@ class DatabaseInteraction(commands.Cog):
         }
 
     async def report_db_update_result(self, result: dict, force_embed=False):
-
         if result["updated_db"] or force_embed:
             embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
             embed.add_field(
-                name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
-                f'Number of new carriers added: {result["added_count"]:>8}.\n'
-                f'Number of carriers amended: {result["updated_count"]:>11}.\n'
-                f'Number of carriers unchanged: {result["unchanged_count"]:>7}.',
+                name=f"Total number of carriers: {result['total_carriers']:>20}.\n"
+                f"Number of new carriers added: {result['added_count']:>8}.\n"
+                f"Number of carriers amended: {result['updated_count']:>11}.\n"
+                f"Number of carriers unchanged: {result['unchanged_count']:>7}.",
                 value="Pirate Steve hope he got this right.",
                 inline=False,
             )
@@ -396,7 +391,6 @@ class DatabaseInteraction(commands.Cog):
         steve_says_channel = bot.get_channel(get_steve_says_channel())
 
         if result.get("invalid_database_entries", False):
-
             # In case any problem carriers found, mark them up
             print("Problem: We have invalid carriers!")
 
@@ -416,7 +410,7 @@ class DatabaseInteraction(commands.Cog):
                     f"Operated by: {problem_carrier.discord_username}",
                 )
                 problem_embed.set_footer(
-                    text="Pirate Steve recommends verifying and then deleting this entry" " with /booze_delete_carrier"
+                    text="Pirate Steve recommends verifying and then deleting this entry with /booze_delete_carrier"
                 )
                 await steve_says_channel.send(embed=problem_embed)
 
@@ -441,7 +435,6 @@ class DatabaseInteraction(commands.Cog):
         include_timestamp: bool = False,
         include_not_unloaded: IncludeNotUnloadedChoices | None = None,
     ) -> discord.Embed:
-
         # Get faction state from the first carrier, assuming all carriers have the same state
         if all_carrier_data:
             faction_state = all_carrier_data[0].faction_state
@@ -505,7 +498,7 @@ class DatabaseInteraction(commands.Cog):
 
         date_text = (
             f":\nHistorical Data: [{target_date} - "
-            f'{datetime.strptime(target_date, "%Y-%m-%d").date() + timedelta(days=2)}]'
+            f"{datetime.strptime(target_date, '%Y-%m-%d').date() + timedelta(days=2)}]"
             if target_date
             else ""
         )
@@ -542,7 +535,7 @@ class DatabaseInteraction(commands.Cog):
             url="https://cdn.discordapp.com/attachments/783783142737182724/849157248923992085/unknown.png"
         )
         stat_embed.set_footer(
-            text="This function is a clone of b.tally from CMDR Suiseiseki.\nPirate Steve hopes the " "values match!"
+            text="This function is a clone of b.tally from CMDR Suiseiseki.\nPirate Steve hopes the values match!"
         )
 
         print("Returning embed to user")
@@ -555,7 +548,6 @@ class DatabaseInteraction(commands.Cog):
         include_not_unloaded: IncludeNotUnloadedChoices | None = None,
         stat: StatChoices = "All",
     ) -> discord.Embed:
-
         # Get faction state from the first carrier, assuming all carriers have the same state
         if all_carrier_data:
             faction_state = all_carrier_data[0].faction_state
@@ -633,7 +625,7 @@ class DatabaseInteraction(commands.Cog):
 
         date_text = (
             f":\nHistorical Data: [{target_date} - "
-            f'{datetime.strptime(target_date, "%Y-%m-%d").date() + timedelta(days=2)}]'
+            f"{datetime.strptime(target_date, '%Y-%m-%d').date() + timedelta(days=2)}]"
             if target_date
             else ""
         )
@@ -711,7 +703,7 @@ class DatabaseInteraction(commands.Cog):
             f"Olympic swimming pools if boxes of wine: {pools_if_boxes:,.2f}\n\n"
         )
 
-        description_text = f"{state_text}" f"## Wine Tonnes: {total_wine:,}\n\n"
+        description_text = f"{state_text}## Wine Tonnes: {total_wine:,}\n\n"
 
         match stat:
             case "All":
@@ -911,7 +903,10 @@ class DatabaseInteraction(commands.Cog):
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper().strip()
         if not CARRIER_ID_RE.fullmatch(carrier_id):
-            raise CustomError(f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.")
+            raise CustomError(
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
+            )
         # Check if it is in the database already
         pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f"%{carrier_id}%",))
         # Really only expect a single entry here, unique field and all that
@@ -1196,7 +1191,6 @@ class DatabaseInteraction(commands.Cog):
         await interaction.edit_original_response(embed=stat_embed)
 
         if cruise_select == 0:
-
             pinned_stat_embed = self.build_stat_embed(all_carrier_data, None, True)
 
             # Go update all the pinned embeds also.
@@ -1206,10 +1200,10 @@ class DatabaseInteraction(commands.Cog):
                 print(f"Updating pinned messages: {pins}")
                 for pin in pins:
                     channel = await bot.fetch_channel(pin["channel_id"])
-                    print(f'Channel matched as: {channel} from {pin["channel_id"]}')
+                    print(f"Channel matched as: {channel} from {pin['channel_id']}")
                     # Now go loop over every pin and update it
                     message = await channel.fetch_message(pin["message_id"])
-                    print(f'Message matched as: {message} from {pin["message_id"]}')
+                    print(f"Message matched as: {message} from {pin['message_id']}")
                     await message.edit(embed=pinned_stat_embed)
             else:
                 print("No pinned messages up update")
@@ -1306,7 +1300,7 @@ class DatabaseInteraction(commands.Cog):
                 channel = bot.get_channel(int(pin["channel_id"]))
                 message = await channel.fetch_message(pin["message_id"])
                 await message.unpin(reason=f"Pirate Steve unpinned at the request of: {interaction.user.name}")
-                print(f'Removed pinned message: {pin["message_id"]}.')
+                print(f"Removed pinned message: {pin['message_id']}.")
             async with pirate_steve_db_lock:
                 print("Writing to the DB the message data to clear the pins")
                 pirate_steve_db.execute(
@@ -1321,7 +1315,7 @@ class DatabaseInteraction(commands.Cog):
 
     @app_commands.command(
         name="booze_unpin_message",
-        description="Unpins a specific message and removes it from the DB. Restricted to Admin and " "Sommelier's.",
+        description="Unpins a specific message and removes it from the DB. Restricted to Admin and Sommelier's.",
     )
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @describe(message_link="The message link to be unpinned")
@@ -1351,7 +1345,7 @@ class DatabaseInteraction(commands.Cog):
                 channel = bot.get_channel(int(pin["channel_id"]))
                 message = await channel.fetch_message(pin["message_id"])
                 await message.unpin(reason=f"Pirate Steve unpinned at the request of: {interaction.user.name}")
-                print(f'Removed pinned message: {pin["message_id"]}.')
+                print(f"Removed pinned message: {pin['message_id']}.")
             async with pirate_steve_db_lock:
                 print("Writing to the DB the message data to clear the pins")
 
@@ -1593,7 +1587,7 @@ class DatabaseInteraction(commands.Cog):
 
         if _production and ph_check():
             await interaction.edit_original_response(
-                content="Pirate Steve thinks there is a party at Rackhams still. Try again once the grog " "runs dry."
+                content="Pirate Steve thinks there is a party at Rackhams still. Try again once the grog runs dry."
             )
             return
 
@@ -1637,8 +1631,8 @@ class DatabaseInteraction(commands.Cog):
         check_embed = discord.Embed(
             title="Validate the request",
             description="You have requested to archive the data in the database with the following:\n"
-            f'**Holiday Start:** {start_date.strftime("%d-%m-%y")} - '
-            f'**Holiday End:** {(start_date + timedelta(days=2)).strftime("%d-%m-%y")}\n'
+            f"**Holiday Start:** {start_date.strftime('%d-%m-%y')} - "
+            f"**Holiday End:** {(start_date + timedelta(days=2)).strftime('%d-%m-%y')}\n"
             f"**Faction State:** {faction_state}\n",
         )
         confirm = ConfirmView(interaction.user)
