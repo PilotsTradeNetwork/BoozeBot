@@ -6,7 +6,7 @@ Cog for unloading related commands
 import logging
 # libraries
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 # discord.py
@@ -495,6 +495,8 @@ class Departures(commands.Cog):
             Choice(name="Start Of Cruise", value="Start Of Cruise"),
             Choice(name="End of Cruise", value="End of Cruise"),
             Choice(name="Custom (requires timestamp)", value="Custom (requires timestamp)"),
+            Choice(name="Pre-PH (requires timestamp)", value="Pre-PH (requires timestamp)"),
+            Choice(name="Thoon", value="Thoon"),
         ],
     )
     @app_commands.autocomplete(departure_name=official_departure_name_autocomplete)
@@ -547,28 +549,51 @@ class Departures(commands.Cog):
         departure_location = f"{departure_location} ({N_SYSTEMS[departure_location]})"
         arrival_location = f"{arrival_location} ({N_SYSTEMS[arrival_location]})"
 
+        async def validate_timestamp(timestamp: str) -> int | None:
+            if not timestamp:
+                msg = "You must provide a departure timestamp when using the 'Custom' departure time type."
+                print(msg)
+                await interaction.edit_original_response(content=msg)
+                return None
+
+            try:
+                if timestamp.startswith("<t:") and timestamp.endswith(">"):
+                    timestamp = timestamp.rstrip(">").split(":")[1]
+                timestamp = int(timestamp)
+                if timestamp < datetime.now(timezone.utc).timestamp():
+                    msg = f"Departure timestamp must be in the future: {timestamp}"
+                    print(msg)
+                    await interaction.edit_original_response(content=msg)
+                    return None
+                elif timestamp > (datetime.now(timezone.utc) + timedelta(days=7)).timestamp():
+                    msg = f"Departure timestamp must be within 1 week of now: {timestamp}"
+                    print(msg)
+                    await interaction.edit_original_response(content=msg)
+                    return None
+            except ValueError:
+                msg = f"Departure timestamp was not a valid integer: {timestamp}"
+                print(msg)
+                await interaction.edit_original_response(content=msg)
+                return None
+
+            return timestamp
+
         if departure_time_type == "Start Of Cruise":
             departure_time_text = "Departs when the public holiday is announced at Rackham's Peak"
         elif departure_time_type == "End of Cruise":
             departure_time_text = "Departs when the public holiday ends at Rackham's Peak"
         elif departure_time_type == "Custom (requires timestamp)":
-            if not departure_timestamp:
-                msg = "You must provide a departure timestamp when using the 'Custom' departure time type."
-                print(msg)
-                await interaction.edit_original_response(content=msg)
+            timestamp = await validate_timestamp(departure_timestamp)
+            if timestamp is None:
                 return
-
-            try:
-                if departure_timestamp.startswith("<t:") and departure_timestamp.endswith(">"):
-                    departure_timestamp = departure_timestamp.rstrip(">").split(":")[1]
-                departure_timestamp = int(departure_timestamp)
-            except ValueError:
-                msg = f"Departure timestamp was not a valid integer: {departure_timestamp}"
-                print(msg)
-                await interaction.edit_original_response(content=msg)
+            departure_time_text = f"Departs <t:{timestamp}:f> (<t:{timestamp}:R>)"
+        elif departure_time_type == "Pre-PH (requires timestamp)":
+            timestamp = await validate_timestamp(departure_timestamp)
+            if timestamp is None:
                 return
-
-            departure_time_text = f"Departing at <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>)"
+            departure_time_text = f"Departs any time after <t:{timestamp}:f> (<t:{timestamp}:R>) or immediately if the public holiday is announced at Rackham’s Peak."
+        elif departure_time_type == "Thoon":
+            departure_time_text = f"Departs {bot.get_emoji(get_thoon_emoji_id())}"
 
         embed = discord.Embed(
             description=f"# {departure_name}\n"
