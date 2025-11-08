@@ -18,15 +18,14 @@ from discord.ext import commands, tasks
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
-    CARRIER_ID_RE, N_SYSTEMS, bot, bot_guild_id, get_departure_announcement_channel, get_steve_says_channel,
-    get_thoon_emoji_id, get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids,
-    server_hitchhiker_role_id, server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id,
-    wine_carrier_command_channel
+    CARRIER_ID_RE, N_SYSTEMS, bot, get_departure_announcement_channel, get_steve_says_channel, get_thoon_emoji_id,
+    get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_hitchhiker_role_id,
+    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_emoji, track_last_run
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView
 
@@ -66,11 +65,7 @@ class Departures(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         try:
-            guild = bot.get_guild(bot_guild_id())
-        except Exception as e:
-            logging.exception(f"Failed to get guild: {e}")
-        try:
-            departure_channel = guild.get_channel(get_departure_announcement_channel())
+            departure_channel = await get_channel(get_departure_announcement_channel())
         except Exception as e:
             logging.exception(f"Failed to get departure_channel: {e}")
 
@@ -112,7 +107,7 @@ class Departures(commands.Cog):
             if reaction_event.channel_id != get_departure_announcement_channel():
                 return
 
-            channel = await bot.fetch_channel(reaction_event.channel_id)
+            channel = await get_channel(reaction_event.channel_id)
             message = await channel.fetch_message(reaction_event.message_id)
 
             if message.pinned:
@@ -134,9 +129,8 @@ class Departures(commands.Cog):
     @tasks.loop(minutes=5)
     @track_last_run()
     async def check_departure_messages_loop(self):
-        guild = bot.get_guild(bot_guild_id())
-        departure_channel = guild.get_channel(get_departure_announcement_channel())
-        wine_carrier_chat = guild.get_channel(get_wine_carrier_channel())
+        departure_channel = await get_channel(get_departure_announcement_channel())
+        wine_carrier_chat = await get_channel(get_wine_carrier_channel())
 
         print("Checking for passed departure messages.")
         async for message in departure_channel.history(limit=100):
@@ -169,7 +163,7 @@ class Departures(commands.Cog):
 
                 if departure_time.startswith("<t:"):
                     departure_time = departure_time.split(":")[1]
-                elif departure_time == f"{bot.get_emoji(get_thoon_emoji_id())}":
+                elif departure_time == f"{await get_emoji(get_thoon_emoji_id())}":
                     departure_time = message.created_at.timestamp() + 25 * 60
 
                 try:
@@ -249,8 +243,7 @@ class Departures(commands.Cog):
         # Convert carrier ID to uppercase
         carrier_id = carrier_id.upper().strip()
 
-        guild = bot.get_guild(bot_guild_id())
-        steve_says_channel = guild.get_channel(get_steve_says_channel())
+        steve_says_channel = await get_channel(get_steve_says_channel())
         # Validate the carrier ID format
         if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = (
@@ -353,7 +346,7 @@ class Departures(commands.Cog):
             departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
             departing_thoon = datetime.fromtimestamp(departure_timestamp) < datetime.now() + timedelta(hours=2)
         else:
-            departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
+            departure_time_text = f" {await get_emoji(get_thoon_emoji_id())} |"
 
         # Check if the departure needs a hitchhiker ping
         hitchhiker_systems = [0, 1, 2, 3]
@@ -377,7 +370,7 @@ class Departures(commands.Cog):
         )
         is_thoon_trip = departure_system_index in thoon_systems or arrival_system_index in thoon_systems
         if is_thoon_trip and departing_thoon:
-            departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
+            departure_time_text = f" {await get_emoji(get_thoon_emoji_id())} |"
 
         hitchhiker_ping_text = ""
         # Set the direction arrow text and determine if hitchhiker ping is needed
@@ -420,7 +413,7 @@ class Departures(commands.Cog):
         departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{interaction.user.id}> {hitchhiker_ping_text}"
 
         # Send the departure message to the departure announcement channel
-        departure_channel = bot.get_channel(get_departure_announcement_channel())
+        departure_channel = await get_channel(get_departure_announcement_channel())
         departure_message = await departure_channel.send(departure_message_text)
         await departure_message.add_reaction("🛬")
         await departure_message.add_reaction("✅")
@@ -446,8 +439,7 @@ class Departures(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         # Log the request
-        guild = bot.get_guild(bot_guild_id())
-        steve_says_channel = guild.get_channel(get_steve_says_channel())
+        steve_says_channel = await get_channel(get_steve_says_channel())
         msg = f"requested to set the departure announcement status to: '{status}'."
         print(f"{interaction.user.name} {msg}")
         await steve_says_channel.send(f"{interaction.user.mention} {msg}", silent=True)
@@ -604,7 +596,7 @@ class Departures(commands.Cog):
             color=15611236,
         )
 
-        departure_channel = bot.get_channel(get_departure_announcement_channel())
+        departure_channel = get_channel(get_departure_announcement_channel())
 
         # Check for existing departure message
         existing_departure_message = None

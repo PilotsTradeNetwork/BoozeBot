@@ -3,22 +3,17 @@ Cog for the commands related to opening and closing the cruise channels and role
 
 """
 
-# libraries
-import re
-
 # discord.py
 import discord
-from discord.app_commands import Group, describe, Choice
-from discord.ext import commands
 from discord import app_commands
-
+from discord.ext import commands
 # local constants
-from ptn.boozebot.constants import server_council_role_ids, server_sommelier_role_id, server_mod_role_id, bot, get_steve_says_channel, bot_guild_id
-
+from ptn.boozebot.constants import (
+    get_steve_says_channel, server_council_role_ids, server_mod_role_id, server_sommelier_role_id
+)
 # local modules
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error, GenericError, CustomError, on_generic_error
-from ptn.boozebot.modules.helpers import bot_exit, check_roles, check_command_channel
-
+from ptn.boozebot.modules.ErrorHandler import on_app_command_error
+from ptn.boozebot.modules.helpers import check_roles, get_channel
 
 """
 MIMIC STEVE COMMAND
@@ -26,13 +21,11 @@ MIMIC STEVE COMMAND
 /steve_says - somm/mod/admin
 """
 
+
 class MimicSteve(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.ctx_menu = app_commands.ContextMenu(
-            name="Reply as Steve",
-            callback=self.reply_as_steve
-        )
+        self.ctx_menu = app_commands.ContextMenu(name="Reply as Steve", callback=self.reply_as_steve)
         self.bot.tree.add_command(self.ctx_menu)
 
     # custom global error handler
@@ -64,12 +57,16 @@ class MimicSteve(commands.Cog):
     """
     This class implements functionality for a user to send commands as PirateSteve
     """
+
     @app_commands.command(name="steve_says", description="Send a message as PirateSteve.")
-    @app_commands.describe(message="The message to send",
-                           send_channel="The channel to send the message in",
-                            )
+    @app_commands.describe(
+        message="The message to send",
+        send_channel="The channel to send the message in",
+    )
     @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    async def mimic_steve(self, interaction: discord.Interaction, message: str, send_channel: discord.TextChannel = None):
+    async def mimic_steve(
+        self, interaction: discord.Interaction, message: str, send_channel: discord.TextChannel = None
+    ):
         """
         Command to send a message as pirate steve. Generates a message in the channel that it ran in.
 
@@ -78,19 +75,24 @@ class MimicSteve(commands.Cog):
         :param TextChannel send_channel: The channel for the bot to send the message to.
         :returns: 2 discord messages, 1 in the channel it is run and 1 as the output.
         """
-        if send_channel == None:
+        if not send_channel:
             send_channel = interaction.channel
-        
-        print(f"User {interaction.user.name} has requested to send the message {message} as PirateSteve in: {send_channel.name}.")
-        
+
+        print(
+            f"User {interaction.user.name} has requested to send the message {message} as PirateSteve in: {send_channel.name}."
+        )
+
         await interaction.response.send_message("Replying as PirateSteve...", ephemeral=True)
         await self._steve_speak(interaction, message, send_channel=send_channel)
 
-
     @staticmethod
-    async def _steve_speak(interaction: discord.Interaction, message: str, send_channel: discord.TextChannel = None, reply_message: discord.Message = None):
-        guild = bot.get_guild(bot_guild_id())
-        steve_says_channel = guild.get_channel(get_steve_says_channel())
+    async def _steve_speak(
+        interaction: discord.Interaction,
+        message: str,
+        send_channel: discord.TextChannel = None,
+        reply_message: discord.Message = None,
+    ):
+        steve_says_channel = await get_channel(get_steve_says_channel())
         try:
             if reply_message:
                 send_channel = reply_message.channel
@@ -98,15 +100,21 @@ class MimicSteve(commands.Cog):
             elif send_channel:
                 msg = await send_channel.send(content=message)
             else:
-                await interaction.edit_original_response(content=f"No channel specified")
+                await interaction.edit_original_response(content="No channel specified")
                 print("No channel specified")
                 return
-            
-            message = message.replace("`", "\u200B`")
-            
-            await interaction.edit_original_response(content=f"Pirate Steve said: ``{message}\u200B`` in: {send_channel} successfully")
-            await steve_says_channel.send(f"User {interaction.user.name} sent the message ``{message}\u200B`` as PirateSteve in: {send_channel.name}. {msg.jump_url}")
+
+            message = message.replace("`", "\u200b`")
+
+            await interaction.edit_original_response(
+                content=f"Pirate Steve said: ``{message}\u200b`` in: {send_channel} successfully"
+            )
+            await steve_says_channel.send(
+                f"User {interaction.user.name} sent the message ``{message}\u200b`` as PirateSteve in: {send_channel.name}. {msg.jump_url}"
+            )
             print("Message was impersonated successfully.")
         except discord.DiscordException:
             print(f"Error sending message in {message} channel: {send_channel}")
-            await interaction.edit_original_response(content=f"Pirate Steve failed to say: ``{message}\u200B`` in: {send_channel}.")
+            await interaction.edit_original_response(
+                content=f"Pirate Steve failed to say: ``{message}\u200b`` in: {send_channel}."
+            )

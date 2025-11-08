@@ -48,7 +48,9 @@ load_dotenv(os.path.join(DATA_DIR, ".env"))
 TOKEN = os.getenv("DISCORD_TOKEN_PROD") if _production else os.getenv("DISCORD_TOKEN_TESTING")
 
 # define bot object
-bot = commands.Bot(command_prefix=commands.when_mentioned_or("b/"), intents=discord.Intents.all())
+bot = commands.Bot(
+    command_prefix=commands.when_mentioned_or("b/"), intents=discord.Intents.all(), chunk_guilds_at_startup=False
+)
 
 # Production variables
 PROD_DISCORD_GUILD = 800080948716503040  # PTN Discord server
@@ -604,6 +606,7 @@ def get_booze_guide_channel_id():
     :rtype: int
     """
     return PROD_BOOZE_GUIDE_CHANNEL_ID if _production else TEST_BOOZE_GUIDE_CHANNEL_ID
+
 
 def get_wine_carrier_guide_channel_id():
     """

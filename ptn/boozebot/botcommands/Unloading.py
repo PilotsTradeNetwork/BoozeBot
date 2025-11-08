@@ -15,14 +15,14 @@ from discord.ext import commands, tasks
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
-    CARRIER_ID_RE, bot, bot_guild_id, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
+    CARRIER_ID_RE, bot, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
     get_primary_booze_discussions_channel, get_steve_says_channel, server_connoisseur_role_id, server_council_role_ids,
     server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_role, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.Settings import settings
 
@@ -71,7 +71,7 @@ class Unloading(commands.Cog):
             if reaction_event.channel_id != get_discord_booze_unload_channel():
                 return
 
-            channel = await bot.fetch_channel(reaction_event.channel_id)
+            channel = await get_channel(reaction_event.channel_id)
             message = await channel.fetch_message(reaction_event.message_id)
 
             if message.pinned:
@@ -100,7 +100,7 @@ class Unloading(commands.Cog):
 
                         carrier_data = BoozeCarrier(carrier_data)
                         if carrier_data and carrier_data.discord_unload_poster_id:
-                            wine_carrier_channel = bot.get_channel(wine_carrier_command_channel())
+                            wine_carrier_channel = await get_channel(wine_carrier_command_channel())
                             await wine_carrier_channel.send(
                                 f"<@{carrier_data.discord_unload_poster_id}> "
                                 f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
@@ -155,7 +155,7 @@ class Unloading(commands.Cog):
                 return
             print("Last unload time was more than 20 minutes ago, sending reminder message.")
             try:
-                rstc_channel = bot.get_channel(wine_carrier_command_channel())
+                rstc_channel = await get_channel(wine_carrier_command_channel())
                 timestamp = int(self.last_unload_time.timestamp())
                 content = f"Arrr, ye scurvy dogs! Our last booze unload was <t:{timestamp}:R>. Might be time to open another vessel to the people, ye think?"
                 message = await rstc_channel.send(content)
@@ -220,7 +220,7 @@ class Unloading(commands.Cog):
             name="Go fight the sidewinder for the landing pad.",
             value="Hopefully you got some booty, now go get your doubloons!",
         )
-        embed.set_footer(text="Notified by your friendly neighborhood pirate bot.")
+        embed.set_footer(text="Notified by your friendly neighbourhood pirate bot.")
         await interaction.response.send_message(embed=embed)
         # Retrieve the message object
         message = await interaction.original_response()
@@ -300,7 +300,7 @@ class Unloading(commands.Cog):
                 f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
             )
 
-        wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
+        wine_alert_channel = await get_channel(get_discord_booze_unload_channel())
 
         if carrier_data.discord_unload_notification:
             print(f"Sorry, carrier {carrier_data.carrier_identifier} is already on a wine unload.")
@@ -356,7 +356,7 @@ class Unloading(commands.Cog):
         print(f"Discord alert ID written to database for {carrier_data.carrier_identifier}")
 
         # Also post a note into the primary channel to go read the announcements.
-        booze_cruise_chat = bot.get_channel(get_primary_booze_discussions_channel())
+        booze_cruise_chat = await get_channel(get_primary_booze_discussions_channel())
         await booze_cruise_chat.send(f"A new wine unload is in progress. See <#{wine_unload_alert.channel.id}>")
 
         await interaction.edit_original_response(
@@ -429,7 +429,7 @@ class Unloading(commands.Cog):
                 f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
             )
 
-        wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
+        wine_alert_channel = await get_channel(get_discord_booze_unload_channel())
 
         if carrier_data.discord_unload_notification:
             print(f"Sorry, carrier {carrier_data.carrier_identifier} is already on a wine unload.")
@@ -489,7 +489,7 @@ class Unloading(commands.Cog):
         print(f"Discord alert ID written to database for {carrier_data.carrier_identifier}")
 
         # Also post a note into the primary channel to go read the announcements.
-        booze_cruise_chat = bot.get_channel(get_primary_booze_discussions_channel())
+        booze_cruise_chat = await get_channel(get_primary_booze_discussions_channel())
         await booze_cruise_chat.send(f"A new wine unload will be opening soon. See <#{wine_unload_alert.channel.id}>")
 
         return await interaction.followup.send(
@@ -545,7 +545,7 @@ class Unloading(commands.Cog):
             )
 
         print(f"Deleting the wine carrier unload notification for: {carrier_id}.")
-        wine_alert_channel = bot.get_channel(get_discord_booze_unload_channel())
+        wine_alert_channel = await get_channel(get_discord_booze_unload_channel())
         message = await wine_alert_channel.fetch_message(carrier_data.discord_unload_notification)
         # Now delete it in the database
 
@@ -582,8 +582,7 @@ class Unloading(commands.Cog):
             f"-# Unload duration: {time_str}."
         )
         allowed_mentions = discord.AllowedMentions.none()
-        guild = bot.get_guild(bot_guild_id())
-        conn_role = guild.get_role(server_connoisseur_role_id())
+        conn_role = await get_role(server_connoisseur_role_id())
         allowed_mentions.roles = [conn_role]
 
         await interaction.edit_original_response(content=response, allowed_mentions=allowed_mentions)
@@ -604,8 +603,7 @@ class Unloading(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         # Log the request
-        guild = bot.get_guild(bot_guild_id())
-        steve_says_channel = guild.get_channel(get_steve_says_channel())
+        steve_says_channel = await get_channel(get_steve_says_channel())
         new_status = "Disabled" if settings.get_setting("timed_unloads_allowed") else "Enabled"
         msg = f"requested to toggle the timed unloads status to: '{new_status}'."
         print(f"{interaction.user.name} {msg}")

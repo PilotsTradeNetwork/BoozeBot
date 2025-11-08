@@ -14,7 +14,7 @@ from ptn.boozebot.constants import (
     get_wine_carrier_guide_channel_id, get_wine_status_channel, server_council_role_ids, server_mod_role_id
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel
 from ptn.boozebot.modules.pagination import createPagination
 
 """
@@ -77,7 +77,7 @@ class Corked(commands.Cog):
 
         try:
             for channel_id in self.CORK_CHANNELS:
-                channel = await self.bot.fetch_channel(channel_id)
+                channel = await get_channel(channel_id)
                 await channel.set_permissions(
                     user, overwrite=overwrite, reason="User corked from booze cruise channels"
                 )
@@ -131,7 +131,7 @@ class Corked(commands.Cog):
 
         try:
             for channel_id in self.CORK_CHANNELS:
-                channel = await self.bot.fetch_channel(channel_id)
+                channel = await get_channel(channel_id)
                 await channel.set_permissions(user, overwrite=None, reason="User uncorked for booze cruise channels")
 
         except discord.DiscordException as e:
@@ -178,8 +178,8 @@ class Corked(commands.Cog):
 
         corked_user_data = [
             (
-                user.get_member().name,
-                f"{user.get_member().mention} Corked at {user.timestamp}",
+                await user.get_member().name,
+                f"{await user.get_member().mention} Corked at {user.timestamp}",
             )
             for user in corked_users
         ]
