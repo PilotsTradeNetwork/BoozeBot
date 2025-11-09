@@ -1,25 +1,19 @@
-"""
-ErrorHandler.py
-
-Our custom global error handler for the bot.
-
-Depends on: constants
-"""
-
 import logging
+import random
 
-# import discord.py
 import discord
+
 # import local constants
-import ptn.boozebot.constants as constants
-from discord import Interaction, app_commands, InteractionResponded
+from discord import Interaction, InteractionResponded, app_commands
 from discord.app_commands import AppCommandError
-from ptn.boozebot.constants import bot_spam_channel
-from ptn.boozebot.modules.helpers import get_channel
+from discord.ext import commands
+from ptn.boozebot.constants import EMBED_COLOUR_ERROR, error_gifs
 
 
 # custom errors
-class CommandChannelError(app_commands.CheckFailure):  # channel check error
+class CommandChannelError(app_commands.CheckFailure):
+    """Channel check error"""
+
     def __init__(self, permitted_channel, formatted_channel_list):
         self.permitted_channel = permitted_channel
         self.formatted_channel_list = formatted_channel_list
@@ -28,7 +22,8 @@ class CommandChannelError(app_commands.CheckFailure):  # channel check error
     pass
 
 
-class CommandRoleError(app_commands.CheckFailure):  # role check error
+class CommandRoleError(app_commands.CheckFailure):
+    """Role check error"""
     def __init__(self, permitted_roles, formatted_role_list):
         self.permitted_roles = permitted_roles
         self.formatted_role_list = formatted_role_list
@@ -38,6 +33,8 @@ class CommandRoleError(app_commands.CheckFailure):  # role check error
 
 
 class AsyncioTimeoutError(Exception):
+    """Timeout error"""
+
     def __init__(self, message, is_private=True):
         self.message = message
         self.is_private = is_private
@@ -45,95 +42,54 @@ class AsyncioTimeoutError(Exception):
     pass
 
 
-class SilentError(Exception):  # generic error
+
+class SilentError(Exception):
+    """An error that does not notify the user"""
+
     pass
 
 
-class GenericError(Exception):  # generic error
+class GenericError(Exception):
+    """A generic error that notifies the user with the Exception text"""
+
     pass
 
 
-class CustomError(
-    Exception
-):  # an error handler that hides the Exception text from the user, but shows custom text sent from the source instead
+class CustomError(Exception):
+    """A custom error that notifies the user with a custom message"""
+
     def __init__(self, message, is_private=True):
         self.message = message
         self.is_private = is_private
         super().__init__(self.message, "CustomError raised")
 
 
-"""
-A primitive global error handler for all app commands (slash & ctx menus)
-
-returns: the error message to the user and log
-"""
-
-
-async def on_generic_error(interaction: Interaction, error):  # an error handler for our custom errors
-    try:
-        if isinstance(error, SilentError):
-            emoji = "🤫 SilentError"
-        elif isinstance(error, AsyncioTimeoutError):
-            emoji = "⏲ TimeoutError"
-        else:
-            emoji = "❌ Error"
-
-        spam_channel = get_channel(bot_spam_channel())
-        spam_embed = discord.Embed(
-            description=f"{emoji} from `{interaction.command.name}` in <#{interaction.channel.id}> called by <@{interaction.user.id}>: ```{error}```",
-            color=constants.EMBED_COLOUR_ERROR,
+async def on_text_command_error(ctx: commands.Context, error: Exception):
+    """Global error handler for text commands"""
+    gif = random.choice(error_gifs)
+    print(f"Error from {ctx.command} in {ctx.channel} called by {ctx.author}: {error}")
+    if isinstance(error, commands.BadArgument):
+        await ctx.send(f"**Bad argument!** {error}")
+    elif isinstance(error, commands.CommandNotFound):
+        pass # Dont care
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send(
+            "**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details."
+            "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation"
+            " marks are of the same type, i.e. all straight or matching open/close smartquotes."
         )
-        await spam_channel.send(embed=spam_embed)
-
-    except Exception as e:
-        print(e)
-
-    if isinstance(error, GenericError):
-        print(f"Generic error raised: {error}")
-        embed = discord.Embed(description=f"❌ {error}", color=constants.EMBED_COLOUR_ERROR)
-        try:
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        except InteractionResponded:
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-    elif isinstance(
-        error, CustomError
-    ):  # this class receives custom error messages and displays either privately or publicly
-        message = error.message
-        is_private = error.is_private
-        print(f"Raised CustomError from {error} with message {message}")
-        embed = discord.Embed(description=f"❌ {message}", color=constants.EMBED_COLOUR_ERROR)
-        if is_private:  # message should be ephemeral
-            try:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-            except InteractionResponded:
-                await interaction.followup.send(embed=embed, ephemeral=True)
-        else:  # message should be public - use for CCO commands
-            try:
-                await interaction.response.send_message(embed=embed)
-            except InteractionResponded:
-                await interaction.followup.send(embed=embed)
-
-    elif isinstance(error, AsyncioTimeoutError):
-        message = error.message
-        ephemeral = True if error.is_private else False
-        print(f"⏲ TimeoutError raised: {error}")
-        embed = discord.Embed(description=f"❌⏲ {message}", color=constants.EMBED_COLOUR_ERROR)
-        try:
-            await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
-        except InteractionResponded:
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-
-    elif isinstance(error, SilentError):
-        print("🤫 SilentError called - error was not reported to user.")
-
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send("**You do not have the required permissions to run this command**")
+    elif isinstance(error, commands.MissingAnyRole):
+        roles = ", ".join([ctx.guild.get_role(role_id).name for role_id in error.missing_roles])
+        await ctx.send(f"**You must have one of the following roles to use this command:** {roles}")
     else:
-        print(f"Error {error} was not caught by on_generic_error")
+        await ctx.send(gif)
+        await ctx.send(f"Sorry, that didn't work: {error}")
 
 
-async def on_app_command_error(
-    interaction: Interaction, error: AppCommandError
-):  # an error handler for discord.py errors
+async def on_app_command_error(interaction: Interaction, error: AppCommandError):
+    """Global error handler for application commands"""
     print(
         f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
     )
@@ -145,7 +101,7 @@ async def on_app_command_error(
 
             embed = discord.Embed(
                 description=f"Sorry, you can only run this command out of: {formatted_channel_list}",
-                color=constants.EMBED_COLOUR_ERROR,
+                color=EMBED_COLOUR_ERROR,
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -156,12 +112,12 @@ async def on_app_command_error(
             if len(permitted_roles) > 1:
                 embed = discord.Embed(
                     description=f"**Permission denied**: You need one of the following roles to use this command:\n{formatted_role_list}",
-                    color=constants.EMBED_COLOUR_ERROR,
+                    color=EMBED_COLOUR_ERROR,
                 )
             else:
                 embed = discord.Embed(
                     description=f"**Permission denied**: You need the following role to use this command:\n{formatted_role_list}",
-                    color=constants.EMBED_COLOUR_ERROR,
+                    color=EMBED_COLOUR_ERROR,
                 )
             print("notify user")
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -170,7 +126,7 @@ async def on_app_command_error(
             message = error.message
             is_private = error.is_private
             print(f"Raised CustomError from {error} with message {message}")
-            embed = discord.Embed(description=f"❌ {message}", color=constants.EMBED_COLOUR_ERROR)
+            embed = discord.Embed(description=f"❌ {message}", color=EMBED_COLOUR_ERROR)
             if is_private:  # message should be ephemeral
                 try:
                     await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -184,7 +140,7 @@ async def on_app_command_error(
 
         elif isinstance(error, GenericError):
             print(f"Generic error raised: {error}")
-            embed = discord.Embed(description=f"❌ {error}", color=constants.EMBED_COLOUR_ERROR)
+            embed = discord.Embed(description=f"❌ {error}", color=EMBED_COLOUR_ERROR)
             try:
                 await interaction.response.send_message(embed=embed, ephemeral=True)
             except InteractionResponded:
@@ -193,7 +149,7 @@ async def on_app_command_error(
         else:
             print("Other type error message raised")
             logging.error(f"Unhandled Error: {error}")
-            embed = discord.Embed(description=f"❌ Unhandled Error: {error}", color=constants.EMBED_COLOUR_ERROR)
+            embed = discord.Embed(description=f"❌ Unhandled Error: {error}", color=EMBED_COLOUR_ERROR)
             try:
                 await interaction.response.send_message(embed=embed, ephemeral=True)
             except InteractionResponded:

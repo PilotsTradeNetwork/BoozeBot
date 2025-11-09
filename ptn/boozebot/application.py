@@ -3,34 +3,27 @@ The Python script that starts the bot.
 
 """
 
-# import libraries
 import asyncio
 import logging
 
-from discord import LoginFailure, GatewayNotFound, ConnectionClosed, HTTPException, DiscordException
+from discord import ConnectionClosed, DiscordException, GatewayNotFound, HTTPException, LoginFailure
 from discord.ext.prometheus import PrometheusCog
-
-# import build functions
-from ptn.boozebot.database.database import build_database_on_startup
-
-# import bot Cogs
-from ptn.boozebot.botcommands.DiscordBotCommands import DiscordBotCommands
-from ptn.boozebot.botcommands.Unloading import Unloading
-from ptn.boozebot.botcommands.DatabaseInteraction import DatabaseInteraction
-from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
-from ptn.boozebot.botcommands.MimicSteve import MimicSteve
-from ptn.boozebot.botcommands.Cleaner import Cleaner
-from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
-from ptn.boozebot.botcommands.Departures import Departures
-from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
-from ptn.boozebot.botcommands.AutoResponses import AutoResponses
-from ptn.boozebot.botcommands.Corked import Corked
-
-# import bot object, token, production status
-from ptn.boozebot.constants import bot, TOKEN, _production, log_handler, LOG_LEVEL
 from discord.utils import setup_logging
+from ptn.boozebot.botcommands.AutoResponses import AutoResponses
+from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
+from ptn.boozebot.botcommands.Cleaner import Cleaner
+from ptn.boozebot.botcommands.Corked import Corked
+from ptn.boozebot.botcommands.DatabaseInteraction import DatabaseInteraction
+from ptn.boozebot.botcommands.Departures import Departures
+from ptn.boozebot.botcommands.DiscordBotCommands import DiscordBotCommands
+from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
+from ptn.boozebot.botcommands.MimicSteve import MimicSteve
+from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
+from ptn.boozebot.botcommands.Unloading import Unloading
+from ptn.boozebot.constants import LOG_LEVEL, TOKEN, _production, bot, log_handler
+from ptn.boozebot.database.database import build_database_on_startup
 from ptn.boozebot.modules.helpers import sync_command_tree
-
+from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
 
 print(f"Booze bot is connecting against production: {_production}.")
 
@@ -55,6 +48,10 @@ async def boozebot():
         await bot.add_cog(AutoResponses(bot))
         await bot.add_cog(Corked(bot))
         await bot.add_cog(PrometheusCog(bot))
+
+        # Start error handlers
+        bot.tree.on_error = on_app_command_error
+        bot.add_listener(on_text_command_error, "on_command_error")
 
         try:
             await bot.login(TOKEN)

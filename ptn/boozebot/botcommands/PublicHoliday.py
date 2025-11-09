@@ -18,7 +18,6 @@ from ptn.boozebot.constants import (
     wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, track_last_run
 from ptn.boozebot.modules.PHcheck import api_ph_check, ph_check
 
@@ -39,19 +38,6 @@ PUBLIC HOLIDAY COMMANDS
 class PublicHoliday(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-
-    # custom global error handler
-    # attaching the handler when the cog is loaded
-    # and storing the old handler
-    def cog_load(self):
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = on_app_command_error
-
-    # detaching the handler when the cog is unloaded
-    def cog_unload(self):
-        tree = self.bot.tree
-        tree.on_error = self._old_tree_error
 
     """
     The public holiday state checker mechanism for booze bot.
