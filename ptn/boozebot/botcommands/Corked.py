@@ -178,8 +178,8 @@ class Corked(commands.Cog):
 
         corked_user_data = [
             (
-                await user.get_member().name,
-                f"{await user.get_member().mention} Corked at {user.timestamp}",
+                (await user.get_member()).name,
+                f"{(await user.get_member()).mention} Corked at {user.timestamp}",
             )
             for user in corked_users
         ]

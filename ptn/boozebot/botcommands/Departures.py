@@ -582,7 +582,7 @@ class Departures(commands.Cog):
             color=15611236,
         )
 
-        departure_channel = get_channel(get_departure_announcement_channel())
+        departure_channel = await get_channel(get_departure_announcement_channel())
 
         # Check for existing departure message
         existing_departure_message = None
