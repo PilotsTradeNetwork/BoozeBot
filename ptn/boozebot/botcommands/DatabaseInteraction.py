@@ -595,7 +595,7 @@ class DatabaseInteraction(commands.Cog):
         wine_boxes_per_scot_pop = wine_boxes_total / scotland_population
         wine_boxes_litres_per_scot_pop = wine_boxes_litres_total / scotland_population
 
-        server_population = await get_guild().member_count
+        server_population = (await get_guild()).member_count
         tons_per_server_pop = total_wine / server_population
         wine_bottles_per_server_pop = wine_bottles_total / server_population
         wine_bottles_litres_per_server_pop = wine_bottles_litres_total / server_population
