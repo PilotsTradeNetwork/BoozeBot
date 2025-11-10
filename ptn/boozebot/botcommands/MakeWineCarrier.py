@@ -11,13 +11,12 @@ from discord import app_commands
 from discord.app_commands import describe
 from discord.ext import commands
 from ptn.boozebot.constants import (
-    WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot, bot_spam_channel, get_steve_says_channel,
-    get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
-    server_sommelier_role_id, server_wine_carrier_role_id, too_slow_gifs
+    WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot_spam_channel, get_steve_says_channel, get_wine_carrier_channel,
+    server_connoisseur_role_id, server_council_role_ids, server_mod_role_id, server_sommelier_role_id,
+    server_wine_carrier_role_id, too_slow_gifs
 )
 from ptn.boozebot.database.database import pirate_steve_db
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_member, get_role
 
 """
 MAKE WINE CARRIER COMMANDS
@@ -37,19 +36,6 @@ class MakeWineCarrier(commands.Cog):
         self.bot = bot
         self.ctx_menu = app_commands.ContextMenu(name="Make Wine Carrier", callback=self.context_menu_make_wine_carrier)
         self.bot.tree.add_command(self.ctx_menu)
-
-    # custom global error handler
-    # attaching the handler when the cog is loaded
-    # and storing the old handler
-    async def cog_load(self):
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = on_app_command_error
-
-    # detaching the handler when the cog is unloaded
-    async def cog_unload(self):
-        tree = self.bot.tree
-        tree.on_error = self._old_tree_error
 
     @check_roles(
         [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()]
@@ -83,7 +69,6 @@ class MakeWineCarrier(commands.Cog):
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @check_command_channel(get_steve_says_channel())
     async def remove_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
-
         await interaction.response.defer()
 
         print(
@@ -92,21 +77,21 @@ class MakeWineCarrier(commands.Cog):
 
         async with wine_carrier_toggle_lock:
             # set the target role
-            wc_role = discord.utils.get(interaction.guild.roles, id=server_wine_carrier_role_id())
+            wc_role = await get_role(server_wine_carrier_role_id())
             print(f"Wine Carrier role name is {wc_role.name}")
 
             # Refetch the user from the interaction inside the lock
-            user = await interaction.guild.fetch_member(user.id)
+            user = await get_member(user.id)
 
             if wc_role in user.roles:
                 # remove role
                 print(f"{user} is a {wc_role.name}, removing the role.")
                 try:
                     await user.remove_roles(wc_role)
-                    response = f"{user.display_name} no longer has the {wc_role.name} role."
+                    response = f"{user.mention} ({user.name}) no longer has the {wc_role.name} role."
                     await interaction.edit_original_response(content=response)
 
-                    bot_spam = bot.get_channel(bot_spam_channel())
+                    bot_spam = await get_channel(bot_spam_channel())
                     embed = discord.Embed(
                         description=f"{user.mention} ({user.name}) has been removed from the {wc_role.mention} role by {interaction.user.mention} ({interaction.user.name}).",
                     )
@@ -125,17 +110,16 @@ class MakeWineCarrier(commands.Cog):
 
 # function shared by make_wine_carrier and make_contextuser_wine_carrier
 async def make_user_wine_carrier(interaction: discord.Interaction, user: discord.Member) -> None:
-
     await interaction.response.defer(ephemeral=True)
 
     async with wine_carrier_toggle_lock:
-        channel = bot.get_channel(get_steve_says_channel())
+        channel = await get_channel(get_steve_says_channel())
         # set the target role
-        wc_role = discord.utils.get(interaction.guild.roles, id=server_wine_carrier_role_id())
+        wc_role = await get_role(server_wine_carrier_role_id())
         print(f"Wine Carrier role name is {wc_role.name}")
 
         # Refetch the user from the interaction inside the lock
-        user = await interaction.guild.fetch_member(user.id)
+        user = await get_member(user.id)
 
         pirate_steve_db.execute(
             "SELECT * FROM corked_users WHERE user_id = ?",
@@ -167,7 +151,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
                 with open(WELCOME_MESSAGE_FILE_PATH, "r", encoding="utf-8") as file:
                     wine_welcome_message = file.read()  # read contents to variable
 
-                wine_channel = bot.get_channel(get_wine_carrier_channel())
+                wine_channel = await get_channel(get_wine_carrier_channel())
                 embed = discord.Embed(description=wine_welcome_message)
                 embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
                 await wine_channel.send(f"<@{user.id}>", embed=embed)
@@ -177,7 +161,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
                 await channel.send(content=msg, silent=True)
                 await interaction.edit_original_response(content=response)
 
-                bot_spam = bot.get_channel(bot_spam_channel())
+                bot_spam = await get_channel(bot_spam_channel())
                 await bot_spam.send(embed=embed)
 
             except discord.DiscordException as e:

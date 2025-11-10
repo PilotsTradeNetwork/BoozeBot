@@ -48,7 +48,9 @@ load_dotenv(os.path.join(DATA_DIR, ".env"))
 TOKEN = os.getenv("DISCORD_TOKEN_PROD") if _production else os.getenv("DISCORD_TOKEN_TESTING")
 
 # define bot object
-bot = commands.Bot(command_prefix=commands.when_mentioned_or("b/"), intents=discord.Intents.all())
+bot = commands.Bot(
+    command_prefix=commands.when_mentioned_or("b/"), intents=discord.Intents.all(), chunk_guilds_at_startup=False
+)
 
 # Production variables
 PROD_DISCORD_GUILD = 800080948716503040  # PTN Discord server
@@ -88,6 +90,7 @@ PROD_THOON_EMOJI_ID = 1058010828458176563
 PROD_FEEDBACK_CHANNEL_ID = 936218839362969621
 PROD_PILOT_ID = 800396412217982999
 PROD_WINE_CARRIER_GUIDE_CHANNEL_ID = 943919705763233822
+PROD_BOOZE_GUIDE_CHANNEL_ID = 932918421270712341
 PROD_PTN_BOOZE_CRUISE_ROLE_ID = 838516571571355689
 PROD_WINE_CELLAR_DELIVERIES_ID = 837764138692378634
 PROD_PTN_ROLE_ICON_EMOJI_ID = 1109925017443115088
@@ -134,6 +137,7 @@ TEST_THOON_EMOJI_ID = 1301319362489356289
 TEST_FEEDBACK_CHANNEL_ID = 1314640487587643532
 TEST_PILOT_ID = 818174614810787840
 TEST_WINE_CARRIER_GUIDE_CHANNEL_ID = 1333822679400059003
+TEST_BOOZE_GUIDE_CHANNEL_ID = 1107758079535235085
 TEST_PTN_BOOZE_CRUISE_ROLE_ID = 1333819581596303461
 TEST_WINE_CELLAR_DELIVERIES_ID = 1107757418517110955
 TEST_PTN_ROLE_ICON_EMOJI_ID = 1409301482934898719
@@ -592,6 +596,16 @@ def get_pilot_role_id():
     :rtype: int
     """
     return PROD_PILOT_ID if _production else TEST_PILOT_ID
+
+
+def get_booze_guide_channel_id():
+    """
+    Gets the ID of the booze_cruise guide channel
+
+    :return: The channel ID
+    :rtype: int
+    """
+    return PROD_BOOZE_GUIDE_CHANNEL_ID if _production else TEST_BOOZE_GUIDE_CHANNEL_ID
 
 
 def get_wine_carrier_guide_channel_id():

@@ -6,7 +6,7 @@ Cog for unloading related commands
 import logging
 # libraries
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 # discord.py
@@ -18,16 +18,15 @@ from discord.ext import commands, tasks
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
-    CARRIER_ID_RE, N_SYSTEMS, bot, bot_guild_id, get_departure_announcement_channel, get_steve_says_channel,
-    get_thoon_emoji_id, get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids,
-    server_hitchhiker_role_id, server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id,
-    wine_carrier_command_channel
+    CARRIER_ID_RE, N_SYSTEMS, bot, get_departure_announcement_channel, get_steve_says_channel, get_thoon_emoji_id,
+    get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_hitchhiker_role_id,
+    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
 )
-from ptn.boozebot.database.database import pirate_steve_db
+from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
-from ptn.boozebot.modules.ErrorHandler import on_app_command_error
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_emoji, track_last_run
 from ptn.boozebot.modules.Settings import settings
+from ptn.boozebot.modules.Views import ConfirmView
 
 """
 UNLOADING COMMANDS
@@ -39,19 +38,6 @@ UNLOADING COMMANDS
 class Departures(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-
-    # custom global error handler
-    # attaching the handler when the cog is loaded
-    # and storing the old handler
-    def cog_load(self):
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = on_app_command_error
-
-    # detaching the handler when the cog is unloaded
-    def cog_unload(self):
-        tree = self.bot.tree
-        tree.on_error = self._old_tree_error
 
     """
     This class is a collection functionality for posting departure messages for carriers.
@@ -65,11 +51,7 @@ class Departures(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         try:
-            guild = bot.get_guild(bot_guild_id())
-        except Exception as e:
-            logging.exception(f"Failed to get guild: {e}")
-        try:
-            departure_channel = guild.get_channel(get_departure_announcement_channel())
+            departure_channel = await get_channel(get_departure_announcement_channel())
         except Exception as e:
             logging.exception(f"Failed to get departure_channel: {e}")
 
@@ -111,7 +93,7 @@ class Departures(commands.Cog):
             if reaction_event.channel_id != get_departure_announcement_channel():
                 return
 
-            channel = await bot.fetch_channel(reaction_event.channel_id)
+            channel = await get_channel(reaction_event.channel_id)
             message = await channel.fetch_message(reaction_event.message_id)
 
             if message.pinned:
@@ -133,13 +115,11 @@ class Departures(commands.Cog):
     @tasks.loop(minutes=5)
     @track_last_run()
     async def check_departure_messages_loop(self):
-        guild = bot.get_guild(bot_guild_id())
-        departure_channel = guild.get_channel(get_departure_announcement_channel())
-        wine_carrier_chat = guild.get_channel(get_wine_carrier_channel())
+        departure_channel = await get_channel(get_departure_announcement_channel())
+        wine_carrier_chat = await get_channel(get_wine_carrier_channel())
 
         print("Checking for passed departure messages.")
         async for message in departure_channel.history(limit=100):
-
             try:
                 if message.pinned:
                     continue
@@ -169,7 +149,7 @@ class Departures(commands.Cog):
 
                 if departure_time.startswith("<t:"):
                     departure_time = departure_time.split(":")[1]
-                elif departure_time == f"{bot.get_emoji(get_thoon_emoji_id())}":
+                elif departure_time == f"{await get_emoji(get_thoon_emoji_id())}":
                     departure_time = message.created_at.timestamp() + 25 * 60
 
                 try:
@@ -249,11 +229,13 @@ class Departures(commands.Cog):
         # Convert carrier ID to uppercase
         carrier_id = carrier_id.upper().strip()
 
-        guild = bot.get_guild(bot_guild_id())
-        steve_says_channel = guild.get_channel(get_steve_says_channel())
+        steve_says_channel = await get_channel(get_steve_says_channel())
         # Validate the carrier ID format
         if not CARRIER_ID_RE.fullmatch(carrier_id):
-            msg = f'{interaction.user.name}, the carrier ID was invalid, "XXX-XXX" expected, received "{carrier_id}".'
+            msg = (
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
+            )
             print(msg)
             await interaction.edit_original_response(content=msg)
             await steve_says_channel.send(
@@ -350,7 +332,7 @@ class Departures(commands.Cog):
             departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
             departing_thoon = datetime.fromtimestamp(departure_timestamp) < datetime.now() + timedelta(hours=2)
         else:
-            departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
+            departure_time_text = f" {await get_emoji(get_thoon_emoji_id())} |"
 
         # Check if the departure needs a hitchhiker ping
         hitchhiker_systems = [0, 1, 2, 3]
@@ -374,7 +356,7 @@ class Departures(commands.Cog):
         )
         is_thoon_trip = departure_system_index in thoon_systems or arrival_system_index in thoon_systems
         if is_thoon_trip and departing_thoon:
-            departure_time_text = f" {bot.get_emoji(get_thoon_emoji_id())} |"
+            departure_time_text = f" {await get_emoji(get_thoon_emoji_id())} |"
 
         hitchhiker_ping_text = ""
         # Set the direction arrow text and determine if hitchhiker ping is needed
@@ -417,7 +399,7 @@ class Departures(commands.Cog):
         departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{interaction.user.id}> {hitchhiker_ping_text}"
 
         # Send the departure message to the departure announcement channel
-        departure_channel = bot.get_channel(get_departure_announcement_channel())
+        departure_channel = await get_channel(get_departure_announcement_channel())
         departure_message = await departure_channel.send(departure_message_text)
         await departure_message.add_reaction("🛬")
         await departure_message.add_reaction("✅")
@@ -443,8 +425,7 @@ class Departures(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         # Log the request
-        guild = bot.get_guild(bot_guild_id())
-        steve_says_channel = guild.get_channel(get_steve_says_channel())
+        steve_says_channel = await get_channel(get_steve_says_channel())
         msg = f"requested to set the departure announcement status to: '{status}'."
         print(f"{interaction.user.name} {msg}")
         await steve_says_channel.send(f"{interaction.user.mention} {msg}", silent=True)
@@ -478,7 +459,7 @@ class Departures(commands.Cog):
     @check_command_channel(get_steve_says_channel())
     @describe(
         carrier_id="The XXX-XXX ID string for the carrier",
-        operated_by="The user who is operating the carrier.",
+        operated_by="The user/role who is operating the carrier.",
         departure_name="The name of the departure",
         departure_location="The location the carrier is departing from.",
         arrival_location="The location the carrier is arriving at.",
@@ -492,6 +473,8 @@ class Departures(commands.Cog):
             Choice(name="Start Of Cruise", value="Start Of Cruise"),
             Choice(name="End of Cruise", value="End of Cruise"),
             Choice(name="Custom (requires timestamp)", value="Custom (requires timestamp)"),
+            Choice(name="Pre-PH (requires timestamp)", value="Pre-PH (requires timestamp)"),
+            Choice(name="Thoon", value="Thoon"),
         ],
     )
     @app_commands.autocomplete(departure_name=official_departure_name_autocomplete)
@@ -499,7 +482,7 @@ class Departures(commands.Cog):
         self,
         interaction: discord.Interaction,
         carrier_id: str,
-        operated_by: discord.Member,
+        operated_by: discord.Member | discord.Role,
         departure_name: str,
         departure_location: str,
         arrival_location: str,
@@ -516,7 +499,10 @@ class Departures(commands.Cog):
 
         # Validate the carrier ID format
         if not CARRIER_ID_RE.fullmatch(carrier_id):
-            msg = f'{interaction.user.name}, the carrier ID was invalid, "XXX-XXX" expected, received "{carrier_id}".'
+            msg = (
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
+            )
             print(msg)
             await interaction.edit_original_response(content=msg)
             return
@@ -541,28 +527,51 @@ class Departures(commands.Cog):
         departure_location = f"{departure_location} ({N_SYSTEMS[departure_location]})"
         arrival_location = f"{arrival_location} ({N_SYSTEMS[arrival_location]})"
 
+        async def validate_timestamp(timestamp: str) -> int | None:
+            if not timestamp:
+                msg = "You must provide a departure timestamp when using the 'Custom' departure time type."
+                print(msg)
+                await interaction.edit_original_response(content=msg)
+                return None
+
+            try:
+                if timestamp.startswith("<t:") and timestamp.endswith(">"):
+                    timestamp = timestamp.rstrip(">").split(":")[1]
+                timestamp = int(timestamp)
+                if timestamp < datetime.now(timezone.utc).timestamp():
+                    msg = f"Departure timestamp must be in the future: {timestamp}"
+                    print(msg)
+                    await interaction.edit_original_response(content=msg)
+                    return None
+                elif timestamp > (datetime.now(timezone.utc) + timedelta(days=7)).timestamp():
+                    msg = f"Departure timestamp must be within 1 week of now: {timestamp}"
+                    print(msg)
+                    await interaction.edit_original_response(content=msg)
+                    return None
+            except ValueError:
+                msg = f"Departure timestamp was not a valid integer: {timestamp}"
+                print(msg)
+                await interaction.edit_original_response(content=msg)
+                return None
+
+            return timestamp
+
         if departure_time_type == "Start Of Cruise":
             departure_time_text = "Departs when the public holiday is announced at Rackham's Peak"
         elif departure_time_type == "End of Cruise":
             departure_time_text = "Departs when the public holiday ends at Rackham's Peak"
         elif departure_time_type == "Custom (requires timestamp)":
-            if not departure_timestamp:
-                msg = "You must provide a departure timestamp when using the 'Custom' departure time type."
-                print(msg)
-                await interaction.edit_original_response(content=msg)
+            timestamp = await validate_timestamp(departure_timestamp)
+            if timestamp is None:
                 return
-
-            try:
-                if departure_timestamp.startswith("<t:") and departure_timestamp.endswith(">"):
-                    departure_timestamp = departure_timestamp.rstrip(">").split(":")[1]
-                departure_timestamp = int(departure_timestamp)
-            except ValueError:
-                msg = f"Departure timestamp was not a valid integer: {departure_timestamp}"
-                print(msg)
-                await interaction.edit_original_response(content=msg)
+            departure_time_text = f"Departs <t:{timestamp}:f> (<t:{timestamp}:R>)"
+        elif departure_time_type == "Pre-PH (requires timestamp)":
+            timestamp = await validate_timestamp(departure_timestamp)
+            if timestamp is None:
                 return
-
-            departure_time_text = f"Departing at <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>)"
+            departure_time_text = f"Departs any time after <t:{timestamp}:f> (<t:{timestamp}:R>) or immediately if the public holiday is announced at Rackham’s Peak."
+        elif departure_time_type == "Thoon":
+            departure_time_text = f"Departs {bot.get_emoji(get_thoon_emoji_id())}"
 
         embed = discord.Embed(
             description=f"# {departure_name}\n"
@@ -573,12 +582,49 @@ class Departures(commands.Cog):
             color=15611236,
         )
 
-        departure_channel = bot.get_channel(get_departure_announcement_channel())
-        departure_message = await departure_channel.send(embed=embed)
-        await departure_message.add_reaction("🛬")
-        await interaction.edit_original_response(
-            content=f"Official carrier departure message sent: {departure_message.jump_url}"
-        )
+        departure_channel = await get_channel(get_departure_announcement_channel())
+
+        # Check for existing departure message
+        existing_departure_message = None
+        if carrier_data.discord_departure_message_id:
+            try:
+                existing_departure_message = await departure_channel.fetch_message(
+                    carrier_data.discord_departure_message_id
+                )
+            except discord.DiscordException:
+                existing_departure_message = None
+
+        if existing_departure_message:
+            check_embed = discord.Embed(
+                title="Existing Official Departure Message Found",
+                description="Do you want to edit the existing official departure message?",
+            )
+            confirm = ConfirmView(interaction.user)
+            await interaction.edit_original_response(embed=check_embed, view=confirm)
+            await confirm.wait()
+            if not confirm.value:
+                await interaction.edit_original_response(
+                    content="Official departure edit cancelled.", embed=None, view=None
+                )
+                return
+            await existing_departure_message.edit(embed=embed)
+            await interaction.edit_original_response(
+                content=f"Official carrier departure message edited: {existing_departure_message.jump_url}",
+                embed=None,
+                view=None,
+            )
+        else:
+            departure_message = await departure_channel.send(embed=embed)
+            await departure_message.add_reaction("🛬")
+            await interaction.edit_original_response(
+                content=f"Official carrier departure message sent: {departure_message.jump_url}"
+            )
+            async with pirate_steve_db_lock:
+                pirate_steve_db.execute(
+                    "UPDATE boozecarriers SET discord_departure_message_id = ? WHERE carrierid = ?",
+                    (departure_message.id, carrier_id),
+                )
+                pirate_steve_conn.commit()
 
     def get_departure_author_id(self, message):
         try:

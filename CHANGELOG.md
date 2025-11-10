@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.1
+-    \#650 - Commas in activity status (conshmea)
+-    \#647 - Cork the guides (conshmea)
+-    \#645 - Sync on start (conshmea)
+-    \#649 - Editing official departures (conshmea)
+-    \#654 - Mention in remove wine carrier message (conshmea)
+-    \#653 - Add message about Os and Is to invalid carrier Id error (conshmea)
+-    \#656 - Pre PH Departures (conshmea)
+-    \#640 - Switch to helpers for get/fetch discord objects (conshmea)
+-    \#641 - Update Error Handling Code (conshmea)
+-    \#658 - Fix awaits again (conshmea)
+
 ## 2.1.0
 -    \#636 - Persistent Settings (conshmea)
 -    \#637 - Support SqC Ids (conshmea)

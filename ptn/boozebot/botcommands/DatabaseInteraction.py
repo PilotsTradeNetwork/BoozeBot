@@ -24,14 +24,15 @@ from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 # local constants
 from ptn.boozebot.constants import (
     BOOZE_PROFIT_PER_TONNE_WINE, CARRIER_ID_RE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, bot,
-    bot_guild_id, get_pilot_role_id, get_primary_booze_discussions_channel, get_steve_says_channel,
-    get_wine_carrier_channel, ptn_role_icon_emoji_id, server_connoisseur_role_id, server_council_role_ids,
-    server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id
+    get_steve_says_channel, get_wine_carrier_channel, ptn_role_icon_emoji_id, server_connoisseur_role_id,
+    server_council_role_ids, server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id
 )
 from ptn.boozebot.database.database import dump_database, pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 # local modules
-from ptn.boozebot.modules.ErrorHandler import CustomError, on_app_command_error
-from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles, track_last_run
+from ptn.boozebot.modules.ErrorHandler import CustomError
+from ptn.boozebot.modules.helpers import (
+    bc_channel_status, check_command_channel, check_roles, get_channel, get_emoji, get_guild, track_last_run
+)
 from ptn.boozebot.modules.pagination import createPagination
 from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.Views import ConfirmView
@@ -112,11 +113,8 @@ StatChoices = Literal[
 
 
 class DatabaseInteraction(commands.Cog):
-
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Things that will be set later in the async functions
-        self._old_tree_error = None
         self.client = None
         self.tracking_sheet = None
         self.worksheet_key = None
@@ -132,14 +130,7 @@ class DatabaseInteraction(commands.Cog):
         # authorize the client sheet
         self.client_manager = gspread_asyncio.AsyncioGspreadClientManager(get_creds)
 
-    # custom global error handler
-    # attaching the handler when the cog is loaded
-    # and storing the old handler
     async def cog_load(self):
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = on_app_command_error
-
         pirate_steve_db.execute("SELECT * FROM trackingforms")
         forms = dict(pirate_steve_db.fetchone())
 
@@ -155,11 +146,6 @@ class DatabaseInteraction(commands.Cog):
 
         await self._reconfigure_workbook_and_form()
         await self._update_db()  # On instantiation, go build the DB
-
-    # detaching the handler when the cog is unloaded
-    async def cog_unload(self):
-        tree = self.bot.tree
-        tree.on_error = self._old_tree_error
 
     async def _reconfigure_workbook_and_form(self):
         """
@@ -221,7 +207,6 @@ class DatabaseInteraction(commands.Cog):
 
                 # Check if there is already a object for this carrier and update it if so
                 if carrier_data.carrier_identifier in all_carriers_data:
-
                     all_carriers_data[carrier_data.carrier_identifier].wine_total += carrier_data.wine_total
                     all_carriers_data[carrier_data.carrier_identifier].run_count += 1
 
@@ -235,7 +220,6 @@ class DatabaseInteraction(commands.Cog):
 
         async with pirate_steve_db_lock:
             for carrier_data in all_carriers_data.items():
-
                 carrier_data = carrier_data[1]
 
                 pirate_steve_db.execute(
@@ -261,7 +245,6 @@ class DatabaseInteraction(commands.Cog):
 
                     # If the data is the same, skip over, otherwise update it
                     if old_carrier_data != carrier_data:
-
                         print(
                             f"The DB data for {carrier_data.carrier_name} does not equal the input in GoogleSheets "
                             f"- Updating"
@@ -368,18 +351,17 @@ class DatabaseInteraction(commands.Cog):
         }
 
     async def report_db_update_result(self, result: dict, force_embed=False):
-
         if result["updated_db"] or force_embed:
             embed = discord.Embed(title="Pirate Steve's DB Update ran successfully.")
             embed.add_field(
-                name=f'Total number of carriers: {result["total_carriers"]:>20}.\n'
-                f'Number of new carriers added: {result["added_count"]:>8}.\n'
-                f'Number of carriers amended: {result["updated_count"]:>11}.\n'
-                f'Number of carriers unchanged: {result["unchanged_count"]:>7}.',
+                name=f"Total number of carriers: {result['total_carriers']:>20}.\n"
+                f"Number of new carriers added: {result['added_count']:>8}.\n"
+                f"Number of carriers amended: {result['updated_count']:>11}.\n"
+                f"Number of carriers unchanged: {result['unchanged_count']:>7}.",
                 value="Pirate Steve hope he got this right.",
                 inline=False,
             )
-            steve_says_channel = bot.get_channel(get_steve_says_channel())
+            steve_says_channel = await get_channel(get_steve_says_channel())
             await steve_says_channel.send(embed=embed)
         await self.report_new_and_invalid_carriers(result)
 
@@ -393,10 +375,9 @@ class DatabaseInteraction(commands.Cog):
         if result is None:
             result = {}
 
-        steve_says_channel = bot.get_channel(get_steve_says_channel())
+        steve_says_channel = await get_channel(get_steve_says_channel())
 
         if result.get("invalid_database_entries", False):
-
             # In case any problem carriers found, mark them up
             print("Problem: We have invalid carriers!")
 
@@ -416,7 +397,7 @@ class DatabaseInteraction(commands.Cog):
                     f"Operated by: {problem_carrier.discord_username}",
                 )
                 problem_embed.set_footer(
-                    text="Pirate Steve recommends verifying and then deleting this entry" " with /booze_delete_carrier"
+                    text="Pirate Steve recommends verifying and then deleting this entry with /booze_delete_carrier"
                 )
                 await steve_says_channel.send(embed=problem_embed)
 
@@ -434,14 +415,13 @@ class DatabaseInteraction(commands.Cog):
         else:
             print("No new signed up carriers detected")
 
-    def build_stat_embed(
+    async def build_stat_embed(
         self,
         all_carrier_data: list[BoozeCarrier],
         target_date: str = None,
         include_timestamp: bool = False,
         include_not_unloaded: IncludeNotUnloadedChoices | None = None,
     ) -> discord.Embed:
-
         # Get faction state from the first carrier, assuming all carriers have the same state
         if all_carrier_data:
             faction_state = all_carrier_data[0].faction_state
@@ -505,14 +485,14 @@ class DatabaseInteraction(commands.Cog):
 
         date_text = (
             f":\nHistorical Data: [{target_date} - "
-            f'{datetime.strptime(target_date, "%Y-%m-%d").date() + timedelta(days=2)}]'
+            f"{datetime.strptime(target_date, '%Y-%m-%d').date() + timedelta(days=2)}]"
             if target_date
             else ""
         )
 
         updated_timestamp = f"\n\nLast updated: <t:{int(datetime.now().timestamp())}:F>" if include_timestamp else ""
         signup_form_text = (
-            f"[Bringing wine? Sign up here]({self.loader_signup_form_url})" if bc_channel_status() else ""
+            f"[Bringing wine? Sign up here]({self.loader_signup_form_url})" if await bc_channel_status() else ""
         )
         state_warning_msg = (
             "### The Public Holiday did not happen for this cruise.\n### None of these carriers got unloaded.\n\n"
@@ -542,20 +522,19 @@ class DatabaseInteraction(commands.Cog):
             url="https://cdn.discordapp.com/attachments/783783142737182724/849157248923992085/unknown.png"
         )
         stat_embed.set_footer(
-            text="This function is a clone of b.tally from CMDR Suiseiseki.\nPirate Steve hopes the " "values match!"
+            text="This function is a clone of b.tally from CMDR Suiseiseki.\nPirate Steve hopes the values match!"
         )
 
         print("Returning embed to user")
         return stat_embed
 
-    def build_extended_stat_embed(
+    async def build_extended_stat_embed(
         self,
         all_carrier_data: list[BoozeCarrier],
         target_date: str = None,
         include_not_unloaded: IncludeNotUnloadedChoices | None = None,
         stat: StatChoices = "All",
     ) -> discord.Embed:
-
         # Get faction state from the first carrier, assuming all carriers have the same state
         if all_carrier_data:
             faction_state = all_carrier_data[0].faction_state
@@ -616,7 +595,7 @@ class DatabaseInteraction(commands.Cog):
         wine_boxes_per_scot_pop = wine_boxes_total / scotland_population
         wine_boxes_litres_per_scot_pop = wine_boxes_litres_total / scotland_population
 
-        server_population = self.bot.get_guild(bot_guild_id()).member_count
+        server_population = (await get_guild()).member_count
         tons_per_server_pop = total_wine / server_population
         wine_bottles_per_server_pop = wine_bottles_total / server_population
         wine_bottles_litres_per_server_pop = wine_bottles_litres_total / server_population
@@ -633,7 +612,7 @@ class DatabaseInteraction(commands.Cog):
 
         date_text = (
             f":\nHistorical Data: [{target_date} - "
-            f'{datetime.strptime(target_date, "%Y-%m-%d").date() + timedelta(days=2)}]'
+            f"{datetime.strptime(target_date, '%Y-%m-%d').date() + timedelta(days=2)}]"
             if target_date
             else ""
         )
@@ -666,7 +645,7 @@ class DatabaseInteraction(commands.Cog):
             f"Boxes litres per capita: {wine_boxes_litres_per_capita:,.2f}\n\n"
         )
 
-        ptn_logo_emoji = self.bot.get_emoji(ptn_role_icon_emoji_id())
+        ptn_logo_emoji = await get_emoji(ptn_role_icon_emoji_id())
         server_text = (
             f"### Server Population Stats {ptn_logo_emoji}\n"
             f"Population: {server_population:,}\n"
@@ -711,7 +690,7 @@ class DatabaseInteraction(commands.Cog):
             f"Olympic swimming pools if boxes of wine: {pools_if_boxes:,.2f}\n\n"
         )
 
-        description_text = f"{state_text}" f"## Wine Tonnes: {total_wine:,}\n\n"
+        description_text = f"{state_text}## Wine Tonnes: {total_wine:,}\n\n"
 
         match stat:
             case "All":
@@ -779,13 +758,13 @@ class DatabaseInteraction(commands.Cog):
             # Get all carriers
             pirate_steve_db.execute("SELECT * FROM boozecarriers")
             all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-            stat_embed = self.build_stat_embed(all_carrier_data, None, True)
+            stat_embed = await self.build_stat_embed(all_carrier_data, None, True)
 
             print("Updating pinned messages")
             if all_pins:
                 print(f"We have these pins to update: {all_pins}")
                 for pin in all_pins:
-                    channel = bot.get_channel(int(pin["channel_id"]))
+                    channel = await get_channel(int(pin["channel_id"]))
                     message = await channel.fetch_message(pin["message_id"])
                     await message.edit(embed=stat_embed)
             else:
@@ -794,14 +773,9 @@ class DatabaseInteraction(commands.Cog):
             print("Updating discord activity")
             total_wine = sum(carrier.wine_total for carrier in all_carrier_data) if all_carrier_data else 0
 
-            guild = await bot.fetch_guild(bot_guild_id())
-            booze_cruise_chat = await guild.fetch_channel(get_primary_booze_discussions_channel())
-            pilot_role = guild.get_role(get_pilot_role_id())
-            channels_open = booze_cruise_chat.permissions_for(pilot_role).view_channel
-
             state_text = (
-                f"Total Wine Tracked: {total_wine}"
-                if channels_open
+                f"Total Wine Tracked: {total_wine:,}"
+                if await bc_channel_status()
                 else "Arrr, the wine be drained, ye thirsty scallywags!"
             )
 
@@ -911,7 +885,10 @@ class DatabaseInteraction(commands.Cog):
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper().strip()
         if not CARRIER_ID_RE.fullmatch(carrier_id):
-            raise CustomError(f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.")
+            raise CustomError(
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
+            )
         # Check if it is in the database already
         pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f"%{carrier_id}%",))
         # Really only expect a single entry here, unique field and all that
@@ -1189,15 +1166,14 @@ class DatabaseInteraction(commands.Cog):
             pirate_steve_db.execute("SELECT * FROM historical WHERE holiday_start = (?)", data)
             all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
 
-        stat_embed = self.build_stat_embed(
+        stat_embed = await self.build_stat_embed(
             all_carrier_data, target_date=target_date, include_not_unloaded=include_not_unloaded
         )
 
         await interaction.edit_original_response(embed=stat_embed)
 
         if cruise_select == 0:
-
-            pinned_stat_embed = self.build_stat_embed(all_carrier_data, None, True)
+            pinned_stat_embed = await self.build_stat_embed(all_carrier_data, None, True)
 
             # Go update all the pinned embeds also.
             pirate_steve_db.execute("""SELECT * FROM pinned_messages""")
@@ -1205,11 +1181,11 @@ class DatabaseInteraction(commands.Cog):
             if pins:
                 print(f"Updating pinned messages: {pins}")
                 for pin in pins:
-                    channel = await bot.fetch_channel(pin["channel_id"])
-                    print(f'Channel matched as: {channel} from {pin["channel_id"]}')
+                    channel = await get_channel(pin["channel_id"])
+                    print(f"Channel matched as: {channel} from {pin['channel_id']}")
                     # Now go loop over every pin and update it
                     message = await channel.fetch_message(pin["message_id"])
-                    print(f'Message matched as: {message} from {pin["message_id"]}')
+                    print(f"Message matched as: {message} from {pin['message_id']}")
                     await message.edit(embed=pinned_stat_embed)
             else:
                 print("No pinned messages up update")
@@ -1235,7 +1211,7 @@ class DatabaseInteraction(commands.Cog):
 
         split_message_link = message_link.split("/")
         channel_id = int(split_message_link[5])
-        channel = bot.get_channel(channel_id)
+        channel = await get_channel(channel_id)
         message_id = int(split_message_link[6])
 
         message = await channel.fetch_message(message_id)
@@ -1303,10 +1279,10 @@ class DatabaseInteraction(commands.Cog):
         all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
         if all_pins:
             for pin in all_pins:
-                channel = bot.get_channel(int(pin["channel_id"]))
+                channel = await get_channel(int(pin["channel_id"]))
                 message = await channel.fetch_message(pin["message_id"])
                 await message.unpin(reason=f"Pirate Steve unpinned at the request of: {interaction.user.name}")
-                print(f'Removed pinned message: {pin["message_id"]}.')
+                print(f"Removed pinned message: {pin['message_id']}.")
             async with pirate_steve_db_lock:
                 print("Writing to the DB the message data to clear the pins")
                 pirate_steve_db.execute(
@@ -1321,7 +1297,7 @@ class DatabaseInteraction(commands.Cog):
 
     @app_commands.command(
         name="booze_unpin_message",
-        description="Unpins a specific message and removes it from the DB. Restricted to Admin and " "Sommelier's.",
+        description="Unpins a specific message and removes it from the DB. Restricted to Admin and Sommelier's.",
     )
     @check_roles([*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id()])
     @describe(message_link="The message link to be unpinned")
@@ -1340,7 +1316,7 @@ class DatabaseInteraction(commands.Cog):
 
         split_message_link = message_link.split("/")
         channel_id = int(split_message_link[5])
-        channel = bot.get_channel(channel_id)
+        channel = await get_channel(channel_id)
         message_id = int(split_message_link[6])
 
         pirate_steve_db.execute(f"SELECT * FROM pinned_messages WHERE message_id = {message_id}")
@@ -1348,10 +1324,10 @@ class DatabaseInteraction(commands.Cog):
         all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
         if all_pins:
             for pin in all_pins:
-                channel = bot.get_channel(int(pin["channel_id"]))
+                channel = await get_channel(int(pin["channel_id"]))
                 message = await channel.fetch_message(pin["message_id"])
                 await message.unpin(reason=f"Pirate Steve unpinned at the request of: {interaction.user.name}")
-                print(f'Removed pinned message: {pin["message_id"]}.')
+                print(f"Removed pinned message: {pin['message_id']}.")
             async with pirate_steve_db_lock:
                 print("Writing to the DB the message data to clear the pins")
 
@@ -1435,7 +1411,7 @@ class DatabaseInteraction(commands.Cog):
             pirate_steve_db.execute("SELECT * FROM historical WHERE holiday_start = (?)", data)
             all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
 
-        stat_embed = self.build_extended_stat_embed(all_carrier_data, target_date, include_not_unloaded, stat)
+        stat_embed = await self.build_extended_stat_embed(all_carrier_data, target_date, include_not_unloaded, stat)
         await interaction.edit_original_response(embed=stat_embed)
 
     @app_commands.command(
@@ -1593,7 +1569,7 @@ class DatabaseInteraction(commands.Cog):
 
         if _production and ph_check():
             await interaction.edit_original_response(
-                content="Pirate Steve thinks there is a party at Rackhams still. Try again once the grog " "runs dry."
+                content="Pirate Steve thinks there is a party at Rackhams still. Try again once the grog runs dry."
             )
             return
 
@@ -1637,8 +1613,8 @@ class DatabaseInteraction(commands.Cog):
         check_embed = discord.Embed(
             title="Validate the request",
             description="You have requested to archive the data in the database with the following:\n"
-            f'**Holiday Start:** {start_date.strftime("%d-%m-%y")} - '
-            f'**Holiday End:** {(start_date + timedelta(days=2)).strftime("%d-%m-%y")}\n'
+            f"**Holiday Start:** {start_date.strftime('%d-%m-%y')} - "
+            f"**Holiday End:** {(start_date + timedelta(days=2)).strftime('%d-%m-%y')}\n"
             f"**Faction State:** {faction_state}\n",
         )
         confirm = ConfirmView(interaction.user)
@@ -2004,9 +1980,9 @@ class DatabaseInteraction(commands.Cog):
 
         # Build the stat embed based on the extended flag
         if not extended:
-            stat_embed = self.build_stat_embed(all_carrier_data, target_date, include_not_unloaded)
+            stat_embed = await self.build_stat_embed(all_carrier_data, target_date, include_not_unloaded)
         else:
-            stat_embed = self.build_extended_stat_embed(all_carrier_data, target_date, include_not_unloaded, stat)
+            stat_embed = await self.build_extended_stat_embed(all_carrier_data, target_date, include_not_unloaded, stat)
 
         # Edit the original interaction response with the stat embed
         await interaction.edit_original_response(embed=stat_embed)

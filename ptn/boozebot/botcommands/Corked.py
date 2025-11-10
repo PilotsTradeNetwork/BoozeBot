@@ -10,11 +10,11 @@ from discord import PermissionOverwrite, app_commands
 from discord.ext import commands
 from ptn.boozebot.classes.CorkedUser import CorkedUser
 from ptn.boozebot.constants import (
-    get_booze_cruise_signups_channel, get_public_channel_list, get_steve_says_channel, get_wine_status_channel,
-    server_council_role_ids, server_mod_role_id
+    get_booze_cruise_signups_channel, get_booze_guide_channel_id, get_public_channel_list, get_steve_says_channel,
+    get_wine_carrier_guide_channel_id, get_wine_status_channel, server_council_role_ids, server_mod_role_id
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel
 from ptn.boozebot.modules.pagination import createPagination
 
 """
@@ -29,6 +29,13 @@ CLEANER COMMANDS
 class Corked(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    CORK_CHANNELS = get_public_channel_list() + [
+        get_booze_cruise_signups_channel(),
+        get_wine_status_channel(),
+        get_booze_guide_channel_id(),
+        get_wine_carrier_guide_channel_id(),
+    ]
 
     """
     This class handles corking and uncorking users
@@ -65,15 +72,12 @@ class Corked(commands.Cog):
             print(f"User {user} is already corked")
             await interaction.followup.send(f"User {user.mention} ({user.name}) is already corked.")
             return
-
-        channels_to_hide = get_public_channel_list() + [get_booze_cruise_signups_channel(), get_wine_status_channel()]
-
         overwrite = PermissionOverwrite()
         overwrite.view_channel = False
 
         try:
-            for channel_id in channels_to_hide:
-                channel = await self.bot.fetch_channel(channel_id)
+            for channel_id in self.CORK_CHANNELS:
+                channel = await get_channel(channel_id)
                 await channel.set_permissions(
                     user, overwrite=overwrite, reason="User corked from booze cruise channels"
                 )
@@ -125,11 +129,9 @@ class Corked(commands.Cog):
             await interaction.followup.send(f"User {user.mention} ({user.name}) is not corked.")
             return
 
-        channels_to_show = get_public_channel_list() + [get_booze_cruise_signups_channel(), get_wine_status_channel()]
-
         try:
-            for channel_id in channels_to_show:
-                channel = await self.bot.fetch_channel(channel_id)
+            for channel_id in self.CORK_CHANNELS:
+                channel = await get_channel(channel_id)
                 await channel.set_permissions(user, overwrite=None, reason="User uncorked for booze cruise channels")
 
         except discord.DiscordException as e:
@@ -176,8 +178,8 @@ class Corked(commands.Cog):
 
         corked_user_data = [
             (
-                user.get_member().name,
-                f"{user.get_member().mention} Corked at {user.timestamp}",
+                (await user.get_member()).name,
+                f"{(await user.get_member()).mention} Corked at {user.timestamp}",
             )
             for user in corked_users
         ]
