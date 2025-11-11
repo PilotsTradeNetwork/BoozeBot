@@ -290,7 +290,7 @@ class DatabaseInteraction(commands.Cog):
                     try:
                         pirate_steve_db.execute(
                             """ 
-                        INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL) 
+                        INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL) 
                         """,
                             (
                                 carrier_data.carrier_name,
