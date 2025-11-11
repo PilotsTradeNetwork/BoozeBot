@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.1.1a
+-    \#663 - db insertion hotfix (conshmea)
+
 ## 2.1.1
 -    \#650 - Commas in activity status (conshmea)
 -    \#647 - Cork the guides (conshmea)
