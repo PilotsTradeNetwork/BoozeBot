@@ -3,11 +3,11 @@ Cog for unloading related commands
 
 """
 
-import logging
 # libraries
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Literal
+from loguru import logger
 
 # discord.py
 import discord
@@ -53,33 +53,40 @@ class Departures(commands.Cog):
         try:
             departure_channel = await get_channel(get_departure_announcement_channel())
         except Exception as e:
-            logging.exception(f"Failed to get departure_channel: {e}")
+            logger.exception(f"Failed to get departure_channel: {e}")
 
-        print("Checking for completed departure messages.")
+        logger.info("Checking for completed departure messages.")
         try:
             async for message in departure_channel.history(limit=100):
+                logger.debug(f"Processing message ID: {message.id} in departure channel.")
                 try:
                     if message.pinned:
+                        logger.debug(f"Message ID: {message.id} is pinned, skipping.")
                         continue
 
                     if message.author.id != bot.user.id:
+                        logger.debug(f"Message ID: {message.id} not authored by bot, skipping.")
                         continue
 
                     for reaction in message.reactions:
                         if reaction.emoji == "✅":
+                            logger.debug(f"Message ID: {message.id} has ✅ reaction, checking users.")
                             async for user in reaction.users():
                                 if self.get_departure_author_id(message) == user.id:
+                                    logger.info(f"Removing departure message ID: {message.id} for user ID: {user.id}.")
                                     await self.handle_reaction(reaction.message, user)
                 except Exception as e:
-                    print(
+                    logger.exception(
                         f"Failed to process departure message while checking for closing. message: {message.id}. Error: {e}"
                     )
         except Exception as e:
-            logging.exception(f"Failed to get departure_channel history: {e}")
+            logger.exception(f"Failed to get departure_channel history: {e}")
 
-        print("Starting the departure message checker")
+        logger.info("Starting the departure message checker")
         if not self.check_departure_messages_loop.is_running():
             self.check_departure_messages_loop.start()
+        else:
+            logger.debug("Departure message checker already running.")
 
     # On reaction check if its in the departures channel and if it was from who posted the departure, if it is remove it.
     @commands.Cog.listener()
@@ -96,6 +103,8 @@ class Departures(commands.Cog):
             channel = await get_channel(reaction_event.channel_id)
             message = await channel.fetch_message(reaction_event.message_id)
 
+            logger.debug(f"Processing reaction {reaction_event.emoji} on message ID: {message.id} by user ID: {user.id}")
+
             if message.pinned:
                 return
 
@@ -110,7 +119,7 @@ class Departures(commands.Cog):
 
             await self.handle_reaction(message, user)
         except Exception as e:
-            print(f"Failed to process reaction: {reaction_event}. Error: {e}")
+            logger.exception(f"Failed to process reaction: {reaction_event}. Error: {e}")
 
     @tasks.loop(minutes=5)
     @track_last_run()
@@ -118,7 +127,7 @@ class Departures(commands.Cog):
         departure_channel = await get_channel(get_departure_announcement_channel())
         wine_carrier_chat = await get_channel(get_wine_carrier_channel())
 
-        print("Checking for passed departure messages.")
+        logger.info("Checking for passed departure messages.")
         async for message in departure_channel.history(limit=100):
             try:
                 if message.pinned:
@@ -130,7 +139,7 @@ class Departures(commands.Cog):
                 if len(message.embeds) > 0:
                     continue
 
-                print("Departure message found.")
+                logger.info("Departure message found.")
 
                 has_reacted = False
                 for reaction in message.reactions:
@@ -141,7 +150,7 @@ class Departures(commands.Cog):
                                 break
 
                 if has_reacted:
-                    print("Departure message has been responded to.")
+                    logger.info("Departure message has been responded to.")
                     continue
 
                 content = message.content
@@ -155,25 +164,25 @@ class Departures(commands.Cog):
                 try:
                     departure_time = int(departure_time)
                 except ValueError:
-                    print(
+                    logger.exception(
                         f"Departure time was not an integer: {departure_time}, Probably means they never set a departure time."
                     )
                     continue
 
-                print(f"Departure time: {departure_time}")
+                logger.info(f"Departure time: {departure_time}")
 
                 if int(time.time()) > departure_time + 10 * 60:  # Allow a 10-minute grace period
-                    print("Departure time has passed.")
+                    logger.info("Departure time has passed.")
                     author_id = self.get_departure_author_id(message)
                     if author_id:
-                        print(f"Responding to departure message from {author_id}.")
+                        logger.info(f"Notifying user with id: {author_id} in WCO chat.")
                         await message.add_reaction("⏲️")
                         await wine_carrier_chat.send(
                             f"<@{author_id}> your scheduled departure time of <t:{departure_time}:F> has passed. If your carrier has entered lockdown or completed its jump, please use the ✅ reaction under your notice to remove it. {message.jump_url}"
                         )
 
             except Exception as e:
-                print(
+                logger.exception(
                     f"Failed to process departure message while checking for time passed. message: {message.id}. Error: {e}"
                 )
 
@@ -217,8 +226,7 @@ class Departures(commands.Cog):
             departing_in (str, optional): The time in minutes until the carrier departs. Defaults to None.
         """
 
-        # Log the request
-        print(
+        logger.info(
             f"User {interaction.user.name} has requested a new wine carrier departure operation for carrier: {carrier_id} from the "
             f"location: {departure_location} to {arrival_location}."
         )
@@ -236,7 +244,7 @@ class Departures(commands.Cog):
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
             )
-            print(msg)
+            logger.info(msg)
             await interaction.edit_original_response(content=msg)
             await steve_says_channel.send(
                 f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
@@ -250,7 +258,7 @@ class Departures(commands.Cog):
         # Check if carrier data was found
         if not carrier_data:
             msg = f'could not find a carrier for the data: "{carrier_id}".'
-            print(msg)
+            logger.info(msg)
             await interaction.edit_original_response(content=f"Sorry, we {msg}")
             await steve_says_channel.send(
                 f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
@@ -278,7 +286,7 @@ class Departures(commands.Cog):
         if (departing_at and departing_at.lower() in thoon_inputs) or (
             departing_in and departing_in.lower() in thoon_inputs
         ):
-            print("Thoon given as departure time")
+            logger.info("Departure time set to Thoon.")
         # Handle departure time if provided as a timestamp
         elif departing_at:
             try:
@@ -288,7 +296,7 @@ class Departures(commands.Cog):
                 departure_timestamp = int(departure_timestamp)
             except ValueError:
                 msg = f"Departure time was not a valid timestamp: {departing_at}"
-                print(msg)
+                logger.info(msg)
                 await interaction.edit_original_response(
                     content=f"{msg}. You can use <https://hammertime.cyou> to generate them."
                 )
@@ -303,7 +311,7 @@ class Departures(commands.Cog):
             max_timestamp = now + 60 * 60 * 24 * 14  # 14 days in the future
             if not (min_timestamp < departure_timestamp < max_timestamp):
                 msg = f"Departure time must be within 2 weeks of now: {departing_at}"
-                print(msg)
+                logger.info(msg)
                 await interaction.edit_original_response(content=msg)
                 await steve_says_channel.send(
                     f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
@@ -316,7 +324,7 @@ class Departures(commands.Cog):
                 departure_timestamp = float(departing_in)
             except ValueError:
                 msg = f"Departing in was not a valid number: {departing_in}"
-                print(msg)
+                logger.info(msg)
                 await interaction.edit_original_response(
                     content=f"{msg}. It should be the number of minutes until your carrier departs."
                 )
@@ -357,28 +365,32 @@ class Departures(commands.Cog):
         is_thoon_trip = departure_system_index in thoon_systems or arrival_system_index in thoon_systems
         if is_thoon_trip and departing_thoon:
             departure_time_text = f" {await get_emoji(get_thoon_emoji_id())} |"
+            
+        logger.debug(f"Departure system index: {departure_system_index}, Arrival system index: {arrival_system_index}, "
+                     f"is_hitchhiking_trip: {is_hitchhiking_trip}, is_thoon_trip: {is_thoon_trip}, "
+                     f"departing_thoon: {departing_thoon}")
 
         hitchhiker_ping_text = ""
         # Set the direction arrow text and determine if hitchhiker ping is needed
         if departure_system_index == arrival_system_index:
             msg = "Departure and arrival are the same system."
-            print(msg)
+            logger.info(msg)
             await interaction.edit_original_response(content=msg)
             await steve_says_channel.send(
                 f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
             )
             return
         elif departure_system_index < arrival_system_index:
-            print("Departure system is above arrival system.")
+            logger.info("Departure system is above arrival system.")
             direction_arrow = "⬇️"
         elif departure_system_index > arrival_system_index:
-            print("Departure system is below arrival system.")
+            logger.info("Departure system is below arrival system.")
             direction_arrow = "⬆️"
             if is_hitchhiking_trip:
-                print("Departure needs hitchhiker ping.")
+                logger.info("Departure needs hitchhiker ping.")
                 hitchhiker_ping_text = f"| <@&{str(server_hitchhiker_role_id())}>"
         else:
-            print("Failed to determine direction arrow.")
+            logger.info("Failed to determine direction arrow.")
             direction_arrow = ""
 
         # Check if departure announcements are enabled
@@ -388,7 +400,7 @@ class Departures(commands.Cog):
         elif settings.get_setting("departure_announcement_status") == "Upwards" and direction_arrow == "⬇️":
             msg = "Departure announcements are currently only enabled for jumps moving up towards N0"
         if msg:
-            print(msg)
+            logger.info(msg)
             await interaction.edit_original_response(content=msg)
             await steve_says_channel.send(
                 f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
@@ -403,7 +415,7 @@ class Departures(commands.Cog):
         departure_message = await departure_channel.send(departure_message_text)
         await departure_message.add_reaction("🛬")
         await departure_message.add_reaction("✅")
-        print("Departure message sent.")
+        logger.info(f"Departure message sent for carrier {carrier_name} ({carrier_id}).")
 
         # Edit the original interaction response with the jump URL of the departure message
         await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
@@ -427,11 +439,12 @@ class Departures(commands.Cog):
         # Log the request
         steve_says_channel = await get_channel(get_steve_says_channel())
         msg = f"requested to set the departure announcement status to: '{status}'."
-        print(f"{interaction.user.name} {msg}")
+        logger.info(f"{interaction.user.name} {msg}")
         await steve_says_channel.send(f"{interaction.user.mention} {msg}", silent=True)
         # Set the departure announcement status
         settings.set_setting("departure_announcement_status", status)
         # Send the response message
+        logger.info(f"Departure announcements are now '{status}'.")
         await interaction.edit_original_response(content=f"Departure announcements are now '{status}'.")
 
     async def official_departure_name_autocomplete(
@@ -489,7 +502,7 @@ class Departures(commands.Cog):
         departure_time_type: str,
         departure_timestamp: str = "",
     ):
-        print(
+        logger.info(
             f"User {interaction.user.name} has requested an official carrier departure for carrier: {carrier_id} from {departure_location} to {arrival_location} with type: {departure_time_type}."
         )
         await interaction.response.defer()
@@ -503,7 +516,7 @@ class Departures(commands.Cog):
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
             )
-            print(msg)
+            logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
 
@@ -514,7 +527,7 @@ class Departures(commands.Cog):
         # Check if carrier data was found
         if not carrier_data:
             msg = f'could not find a carrier for the data: "{carrier_id}".'
-            print(msg)
+            logger.info(msg)
             await interaction.edit_original_response(content=f"Sorry, we {msg}")
             return
 
@@ -526,11 +539,13 @@ class Departures(commands.Cog):
 
         departure_location = f"{departure_location} ({N_SYSTEMS[departure_location]})"
         arrival_location = f"{arrival_location} ({N_SYSTEMS[arrival_location]})"
-
+        
+        logger.debug(f"Departure location: {departure_location}, Arrival location: {arrival_location}")
+        
         async def validate_timestamp(timestamp: str) -> int | None:
             if not timestamp:
                 msg = "You must provide a departure timestamp when using the 'Custom' departure time type."
-                print(msg)
+                logger.info(msg)
                 await interaction.edit_original_response(content=msg)
                 return None
 
@@ -540,17 +555,17 @@ class Departures(commands.Cog):
                 timestamp = int(timestamp)
                 if timestamp < datetime.now(timezone.utc).timestamp():
                     msg = f"Departure timestamp must be in the future: {timestamp}"
-                    print(msg)
+                    logger.info(msg)
                     await interaction.edit_original_response(content=msg)
                     return None
                 elif timestamp > (datetime.now(timezone.utc) + timedelta(days=7)).timestamp():
                     msg = f"Departure timestamp must be within 1 week of now: {timestamp}"
-                    print(msg)
+                    logger.info(msg)
                     await interaction.edit_original_response(content=msg)
                     return None
             except ValueError:
                 msg = f"Departure timestamp was not a valid integer: {timestamp}"
-                print(msg)
+                logger.info(msg)
                 await interaction.edit_original_response(content=msg)
                 return None
 
@@ -562,11 +577,13 @@ class Departures(commands.Cog):
             departure_time_text = "Departs when the public holiday ends at Rackham's Peak"
         elif departure_time_type == "Custom (requires timestamp)":
             timestamp = await validate_timestamp(departure_timestamp)
+            logger.debug(f"Validated timestamp: {timestamp}")
             if timestamp is None:
                 return
             departure_time_text = f"Departs <t:{timestamp}:f> (<t:{timestamp}:R>)"
         elif departure_time_type == "Pre-PH (requires timestamp)":
             timestamp = await validate_timestamp(departure_timestamp)
+            logger.debug(f"Validated timestamp: {timestamp}")
             if timestamp is None:
                 return
             departure_time_text = f"Departs any time after <t:{timestamp}:f> (<t:{timestamp}:R>) or immediately if the public holiday is announced at Rackham’s Peak."
@@ -585,6 +602,7 @@ class Departures(commands.Cog):
         departure_channel = await get_channel(get_departure_announcement_channel())
 
         # Check for existing departure message
+        logger.debug("Checking for existing official departure message.")
         existing_departure_message = None
         if carrier_data.discord_departure_message_id:
             try:
@@ -595,6 +613,7 @@ class Departures(commands.Cog):
                 existing_departure_message = None
 
         if existing_departure_message:
+            logger.info("Existing official departure message found, prompting for edit confirmation.")
             check_embed = discord.Embed(
                 title="Existing Official Departure Message Found",
                 description="Do you want to edit the existing official departure message?",
@@ -602,11 +621,17 @@ class Departures(commands.Cog):
             confirm = ConfirmView(interaction.user)
             await interaction.edit_original_response(embed=check_embed, view=confirm)
             await confirm.wait()
+            
+            logger.debug(f"Confirmation result: {confirm.value}")
+            
             if not confirm.value:
+                logger.info("Official departure edit cancelled by user.")
                 await interaction.edit_original_response(
                     content="Official departure edit cancelled.", embed=None, view=None
                 )
                 return
+            
+            logger.info("Editing existing official departure message.")
             await existing_departure_message.edit(embed=embed)
             await interaction.edit_original_response(
                 content=f"Official carrier departure message edited: {existing_departure_message.jump_url}",
@@ -614,24 +639,32 @@ class Departures(commands.Cog):
                 view=None,
             )
         else:
+            logger.info("Sending new official departure message.")
+            
             departure_message = await departure_channel.send(embed=embed)
             await departure_message.add_reaction("🛬")
             await interaction.edit_original_response(
                 content=f"Official carrier departure message sent: {departure_message.jump_url}"
             )
+            logger.debug("Updating carrier record with new departure message ID.")
             async with pirate_steve_db_lock:
                 pirate_steve_db.execute(
                     "UPDATE boozecarriers SET discord_departure_message_id = ? WHERE carrierid = ?",
                     (departure_message.id, carrier_id),
                 )
                 pirate_steve_conn.commit()
+            logger.info("Official departure message posted successfully.")
 
     def get_departure_author_id(self, message):
+        logger.debug(f"Getting departure author ID from message: {message.id}")
         try:
-            return int(message.content.split("<@")[1].split(">")[0])
+            id = int(message.content.split("<@")[1].split(">")[0])
+            logger.debug(f"Found departure author ID: {id}")
+            return id
         except IndexError:
+            logger.debug("Failed to get departure author ID from message content.")
             return None
 
     async def handle_reaction(self, message, user):
-        print(f"User {user.name} reacted to their departure in {message.channel.name} removing.")
+        logger.info(f"User {user.name} reacted to their departure in {message.channel.name} removing.")
         await message.delete()
