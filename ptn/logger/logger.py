@@ -44,5 +44,6 @@ class Logger(commands.Cog):
         logger.info(f"Logging level set to {log_level.name}")
         await interaction.response.send_message(f"Logging level set to {log_level.name}", ephemeral=True)
 
+
 # Setup logging when the module is imported
 setup_logging()

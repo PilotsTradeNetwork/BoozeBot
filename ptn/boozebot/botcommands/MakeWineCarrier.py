@@ -5,12 +5,12 @@ Cog for granting and removing the wine carrier role
 
 import asyncio
 import random
-from loguru import logger
 
 import discord
 from discord import app_commands
 from discord.app_commands import describe
 from discord.ext import commands
+from loguru import logger
 from ptn.boozebot.constants import (
     WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot_spam_channel, get_steve_says_channel, get_wine_carrier_channel,
     server_connoisseur_role_id, server_council_role_ids, server_mod_role_id, server_sommelier_role_id,
@@ -71,7 +71,7 @@ class MakeWineCarrier(commands.Cog):
     @check_command_channel(get_steve_says_channel())
     async def remove_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
         await interaction.response.defer()
-        
+
         logger.info(
             f"remove_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to remove the Wine Carrier role"
         )
@@ -85,7 +85,7 @@ class MakeWineCarrier(commands.Cog):
 
             # Refetch the user from the interaction inside the lock
             user = await get_member(user.id)
-            
+
             logger.debug(f"Refetched user: {user}")
 
             if wc_role in user.roles:
@@ -94,7 +94,7 @@ class MakeWineCarrier(commands.Cog):
                 try:
                     await user.remove_roles(wc_role)
                     logger.info(f"Removed Wine Carrier role from {user}")
-                    
+
                     response = f"{user.mention} ({user.name}) no longer has the {wc_role.name} role."
                     await interaction.edit_original_response(content=response)
                     bot_spam = await get_channel(bot_spam_channel())
@@ -134,7 +134,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
             (str(user.id),),
         )
         result = pirate_steve_db.fetchone()
-        
+
         logger.debug(f"Corked user query result: {dict(result) if result else result}")
 
         if result:
@@ -162,7 +162,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
                 # Open the file in read mode.
                 with open(WELCOME_MESSAGE_FILE_PATH, "r", encoding="utf-8") as file:
                     wine_welcome_message = file.read()  # read contents to variable
-                    
+
                 logger.debug(f"Welcome message file read successfully. \n {wine_welcome_message}")
 
                 wine_channel = await get_channel(get_wine_carrier_channel())

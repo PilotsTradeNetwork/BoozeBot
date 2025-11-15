@@ -5,12 +5,12 @@ Cog for PH check commands and loop
 
 import random
 from datetime import datetime, timedelta, timezone
-from loguru import logger
 
 import discord
 from discord import NotFound, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
+from loguru import logger
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.constants import (
     get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel, holiday_ended_gif,
@@ -96,7 +96,9 @@ class PublicHoliday(commands.Cog):
             start_time = datetime.strptime(dict(timestamp).get("timestamp"), "%Y-%m-%d %H:%M:%S")
             end_time = start_time + timedelta(hours=48)
 
-            current_time_utc = datetime.strptime(datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), "%Y-%m-%d %H:%M:%S")
+            current_time_utc = datetime.strptime(
+                datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), "%Y-%m-%d %H:%M:%S"
+            )
 
             logger.debug(f"Current time UTC: {current_time_utc}, holiday end time: {end_time}")
 
@@ -222,7 +224,7 @@ class PublicHoliday(commands.Cog):
         # Check if we had a holiday flagged already
         holiday_ongoing = ph_check()
         logger.debug(f"Holiday state from database: {holiday_ongoing}")
-        
+
         if holiday_ongoing:
             logger.info("Holiday is ongoing, updating the timestamp.")
 
@@ -253,7 +255,7 @@ class PublicHoliday(commands.Cog):
     )
     async def remaining_time(self, interaction: discord.Interaction):
         logger.info(f"User {interaction.user.name} requested remaining holiday duration.")
-        
+
         await interaction.response.defer()
         if not ph_check():
             logger.info("Holiday not ongoing, cannot calculate remaining duration.")
@@ -274,8 +276,8 @@ class PublicHoliday(commands.Cog):
         start_time = datetime.strptime(dict(timestamp).get("timestamp"), "%Y-%m-%d %H:%M:%S")
         end_time = start_time + timedelta(hours=duration_hours)
         end_timestamp = int(end_time.timestamp())
-        
-        logger.info(f"Sending remaining duration response with end time: {end_time}.")        
+
+        logger.info(f"Sending remaining duration response with end time: {end_time}.")
         await interaction.edit_original_response(
             content=f"Pirate Steve thinks the holiday will end around <t:{end_timestamp}> (<t:{end_timestamp}:R>) [local timezone]."
         )

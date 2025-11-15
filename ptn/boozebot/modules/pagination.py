@@ -1,7 +1,7 @@
 import asyncio
-from loguru import logger
 
 import discord
+from loguru import logger
 from ptn.boozebot.constants import bot
 
 
@@ -85,11 +85,11 @@ async def createPagination(
 
             elif str(reaction.emoji) == "◀️":
                 if current_page == 1:
-                    logger.debug(f"{interaction.user.name} requested to go back a page but was on the first page.")                    
+                    logger.debug(f"{interaction.user.name} requested to go back a page but was on the first page.")
                     await message.remove_reaction(reaction, user)
                     continue
 
-                logger.debug(f"{interaction.user.name} requested to go back a page.")                
+                logger.debug(f"{interaction.user.name} requested to go back a page.")
                 current_page -= 1
 
                 await message.edit(content=None, embed=createPageEmbed())

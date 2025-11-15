@@ -4,11 +4,11 @@ Cog for all the commands related to
 """
 
 from datetime import datetime, timezone
-from loguru import logger
 
 import discord
 from discord import PermissionOverwrite, app_commands
 from discord.ext import commands
+from loguru import logger
 from ptn.boozebot.classes.CorkedUser import CorkedUser
 from ptn.boozebot.constants import (
     get_booze_cruise_signups_channel, get_booze_guide_channel_id, get_public_channel_list, get_steve_says_channel,
@@ -70,7 +70,7 @@ class Corked(commands.Cog):
                 (str(user.id),),
             )
             result = pirate_steve_db.fetchone()
-            
+
         logger.debug(f"Database check complete for user {user}. Result: {result}")
 
         if result:
@@ -89,7 +89,7 @@ class Corked(commands.Cog):
                 await channel.set_permissions(
                     user, overwrite=overwrite, reason="User corked from booze cruise channels"
                 )
-                
+
             logger.info(f"User {user} successfully corked from booze cruise channels.")
 
         except discord.DiscordException as e:
@@ -106,7 +106,7 @@ class Corked(commands.Cog):
                 (str(user.id), timestamp),
             )
             pirate_steve_conn.commit()
-            
+
         logger.info(f"User {user} has been successfully corked.")
 
         await interaction.followup.send(
@@ -136,7 +136,7 @@ class Corked(commands.Cog):
                 (str(user.id),),
             )
             result = pirate_steve_db.fetchone()
-            
+
         logger.debug(f"Database check complete for user {user}. Result: {result}")
 
         if not result:

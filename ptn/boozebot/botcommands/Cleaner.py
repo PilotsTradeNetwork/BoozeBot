@@ -5,11 +5,11 @@ Cog for all the commands related to
 
 from asyncio import TimeoutError
 from datetime import datetime, timezone
-from loguru import logger
 
 import discord
 from discord import app_commands
 from discord.ext import commands
+from loguru import logger
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import (
@@ -69,7 +69,9 @@ class Cleaner(commands.Cog):
         :param Interaction interaction: The discord interaction context.
         :returns: A discord embed
         """
-        logger.info(f"User {interaction.user.name} requested BC channel opening in channel: {interaction.channel.name}. Sending confirmation view.")
+        logger.info(
+            f"User {interaction.user.name} requested BC channel opening in channel: {interaction.channel.name}. Sending confirmation view."
+        )
 
         await interaction.response.defer()
         check_embed = discord.Embed(
@@ -78,9 +80,9 @@ class Cleaner(commands.Cog):
         confirm = ConfirmView(interaction.user)
         await interaction.edit_original_response(embed=check_embed, view=confirm)
         await confirm.wait()
-        
+
         logger.info(f"User {interaction.user.name} responded to confirmation view with: {confirm.value}")
-        
+
         if confirm.value:
             logger.info(f"User {interaction.user.name} accepted the request to open channels.")
             ids_list = get_public_channel_list()
@@ -134,7 +136,9 @@ class Cleaner(commands.Cog):
         :param Interaction interaction: The discord interaction context.
         :returns: A discord embed
         """
-        logger.info(f"User {interaction.user.name} requested BC channel closing in channel: {interaction.channel.name}. Sending confirmation view.")
+        logger.info(
+            f"User {interaction.user.name} requested BC channel closing in channel: {interaction.channel.name}. Sending confirmation view."
+        )
 
         await interaction.response.defer()
         check_embed = discord.Embed(
@@ -143,9 +147,9 @@ class Cleaner(commands.Cog):
         confirm = ConfirmView(interaction.user)
         await interaction.edit_original_response(embed=check_embed, view=confirm)
         await confirm.wait()
-        
+
         logger.info(f"User {interaction.user.name} responded to confirmation view with: {confirm.value}")
-        
+
         if confirm.value:
             logger.info(f"User {interaction.user.name} accepted the request to close channels.")
             ids_list = get_public_channel_list()
@@ -154,7 +158,7 @@ class Cleaner(commands.Cog):
             pilot_role = await get_role(server_pilot_role_id())
             channels = dict.fromkeys(ids_list, pilot_role)
             channels[get_wine_carrier_guide_channel_id()] = await get_role(get_ptn_booze_cruise_role_id())
-            
+
             logger.info("Closing Booze Cruise channels to the public.")
 
             for channel_id, role in channels.items():
@@ -171,7 +175,7 @@ class Cleaner(commands.Cog):
 
             logger.info("Updating status embed to 'bc_end'.")
             await self.update_status_embed("bc_end")
-            
+
             logger.info("Booze Cruise channels closed successfully.")
             await interaction.edit_original_response(
                 content=f"<@&{server_sommelier_role_id()}> That's the end of that, me hearties.", embed=embed, view=None
@@ -203,7 +207,7 @@ class Cleaner(commands.Cog):
         logger.info(
             f"User {interaction.user.name} requested clearing all Booze related roles in channel: {interaction.channel.name}. Sending confirmation view."
         )
-        
+
         await interaction.response.defer()
         check_embed = discord.Embed(
             title="Remove Booze Cruise Roles", description="You have requested to clear all Booze related roles"
@@ -211,9 +215,9 @@ class Cleaner(commands.Cog):
         confirm = ConfirmView(interaction.user)
         await interaction.edit_original_response(embed=check_embed, view=confirm)
         await confirm.wait()
-        
+
         logger.info(f"User {interaction.user.name} responded to confirmation view with: {confirm.value}")
-        
+
         if confirm.value:
             logger.info(f"User {interaction.user.name} accepted the request to clear booze roles.")
             wine_role_id = server_wine_carrier_role_id()
@@ -228,7 +232,7 @@ class Cleaner(commands.Cog):
                 content="Removing roles, This may take a minute...", embed=None, view=None
             )
             logger.debug("Beginning role removal process.")
-            
+
             try:
                 for member in wine_carrier_role.members:
                     logger.debug(f"Removing {wine_carrier_role} from member: {member.name}")
@@ -249,7 +253,9 @@ class Cleaner(commands.Cog):
                         logger.exception(f"Unable to remove {hitch_role} from {member}: {e}")
                         await interaction.channel.send(f"Unable to remove {hitch_role} from {member}")
 
-                logger.info(f"Role removal process completed successfully. Removed {hitch_count} Hitchhiker roles and {wine_count} Wine Carrier roles.")
+                logger.info(
+                    f"Role removal process completed successfully. Removed {hitch_count} Hitchhiker roles and {wine_count} Wine Carrier roles."
+                )
                 await interaction.edit_original_response(
                     content=f"Successfully removed {hitch_count} users from the Hitchhiker role.\n"
                     f"Successfully removed {wine_count} users from the Wine Carrier role.",
@@ -286,7 +292,9 @@ class Cleaner(commands.Cog):
 
         response_timeout = 20
 
-        logger.info(f"Prompting user {interaction.user.name} to provide new {blurb} message within {response_timeout} seconds.")
+        logger.info(
+            f"Prompting user {interaction.user.name} to provide new {blurb} message within {response_timeout} seconds."
+        )
         await interaction.response.send_message(
             f"Existing message: ```\n{blurb_message}\n```\n"
             f"<@{interaction.user.id}> your next message in this channel will be used as the new {blurb} message, "
@@ -294,7 +302,7 @@ class Cleaner(commands.Cog):
         )
 
         def check(response):
-            valid =  response.author == interaction.user and response.channel == interaction.channel
+            valid = response.author == interaction.user and response.channel == interaction.channel
             if not valid:
                 logger.debug(f"Ignored message from {response.author.name} in channel {response.channel.name}.")
             return valid
@@ -305,7 +313,9 @@ class Cleaner(commands.Cog):
             message = await bot.wait_for("message", check=check, timeout=response_timeout)
 
         except TimeoutError:
-            logger.info(f"User {interaction.user.name} did not provide a new {blurb} message within the timeout period.")
+            logger.info(
+                f"User {interaction.user.name} did not provide a new {blurb} message within the timeout period."
+            )
             return await interaction.edit_original_response(content="No valid response detected.")
 
         if message:
@@ -336,7 +346,7 @@ class Cleaner(commands.Cog):
         overwrite = discord.PermissionOverwrite(view_channel=True)
 
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
-        
+
         logger.info("Wine Carrier feedback channel opened successfully.")
         await interaction.response.send_message("Opened the Wine Carrier feedback channel.", embed=None)
 
@@ -353,7 +363,7 @@ class Cleaner(commands.Cog):
         overwrite = discord.PermissionOverwrite(view_channel=False)
 
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
-        
+
         logger.info("Wine Carrier feedback channel closed successfully.")
         await interaction.response.send_message("Closed the Wine Carrier feedback channel.", embed=None)
 

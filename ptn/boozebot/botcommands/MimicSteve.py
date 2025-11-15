@@ -1,15 +1,10 @@
-from loguru import logger
-
-# discord.py
 import discord
 from discord import app_commands
 from discord.ext import commands
-
-# local constants
+from loguru import logger
 from ptn.boozebot.constants import (
     get_steve_says_channel, server_council_role_ids, server_mod_role_id, server_sommelier_role_id
 )
-# local modules
 from ptn.boozebot.modules.helpers import check_roles, get_channel
 
 """
@@ -33,19 +28,16 @@ class MimicSteve(commands.Cog):
     async def reply_as_steve(self, interaction: discord.Interaction, reply_message: discord.Message):
         class ReplyModal(discord.ui.Modal, title="Reply as PirateSteve"):
             message = discord.ui.TextInput(label="Message", style=discord.TextStyle.long)
-            
+
             logger.debug(f"Modal for {interaction.user.name} to reply as PirateSteve opened.")
 
             async def on_submit(self, interaction: discord.Interaction):
-                
                 logger.debug(f"User {interaction.user.name} submitted a reply as PirateSteve: {self.message.value}.")
-                
+
                 await interaction.response.send_message("Replying as PirateSteve...", ephemeral=True)
                 await MimicSteve._steve_speak(interaction, self.message.value, reply_message=reply_message)
 
-        logger.info(
-            f"User {interaction.user.name} has requested to reply as PirateSteve to: {reply_message.jump_url}."
-        )
+        logger.info(f"User {interaction.user.name} has requested to reply as PirateSteve to: {reply_message.jump_url}.")
         await interaction.response.send_modal(ReplyModal())
 
     """
@@ -69,12 +61,12 @@ class MimicSteve(commands.Cog):
         :param TextChannel send_channel: The channel for the bot to send the message to.
         :returns: 2 discord messages, 1 in the channel it is run and 1 as the output.
         """
-        
+
         logger.info(
             f"User {interaction.user.name} has requested to send the message {message} as PirateSteve "
             f"in: {send_channel}."
         )
-        
+
         if not send_channel:
             logger.debug("No send_channel provided, using the interaction channel.")
             send_channel = interaction.channel

@@ -3,27 +3,22 @@ Cog for unloading related commands
 
 """
 
-# libraries
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Literal
-from loguru import logger
 
-# discord.py
 import discord
 from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
-# local classes
+from loguru import logger
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
-# local constants
 from ptn.boozebot.constants import (
     CARRIER_ID_RE, N_SYSTEMS, bot, get_departure_announcement_channel, get_steve_says_channel, get_thoon_emoji_id,
     get_wine_carrier_channel, server_connoisseur_role_id, server_council_role_ids, server_hitchhiker_role_id,
     server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-# local modules
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_emoji, track_last_run
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView
@@ -103,7 +98,9 @@ class Departures(commands.Cog):
             channel = await get_channel(reaction_event.channel_id)
             message = await channel.fetch_message(reaction_event.message_id)
 
-            logger.debug(f"Processing reaction {reaction_event.emoji} on message ID: {message.id} by user ID: {user.id}")
+            logger.debug(
+                f"Processing reaction {reaction_event.emoji} on message ID: {message.id} by user ID: {user.id}"
+            )
 
             if message.pinned:
                 return
@@ -365,10 +362,12 @@ class Departures(commands.Cog):
         is_thoon_trip = departure_system_index in thoon_systems or arrival_system_index in thoon_systems
         if is_thoon_trip and departing_thoon:
             departure_time_text = f" {await get_emoji(get_thoon_emoji_id())} |"
-            
-        logger.debug(f"Departure system index: {departure_system_index}, Arrival system index: {arrival_system_index}, "
-                     f"is_hitchhiking_trip: {is_hitchhiking_trip}, is_thoon_trip: {is_thoon_trip}, "
-                     f"departing_thoon: {departing_thoon}")
+
+        logger.debug(
+            f"Departure system index: {departure_system_index}, Arrival system index: {arrival_system_index}, "
+            f"is_hitchhiking_trip: {is_hitchhiking_trip}, is_thoon_trip: {is_thoon_trip}, "
+            f"departing_thoon: {departing_thoon}"
+        )
 
         hitchhiker_ping_text = ""
         # Set the direction arrow text and determine if hitchhiker ping is needed
@@ -539,9 +538,9 @@ class Departures(commands.Cog):
 
         departure_location = f"{departure_location} ({N_SYSTEMS[departure_location]})"
         arrival_location = f"{arrival_location} ({N_SYSTEMS[arrival_location]})"
-        
+
         logger.debug(f"Departure location: {departure_location}, Arrival location: {arrival_location}")
-        
+
         async def validate_timestamp(timestamp: str) -> int | None:
             if not timestamp:
                 msg = "You must provide a departure timestamp when using the 'Custom' departure time type."
@@ -621,16 +620,16 @@ class Departures(commands.Cog):
             confirm = ConfirmView(interaction.user)
             await interaction.edit_original_response(embed=check_embed, view=confirm)
             await confirm.wait()
-            
+
             logger.debug(f"Confirmation result: {confirm.value}")
-            
+
             if not confirm.value:
                 logger.info("Official departure edit cancelled by user.")
                 await interaction.edit_original_response(
                     content="Official departure edit cancelled.", embed=None, view=None
                 )
                 return
-            
+
             logger.info("Editing existing official departure message.")
             await existing_departure_message.edit(embed=embed)
             await interaction.edit_original_response(
@@ -640,7 +639,7 @@ class Departures(commands.Cog):
             )
         else:
             logger.info("Sending new official departure message.")
-            
+
             departure_message = await departure_channel.send(embed=embed)
             await departure_message.add_reaction("🛬")
             await interaction.edit_original_response(

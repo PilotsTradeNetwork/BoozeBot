@@ -4,7 +4,6 @@ Cog for all the commands that interact with the database
 """
 
 import asyncio
-from loguru import logger
 import math
 import os.path
 import re
@@ -19,16 +18,14 @@ from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
 from google.oauth2.service_account import Credentials
-# local classes
+from loguru import logger
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
-# local constants
 from ptn.boozebot.constants import (
     BOOZE_PROFIT_PER_TONNE_WINE, CARRIER_ID_RE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, bot,
     get_steve_says_channel, get_wine_carrier_channel, ptn_role_icon_emoji_id, server_connoisseur_role_id,
     server_council_role_ids, server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id
 )
 from ptn.boozebot.database.database import dump_database, pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-# local modules
 from ptn.boozebot.modules.ErrorHandler import CustomError
 from ptn.boozebot.modules.helpers import (
     bc_channel_status, check_command_channel, check_roles, get_channel, get_emoji, get_guild, track_last_run
@@ -129,7 +126,7 @@ class DatabaseInteraction(commands.Cog):
         # authorize the client sheet
         self.client_manager = gspread_asyncio.AsyncioGspreadClientManager(get_creds)
         logger.debug("Google OAuth client manager created successfully")
-        
+
         self.update_allowed = True  # This might be better stored somewhere over a reset
 
     async def cog_load(self):
@@ -148,11 +145,11 @@ class DatabaseInteraction(commands.Cog):
         logger.debug("Authorizing Google OAuth client")
 
         self.client = await self.client_manager.authorize()
-        
-        logger.info("Reconfiguring workbook and form on cog load")        
-        
+
+        logger.info("Reconfiguring workbook and form on cog load")
+
         await self._reconfigure_workbook_and_form()
-        
+
         logger.info("Updating database from sheet on cog load")
         await self._update_db()  # On instantiation, go build the DB
 
@@ -168,7 +165,7 @@ class DatabaseInteraction(commands.Cog):
             logger.info(f"Building worksheet with the key: {self.worksheet_key}")
             self.client = await self.client_manager.authorize()
             workbook = await self.client.open_by_key(self.worksheet_key)
-            
+
             logger.debug("Fetched workbook")
 
             worksheets = await workbook.worksheets()
@@ -179,7 +176,9 @@ class DatabaseInteraction(commands.Cog):
             # Update the tracking sheet object
             self.tracking_sheet = await workbook.get_worksheet(self.worksheet_with_data_id)
 
-            logger.info(f"Tracking sheet configured successfully: {self.tracking_sheet.title} ({self.tracking_sheet.id})")
+            logger.info(
+                f"Tracking sheet configured successfully: {self.tracking_sheet.title} ({self.tracking_sheet.id})"
+            )
 
         except gspread.exceptions.APIError as e:
             logger.exception(f"Error reading the worksheet: {e}")
@@ -220,7 +219,9 @@ class DatabaseInteraction(commands.Cog):
         for record in records_data:
             try:
                 carrier_data = BoozeCarrier(record)
-                logger.debug(f"Parsing record into BoozeCarrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})")
+                logger.debug(
+                    f"Parsing record into BoozeCarrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})"
+                )
 
                 # Check if there is already a object for this carrier and update it if so
                 if carrier_data.carrier_identifier in all_carriers_data:
@@ -241,7 +242,9 @@ class DatabaseInteraction(commands.Cog):
         async with pirate_steve_db_lock:
             logger.debug("Database lock acquired successfully")
             for carrier_id, carrier_data in all_carriers_data.items():
-                logger.debug(f"Processing carrier for database update: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})")
+                logger.debug(
+                    f"Processing carrier for database update: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})"
+                )
 
                 pirate_steve_db.execute(
                     "SELECT * FROM boozecarriers WHERE carrierid LIKE (?)",
@@ -250,7 +253,9 @@ class DatabaseInteraction(commands.Cog):
 
                 old_carrier_data = [BoozeCarrier(carrier_data) for carrier_data in pirate_steve_db.fetchall()]
 
-                logger.debug(f"Found {len(old_carrier_data)} existing records for carrier ID: {carrier_data.carrier_identifier}")
+                logger.debug(
+                    f"Found {len(old_carrier_data)} existing records for carrier ID: {carrier_data.carrier_identifier}"
+                )
 
                 if len(old_carrier_data) > 1:
                     raise ValueError(
@@ -262,7 +267,7 @@ class DatabaseInteraction(commands.Cog):
                 if old_carrier_data:
                     logger.debug(f"Carrier {carrier_data.carrier_name} found in database, checking for updates")
                     old_carrier_data = old_carrier_data[0]
-                    
+
                     logger.debug(f"Comparing old and new carrier data for {carrier_data.carrier_name}")
                     logger.debug(f"Old Carrier Data: {old_carrier_data.to_dictionary()}")
                     logger.debug(f"New Carrier Data: {carrier_data.to_dictionary()}")
@@ -270,7 +275,9 @@ class DatabaseInteraction(commands.Cog):
 
                     # If the data is the same, skip over, otherwise update it
                     if old_carrier_data != carrier_data:
-                        logger.info(f"Updating carrier data in database for: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})")
+                        logger.info(
+                            f"Updating carrier data in database for: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})"
+                        )
                         updated_count += 1
                         try:
                             data = (
@@ -281,7 +288,7 @@ class DatabaseInteraction(commands.Cog):
                                 carrier_data.run_count,
                                 f"%{old_carrier_data.carrier_identifier}%",
                             )
-                            
+
                             logger.debug(f"Update data prepared: {data}")
 
                             pirate_steve_db.execute(
@@ -291,7 +298,7 @@ class DatabaseInteraction(commands.Cog):
                                 WHERE carrierid LIKE (?) """,
                                 data,
                             )
-                            
+
                             logger.debug("Database update executed successfully")
 
                             updated_db = True
@@ -301,13 +308,17 @@ class DatabaseInteraction(commands.Cog):
                             raise e
 
                     else:
-                        logger.debug(f"No update needed for carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})")
+                        logger.debug(
+                            f"No update needed for carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})"
+                        )
                         unchanged_count += 1
 
                 # If carrier is not in the database, add it
                 else:
                     added_count += 1
-                    logger.info(f"Adding new carrier to database: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})")
+                    logger.info(
+                        f"Adding new carrier to database: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})"
+                    )
                     try:
                         data = (
                             carrier_data.carrier_name,
@@ -321,16 +332,16 @@ class DatabaseInteraction(commands.Cog):
                             carrier_data.total_unloads,
                             carrier_data.timezone,
                         )
-                        
+
                         logger.debug(f"Insert data prepared: {data}")
-                        
-                        
+
                         pirate_steve_db.execute(
                             """ 
                         INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL) 
-                        """, data
+                        """,
+                            data,
                         )
-                        
+
                         logger.debug("Database insert executed successfully")
 
                     except sqlite3.IntegrityError as e:
@@ -346,8 +357,10 @@ class DatabaseInteraction(commands.Cog):
                         inline=False,
                     )
                     new_signups.append(embed)
-                    
-                    logger.debug(f"New signup embed created for carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})")
+
+                    logger.debug(
+                        f"New signup embed created for carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier})"
+                    )
 
             logger.info(f"Total carriers processed for database update: {len(all_carriers_data)}")
             logger.debug(f"all_carrier_sheet_ids: {list(all_carriers_data.keys())}")
@@ -363,11 +376,11 @@ class DatabaseInteraction(commands.Cog):
                 list(all_carriers_data.keys()),
             )
             result = pirate_steve_db.fetchall()
-            
+
             logger.debug(f"Fetched {len(result)} invalid database entries not in the current sheet")
 
             invalid_database_entries = [BoozeCarrier(invalid_carrier) for invalid_carrier in result]
-            
+
             for invalid_carrier in invalid_database_entries:
                 logger.warning(f"Invalid carrier found in database: {invalid_carrier.to_dictionary()}")
 
@@ -377,7 +390,7 @@ class DatabaseInteraction(commands.Cog):
                 pirate_steve_conn.commit()
                 dump_database()
                 logger.info("Database updated and changes committed successfully")
-                
+
         result = {
             "updated_db": updated_db,
             "added_count": added_count,
@@ -387,7 +400,7 @@ class DatabaseInteraction(commands.Cog):
             "invalid_database_entries": invalid_database_entries,
             "new_signups": new_signups,
         }
-        
+
         logger.info("Database update process completed")
         logger.debug(f"Database update result: {result}")
 
@@ -418,9 +431,9 @@ class DatabaseInteraction(commands.Cog):
         :param dict result: A dict returned from the update_db method
         :returns: None
         """
-        
+
         logger.info("Reporting new and invalid carriers if any")
-        
+
         if result is None:
             result = {}
 
@@ -475,7 +488,9 @@ class DatabaseInteraction(commands.Cog):
         include_not_unloaded: IncludeNotUnloadedChoices | None = None,
     ) -> discord.Embed:
         # Get faction state from the first carrier, assuming all carriers have the same state
-        logger.info(f"Building stat embed for booze tally, include_not_unloaded: {include_not_unloaded}, target_date: {target_date}")
+        logger.info(
+            f"Building stat embed for booze tally, include_not_unloaded: {include_not_unloaded}, target_date: {target_date}"
+        )
         if all_carrier_data:
             faction_state = all_carrier_data[0].faction_state
             logger.debug(f"Faction state determined from first carrier: {faction_state}")
@@ -497,7 +512,9 @@ class DatabaseInteraction(commands.Cog):
         else:
             logger.debug("No override for include_not_unloaded, determining based on target_date and faction_state")
             if target_date and faction_state in ["Public Holiday", None]:
-                logger.debug("Target date provided and faction state is Public Holiday or None, including only unloaded carriers")
+                logger.debug(
+                    "Target date provided and faction state is Public Holiday or None, including only unloaded carriers"
+                )
                 unloaded_stats = [
                     carrier.get_unload_stats(include_not_unloaded=False)
                     for carrier in all_carrier_data
@@ -507,7 +524,7 @@ class DatabaseInteraction(commands.Cog):
             else:
                 logger.debug("Either no target date or faction state is not Public Holiday, including all carriers")
                 unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
-                
+
         for stat in unloaded_stats:
             logger.debug(f"Unload stat: {stat}")
 
@@ -599,9 +616,11 @@ class DatabaseInteraction(commands.Cog):
         stat: StatChoices = "All",
     ) -> discord.Embed:
         # Get faction state from the first carrier, assuming all carriers have the same state
-        
-        logger.info(f"Building extended stat embed for booze tally extra stats, include_not_unloaded: {include_not_unloaded}, target_date: {target_date}, stat: {stat}")
-        
+
+        logger.info(
+            f"Building extended stat embed for booze tally extra stats, include_not_unloaded: {include_not_unloaded}, target_date: {target_date}, stat: {stat}"
+        )
+
         if all_carrier_data:
             faction_state = all_carrier_data[0].faction_state
             logger.debug(f"Faction state determined from first carrier: {faction_state}")
@@ -623,7 +642,9 @@ class DatabaseInteraction(commands.Cog):
         else:
             logger.debug("No override for include_not_unloaded, determining based on target_date and faction_state")
             if target_date and faction_state in ["Public Holiday", None]:
-                logger.debug("Target date provided and faction state is Public Holiday or None, including only unloaded carriers")
+                logger.debug(
+                    "Target date provided and faction state is Public Holiday or None, including only unloaded carriers"
+                )
                 unloaded_stats = [
                     carrier.get_unload_stats(include_not_unloaded=False)
                     for carrier in all_carrier_data
@@ -633,7 +654,7 @@ class DatabaseInteraction(commands.Cog):
             else:
                 logger.debug("Either no target date or faction state is not Public Holiday, including all carriers")
                 unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
-                
+
         for stat in unloaded_stats:
             logger.debug(f"Unload stat: {stat}")
 
@@ -686,7 +707,7 @@ class DatabaseInteraction(commands.Cog):
         london_bus_volume_l = 112.5 * 1000
         busses_if_bottles = wine_bottles_litres_total / london_bus_volume_l
         busses_if_boxes = wine_boxes_litres_total / london_bus_volume_l
-        
+
         logger.debug("Calculated extended stats for embed")
 
         date_text = (
@@ -770,7 +791,7 @@ class DatabaseInteraction(commands.Cog):
         )
 
         description_text = f"{state_text}## Wine Tonnes: {total_wine:,}\n\n"
-        
+
         logger.debug("Assembling extended stat embed description based on selected stat")
 
         match stat:
@@ -798,7 +819,7 @@ class DatabaseInteraction(commands.Cog):
                 description_text += swimming_pools_text
             case "Volume Maths":
                 description_text += volume_text
-                
+
         logger.debug("Extended stat embed description assembled successfully")
 
         stat_embed = discord.Embed(
@@ -837,7 +858,7 @@ class DatabaseInteraction(commands.Cog):
             pirate_steve_db.execute("SELECT * FROM pinned_messages")
             # Get everything
             all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
-    
+
             # Get all carriers
             pirate_steve_db.execute("SELECT * FROM boozecarriers")
             all_carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
@@ -942,7 +963,7 @@ class DatabaseInteraction(commands.Cog):
         await interaction.response.defer()
 
         logger.info(f"{interaction.user.name} requested to find the carriers with wine")
-        
+
         db_update = await self._update_db()
         await self.report_db_update_result(db_update)
         logger.debug("Database updated before searching for carriers with wine")
@@ -965,7 +986,7 @@ class DatabaseInteraction(commands.Cog):
             )
             for carrier in carrier_data
         ]
-        
+
         logger.info(f"Found {len(carrier_data)} carriers with wine remaining")
         for carrier in carrier_data:
             logger.debug(f"Carrier with wine remaining: {carrier}")
@@ -1012,7 +1033,9 @@ class DatabaseInteraction(commands.Cog):
         await interaction.response.defer()
         db_update = await self._update_db()
         await self.report_db_update_result(db_update)
-        logger.info(f"{interaction.user.name} ({interaction.user.id}) wants to forcefully mark the carrier {carrier_id} as unloaded.")
+        logger.info(
+            f"{interaction.user.name} ({interaction.user.id}) wants to forcefully mark the carrier {carrier_id} as unloaded."
+        )
 
         try:
             carrier_data = self._validate_existing_carrier(carrier_id)
@@ -1037,7 +1060,9 @@ class DatabaseInteraction(commands.Cog):
 
         if confirm.value:
             try:
-                logger.info(f"User {interaction.user.name} ({interaction.user.id}) agreed to mark the carrier {carrier_id} as unloaded.")
+                logger.info(
+                    f"User {interaction.user.name} ({interaction.user.id}) agreed to mark the carrier {carrier_id} as unloaded."
+                )
                 # Go update the object in the database.
                 async with pirate_steve_db_lock:
                     data = (f"%{carrier_data.carrier_identifier}%",)
@@ -1050,7 +1075,9 @@ class DatabaseInteraction(commands.Cog):
                         data,
                     )
                     pirate_steve_conn.commit()
-                logger.info(f"Database for unloaded forcefully updated by {interaction.user.name} ({interaction.user.id}) for {carrier_id}")
+                logger.info(
+                    f"Database for unloaded forcefully updated by {interaction.user.name} ({interaction.user.id}) for {carrier_id}"
+                )
                 embed = discord.Embed(description=f"Fleet carrier {carrier_data.carrier_name} marked as unloaded.")
                 embed.add_field(
                     name=f"Runs Made: {carrier_data.run_count}",
@@ -1062,7 +1089,9 @@ class DatabaseInteraction(commands.Cog):
                     content=f'Something went wrong, go tell the bot team "computer said: {e}"', embed=None, view=None
                 )
         elif confirm.value is False:
-            logger.info(f"User {interaction.user.name} ({interaction.user.id}) aborted the request to mark the carrier {carrier_id} as unloaded.")
+            logger.info(
+                f"User {interaction.user.name} ({interaction.user.id}) aborted the request to mark the carrier {carrier_id} as unloaded."
+            )
             await interaction.edit_original_response(
                 content=f"Argh you cancelled the action for marking {carrier_id} as forcefully completed.",
                 embed=None,
@@ -1116,7 +1145,9 @@ class DatabaseInteraction(commands.Cog):
         await interaction.response.defer()
         db_update = await self._update_db()
         await self.report_db_update_result(db_update)
-        logger.info(f"{interaction.user.name} ({interaction.user.id}) requested to find carriers for: {platform} with wine: {remaining_wine}")
+        logger.info(
+            f"{interaction.user.name} ({interaction.user.id}) requested to find carriers for: {platform} with wine: {remaining_wine}"
+        )
 
         if remaining_wine:
             data = (f"%{platform}%",)
@@ -1227,7 +1258,9 @@ class DatabaseInteraction(commands.Cog):
         await interaction.response.defer()
 
         cruise = "this" if cruise_select == 0 else f"-{cruise_select}"
-        logger.info(f"User {interaction.user.name} ({interaction.user.id}) requested the current tally of the cruise stats for {cruise} cruise.")
+        logger.info(
+            f"User {interaction.user.name} ({interaction.user.id}) requested the current tally of the cruise stats for {cruise} cruise."
+        )
         target_date = None
 
         db_update = await self._update_db()
@@ -1245,7 +1278,9 @@ class DatabaseInteraction(commands.Cog):
             all_dates = [dict(value) for value in pirate_steve_db.fetchall()]
 
             if cruise_select > len(all_dates):
-                logger.warning(f"Input for cruise value was out of bounds for the number of cruises recorded in the database. Requested: -{cruise_select}, Available: {len(all_dates)}")
+                logger.warning(
+                    f"Input for cruise value was out of bounds for the number of cruises recorded in the database. Requested: -{cruise_select}, Available: {len(all_dates)}"
+                )
                 await interaction.edit_original_response(
                     content=f"Pirate Steve only knows about the last: {len(all_dates)} booze cruises. "
                     f"You wanted the -{cruise_select} data."
@@ -1408,7 +1443,9 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer(ephemeral=True)
-        logger.info(f"User {interaction.user.name} ({interaction.user.id}) requested to clear the pinned message {message_link}.")
+        logger.info(
+            f"User {interaction.user.name} ({interaction.user.id}) requested to clear the pinned message {message_link}."
+        )
 
         split_message_link = message_link.split("/")
         channel_id = int(split_message_link[5])
@@ -1470,13 +1507,17 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        logger.info(f"User {interaction.user.name} ({interaction.user.id}) requested the current extended stats of the cruise.")
+        logger.info(
+            f"User {interaction.user.name} ({interaction.user.id}) requested the current extended stats of the cruise."
+        )
 
         db_update = await self._update_db()
         await self.report_db_update_result(db_update)
 
         cruise = "this" if cruise_select == 0 else f"-{cruise_select}"
-        logger.debug(f"User {interaction.user.name} ({interaction.user.id}) requested the current tally of the cruise stats for {cruise} cruise (extended stats).")
+        logger.debug(
+            f"User {interaction.user.name} ({interaction.user.id}) requested the current tally of the cruise stats for {cruise} cruise (extended stats)."
+        )
         target_date = None
 
         if cruise_select == 0:
@@ -1490,7 +1531,9 @@ class DatabaseInteraction(commands.Cog):
             all_dates = [dict(value) for value in pirate_steve_db.fetchall()]
 
             if cruise_select > len(all_dates):
-                logger.warning(f"Input for cruise value was out of bounds for the number of cruises recorded in the database (extended stats). Requested: -{cruise_select}, Available: {len(all_dates)}")
+                logger.warning(
+                    f"Input for cruise value was out of bounds for the number of cruises recorded in the database (extended stats). Requested: -{cruise_select}, Available: {len(all_dates)}"
+                )
                 await interaction.edit_original_response(
                     content=f"Pirate Steve only knows about the last: {len(all_dates)} booze cruises. "
                     f"You wanted the -{cruise_select} data."
@@ -1540,7 +1583,9 @@ class DatabaseInteraction(commands.Cog):
         remaining_carriers = len([carrier for carrier in carrier_data if carrier.run_count - carrier.total_unloads > 0])
         unloaded_carriers = total_carriers - remaining_carriers
 
-        logger.debug(f"User {interaction.user.name} ({interaction.user.id}) wanted to know the remaining time of the holiday.")
+        logger.debug(
+            f"User {interaction.user.name} ({interaction.user.id}) wanted to know the remaining time of the holiday."
+        )
         if not ph_check():
             duration_remaining = "Pirate Steve has not detected the holiday state yet, or it is already over."
         else:
@@ -1581,7 +1626,9 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        logger.info(f"User {interaction.user.name} ({interaction.user.id}) wants to remove the carrier with ID {carrier_id} from the database.")
+        logger.info(
+            f"User {interaction.user.name} ({interaction.user.id}) wants to remove the carrier with ID {carrier_id} from the database."
+        )
         try:
             carrier_data = self._validate_existing_carrier(carrier_id)
         except CustomError as e:
@@ -1607,7 +1654,9 @@ class DatabaseInteraction(commands.Cog):
 
         if confirm.value:
             try:
-                logger.info(f"User {interaction.user.name} ({interaction.user.id}) agreed to delete the carrier: {carrier_id}.")
+                logger.info(
+                    f"User {interaction.user.name} ({interaction.user.id}) agreed to delete the carrier: {carrier_id}."
+                )
 
                 # Go update the object in the database.
                 async with pirate_steve_db_lock:
@@ -1633,7 +1682,9 @@ class DatabaseInteraction(commands.Cog):
                     content=f'Something went wrong, go tell the bot team "computer said: {e}"', embed=None, view=None
                 )
         elif confirm.value is False:
-            logger.info(f"User {interaction.user.name} ({interaction.user.id}) aborted the request to delete carrier {carrier_id}.")
+            logger.info(
+                f"User {interaction.user.name} ({interaction.user.id}) aborted the request to delete carrier {carrier_id}."
+            )
             await interaction.edit_original_response(
                 content=f"Avast Ye! you cancelled the action for deleting {carrier_id}.", embed=None, view=None
             )
@@ -1725,7 +1776,9 @@ class DatabaseInteraction(commands.Cog):
             )
             return
         elif confirm.value is None:
-            logger.info(f"User {interaction.user.name} ({interaction.user.id}) did not respond in time to archive request.")
+            logger.info(
+                f"User {interaction.user.name} ({interaction.user.id}) did not respond in time to archive request."
+            )
             await interaction.edit_original_response(
                 content="**Waiting for user response - timed out**", embed=None, view=None
             )
@@ -1782,7 +1835,9 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        logger.info(f"{interaction.user.name} ({interaction.user.id}) wants to reconfigure the booze cruise signup forms.")
+        logger.info(
+            f"{interaction.user.name} ({interaction.user.id}) wants to reconfigure the booze cruise signup forms."
+        )
 
         # track the init value, we reset to this in case of bail out
         init_update_value = self.update_allowed
@@ -1880,7 +1935,9 @@ class DatabaseInteraction(commands.Cog):
             await interaction.edit_original_response(content="Pirate Steve saw you timed out on step 3.", embed=None)
             return
 
-        logger.debug(f"We received valid data for all points, confirm them with the {interaction.user.name} it is correct.")
+        logger.debug(
+            f"We received valid data for all points, confirm them with the {interaction.user.name} it is correct."
+        )
 
         confirm_embed = discord.Embed(
             title="Pirate Steve wants you to confirm the new values.",
@@ -1931,7 +1988,9 @@ class DatabaseInteraction(commands.Cog):
                 view=None,
             )
         elif confirm.value is False:
-            logger.info(f"User {interaction.user.name} ({interaction.user.id}) wants to abort the configure signup forms process.")
+            logger.info(
+                f"User {interaction.user.name} ({interaction.user.id}) wants to abort the configure signup forms process."
+            )
             self.update_allowed = init_update_value
             await interaction.edit_original_response(
                 content="You aborted the request to update the forms.", embed=None, view=None
@@ -2016,7 +2075,9 @@ class DatabaseInteraction(commands.Cog):
                 view=None,
             )
         elif confirm.value is False:
-            logger.info(f"User {interaction.user.name} ({interaction.user.id}) wants to abort the reuse signup forms process.")
+            logger.info(
+                f"User {interaction.user.name} ({interaction.user.id}) wants to abort the reuse signup forms process."
+            )
             self.update_allowed = init_update_value
             await interaction.edit_original_response(
                 content="You aborted the request to update the forms.", embed=None, view=None
@@ -2055,7 +2116,9 @@ class DatabaseInteraction(commands.Cog):
         :returns: None
         """
 
-        logger.info(f"{interaction.user.name} ({interaction.user.id}) requested the biggest cruise tally, extended: {extended}.")
+        logger.info(
+            f"{interaction.user.name} ({interaction.user.id}) requested the biggest cruise tally, extended: {extended}."
+        )
         await interaction.response.defer()
 
         # Fetch the target date
@@ -2107,19 +2170,19 @@ class DatabaseInteraction(commands.Cog):
 
         logger.info(f"{interaction.user.name} requested the stats for the carrier: {carrier_id}.")
         await interaction.response.defer()
-        
+
         logger.debug("Fetching historical data for carrier stats.")
 
         pirate_steve_db.execute("SELECT * FROM historical WHERE carrierid LIKE (?)", (f"%{carrier_id}%",))
         carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-        
+
         logger.debug("Fetching current cruise data for carrier stats.")
         pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f"%{carrier_id}%",))
         carrier_data.append(BoozeCarrier(pirate_steve_db.fetchone()))
 
         # Remove any carriers that do not match the carrier_id (remove the None entry if carrier is not on current cruise)
         carrier_data = [carrier for carrier in carrier_data if carrier.carrier_identifier == carrier_id]
-        
+
         logger.debug(f"Total entries found for carrier {carrier_id}: {len(carrier_data)}")
         for entry in carrier_data:
             logger.debug(f"Found entry: {entry.to_dictionary()}")
@@ -2136,7 +2199,7 @@ class DatabaseInteraction(commands.Cog):
         total_wine = sum([carrier.wine_total for carrier in carrier_data])
         total_cruises = len(carrier_data)
         owner = carrier_data[-1].discord_username
-        
+
         logger.debug(
             f"Carrier stats for {carrier_id} - Name: {carrier_name}, Total Runs: {total_runs}, "
             f"Total Wine: {total_wine}, Total Cruises: {total_cruises}, Owner: {owner}"
@@ -2169,8 +2232,7 @@ class DatabaseInteraction(commands.Cog):
 
         pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE runtotal > totalunloads")
         carrier_data = [BoozeCarrier(carrier) for carrier in pirate_steve_db.fetchall()]
-        
-        
+
         if len(carrier_data) == 0:
             logger.info("No full carriers found to delete.")
             await interaction.edit_original_response(content="There are no full carriers to delete.")
@@ -2187,7 +2249,7 @@ class DatabaseInteraction(commands.Cog):
         # Send the embed
         await interaction.edit_original_response(embed=confirmation_embed, view=confirm)
         await confirm.wait()
-        
+
         logger.info("Received confirmation response for purging full carriers.")
 
         if confirm.value:
@@ -2218,7 +2280,9 @@ class DatabaseInteraction(commands.Cog):
                 )
             else:
                 logger.info("Successfully purged full carriers from the database.")
-                await interaction.edit_original_response(content="Full carriers have been purged.", embed=None, view=None)
+                await interaction.edit_original_response(
+                    content="Full carriers have been purged.", embed=None, view=None
+                )
         elif confirm.value is False:
             logger.info(f"User {interaction.user.name} aborted the purge full carriers request.")
             await interaction.edit_original_response(

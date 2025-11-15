@@ -1,8 +1,8 @@
 import sys
-from loguru import logger
 
 import discord
 from discord.ext import commands
+from loguru import logger
 from ptn.boozebot._metadata import __version__
 from ptn.boozebot.constants import (
     I_AM_STEVE_GIF, get_bot_control_channel, server_council_role_ids, server_sommelier_role_id

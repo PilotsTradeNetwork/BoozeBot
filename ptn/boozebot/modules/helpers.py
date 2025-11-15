@@ -7,11 +7,7 @@ Depends on: constants, ErrorHandler, database
 import datetime
 import functools
 # import libraries
-import sys
 from typing import Optional
-from loguru import logger
-import logging
-import inspect
 
 # import discord.py
 import discord
@@ -20,6 +16,7 @@ from discord import Emoji, Guild, Member, Role, Thread, User, app_commands
 from discord.abc import GuildChannel
 from discord.errors import NotFound
 from discord.ext import commands
+from loguru import logger
 from ptn.boozebot.constants import bot, bot_guild_id, get_pilot_role_id, get_primary_booze_discussions_channel
 from ptn.boozebot.modules.ErrorHandler import CommandChannelError, CommandRoleError
 
@@ -57,7 +54,7 @@ async def get_guild(guild: int = bot_guild_id()) -> Optional[Guild]:
 
 async def get_member(member_id: int) -> Optional[Member]:
     """Fetch a member from the cache or API."""
-    logger.debug(f"Fetching member with ID: {member_id}")    
+    logger.debug(f"Fetching member with ID: {member_id}")
     guild = await get_guild()
     try:
         member = guild.get_member(member_id)
@@ -86,7 +83,7 @@ async def get_role(role_id: int) -> Optional[Role]:
         return role
     except NotFound:
         logger.warning(f"Role with ID {role_id} not found in guild {guild.name}.")
-        return None   
+        return None
 
 
 async def get_channel(channel_id: int) -> Optional[GuildChannel | Thread]:
@@ -152,7 +149,9 @@ def check_roles(permitted_role_ids):
             for role in permitted_role_ids:
                 role_list.append(f"<@&{role}> ")
                 formatted_role_list = " • ".join(role_list)
-            logger.warning(f"User {interaction.user} ({interaction.user.id}) lacks required roles for command. Required: {formatted_role_list}")
+            logger.warning(
+                f"User {interaction.user} ({interaction.user.id}) lacks required roles for command. Required: {formatted_role_list}"
+            )
             try:
                 raise CommandRoleError(permitted_roles, formatted_role_list)
             except CommandRoleError as e:
@@ -184,13 +183,15 @@ def check_command_channel(permitted_channel):
         for channel in permitted_channels:
             channel_list.append(f"<#{channel.id}>")
         formatted_channel_list = " • ".join(channel_list)
-        
+
         logger.debug(f"Permitted channels: {[ch.name for ch in permitted_channels if ch]}")
 
         permission = True if any(channel == ctx.channel for channel in permitted_channels) else False
         if not permission:
             # problem, wrong channel, no progress
-            logger.warning(f"Command run in wrong channel. Current: {ctx.channel.name}, Required: {formatted_channel_list}")
+            logger.warning(
+                f"Command run in wrong channel. Current: {ctx.channel.name}, Required: {formatted_channel_list}"
+            )
             try:
                 raise CommandChannelError(permitted_channel, formatted_channel_list)
             except CommandChannelError as e:
@@ -208,6 +209,7 @@ def check_text_command_channel(permitted_channel):
     """
     Decorator used on a text command to limit it to a specified channel
     """
+
     async def check_text_channel(ctx):
         """
         Check if the channel the command was run in, matches the channel it can only be run from
@@ -215,10 +217,12 @@ def check_text_command_channel(permitted_channel):
         logger.debug(f"check_text_command_channel called for channel {ctx.channel.name} ({ctx.channel.id})")
         permitted = await get_channel(permitted_channel)
         logger.debug(f"Permitted channel: {permitted.name if permitted else 'None'} ({permitted_channel})")
-        
+
         if ctx.channel != permitted:
             # problem, wrong channel, no progress
-            logger.warning(f"Text command run in wrong channel. Current: {ctx.channel.name}, Required: {permitted.name if permitted else permitted_channel}")
+            logger.warning(
+                f"Text command run in wrong channel. Current: {ctx.channel.name}, Required: {permitted.name if permitted else permitted_channel}"
+            )
             embed = discord.Embed(
                 description=f"Sorry, you can only run this command out of: <#{permitted_channel}>.",
                 color=constants.EMBED_COLOUR_ERROR,
@@ -231,6 +235,7 @@ def check_text_command_channel(permitted_channel):
 
     return commands.check(check_text_channel)
 
+
 async def bc_channel_status():
     """
     Check if the booze cruise channels are open to pilot or not.
@@ -239,7 +244,7 @@ async def bc_channel_status():
     try:
         bc_chat_channel = await get_channel(get_primary_booze_discussions_channel())
         pilot_role = await get_role(get_pilot_role_id())
-        
+
         logger.debug(f"Fetched bc_chat_channel and pilot_role. {bc_chat_channel}, {pilot_role}")
 
         if bc_chat_channel.permissions_for(pilot_role).view_channel:
@@ -258,6 +263,7 @@ async def bc_channel_status():
 def track_last_run():
     def decorator(coro):
         logger.debug(f"Applying track_last_run decorator to {coro.__name__}")
+
         @functools.wraps(coro)
         async def wrapper(self, *args, **kwargs):
             logger.debug(f"Executing wrapped coroutine {coro.__name__}")
@@ -268,4 +274,5 @@ def track_last_run():
             return result
 
         return wrapper
+
     return decorator

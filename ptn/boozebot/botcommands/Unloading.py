@@ -3,25 +3,20 @@ Cog for unloading related commands
 
 """
 
-# libraries
 from datetime import datetime, timedelta, timezone
-from loguru import logger
 
-# discord.py
 import discord
 from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
-# local classes
+from loguru import logger
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
-# local constants
 from ptn.boozebot.constants import (
     CARRIER_ID_RE, bot, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
     get_primary_booze_discussions_channel, get_steve_says_channel, server_connoisseur_role_id, server_council_role_ids,
     server_mod_role_id, server_sommelier_role_id, server_wine_carrier_role_id, wine_carrier_command_channel
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-# local modules
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_role, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.Settings import settings
@@ -67,17 +62,21 @@ class Unloading(commands.Cog):
             if message.author.id != bot.user.id:
                 return
 
-            logger.debug(f"Processing unload reaction {reaction_event.emoji} from user {user.name} in channel {channel.name}")
+            logger.debug(
+                f"Processing unload reaction {reaction_event.emoji} from user {user.name} in channel {channel.name}"
+            )
 
             reaction_allowed_roles = {server_council_role_ids(), server_mod_role_id(), server_connoisseur_role_id()}
             if reaction_event.emoji.id != get_fc_complete_id():
                 logger.debug(f"Reaction {reaction_event.emoji} is not FC complete emoji.")
                 if not {role.id for role in user.roles} & reaction_allowed_roles:
-                    logger.debug(f"User {user.name} does not have permission to add reaction {reaction_event.emoji}. Removing reaction.")
+                    logger.debug(
+                        f"User {user.name} does not have permission to add reaction {reaction_event.emoji}. Removing reaction."
+                    )
                     await message.remove_reaction(reaction_event.emoji, reaction_event.member)
                     logger.info(f"Removed unload reaction {reaction_event.emoji} from user {user.name}")
                 return
-            
+
             logger.debug(f"Reaction {reaction_event.emoji} is FC complete emoji. Checking reaction count.")
 
             # Check if the FC complete reaction count meets the threshold
@@ -85,7 +84,9 @@ class Unloading(commands.Cog):
                 logger.debug(f"Checking reaction: {message_reaction.emoji} with count {message_reaction.count}")
                 if message_reaction.emoji.id == get_fc_complete_id() and message_reaction.count >= 5:
                     # Find carrier data for this message from the database
-                    logger.debug(f"FC complete reaction count for message {message.id} has reached threshold. Notifying poster.")
+                    logger.debug(
+                        f"FC complete reaction count for message {message.id} has reached threshold. Notifying poster."
+                    )
                     async with pirate_steve_db_lock:
                         # Get the carrier data based on the message ID
                         pirate_steve_db.execute(
@@ -93,9 +94,11 @@ class Unloading(commands.Cog):
                         )
                         carrier_data = pirate_steve_db.fetchone()
                         carrier_data = BoozeCarrier(carrier_data)
-                        
-                        logger.debug(f"Fetched carrier data from database: {carrier_data.to_dictionary() if carrier_data else 'None'}")
-                        
+
+                        logger.debug(
+                            f"Fetched carrier data from database: {carrier_data.to_dictionary() if carrier_data else 'None'}"
+                        )
+
                         if carrier_data and carrier_data.discord_unload_poster_id:
                             wine_carrier_channel = await get_channel(wine_carrier_command_channel())
                             await wine_carrier_channel.send(
@@ -106,14 +109,18 @@ class Unloading(commands.Cog):
                                 f"```/wine_unload_complete carrier_id:{carrier_data.carrier_identifier}```"
                             )
 
-                            logger.debug("Updating database to set discord_unload_poster_id to NULL to avoid multiple notifications.")
+                            logger.debug(
+                                "Updating database to set discord_unload_poster_id to NULL to avoid multiple notifications."
+                            )
                             # Set the poster ID to None to indicate they have already been notified
                             pirate_steve_db.execute(
                                 "UPDATE boozecarriers SET discord_unload_poster_id = NULL WHERE discord_unload_in_progress = ?",
                                 (message.id,),
                             )
                             pirate_steve_conn.commit()
-                            logger.info(f"Notified poster {carrier_data.discord_unload_poster_id} for carrier {carrier_data.carrier_identifier}")
+                            logger.info(
+                                f"Notified poster {carrier_data.discord_unload_poster_id} for carrier {carrier_data.carrier_identifier}"
+                            )
                 break
 
         except Exception as e:
@@ -185,7 +192,9 @@ class Unloading(commands.Cog):
         ]
     )
     async def booze_unload_market(self, interaction: discord.Interaction):
-        logger.info(f"User {interaction.user.name} requested a new booze unload in channel: {interaction.channel.name}.")
+        logger.info(
+            f"User {interaction.user.name} requested a new booze unload in channel: {interaction.channel.name}."
+        )
 
         embed = discord.Embed(title="Avast Ye!")
         embed.add_field(
@@ -218,7 +227,9 @@ class Unloading(commands.Cog):
         ]
     )
     async def booze_market_closed(self, interaction: discord.Interaction):
-        logger.info(f"User {interaction.user.name} requested a to close the market in channel: {interaction.channel.name}.")
+        logger.info(
+            f"User {interaction.user.name} requested a to close the market in channel: {interaction.channel.name}."
+        )
         embed = discord.Embed(title="Batten Down The Hatches! This sale is currently done!")
         embed.add_field(
             name="Go fight the sidewinder for the landing pad.",
@@ -274,7 +285,7 @@ class Unloading(commands.Cog):
         :rtype: Union[discord.Message, dict]
         """
 
-        await interaction.response.defer()        
+        await interaction.response.defer()
         logger.info(
             f"User {interaction.user.name} has requested a new wine unload operation for carrier: {carrier_id} around the "
             f"body: {planetary_body}."
@@ -298,7 +309,7 @@ class Unloading(commands.Cog):
 
             # We will only get a single entry back here as the carrierid is a unique field.
             carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
-        
+
         logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
 
         if not carrier_data:
@@ -367,7 +378,9 @@ class Unloading(commands.Cog):
         booze_cruise_chat = await get_channel(get_primary_booze_discussions_channel())
         await booze_cruise_chat.send(f"A new wine unload is in progress. See <#{wine_unload_alert.channel.id}>")
 
-        logger.info(f"Wine unload requested by {interaction.user.name} for {carrier_data.carrier_name} ({carrier_id}) processed successfully.")
+        logger.info(
+            f"Wine unload requested by {interaction.user.name} for {carrier_data.carrier_name} ({carrier_id}) processed successfully."
+        )
         await interaction.edit_original_response(
             content=f"Wine unload requested by {interaction.user.name} for **{carrier_data.carrier_name} ({carrier_id})** "
             f"processed successfully. Market: **{market_conditions}**."
@@ -433,7 +446,7 @@ class Unloading(commands.Cog):
             carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
 
         logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
-        
+
         if not carrier_data:
             logger.info(f"We failed to find the carrier: {carrier_id} in the database.")
             return await interaction.followup.send(
@@ -456,7 +469,9 @@ class Unloading(commands.Cog):
                 f"already completed all of its unloads. No further unloads are possible."
             )
 
-        logger.debug(f"Preparing to send timed unload notification to Discord for carrier {carrier_data.carrier_identifier}.")
+        logger.debug(
+            f"Preparing to send timed unload notification to Discord for carrier {carrier_data.carrier_identifier}."
+        )
         await interaction.edit_original_response(content="**Sending to Discord...**")
 
         current_time = datetime.now(timezone.utc)
@@ -483,7 +498,9 @@ class Unloading(commands.Cog):
         # Get the discord alert ID and drop it into the database
         discord_alert_id = wine_unload_alert.id
 
-        logger.info(f"Posted the timed wine unload alert for {carrier_data.carrier_name} ({carrier_data.carrier_identifier})")
+        logger.info(
+            f"Posted the timed wine unload alert for {carrier_data.carrier_name} ({carrier_data.carrier_identifier})"
+        )
 
         logger.debug(f"Updating database with discord alert ID: {discord_alert_id}")
         async with pirate_steve_db_lock:
@@ -504,7 +521,9 @@ class Unloading(commands.Cog):
         booze_cruise_chat = await get_channel(get_primary_booze_discussions_channel())
         await booze_cruise_chat.send(f"A new wine unload will be opening soon. See <#{wine_unload_alert.channel.id}>")
 
-        logger.info(f"Timed wine unload requested by {interaction.user.name} for {carrier_data.carrier_name} ({carrier_id}) processed successfully.")
+        logger.info(
+            f"Timed wine unload requested by {interaction.user.name} for {carrier_data.carrier_name} ({carrier_id}) processed successfully."
+        )
         return await interaction.followup.send(
             f"Timed wine unload requested by {interaction.user.name} for **{carrier_data.carrier_name} ({carrier_id})**\n"
             f"Open the market at {open_time_str} (In game time)."
@@ -527,11 +546,11 @@ class Unloading(commands.Cog):
     @check_command_channel(wine_carrier_command_channel())
     async def wine_unloading_complete(self, interaction: discord.Interaction, carrier_id: str):
         await interaction.response.defer()
-        
+
         logger.info(
             f"User {interaction.user.name} has requested to complete the wine unload operation for carrier: {carrier_id}."
         )
-        
+
         # Cast this to upper case just in case
         carrier_id = carrier_id.upper()
 
@@ -548,9 +567,9 @@ class Unloading(commands.Cog):
 
         # We will only get a single entry back here as the carrierid is a unique field.
         carrier_data = BoozeCarrier(pirate_steve_db.fetchone())
-        
+
         logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
-        
+
         if not carrier_data:
             logger.info(f"We failed to find the carrier: {carrier_id} in the database.")
             return await interaction.edit_original_response(
@@ -595,7 +614,7 @@ class Unloading(commands.Cog):
             unload_start = message.created_at.replace(tzinfo=timezone.utc)
 
         unload_duration = max(self.last_unload_time - unload_start, timedelta(seconds=0)).total_seconds()
-        
+
         logger.debug(f"Calculated unload duration: {unload_duration} seconds")
 
         minutes, seconds = divmod(int(unload_duration), 60)
@@ -654,12 +673,12 @@ class Unloading(commands.Cog):
         """
 
         await interaction.response.defer()
-        
+
         logger.info(
             f"{interaction.user.name} requested to set the timed unload hold duration to {duration_minutes} minutes."
         )
 
         settings.set_setting("timed_unload_hold_duration", duration_minutes)
-        
+
         logger.info(f"Timed unload hold duration set to {duration_minutes} minutes.")
         await interaction.followup.send(f"Timed unload hold duration set to {duration_minutes} minutes.")

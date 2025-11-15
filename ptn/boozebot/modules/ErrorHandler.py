@@ -1,12 +1,11 @@
-from loguru import logger
 import random
 
 import discord
-
 # import local constants
 from discord import Interaction, InteractionResponded, app_commands
 from discord.app_commands import AppCommandError
 from discord.ext import commands
+from loguru import logger
 from ptn.boozebot.constants import EMBED_COLOUR_ERROR, error_gifs
 
 
@@ -24,6 +23,7 @@ class CommandChannelError(app_commands.CheckFailure):
 
 class CommandRoleError(app_commands.CheckFailure):
     """Role check error"""
+
     def __init__(self, permitted_roles, formatted_role_list):
         self.permitted_roles = permitted_roles
         self.formatted_role_list = formatted_role_list
@@ -40,7 +40,6 @@ class AsyncioTimeoutError(Exception):
         self.is_private = is_private
 
     pass
-
 
 
 class SilentError(Exception):
@@ -73,7 +72,7 @@ async def on_text_command_error(ctx: commands.Context, error: Exception):
         await ctx.send(f"**Bad argument!** {error}")
     elif isinstance(error, commands.CommandNotFound):
         logger.debug("Command not found error raised")
-        pass # Dont care
+        pass  # Dont care
     elif isinstance(error, commands.MissingRequiredArgument):
         logger.debug("Missing required argument error raised, reporting to user")
         await ctx.send(
@@ -97,12 +96,16 @@ async def on_text_command_error(ctx: commands.Context, error: Exception):
 
 async def on_app_command_error(interaction: Interaction, error: AppCommandError):
     """Global error handler for application commands"""
-    
-    logger.error(f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}")
+
+    logger.error(
+        f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
+    )
 
     try:
         if isinstance(error, CommandChannelError):
-            logger.debug(f"Channel check error raised. Permitted channel(s): {error.permitted_channel}, reporting to user")
+            logger.debug(
+                f"Channel check error raised. Permitted channel(s): {error.permitted_channel}, reporting to user"
+            )
             formatted_channel_list = error.formatted_channel_list
 
             embed = discord.Embed(

@@ -4,10 +4,10 @@ The Python script that starts the bot.
 """
 
 import asyncio
-from loguru import logger
 
 from discord import ConnectionClosed, DiscordException, GatewayNotFound, HTTPException, LoginFailure, Object
 from discord.ext.prometheus import PrometheusCog
+from loguru import logger
 from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 from ptn.boozebot.botcommands.Cleaner import Cleaner
@@ -26,9 +26,11 @@ from ptn.logger.logger import Logger
 
 logger.info(f"Booze bot is connecting against production: {_production}.")
 
+
 def run():
     logger.info("Starting Booze Bot...")
     asyncio.run(boozebot())
+
 
 async def boozebot():
     logger.info("Setting up bot cogs and event listeners.")
@@ -62,7 +64,7 @@ async def boozebot():
         logger.debug("Loaded PrometheusCog cog.")
 
         logger.info("Bot cogs and event listeners setup complete.")
-        
+
         logger.info("Setting up error handlers.")
         # Start error handlers
         bot.tree.on_error = on_app_command_error
