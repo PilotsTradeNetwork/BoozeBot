@@ -8,6 +8,7 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
+logger = logger.bind(logger_name="boozebot")
 
 class BackgroundTaskCommands(commands.Cog):
     task_choices = [

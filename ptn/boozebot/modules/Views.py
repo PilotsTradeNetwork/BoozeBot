@@ -3,6 +3,7 @@ from discord import ButtonStyle, Embed, Interaction, ui
 from loguru import logger
 from ptn.boozebot.constants import INTERACTION_CHECK_GIF
 
+logger = logger.bind(logger_name="boozebot")
 
 class ConfirmView(ui.View):
     def __init__(self, author: discord.Member):

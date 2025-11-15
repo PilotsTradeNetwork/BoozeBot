@@ -8,6 +8,7 @@ from discord.ext import commands
 from loguru import logger
 from ptn.boozebot.constants import EMBED_COLOUR_ERROR, error_gifs
 
+logger = logger.bind(logger_name="boozebot")
 
 # custom errors
 class CommandChannelError(app_commands.CheckFailure):

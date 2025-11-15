@@ -28,6 +28,7 @@ b/version - admin
 b/sync - admin
 """
 
+logger = logger.bind(logger_name="boozebot")
 
 class DiscordBotCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):

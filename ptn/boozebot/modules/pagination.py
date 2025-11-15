@@ -4,6 +4,7 @@ import discord
 from loguru import logger
 from ptn.boozebot.constants import bot
 
+logger = logger.bind(logger_name="boozebot")
 
 async def createPagination(
     interaction: discord.Interaction, title: str, content: list[tuple[str, str]], pageLength: int = 10

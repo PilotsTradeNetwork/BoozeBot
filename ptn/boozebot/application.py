@@ -24,6 +24,8 @@ from ptn.boozebot.database.database import build_database_on_startup
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
 from ptn.logger.logger import Logger
 
+logger = logger.bind(logger_name="boozebot")
+
 logger.info(f"Booze bot is connecting against production: {_production}.")
 
 

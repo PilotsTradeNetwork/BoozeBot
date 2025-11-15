@@ -9,6 +9,8 @@ from ptn.boozebot.constants import (
     server_sommelier_role_id
 )
 
+logger = logger.bind(logger_name="boozebot")
+
 class AutoResponse:
     """
     Class representing an auto response in the database.

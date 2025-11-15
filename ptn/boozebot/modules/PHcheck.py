@@ -8,6 +8,7 @@ import httpx
 from loguru import logger
 from ptn.boozebot.database.database import pirate_steve_db
 
+logger = logger.bind(logger_name="boozebot")
 
 async def get_state_from_ebgs() -> bool:
     logger.debug("Getting state from EBGS API.")

@@ -20,6 +20,7 @@ from loguru import logger
 from ptn.boozebot.constants import bot, bot_guild_id, get_pilot_role_id, get_primary_booze_discussions_channel
 from ptn.boozebot.modules.ErrorHandler import CommandChannelError, CommandRoleError
 
+logger = logger.bind(logger_name="boozebot")
 
 async def get_user(user_id: int) -> Optional[User]:
     """Fetch a user from the cache or API."""

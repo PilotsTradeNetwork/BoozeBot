@@ -26,6 +26,7 @@ CLEANER COMMANDS
 /booze_admin_list_corked - council/mod
 """
 
+logger = logger.bind(logger_name="boozebot")
 
 class Corked(commands.Cog):
     def __init__(self, bot: commands.Bot):

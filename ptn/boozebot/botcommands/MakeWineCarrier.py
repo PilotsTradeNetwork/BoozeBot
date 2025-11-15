@@ -27,6 +27,8 @@ Member context menu: make_wine_carrier - conn/somm/mod/admin
 /remove_wine_carrier - somm/mod/admin
 """
 
+logger = logger.bind(logger_name="boozebot")
+
 # lock for wine carrier toggle
 wine_carrier_toggle_lock = asyncio.Lock()
 

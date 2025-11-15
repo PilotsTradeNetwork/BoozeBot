@@ -2,6 +2,8 @@ from loguru import logger
 
 from ptn.boozebot.modules.helpers import get_member
 
+logger = logger.bind(logger_name="boozebot")
+
 class CorkedUser:
     def __init__(self, info_dict=None):
         """

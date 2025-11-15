@@ -5,6 +5,8 @@ from datetime import datetime
 from loguru import logger
 from ptn.boozebot.constants import get_db_dumps_path, get_db_path
 
+logger = logger.bind(logger_name="boozebot")
+
 db_path = get_db_path()
 logger.info(f"Starting database connection at: {db_path}")
 

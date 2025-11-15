@@ -13,6 +13,7 @@ MIMIC STEVE COMMAND
 /steve_says - somm/mod/admin
 """
 
+logger = logger.bind(logger_name="boozebot")
 
 class MimicSteve(commands.Cog):
     def __init__(self, bot: commands.Bot):

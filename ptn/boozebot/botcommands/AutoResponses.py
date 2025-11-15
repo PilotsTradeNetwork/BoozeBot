@@ -23,6 +23,7 @@ commands
 
 """
 
+logger = logger.bind(logger_name="boozebot")
 
 class AutoResponses(commands.Cog):
     def __init__(self, bot: commands.Bot):

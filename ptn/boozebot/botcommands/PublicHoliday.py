@@ -35,6 +35,7 @@ PUBLIC HOLIDAY COMMANDS
 /booze_duration_remaining - conn/somm/mod/admin
 """
 
+logger = logger.bind(logger_name="boozebot")
 
 class PublicHoliday(commands.Cog):
     def __init__(self, bot: commands.Bot):

@@ -15,6 +15,8 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from loguru import logger
 
+logger = logger.bind(logger_name="boozebot")
+
 # Define whether the bot is in testing or live mode. Default is testing mode.
 _production = ast.literal_eval(os.environ.get("PTN_BOOZE_BOT", "False"))
 

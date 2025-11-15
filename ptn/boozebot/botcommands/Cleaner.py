@@ -33,6 +33,7 @@ CLEANER COMMANDS
 /close_wine_carrier_feedback - somm/mod/admin
 """
 
+logger = logger.bind(logger_name="boozebot")
 
 class Cleaner(commands.Cog):
     def __init__(self, bot: commands.Bot):

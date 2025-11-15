@@ -29,6 +29,7 @@ UNLOADING COMMANDS
 /wine_unload_complete  - wine carrier/wine conn/somm/mod/admin
 """
 
+logger = logger.bind(logger_name="boozebot")
 
 # initialise the Cog and attach our global error handler
 class Unloading(commands.Cog):

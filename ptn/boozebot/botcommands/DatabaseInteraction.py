@@ -57,6 +57,7 @@ DATABASE INTERACTION COMMANDS
 /purge_booze_carriers - admin/mod/somm
 """
 
+logger = logger.bind(logger_name="boozebot")
 
 def get_creds():
     creds = Credentials.from_service_account_file(GOOGLE_OAUTH_CREDENTIALS_PATH)

@@ -1,6 +1,8 @@
 from loguru import logger
 from ptn.boozebot.constants import CARRIER_ID_RE
 
+logger = logger.bind(logger_name="boozebot")
+
 class BoozeCarrier:
 
     COMPARISON_KEYS = ["carrier_name", "wine_total", "carrier_identifier", "discord_username", "run_count"]
