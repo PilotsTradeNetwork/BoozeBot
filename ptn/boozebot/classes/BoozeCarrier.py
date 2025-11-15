@@ -1,6 +1,5 @@
-
+from loguru import logger
 from ptn.boozebot.constants import CARRIER_ID_RE
-
 
 class BoozeCarrier:
 
@@ -18,6 +17,8 @@ class BoozeCarrier:
             info_dict = dict(info_dict)
         else:
             info_dict = dict()
+
+        logger.debug(f"Initializing BoozeCarrier with info_dict: {info_dict}")
 
         # Because we also pass a DB object, we should also covert those to the same fields
         self.carrier_name = info_dict.get("Carrier Name", None) or info_dict.get("carriername", None)
@@ -81,13 +82,26 @@ class BoozeCarrier:
         
         # The Discord message ID for the departure message
         self.discord_departure_message_id = info_dict.get("discord_departure_message_id", None)
+        
+        logger.debug(f"BoozeCarrier initialized: carrier_name={self.carrier_name}, wine_total={self.wine_total}, "
+                     f"carrier_identifier={self.carrier_identifier}, discord_username={self.discord_username}, "
+                     f"timestamp={self.timestamp}, run_count={self.run_count}, total_unloads={self.total_unloads}, "
+                     f"timezone={self.timezone}, discord_unload_notification={self.discord_unload_notification}, "
+                     f"discord_unload_poster_id={self.discord_unload_poster_id}, faction_state={self.faction_state}, "
+                     f"discord_departure_message_id={self.discord_departure_message_id}")
 
     def get_unload_stats(self, include_not_unloaded: bool = True) -> tuple[int, int]:
+        
+        logger.debug(f"Calculating unload stats for carrier '{self.carrier_name}' (ID: {self.carrier_identifier}). "
+                     f"Include not unloaded: {include_not_unloaded}")
+        
         if include_not_unloaded:
+            logger.debug(f"Returning total wine and run count: {self.wine_total}, {self.run_count}")
             return self.wine_total, self.run_count
 
         else:
             unloaded_wine = int(self.wine_total / self.run_count * self.total_unloads)
+            logger.debug(f"Returning unloaded wine and total unloads: {unloaded_wine}, {self.total_unloads}")
             return unloaded_wine, self.total_unloads
 
     def to_dictionary(self):
@@ -97,10 +111,16 @@ class BoozeCarrier:
         :returns: A dictionary representation for the carrier data.
         :rtype: dict
         """
+        
+        logger.debug(f"Converting BoozeCarrier '{self.carrier_name}' to dictionary.")
+        
         response = {}
         for key, value in vars(self).items():
             if value is not None:
                 response[key] = value
+        
+        logger.debug(f"BoozeCarrier dictionary representation: {response}")        
+        
         return response
 
     def __str__(self):
@@ -123,21 +143,42 @@ class BoozeCarrier:
 
         :rtype: bool
         """
-        return any(
+        
+        logger.debug(f"Checking boolean state of BoozeCarrier '{self.carrier_name}'.")
+        
+        state = any(
             [
                 value
                 for key, value in vars(self).items()
                 if key not in ["timestamp", "platform", "discord_unload_poster_id"] and value
             ]
         )
+        
+        logger.debug(f"BoozeCarrier '{self.carrier_name}' boolean state: {state}")
+        
+        return state
 
     def __eq__(self, other):
         """
         Override for equality check.
 
         :returns: The boolean state
-        :rtype: bool
+        :rtype: bool        
         """
+        
+        logger.debug(f"Checking equality between BoozeCarrier '{self.carrier_name}' and {type(other)}")
+        
         if isinstance(other, BoozeCarrier):
-            return all(getattr(self, key) == getattr(other, key) for key in self.COMPARISON_KEYS)
+            logger.debug("Both objects are BoozeCarrier, comparing attributes.")
+            
+            logger.debug(f"Self BoozeCarrier attributes: {self.to_dictionary()}")
+            logger.debug(f"Other BoozeCarrier attributes: {other.to_dictionary()}")
+            logger.debug(f"Comparison keys: {self.COMPARISON_KEYS}")
+            
+            equal = all(getattr(self, key) == getattr(other, key) for key in self.COMPARISON_KEYS)
+            
+            logger.debug(f"Equality result: {equal}")
+            return equal
+        
+        logger.debug("Other object is not a BoozeCarrier, returning False for equality check.")
         return False

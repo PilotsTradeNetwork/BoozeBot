@@ -1,5 +1,6 @@
-from ptn.boozebot.modules.helpers import get_member
+from loguru import logger
 
+from ptn.boozebot.modules.helpers import get_member
 
 class CorkedUser:
     def __init__(self, info_dict=None):
@@ -14,9 +15,13 @@ class CorkedUser:
             info_dict = dict(info_dict)
         else:
             info_dict = dict()
+            
+        logger.debug(f"Initializing CorkedUser with info_dict: {info_dict}")
 
         self.user_id = info_dict.get("user_id", None)
         self.timestamp = info_dict.get("timestamp", None)
+        
+        logger.debug(f"CorkedUser initialized: user_id={self.user_id}, timestamp={self.timestamp}")
 
     async def get_member(self):
         """
@@ -24,6 +29,7 @@ class CorkedUser:
 
         :rtype: discord.Member | None
         """
+        logger.debug(f"Fetching member for corked user ID: {self.user_id}. Database timestamp: {self.timestamp}")
         return await get_member(self.user_id)
 
     def __str__(self):

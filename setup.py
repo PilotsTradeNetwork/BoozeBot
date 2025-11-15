@@ -39,6 +39,7 @@ setup(
         'python-dotenv',
         'asyncio',
         'httpx',
+        'loguru>=0.7.3'
     ],
     entry_points={
         'console_scripts': [

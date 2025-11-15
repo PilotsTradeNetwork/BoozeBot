@@ -11,6 +11,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Literal, TypedDict
+from loguru import logger
 
 import discord
 from discord.ext import commands
@@ -20,7 +21,6 @@ from dotenv import load_dotenv
 _production = ast.literal_eval(os.environ.get("PTN_BOOZE_BOT", "False"))
 
 # define paths
-# TODO - check these all work in both live and testing, particularly default / fonts
 TESTING_DATA_PATH = os.path.join(
     os.getcwd(), "ptn", "boozebot", "data"
 )  # defines the path for use in a local testing environment
@@ -155,27 +155,6 @@ WCO_ROLE_ICON_URL = (
 I_AM_STEVE_GIF = "https://pilotstradenetwork.com/wp-content/uploads/2025/07/I-Am-Steve.gif"
 
 INTERACTION_CHECK_GIF = "https://c.tenor.com/91firFcrcYsAAAAC/tenor.gif"
-
-# define the logger for discord client
-# TODO: use PTNLogger and extend to all Steve Logging
-log_handler = logging.StreamHandler(sys.stdout)
-
-loglevel_input = os.getenv("PTN_BOOZEBOT_LOG_LEVEL", "INFO")
-match loglevel_input:
-    case "CRITICAL":
-        LOG_LEVEL = logging.CRITICAL
-
-    case "ERROR":
-        LOG_LEVEL = logging.ERROR
-
-    case "INFO":
-        LOG_LEVEL = logging.INFO
-
-    case "DEBUG":
-        LOG_LEVEL = logging.DEBUG
-
-    case _:
-        LOG_LEVEL = logging.INFO
 
 CARRIER_ID_RE = re.compile(r"[A-HJ-NP-Za-hj-np-z0-9]{3}-[A-HJ-NP-Za-hj-np-z0-9]{3}|\w{4}")
 
@@ -316,17 +295,17 @@ N_SYSTEMS = {
 
 # Check the folder exists
 if not os.path.exists(os.path.dirname(CARRIERS_DB_PATH)):
-    print(f"Folder {os.path.dirname(CARRIERS_DB_PATH)} does not exist, making it now.")
+    logger.info(f"Folder {os.path.dirname(CARRIERS_DB_PATH)} does not exist, making it now.")
     os.makedirs(os.path.dirname(CARRIERS_DB_PATH))
 
 # check the dumps folder exists
 if not os.path.exists(os.path.dirname(CARRIERS_DB_DUMPS_PATH)):
-    print(f"Folder {os.path.dirname(CARRIERS_DB_DUMPS_PATH)} does not exist, making it now.")
+    logger.info(f"Folder {os.path.dirname(CARRIERS_DB_DUMPS_PATH)} does not exist, making it now.")
     os.makedirs(os.path.dirname(CARRIERS_DB_DUMPS_PATH))
 
 # check the settings folder exists
 if not os.path.exists(SETTINGS_PATH):
-    print(f"Folder {SETTINGS_PATH} does not exist, making it now.")
+    logger.info(f"Folder {SETTINGS_PATH} does not exist, making it now.")
     os.makedirs(SETTINGS_PATH)
 
 # Move the old db to the new location if the new location doesn't exist and the old one does

@@ -4,7 +4,8 @@ Cog for PH check commands and loop
 """
 
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from loguru import logger
 
 import discord
 from discord import NotFound, app_commands
@@ -47,40 +48,47 @@ class PublicHoliday(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print("Starting the public holiday state checker")
+        logger.info("Starting the public holiday state checker")
         if not self.public_holiday_loop.is_running():
             self.public_holiday_loop.start()
+        else:
+            logger.debug("Public holiday state checker loop already running.")
 
     @staticmethod
     async def _set_public_holiday_state(state: bool, force_update: bool = False) -> tuple[bool, str]:
+        logger.info(f"Setting public holiday state to: {state}, force update: {force_update}")
         if state:
-            print("PH detected, triggering the notifications.")
+            logger.info("PH detected, triggering the notifications.")
             holiday_announce_channel = await get_channel(rackhams_holiday_channel())
 
             # Check if we had a holiday flagged already
             pirate_steve_db.execute("""SELECT state FROM holidaystate""")
             holiday_sqlite3 = pirate_steve_db.fetchone()
             holiday_ongoing = bool(dict(holiday_sqlite3).get("state"))
-            print(f"Holiday state from database: {holiday_ongoing}")
+            logger.debug(f"Holiday state from database: {holiday_ongoing}")
             if not holiday_ongoing or force_update:
+                logger.debug("Holiday not ongoing - updating database to set it ongoing.")
                 async with pirate_steve_db_lock:
                     pirate_steve_db.execute("""UPDATE holidaystate SET state=TRUE, timestamp=CURRENT_TIMESTAMP""")
                     pirate_steve_conn.commit()
+                logger.debug("Database updated to set holiday state to ongoing.")
 
-                print("Holiday was not ongoing, started now - flag it accordingly")
+                logger.info("Holiday was not ongoing, started now - flag it accordingly")
                 await holiday_announce_channel.send(holiday_start_gif)
                 await holiday_announce_channel.send(
                     f"Pirate Steve thinks the folks at Rackhams are partying again. "
                     f"<@&{server_council_role_ids()[0]}>, <@&{server_sommelier_role_id()}> please take note."
                 )
+                logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
                 await Cleaner.update_status_embed("bc_start")
                 return True, "Holiday started and flagged in the database"
             else:
-                print("Holiday already flagged - no need to set it again")
+                logger.info("Holiday already flagged - no need to set it again")
                 return False, "Holiday already ongoing, no need to set it again"
         else:
             # Check if the 48 hours have expired first, to avoid scenarios of the HTTP request failing and turning
             # off an ongoing holiday.
+            logger.info("No PH detected, checking if holiday duration has expired.")
 
             pirate_steve_db.execute("""SELECT timestamp FROM holidaystate""")
             timestamp = pirate_steve_db.fetchone()
@@ -88,12 +96,13 @@ class PublicHoliday(commands.Cog):
             start_time = datetime.strptime(dict(timestamp).get("timestamp"), "%Y-%m-%d %H:%M:%S")
             end_time = start_time + timedelta(hours=48)
 
-            current_time_utc = datetime.strptime(datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), "%Y-%m-%d %H:%M:%S")
-            print("No PH detected, next check in 10 mins.")
+            current_time_utc = datetime.strptime(datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), "%Y-%m-%d %H:%M:%S")
+
+            logger.debug(f"Current time UTC: {current_time_utc}, holiday end time: {end_time}")
 
             if current_time_utc > end_time or force_update:
                 # Current time is after the end time, go turn the checks off.
-                print("Holiday duration expired, turning the check off.")
+                logger.info("Holiday duration expired, turning the check off.")
                 holiday_announce_channel = await get_channel(rackhams_holiday_channel())
 
                 # Check if we had a holiday flagged already
@@ -101,20 +110,25 @@ class PublicHoliday(commands.Cog):
                 holiday_sqlite3 = pirate_steve_db.fetchone()
                 holiday_ongoing = bool(dict(holiday_sqlite3).get("state"))
 
-                print(f"Holiday state from database: {holiday_ongoing}")
+                logger.debug(f"Holiday state from database: {holiday_ongoing}")
                 if holiday_ongoing or force_update:
+                    logger.debug("Holiday ongoing - updating database to turn it off.")
                     async with pirate_steve_db_lock:
                         pirate_steve_db.execute("""UPDATE holidaystate SET state=False, timestamp=CURRENT_TIMESTAMP""")
                         pirate_steve_conn.commit()
+                    logger.debug("Database updated to turn off holiday state.")
 
                     # Only post it if it is a state change.
-                    print("Holiday was ongoing, no longer ongoing - flag it accordingly")
+                    logger.info("Holiday was ongoing, no longer ongoing - flag it accordingly")
                     await holiday_announce_channel.send(holiday_ended_gif)
                     await Cleaner.update_status_embed("bc_end")
+                    logger.debug("Notified holiday end. Updating status embed.")
                     return True, "Holiday ended and flagged in the database"
-                return False, "Holiday was not ongoing, no need to turn it off"
+                else:
+                    logger.info("Holiday was not ongoing - no need to turn it off")
+                    return False, "Holiday was not ongoing, no need to turn it off"
             else:
-                print(f"Holiday has not yet expired, due at: {end_time}. Ignoring the check result for now.")
+                logger.info("Holiday has not yet expired, no need to turn it off. Due at: {end_time}")
                 return False, "Holiday has not yet expired, no need to turn it off"
 
     @classmethod
@@ -126,12 +140,14 @@ class PublicHoliday(commands.Cog):
 
         :return: None
         """
+        logger.info("Rackham's holiday loop running.")
         try:
-            print("Rackham's holiday loop running.")
-            await cls._set_public_holiday_state(await api_ph_check())
+            state = await api_ph_check()
+            logger.info(f"Rackham's holiday API check returned: {state}")
+            await cls._set_public_holiday_state(state)
 
         except Exception as e:
-            print(f"Error in the public holiday loop: {e}")
+            logger.exception(f"Error in the public holiday loop: {e}")
 
     @app_commands.command(name="booze_started", description="Returns a GIF for whether the holiday has started.")
     @check_roles(
@@ -139,26 +155,27 @@ class PublicHoliday(commands.Cog):
     )
     async def holiday_query(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        print(f"User {interaction.user.name} wanted to know if the holiday has started.")
-        gif = None
+        logger.info(f"User {interaction.user.name} queried the holiday state.")
 
         if ph_check():
-            print("Rackhams holiday check says yep.")
+            logger.info("Rackhams holiday check says yep.")
             try:
                 gif = random.choice(holiday_query_started_gifs)
                 await interaction.followup.send(gif)
+                logger.debug(f"Sent holiday started GIF: {gif}")
             except NotFound:
-                print(f"Problem sending the GIF for: {gif}.")
+                logger.exception(f"Problem sending the GIF for: {gif}.")
                 await interaction.followup.send(
                     "Pirate Steve could not parse the gif. Try again and tell Council to check the log."
                 )
         else:
+            logger.info("Rackhams holiday check says nope.")
             try:
                 gif = random.choice(holiday_query_not_started_gifs)
-                print("Rackhams holiday check says no.")
                 await interaction.followup.send(gif)
+                logger.debug(f"Sent holiday not started gif: {gif}")
             except NotFound:
-                print(f"Problem sending the GIF for: {gif}.")
+                logger.exception(f"Problem sending the GIF for: {gif}.")
                 await interaction.followup.send(
                     "Pirate Steve could not parse the gif. Try again and tell Council to check the log."
                 )
@@ -176,10 +193,12 @@ class PublicHoliday(commands.Cog):
     async def admin_override_holiday_state(
         self, interaction: discord.Interaction, state: bool, force_update: bool = False
     ):
-        print(
-            f"{interaction.user.name} requested to override the admin holiday state too: {state}, forced: {force_update}."
+        logger.info(
+            f"User {interaction.user.name} requested to override the admin holiday state to: {state}, forced: {force_update}."
         )
         success, message = await self._set_public_holiday_state(state, force_update)
+
+        logger.info(f"Admin override result: {message}")
         await interaction.response.send_message(f"{message}. Check with /booze_started.")
 
     @app_commands.command(
@@ -190,33 +209,34 @@ class PublicHoliday(commands.Cog):
     @describe(timestamp="Date time of the the cruise starting in the format YYYY-MM-DD HH:MI:SS")
     @check_command_channel([get_steve_says_channel()])
     async def admin_override_start_timestamp(self, interaction: discord.Interaction, timestamp: str):
-        print(f"{interaction.user.name} requested to override the start time to: {timestamp}.")
+        logger.info(f"User {interaction.user.name} requested to override the start time to: {timestamp}.")
 
         try:
             datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
         except ValueError:
+            logger.exception("Invalid timestamp format provided.")
             await interaction.response.send_message(
                 "Invalid timestamp format. Please use YYYY-MM-DD HH:MI:SS.", ephemeral=True
             )
             return
 
         # Check if we had a holiday flagged already
-        pirate_steve_db.execute("""SELECT state FROM holidaystate""")
-        holiday_sqlite3 = pirate_steve_db.fetchone()
-        holiday_ongoing = bool(dict(holiday_sqlite3).get("state"))
-        print(f"Holiday state from database: {holiday_ongoing}")
+        holiday_ongoing = ph_check()
+        logger.debug(f"Holiday state from database: {holiday_ongoing}")
+        
         if holiday_ongoing:
-            print("Holiday ongoing - updating timestamp")
+            logger.info("Holiday is ongoing, updating the timestamp.")
 
             pirate_steve_db.execute(f"""UPDATE holidaystate SET state=TRUE, timestamp=\'{timestamp}\'""")
             pirate_steve_conn.commit()
 
+            logger.debug("Database updated with new timestamp.")
             await interaction.response.send_message(
                 f"Set the cruise start time to: {timestamp}. Check with /booze_duration_remaining."
             )
 
         else:
-            print("Holiday was not ongoing")
+            logger.info("No holiday ongoing, cannot set timestamp.")
             await interaction.response.send_message(
                 "No holiday has been detected yet, Wait until steve detects the holiday before using this command."
             )
@@ -233,27 +253,30 @@ class PublicHoliday(commands.Cog):
         ]
     )
     async def remaining_time(self, interaction: discord.Interaction):
-        print(f"User {interaction.user.name} wanted to know if the remaining time of the holiday.")
+        logger.info(f"User {interaction.user.name} requested remaining holiday duration.")
+        
         await interaction.response.defer()
         if not ph_check():
+            logger.info("Holiday not ongoing, cannot calculate remaining duration.")
             await interaction.edit_original_response(
                 content="Pirate Steve has not detected the holiday state yet, or it is already over."
             )
             return
-        print("Holiday ongoing, go figure out how long is left.")
+        logger.info("Holiday is ongoing, calculating remaining duration.")
         # Ok the holiday is ongoing
         duration_hours = 48
 
         # Get the starting timestamp
 
+        logger.debug("Fetching holiday start timestamp from database.")
         pirate_steve_db.execute("""SELECT timestamp FROM holidaystate""")
         timestamp = pirate_steve_db.fetchone()
 
         start_time = datetime.strptime(dict(timestamp).get("timestamp"), "%Y-%m-%d %H:%M:%S")
         end_time = start_time + timedelta(hours=duration_hours)
         end_timestamp = int(end_time.timestamp())
-        print(f"End time calculated as: {end_time}. Which is epoch of: {end_timestamp}")
-
+        
+        logger.info(f"Sending remaining duration response with end time: {end_time}.")        
         await interaction.edit_original_response(
             content=f"Pirate Steve thinks the holiday will end around <t:{end_timestamp}> (<t:{end_timestamp}:R>) [local timezone]."
         )

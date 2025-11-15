@@ -5,6 +5,7 @@ Cog for granting and removing the wine carrier role
 
 import asyncio
 import random
+from loguru import logger
 
 import discord
 from discord import app_commands
@@ -41,7 +42,7 @@ class MakeWineCarrier(commands.Cog):
         [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()]
     )
     async def context_menu_make_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
-        print(
+        logger.info(
             f"Context menu make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user}"
         )
         await make_user_wine_carrier(interaction, user)
@@ -55,7 +56,7 @@ class MakeWineCarrier(commands.Cog):
         [*server_council_role_ids(), server_mod_role_id(), server_sommelier_role_id(), server_connoisseur_role_id()]
     )
     async def make_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
-        print(
+        logger.info(
             f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to set the Wine Carrier role"
         )
 
@@ -70,27 +71,32 @@ class MakeWineCarrier(commands.Cog):
     @check_command_channel(get_steve_says_channel())
     async def remove_wine_carrier(self, interaction: discord.Interaction, user: discord.Member):
         await interaction.response.defer()
-
-        print(
-            f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to remove the Wine Carrier role"
+        
+        logger.info(
+            f"remove_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to remove the Wine Carrier role"
         )
 
+        logger.debug("Acquiring wine_carrier_toggle_lock to remove Wine Carrier role")
         async with wine_carrier_toggle_lock:
+            logger.debug("wine_carrier_toggle_lock acquired")
             # set the target role
             wc_role = await get_role(server_wine_carrier_role_id())
-            print(f"Wine Carrier role name is {wc_role.name}")
+            logger.debug(f"Wine Carrier role name is {wc_role.name}")
 
             # Refetch the user from the interaction inside the lock
             user = await get_member(user.id)
+            
+            logger.debug(f"Refetched user: {user}")
 
             if wc_role in user.roles:
                 # remove role
-                print(f"{user} is a {wc_role.name}, removing the role.")
+                logger.info(f"Removing {wc_role.name} role from {user}")
                 try:
                     await user.remove_roles(wc_role)
+                    logger.info(f"Removed Wine Carrier role from {user}")
+                    
                     response = f"{user.mention} ({user.name}) no longer has the {wc_role.name} role."
                     await interaction.edit_original_response(content=response)
-
                     bot_spam = await get_channel(bot_spam_channel())
                     embed = discord.Embed(
                         description=f"{user.mention} ({user.name}) has been removed from the {wc_role.mention} role by {interaction.user.mention} ({interaction.user.name}).",
@@ -98,63 +104,72 @@ class MakeWineCarrier(commands.Cog):
                     await bot_spam.send(embed=embed)
 
                 except discord.DiscordException as e:
-                    print(e)
+                    logger.exception(f"Failed removing role {wc_role.name} from {user}: {e}")
                     await interaction.edit_original_response(
                         content=f"Failed removing role {wc_role.name} from {user}: {e}"
                     )
-                    return
             else:
-                print("User is not a wine carrier, doing nothing.")
-                return await interaction.edit_original_response(content=f"User is not a {wc_role.name}")
+                logger.info(f"User {user} is not a {wc_role.name}, cannot remove role.")
+                await interaction.edit_original_response(content=f"User is not a {wc_role.name}")
 
 
 # function shared by make_wine_carrier and make_contextuser_wine_carrier
 async def make_user_wine_carrier(interaction: discord.Interaction, user: discord.Member) -> None:
     await interaction.response.defer(ephemeral=True)
 
+    logger.debug("Acquiring wine_carrier_toggle_lock to add Wine Carrier role")
     async with wine_carrier_toggle_lock:
+        logger.debug("wine_carrier_toggle_lock acquired")
         channel = await get_channel(get_steve_says_channel())
         # set the target role
         wc_role = await get_role(server_wine_carrier_role_id())
-        print(f"Wine Carrier role name is {wc_role.name}")
+        logger.debug(f"Wine Carrier role name is {wc_role.name}")
 
         # Refetch the user from the interaction inside the lock
         user = await get_member(user.id)
+        logger.debug(f"Refetched user: {user}")
 
         pirate_steve_db.execute(
             "SELECT * FROM corked_users WHERE user_id = ?",
             (str(user.id),),
         )
         result = pirate_steve_db.fetchone()
+        
+        logger.debug(f"Corked user query result: {dict(result) if result else result}")
 
         if result:
-            print(f"User {user} is corked, cannot make wine carrier.")
-            return await interaction.edit_original_response(
+            logger.info(f"User {user} is corked, cannot make Wine Carrier.")
+            await interaction.edit_original_response(
                 content=f"User {user.mention} ({user.name}) is corked and cannot be made a {wc_role.name}."
             )
+            return
 
         if wc_role in user.roles:
-            print(f"{user} is already a {wc_role.name}, doing nothing.")
+            logger.info(f"User {user} is already a {wc_role.name}, cannot add role again.")
             embed = discord.Embed(description=f"{user.mention} is already a {wc_role.name}")
             embed.set_image(url=random.choice(too_slow_gifs))
             await interaction.edit_original_response(embed=embed)
             return
         else:
             # toggle on
-            print(f"{user} is not a {wc_role.name}, adding the role.")
+            logger.info(f"Adding {wc_role.name} role to {user}")
             try:
                 await user.add_roles(wc_role)
-                print(f"Added Wine Carrier role to {user}")
+                logger.info(f"Added Wine Carrier role to {user}")
                 response = f"{user.display_name} now has the {wc_role.name} role."
 
+                logger.debug("Opening welcome message file")
                 # Open the file in read mode.
                 with open(WELCOME_MESSAGE_FILE_PATH, "r", encoding="utf-8") as file:
                     wine_welcome_message = file.read()  # read contents to variable
+                    
+                logger.debug(f"Welcome message file read successfully. \n {wine_welcome_message}")
 
                 wine_channel = await get_channel(get_wine_carrier_channel())
                 embed = discord.Embed(description=wine_welcome_message)
                 embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
                 await wine_channel.send(f"<@{user.id}>", embed=embed)
+                logger.debug("Welcome message sent successfully.")
 
                 msg = f"{user.mention} ({user.name}) has been given the {wc_role.name} role by {interaction.user.mention} ({interaction.user.name})."
                 embed = discord.Embed(description=msg)
@@ -163,7 +178,8 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
 
                 bot_spam = await get_channel(bot_spam_channel())
                 await bot_spam.send(embed=embed)
+                logger.debug("Notified bot_spam and steve_says channels successfully.")
 
             except discord.DiscordException as e:
-                print(e)
+                logger.exception(f"Failed adding role {wc_role.name} to {user}: {e}")
                 await interaction.edit_original_response(content=f"Failed adding role {wc_role.name} to {user}: {e}")
