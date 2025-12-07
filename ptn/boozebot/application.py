@@ -22,7 +22,7 @@ from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import TOKEN, _production, bot, bot_guild_id
 from ptn.boozebot.database.database import build_database_on_startup
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
-from ptn.logger.logger import Logger
+from ptn_utils.logger.logger import Logger
 
 logger = logger.bind(logger_name="boozebot")
 
