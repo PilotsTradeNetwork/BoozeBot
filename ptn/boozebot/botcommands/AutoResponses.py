@@ -123,7 +123,7 @@ class AutoResponses(commands.Cog):
         await interaction.response.defer()
 
         logger.info(
-            f"{interaction.author} ({interaction.author.id}) called create auto response with name: {name} trigger: {trigger} is_regex: {is_regex}"
+            f"{interaction.user} ({interaction.user.id}) called {interaction.command.name} with name: {name} trigger: {trigger} is_regex: {is_regex}"
         )
 
         if is_regex:
@@ -182,7 +182,7 @@ class AutoResponses(commands.Cog):
 
         await interaction.response.defer()
 
-        logger.info(f"{interaction.author} ({interaction.author.id}) called delete auto response with name: {name}")
+        logger.info(f"{interaction.user} ({interaction.user.id}) called {interaction.command.name} with name: {name}")
 
         async with pirate_steve_db_lock:
             logger.debug(f"Acquiring database lock for deleting auto response '{name}'.")
@@ -217,7 +217,7 @@ class AutoResponses(commands.Cog):
 
         await interaction.response.defer()
 
-        logger.info(f"{interaction.author} ({interaction.author.id}) called list auto responses.")
+        logger.info(f"{interaction.user} ({interaction.user.id}) called {interaction.command.name}.")
 
         if not self.auto_responses:
             await interaction.edit_original_response(content="No auto responses found.")
