@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import discord
 from discord import app_commands
 from discord.ext import commands
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import (
@@ -33,7 +33,7 @@ CLEANER COMMANDS
 /close_wine_carrier_feedback - somm/mod/admin
 """
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.commands.cleaner")
 
 class Cleaner(commands.Cog):
     def __init__(self, bot: commands.Bot):

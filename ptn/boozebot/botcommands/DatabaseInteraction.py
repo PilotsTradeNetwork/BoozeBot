@@ -18,7 +18,7 @@ from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
 from google.oauth2.service_account import Credentials
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import (
     BOOZE_PROFIT_PER_TONNE_WINE, CARRIER_ID_RE, GOOGLE_OAUTH_CREDENTIALS_PATH, RACKHAMS_PEAK_POP, _production, bot,
@@ -36,7 +36,7 @@ from ptn.boozebot.modules.Views import ConfirmView
 
 """
 DATABASE INTERACTION COMMANDS
-    
+
 /update_booze_db - admin/mod/somm/conn
 /find_carriers_with_wine - admin/mod/somm/conn/wine carrier
 /wine_mark_completed_forcefully - admin/mod/somm
@@ -57,7 +57,7 @@ DATABASE INTERACTION COMMANDS
 /purge_booze_carriers - admin/mod/somm
 """
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.commands.database")
 
 def get_creds():
     creds = Credentials.from_service_account_file(GOOGLE_OAUTH_CREDENTIALS_PATH)
@@ -234,7 +234,7 @@ class DatabaseInteraction(commands.Cog):
                     logger.debug(f"Adding new carrier to all_carriers_data: {carrier_data.carrier_identifier}")
                     all_carriers_data[carrier_data.carrier_identifier] = carrier_data
             except ValueError as e:
-                logger.exception(f"Error while paring the stats into carrier records: {e}")
+                logger.exception(f"Error while parsing the stats into carrier records: {e}")
                 return
 
         logger.info(f"Total Carriers parsed: {len(all_carriers_data)}")
@@ -293,8 +293,8 @@ class DatabaseInteraction(commands.Cog):
                             logger.debug(f"Update data prepared: {data}")
 
                             pirate_steve_db.execute(
-                                """ UPDATE boozecarriers 
-                                SET carriername=?, winetotal=?, 
+                                """ UPDATE boozecarriers
+                                SET carriername=?, winetotal=?,
                                 discordusername=?, timestamp=?, runtotal=?
                                 WHERE carrierid LIKE (?) """,
                                 data,
@@ -337,8 +337,8 @@ class DatabaseInteraction(commands.Cog):
                         logger.debug(f"Insert data prepared: {data}")
 
                         pirate_steve_db.execute(
-                            """ 
-                        INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL) 
+                            """
+                        INSERT INTO boozecarriers VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL)
                         """,
                             data,
                         )
@@ -832,7 +832,7 @@ class DatabaseInteraction(commands.Cog):
 
     """
     Pinned Stats and Activity Update Task Loop
-    
+
     """
 
     @commands.Cog.listener()
@@ -901,7 +901,7 @@ class DatabaseInteraction(commands.Cog):
 
     """
     Database interaction Commands
-    
+
     """
 
     @app_commands.command(
@@ -1068,10 +1068,10 @@ class DatabaseInteraction(commands.Cog):
                 async with pirate_steve_db_lock:
                     data = (f"%{carrier_data.carrier_identifier}%",)
                     pirate_steve_db.execute(
-                        """ 
-                        UPDATE boozecarriers 
+                        """
+                        UPDATE boozecarriers
                         SET totalunloads=totalunloads+1, discord_unload_in_progress=NULL
-                        WHERE carrierid LIKE (?) 
+                        WHERE carrierid LIKE (?)
                         """,
                         data,
                     )
@@ -1663,9 +1663,9 @@ class DatabaseInteraction(commands.Cog):
                 async with pirate_steve_db_lock:
                     logger.debug(f"Removing the entry ({carrier_id}) from the database.")
                     pirate_steve_db.execute(
-                        """ 
-                        DELETE FROM boozecarriers 
-                        WHERE carrierid LIKE (?) 
+                        """
+                        DELETE FROM boozecarriers
+                        WHERE carrierid LIKE (?)
                         """,
                         (f"%{carrier_id}%",),
                     )
@@ -1790,9 +1790,9 @@ class DatabaseInteraction(commands.Cog):
             data = (start_date, end_date, faction_state)
             pirate_steve_db.execute(
                 """
-                    INSERT INTO historical (carriername, carrierid, winetotal, platform, 
+                    INSERT INTO historical (carriername, carrierid, winetotal, platform,
                     officialcarrier, discordusername, timestamp, runtotal, totalunloads)
-                    SELECT carriername, carrierid, winetotal, platform, officialcarrier, discordusername, 
+                    SELECT carriername, carrierid, winetotal, platform, officialcarrier, discordusername,
                     timestamp, runtotal, totalunloads
                     FROM boozecarriers
                 """
@@ -1956,7 +1956,7 @@ class DatabaseInteraction(commands.Cog):
                 data = (new_worksheet_key, new_loader_signup_form, new_sheet_id)
                 pirate_steve_db.execute(
                     """
-                        UPDATE trackingforms 
+                        UPDATE trackingforms
                         SET worksheet_key=?, loader_input_form_url=?, worksheet_with_data_id=?
                     """,
                     data,

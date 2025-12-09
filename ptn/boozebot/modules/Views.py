@@ -1,9 +1,9 @@
 import discord.colour
 from discord import ButtonStyle, Embed, Interaction, ui
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.constants import INTERACTION_CHECK_GIF
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.modules.views")
 
 class ConfirmView(ui.View):
     def __init__(self, author: discord.Member):

@@ -2,13 +2,13 @@ import discord
 from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.constants import (
     bot, get_steve_says_channel, server_council_role_ids, server_mod_role_id, server_sommelier_role_id
 )
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.commands.background")
 
 class BackgroundTaskCommands(commands.Cog):
     task_choices = [

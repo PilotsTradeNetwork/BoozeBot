@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.constants import (
     get_steve_says_channel, server_council_role_ids, server_mod_role_id, server_sommelier_role_id
 )
@@ -9,11 +9,10 @@ from ptn.boozebot.modules.helpers import check_roles, get_channel
 
 """
 MIMIC STEVE COMMAND
-
 /steve_says - somm/mod/admin
 """
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.commands.mimicsteve")
 
 class MimicSteve(commands.Cog):
     def __init__(self, bot: commands.Bot):

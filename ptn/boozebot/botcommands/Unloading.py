@@ -9,7 +9,7 @@ import discord
 from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import (
     CARRIER_ID_RE, bot, get_custom_assassin_id, get_discord_booze_unload_channel, get_fc_complete_id,
@@ -29,7 +29,7 @@ UNLOADING COMMANDS
 /wine_unload_complete  - wine carrier/wine conn/somm/mod/admin
 """
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.commands.unloading")
 
 # initialise the Cog and attach our global error handler
 class Unloading(commands.Cog):

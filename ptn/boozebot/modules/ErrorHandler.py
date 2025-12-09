@@ -5,10 +5,10 @@ import discord
 from discord import Interaction, InteractionResponded, app_commands
 from discord.app_commands import AppCommandError
 from discord.ext import commands
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.constants import EMBED_COLOUR_ERROR, error_gifs
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.modules.errorhandler")
 
 # custom errors
 class CommandChannelError(app_commands.CheckFailure):

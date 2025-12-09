@@ -1,10 +1,10 @@
 import asyncio
 
 import discord
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.constants import bot
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.modules.pagination")
 
 async def createPagination(
     interaction: discord.Interaction, title: str, content: list[tuple[str, str]], pageLength: int = 10
@@ -25,13 +25,13 @@ async def createPagination(
         """
         Validates the user response
         """
-        logger.debug(f"Validating reaction: {react.emoji} from user: {user.name}")
+        logger.trace(f"Validating reaction: {react.emoji} from user: {user.name}")
         valid = user == interaction.user and str(react.emoji) in ["◀️", "▶️"]
-        logger.debug(f"Reaction valid: {valid}")
+        logger.trace(f"Reaction valid: {valid}")
         return valid
 
     def createPageEmbed():
-        logger.debug(f"Creating embed for page {current_page} of {max_pages} for {title}")
+        logger.trace(f"Creating embed for page {current_page} of {max_pages} for {title}")
         embed = discord.Embed(title=f"{len(content)} {title}. Page: #{current_page} of {max_pages}")
 
         count = (current_page - 1) * pageLength
@@ -43,7 +43,7 @@ async def createPagination(
                 value=f"{entry[1]}",
                 inline=False,
             )
-        logger.debug(f"Embed for page {current_page} created.")
+        logger.trace(f"Embed for page {current_page} created.")
         return embed
 
     pages = [page for page in chunk(content)]
@@ -52,13 +52,13 @@ async def createPagination(
 
     # Send page 1 and and wait on a reaction
     await interaction.edit_original_response(content=None, embed=createPageEmbed())
-    logger.info(f"Pagination for {title} initialized with {max_pages} pages.")
+    logger.info(f"Pagination for {title} initialized with {max_pages} pages by {interaction.user.name}.")
 
     message = await interaction.original_response()
 
     # From page 0 we can only go forwards
     await message.add_reaction("▶️")
-    logger.debug("Added ▶️ reaction for pagination.")
+    logger.trace("Added ▶️ reaction for pagination.")
     # 60 seconds time out gets raised by Asyncio
     while True:
         try:
@@ -66,43 +66,41 @@ async def createPagination(
 
             if str(reaction.emoji) == "▶️":
                 if current_page == max_pages:
-                    logger.debug(f"{interaction.user.name} requested to go forward a page but was on the last page.")
+                    logger.trace(f"{interaction.user.name} requested to go forward a page but was on the last page.")
                     await message.remove_reaction(reaction, user)
                     continue
 
-                logger.debug(f"{interaction.user.name} requested to go forward a page.")
+                logger.trace(f"{interaction.user.name} requested to go forward a page.")
                 current_page += 1
-
                 await message.edit(content=None, embed=createPageEmbed())
-                logger.debug(f"Edited message to show page {current_page}.")
+                logger.trace(f"Edited message to show page {current_page}.")
 
                 if current_page == max_pages:
                     await message.clear_reaction("▶️")
-                    logger.debug("Cleared ▶️ reaction from message.")
+                    logger.trace("Cleared ▶️ reaction from message.")
 
                 await message.remove_reaction(reaction, user)
                 await message.add_reaction("◀️")
-                logger.debug("Added ◀️ reaction to message.")
+                logger.trace("Added ◀️ reaction to message.")
 
             elif str(reaction.emoji) == "◀️":
                 if current_page == 1:
-                    logger.debug(f"{interaction.user.name} requested to go back a page but was on the first page.")
+                    logger.trace(f"{interaction.user.name} requested to go back a page but was on the first page.")
                     await message.remove_reaction(reaction, user)
                     continue
 
-                logger.debug(f"{interaction.user.name} requested to go back a page.")
+                logger.trace(f"{interaction.user.name} requested to go back a page.")
                 current_page -= 1
-
                 await message.edit(content=None, embed=createPageEmbed())
-                logger.debug(f"Edited message to show page {current_page}.")
+                logger.trace(f"Edited message to show page {current_page}.")
 
                 if current_page == 1:
                     await message.clear_reaction("◀️")
-                    logger.debug("Cleared ◀️ reaction from message.")
+                    logger.trace("Cleared ◀️ reaction from message.")
 
                 await message.remove_reaction(reaction, user)
                 await message.add_reaction("▶️")
-                logger.debug("Added ▶️ reaction to message.")
+                logger.trace("Added ▶️ reaction to message.")
 
             else:
                 # It should be impossible to hit this part, but lets gate it just in case.

@@ -7,7 +7,7 @@ import asyncio
 
 from discord import ConnectionClosed, DiscordException, GatewayNotFound, HTTPException, LoginFailure, Object
 from discord.ext.prometheus import PrometheusCog
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 from ptn.boozebot.botcommands.Cleaner import Cleaner
@@ -24,7 +24,7 @@ from ptn.boozebot.database.database import build_database_on_startup
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
 from ptn_utils.logger.logger import Logger
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.application")
 
 logger.info(f"Booze bot is connecting against production: {_production}.")
 
