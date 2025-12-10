@@ -1,6 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["setuptools>=61.2", "wheel"]
 
 [project]
 name = "ptn.boozebot"
@@ -14,17 +13,17 @@ authors = [
 readme = "README.md"
 license = { text = "MIT" }
 keywords = ["PTN"]
-requires-python = ">=3.13"
+requires-python = "~=3.13.0"
 dependencies = [
-    "discord-py>=2.0",
-    "python-dotenv>=0.15.0",
-    "loguru>=0.7.3",
-    "discord-ext-prometheus>=0.2.1",
-    "google-api-python-client>=2.187.0",
-    "gspread>=6.0.2",
-    "gspread_asyncio>=2.0.0",
-    "requests>=2.32.5",
-    "httpx>=0.28.1",
+    "discord-py~=2.5",
+    "discord-ext-prometheus~=0.2.1",
+    "google-api-python-client~=2.187.0",
+    "gspread~=6.0.2",
+    "gspread_asyncio~=2.0.0",
+    "loguru~=0.7.3",
+    "python-dotenv~=1.0.1",
+    "requests~=2.32.5",
+    "httpx~=0.28.1",
 ]
 dynamic = ["version"]
 
@@ -37,3 +36,14 @@ include = ["ptn.boozebot*"]
 
 [project.scripts]
 booze = "ptn.boozebot.application:run"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[dependency-groups]
+dev = [
+    "basedpyright~=1.32.1",
+    "ipython~=9.7.0",
+    "ruff~=0.14.3",
+]
