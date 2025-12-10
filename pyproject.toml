@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ptn.boozebot"
+description = "Pilots Trade Network Booze Bot"
+authors = [
+    { name = "Conshmea"},
+    { name = "Axle Antilles"},
+    { name = "IndorilReborn"},
+    { name = "Graeme Cruickshank"},
+]
+readme = "README.md"
+license = { text = "MIT" }
+keywords = ["PTN"]
+requires-python = ">=3.13"
+dependencies = [
+    "discord-py>=2.0",
+    "python-dotenv>=0.15.0",
+    "loguru>=0.7.3",
+    "discord-ext-prometheus>=0.2.1",
+    "google-api-python-client>=2.187.0",
+    "gspread>=6.0.2",
+    "gspread_asyncio>=2.0.0",
+    "requests>=2.32.5",
+    "httpx>=0.28.1",
+]
+dynamic = ["version"]
+
+[tool.setuptools.dynamic]
+version = { attr = "ptn.boozebot.__version__" }  # any module attribute compatible with ast.literal_eval
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ptn.boozebot*"]
+
+[project.scripts]
+booze = "ptn.boozebot.application:run"

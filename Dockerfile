@@ -1,7 +1,7 @@
-FROM python:3.10-slim-bookworm
+FROM python:3.13-slim-bookworm
 RUN mkdir -p /usr/src/bot
 WORKDIR /usr/src/bot
-COPY setup.py .
+COPY pyproject.toml .
 COPY README.md .
 COPY ptn ptn
 COPY tests tests
