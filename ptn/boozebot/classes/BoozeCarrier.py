@@ -25,9 +25,9 @@ class BoozeCarrier:
         if self.carrier_name:
             self.carrier_name = str(self.carrier_name)
 
-        self.wine_total = info_dict.get("Wine Total (tons)", None) or info_dict.get("winetotal", None)
+        self.wine_total = info_dict.get("Wine Total (tons)", info_dict.get("winetotal", None))
 
-        if self.wine_total:
+        if self.wine_total is not None:
             try:
                 self.wine_total = int(self.wine_total)
             except ValueError:
