@@ -117,7 +117,6 @@ class PublicHoliday(commands.Cog):
                 print(f"Holiday has not yet expired, due at: {end_time}. Ignoring the check result for now.")
                 return False, "Holiday has not yet expired, no need to turn it off"
 
-    @classmethod
     @tasks.loop(minutes=10)
     @track_last_run()
     async def public_holiday_loop(cls):
