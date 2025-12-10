@@ -119,7 +119,7 @@ class PublicHoliday(commands.Cog):
 
     @tasks.loop(minutes=10)
     @track_last_run()
-    async def public_holiday_loop(cls):
+    async def public_holiday_loop(self):
         """
         Command triggers periodically to check the state at Rackhams Peak. Right now this triggers every 15 minutes.
 
@@ -127,7 +127,7 @@ class PublicHoliday(commands.Cog):
         """
         try:
             print("Rackham's holiday loop running.")
-            await cls._set_public_holiday_state(await api_ph_check())
+            await self._set_public_holiday_state(await api_ph_check())
 
         except Exception as e:
             print(f"Error in the public holiday loop: {e}")
