@@ -1,9 +1,8 @@
-import logging
-import os
 import sys
 
 import discord
 from discord.ext import commands
+from loguru import logger
 from ptn.boozebot._metadata import __version__
 from ptn.boozebot.constants import (
     I_AM_STEVE_GIF, get_bot_control_channel, server_council_role_ids, server_sommelier_role_id
@@ -29,6 +28,7 @@ b/version - admin
 b/sync - admin
 """
 
+logger = logger.bind(logger_name="boozebot")
 
 class DiscordBotCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -46,22 +46,21 @@ class DiscordBotCommands(commands.Cog):
 
         :returns: None
         """
-        print(f"{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}")
+        logger.info(f"{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}")
         try:
             bot_channel = await get_channel(get_bot_control_channel())
             embed = discord.Embed(
                 description=f"{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}"
             )
+            logger.debug("Sending on_ready message to bot control channel.")
             embed.set_image(url=I_AM_STEVE_GIF)
             await bot_channel.send(embed=embed)
         except AttributeError as e:
-            logging.error(f"Error in on_ready: {e}")
-
-        print("Starting the holiday checker.")
+            logger.exception(f"Error in on_ready: {e}")
 
     @commands.Cog.listener()
     async def on_disconnect(self):
-        print(f"Booze bot has disconnected from discord server, booze bot version: {__version__}.")
+        logger.warning(f"Booze bot has disconnected from discord server, booze bot version: {__version__}.")
 
     """
     ADMIN COMMANDS
@@ -76,9 +75,11 @@ class DiscordBotCommands(commands.Cog):
         :param discord.Context ctx: The Discord context object
         :returns: None
         """
+        logger.info(f"Ping command called by {ctx.author}.")
         embed = discord.Embed(description=f"**Avast Ye Landlubber! {self.bot.user.name} is here!**")
         embed.set_image(url=I_AM_STEVE_GIF)
         await ctx.send(embed=embed)
+        logger.debug(f"Ping response sent to {ctx.author}.")
 
     # quit the bot
     @commands.command(name="exit", help="Stops the bots process on the VM, ending all functions.")
@@ -90,19 +91,10 @@ class DiscordBotCommands(commands.Cog):
         :param discord.ext.commands.Context ctx: The Discord context object
         :returns: None
         """
-        print(f"User {ctx.author} requested to exit")
+        logger.info(f"Exit command called by {ctx.author}.")
         await ctx.send("Ahoy! k thx bye")
+        logger.warning("Bot is shutting down per user request.")
         await sys.exit("User requested exit.")
-
-    @commands.command(name="update", help="Restarts the bot.")
-    @commands.has_any_role(*server_council_role_ids())
-    async def update(self, ctx):
-        """
-        Restarts the application for updates to take affect on the local system.
-        """
-        print(f"Restarting the application to perform updates requested by {ctx.author}")
-        await ctx.send(f"Restarting. {ctx.author}")
-        os.execv(sys.executable, ["python"] + sys.argv)
 
     @commands.command(name="version", help="Logs the bot version")
     @commands.has_any_role(*server_council_role_ids())
@@ -113,5 +105,6 @@ class DiscordBotCommands(commands.Cog):
         :param discord.ext.commands.Context ctx: The Discord context object
         :returns: None
         """
-        print(f"User {ctx.author} requested the version: {__version__}.")
+        logger.info(f"Version command called by {ctx.author}. Version: {__version__}")
         await ctx.send(f"Avast Ye Landlubber! {self.bot.user.name} is on version: {__version__}.")
+        logger.debug(f"Version response sent to {ctx.author}.")
