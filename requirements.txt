@@ -33,6 +33,7 @@ prometheus-client==0.23.1
 propcache==0.4.1
 proto-plus==1.26.1
 protobuf==6.33.2
+ptn-utils @ git+https://github.com/PilotsTradeNetwork/PTN-Library.git@6f81cad790757abf583f9dd5749a1a12ce158bb9
 pyasn1==0.6.1
 pyasn1-modules==0.4.2
 pyparsing==3.2.5

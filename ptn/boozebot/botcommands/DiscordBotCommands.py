@@ -2,7 +2,7 @@ import sys
 
 import discord
 from discord.ext import commands
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot._metadata import __version__
 from ptn.boozebot.constants import (
     I_AM_STEVE_GIF, get_bot_control_channel, server_council_role_ids, server_sommelier_role_id
@@ -28,7 +28,7 @@ b/version - admin
 b/sync - admin
 """
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.commands.discord")
 
 class DiscordBotCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -36,7 +36,7 @@ class DiscordBotCommands(commands.Cog):
 
     """
     LISTENERS
-    
+
     """
 
     @commands.Cog.listener()

@@ -24,6 +24,7 @@ dependencies = [
     "python-dotenv~=1.0.1",
     "requests~=2.32.5",
     "httpx~=0.28.1",
+    "ptn-utils",
 ]
 dynamic = ["version"]
 
@@ -40,6 +41,9 @@ booze = "ptn.boozebot.application:run"
 [tool.ruff]
 line-length = 120
 target-version = "py313"
+
+[tool.uv.sources]
+ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev = "0.2.3" }
 
 [dependency-groups]
 dev = [

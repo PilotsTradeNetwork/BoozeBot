@@ -10,7 +10,7 @@ import discord
 from discord import app_commands
 from discord.app_commands import describe
 from discord.ext import commands
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.constants import (
     WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot_spam_channel, get_steve_says_channel, get_wine_carrier_channel,
     server_connoisseur_role_id, server_council_role_ids, server_mod_role_id, server_sommelier_role_id,
@@ -27,7 +27,7 @@ Member context menu: make_wine_carrier - conn/somm/mod/admin
 /remove_wine_carrier - somm/mod/admin
 """
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.commands.makewinecarrier")
 
 # lock for wine carrier toggle
 wine_carrier_toggle_lock = asyncio.Lock()

@@ -2,10 +2,11 @@ import asyncio
 import sqlite3
 from datetime import datetime
 
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.constants import get_db_dumps_path, get_db_path
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.database")
+sql_logger = get_logger("boozebot.database.sql")
 
 db_path = get_db_path()
 logger.info(f"Starting database connection at: {db_path}")
@@ -16,15 +17,15 @@ pirate_steve_db = pirate_steve_conn.cursor()
 
 
 def sql_trace_callback(statement):
-    logger.debug(f"SQL: {statement}")
+    """SQL trace callback - logs all SQL statements at TRACE level via boozebot.database.sql logger"""
+    sql_logger.trace(f"SQL: {statement}")
 
 
 pirate_steve_conn.set_trace_callback(sql_trace_callback)
-
 db_sql_store = get_db_dumps_path()
 pirate_steve_db_lock = asyncio.Lock()
 
-logger.debug(f"Database initialized. SQL dumps will be stored at: {db_sql_store}")
+logger.info(f"Database initialized. SQL dumps will be stored at: {db_sql_store}")
 
 
 def dump_database():
@@ -42,8 +43,7 @@ def dump_database():
             f.write(line)
             line_count += 1
 
-    logger.debug(f"Wrote {line_count} lines to SQL dump file.")
-    logger.info("Database dump completed.")
+    logger.info(f"Database dump completed. Wrote {line_count} lines to {db_sql_store}")
 
 
 def build_database_on_startup():
@@ -112,8 +112,8 @@ def build_database_on_startup():
 
     # Iterate through each table schema and create or update the table
     for table_name, schema in table_schemas.items():
-        logger.info(f"Checking table: {table_name}")
-        logger.debug(f"Expected schema for {table_name}: {schema}")
+        logger.debug(f"Checking table: {table_name}")
+        logger.trace(f"Expected schema for {table_name}: {schema}")
 
         # Create the table if it does not exist
 
@@ -123,26 +123,26 @@ def build_database_on_startup():
         """
         )
         table_exists = bool(pirate_steve_db.fetchone()[0])
-        logger.debug(f"Table {table_name} exists: {table_exists}")
+        logger.trace(f"Table {table_name} exists: {table_exists}")
 
         if not table_exists:
-            logger.info(f"Table {table_name} does not exist. Creating table.")
+            logger.debug(f"Table {table_name} does not exist. Creating table.")
             create_statement = (
                 f"CREATE TABLE {table_name} ({', '.join([f'{col} {col_type}' for col, col_type in schema.items()])})"
             )
-            logger.debug(f"Create statement: {create_statement}")
+            logger.trace(f"Create statement: {create_statement}")
             pirate_steve_db.execute(create_statement)
             pirate_steve_conn.commit()
-            logger.debug(f"Committed table creation for {table_name}.")
+            logger.trace(f"Committed table creation for {table_name}.")
             logger.info(f"Table {table_name} created successfully.")
             continue
 
         else:
-            logger.info(f"Table {table_name} exists. Checking for missing or incorrect columns.")
+            logger.debug(f"Table {table_name} exists. Checking for missing or incorrect columns.")
 
             pirate_steve_db.execute(f"""PRAGMA table_info ({table_name})""")
             result = [dict(col) for col in pirate_steve_db.fetchall()]
-            logger.debug(f"PRAGMA table_info result for {table_name}: {result}")
+            logger.trace(f"PRAGMA table_info result for {table_name}: {result}")
             # Get full column information including all attributes
             existing_columns = {}
             for element in result:
@@ -167,20 +167,18 @@ def build_database_on_startup():
 
                 existing_columns[col_name] = full_type
 
-            logger.debug(f"Existing columns in {table_name}: {existing_columns}")
+            logger.trace(f"Existing columns in {table_name}: {existing_columns}")
 
             # Add any missing columns
             columns_added = 0
             for column_name, column_type in schema.items():
                 if column_name not in existing_columns:
-                    logger.info(f"Column {column_name} missing in table {table_name}. Adding column.")
+                    logger.debug(f"Column {column_name} missing in table {table_name}. Adding column.")
                     alter_statement = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
-                    logger.debug(f"Alter statement: {alter_statement}")
+                    logger.trace(f"Alter statement: {alter_statement}")
                     pirate_steve_db.execute(alter_statement)
                     columns_added += 1
-
-            if columns_added > 0:
-                logger.debug(f"Added {columns_added} column(s) to table {table_name}.")
+                    logger.info(f"Added column {column_name} to table {table_name}.")
 
             # Check for any incorrect column types
             for column_name, column_type in existing_columns.items():
@@ -191,10 +189,12 @@ def build_database_on_startup():
                         )
                         raise EnvironmentError("Column type mismatch detected. Please check the database schema.")
                     else:
-                        logger.debug(f"Column {column_name} in table {table_name} has correct type: {column_type}")
+                        logger.trace(f"Column {column_name} in table {table_name} has correct type: {column_type}")
 
-            pirate_steve_conn.commit()
-            logger.debug(f"Committed schema changes for table {table_name}.")
+            if columns_added > 0:
+                logger.trace(f"Added {columns_added} column(s) to table {table_name}.")
+                pirate_steve_conn.commit()
+                logger.trace(f"Committed schema changes for table {table_name}.")
 
     logger.info("Database schema check and update completed successfully. Checking for default values.")
 
@@ -211,19 +211,19 @@ def build_database_on_startup():
 
     # Insert default values into tables if they're empty
     for table_name, records in default_values.items():
-        logger.info(f"Checking for default values in table: {table_name}")
+        logger.trace(f"Checking for default values in table: {table_name}")
 
         pirate_steve_db.execute(f"SELECT COUNT(*) FROM {table_name}")
         record_count = pirate_steve_db.fetchone()[0]
-        logger.debug(f"Table {table_name} has {record_count} existing record(s).")
+        logger.trace(f"Table {table_name} has {record_count} existing record(s).")
 
         if record_count == 0:
-            logger.info(f"Inserting default values into table: {table_name}")
+            logger.debug(f"Inserting default values into table: {table_name}")
             for idx, record in enumerate(records, 1):
                 columns = ", ".join(record.keys())
                 placeholders = ", ".join(["?" for _ in record])
                 values = tuple(record.values())
-                logger.debug(f"Inserting record {idx}/{len(records)} into {table_name}: {record}")
+                logger.trace(f"Inserting record {idx}/{len(records)} into {table_name}: {record}")
                 pirate_steve_db.execute(
                     f"""
                     INSERT INTO {table_name} ({columns}) VALUES ({placeholders})
@@ -231,10 +231,10 @@ def build_database_on_startup():
                     values,
                 )
             pirate_steve_conn.commit()
-            logger.debug(f"Committed {len(records)} default record(s) to {table_name}.")
-            logger.info(f"Default values inserted into table: {table_name} successfully.")
+            logger.trace(f"Committed {len(records)} default record(s) to {table_name}.")
+            logger.info(f"Inserted {len(records)} default record(s) into table: {table_name}")
         else:
-            logger.info(f"Table {table_name} already has data. Skipping default value insertion.")
+            logger.trace(f"Table {table_name} already has data. Skipping default value insertion.")
 
 
 if __name__ == "__main__":

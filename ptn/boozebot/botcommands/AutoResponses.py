@@ -4,7 +4,7 @@ import re
 import discord
 from discord import app_commands
 from discord.ext import commands
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.AutoResponse import AutoResponse
 from ptn.boozebot.constants import (
     get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel,
@@ -23,7 +23,7 @@ commands
 
 """
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.commands.autoresponses")
 
 class AutoResponses(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -47,18 +47,18 @@ class AutoResponses(commands.Cog):
             get_wine_carrier_channel(),
             get_wine_cellar_deliveries_channel(),
         ]:
-            logger.debug(f"Ignoring message in channel {message.channel.id} (not a monitored channel).")
+            logger.trace(f"Ignoring message in channel {message.channel.id} (not a monitored channel).")
             return
 
         if message.is_system():
-            logger.debug("Ignoring system message.")
+            logger.trace("Ignoring system message.")
             return
 
         if message.author == self.bot.user:
-            logger.debug("Ignoring message from bot itself.")
+            logger.trace("Ignoring message from bot itself.")
             return
 
-        logger.debug(
+        logger.trace(
             f"Checking {len(self.auto_responses)} auto responses for message from {message.author} in {message.channel.name}"
         )
         for auto_response in self.auto_responses:
@@ -73,17 +73,17 @@ class AutoResponses(commands.Cog):
                 return
 
         if not self.bot.user.mentioned_in(message):
-            logger.debug("Bot not mentioned in message, ignoring.")
+            logger.trace("Bot not mentioned in message, ignoring.")
             return
 
         if message.reference:
-            logger.debug("Ignoring mention in reply message.")
+            logger.trace("Ignoring mention in reply message.")
             return
 
         msg_split = message.content.split()
 
         if len(msg_split) >= 2 and msg_split[1].lower() in self.text_commands:
-            logger.debug(f"Ignoring mention with text command: {msg_split[1].lower()}")
+            logger.trace(f"Ignoring mention with text command: {msg_split[1].lower()}")
             return
 
         logger.info(f"{message.author} ({message.author.id}) mentioned PirateSteve.")

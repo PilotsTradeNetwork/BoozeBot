@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import discord
 from discord import PermissionOverwrite, app_commands
 from discord.ext import commands
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.CorkedUser import CorkedUser
 from ptn.boozebot.constants import (
     get_booze_cruise_signups_channel, get_booze_guide_channel_id, get_public_channel_list, get_steve_says_channel,
@@ -26,7 +26,7 @@ CLEANER COMMANDS
 /booze_admin_list_corked - council/mod
 """
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.commands.corked")
 
 class Corked(commands.Cog):
     def __init__(self, bot: commands.Bot):

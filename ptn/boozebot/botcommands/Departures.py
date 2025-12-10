@@ -11,7 +11,7 @@ import discord
 from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
-from loguru import logger
+from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import (
     CARRIER_ID_RE, N_SYSTEMS, bot, get_departure_announcement_channel, get_steve_says_channel, get_thoon_emoji_id,
@@ -28,7 +28,7 @@ UNLOADING COMMANDS
 /wine_carrier_departure - wine carrier/somm/mod/admin
 """
 
-logger = logger.bind(logger_name="boozebot")
+logger = get_logger("boozebot.commands.departures")
 
 # initialise the Cog and attach our global error handler
 class Departures(commands.Cog):
