@@ -8,12 +8,18 @@ from datetime import datetime, timezone
 import discord
 from discord import PermissionOverwrite, app_commands
 from discord.ext import commands
+from ptn_utils.global_constants import (
+    CHANNEL_BC_PUBLIC,
+    CHANNEL_BC_BOOZE_CRUISE_SIGNUPS,
+    CHANNEL_BC_WINE_STATUS,
+    CHANNEL_BC_BOOZE_GUIDE,
+    CHANNEL_BC_WINE_CARRIER_GUIDE,
+    any_council_role,
+    any_moderation_role,
+    CHANNEL_BC_STEVE_SAYS,
+)
 from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.CorkedUser import CorkedUser
-from ptn.boozebot.constants import (
-    get_booze_cruise_signups_channel, get_booze_guide_channel_id, get_public_channel_list, get_steve_says_channel,
-    get_wine_carrier_guide_channel_id, get_wine_status_channel, server_council_role_ids, server_mod_role_id
-)
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel
 from ptn.boozebot.modules.pagination import createPagination
@@ -28,15 +34,16 @@ CLEANER COMMANDS
 
 logger = get_logger("boozebot.commands.corked")
 
+
 class Corked(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    CORK_CHANNELS = get_public_channel_list() + [
-        get_booze_cruise_signups_channel(),
-        get_wine_status_channel(),
-        get_booze_guide_channel_id(),
-        get_wine_carrier_guide_channel_id(),
+    CORK_CHANNELS = CHANNEL_BC_PUBLIC + [
+        CHANNEL_BC_BOOZE_CRUISE_SIGNUPS,
+        CHANNEL_BC_WINE_STATUS,
+        CHANNEL_BC_BOOZE_GUIDE,
+        CHANNEL_BC_WINE_CARRIER_GUIDE,
     ]
 
     """
@@ -45,8 +52,8 @@ class Corked(commands.Cog):
 
     @app_commands.command(name="booze_admin_cork", description="Cork a user from the booze cruise channels")
     @app_commands.describe(user="The user to cork")
-    @check_roles([*server_council_role_ids(), server_mod_role_id()])
-    @check_command_channel([get_steve_says_channel()])
+    @check_roles([*any_council_role, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def booze_channels_close(self, interaction: discord.Interaction, user: discord.Member):
         """
         Cork a user from the booze cruise channels
@@ -116,8 +123,8 @@ class Corked(commands.Cog):
 
     @app_commands.command(name="booze_admin_uncork", description="Uncork a user from the booze cruise channels")
     @app_commands.describe(user="The user to uncork")
-    @check_roles([*server_council_role_ids(), server_mod_role_id()])
-    @check_command_channel([get_steve_says_channel()])
+    @check_roles([*any_council_role, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def booze_channels_open(self, interaction: discord.Interaction, user: discord.Member):
         """
         Uncork a user from the booze cruise channels
@@ -173,8 +180,8 @@ class Corked(commands.Cog):
         )
 
     @app_commands.command(name="booze_admin_list_corked", description="List all corked users")
-    @check_roles([*server_council_role_ids(), server_mod_role_id()])
-    @check_command_channel([get_steve_says_channel()])
+    @check_roles([*any_council_role, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def booze_list_corked(self, interaction: discord.Interaction):
         """
         List all corked users

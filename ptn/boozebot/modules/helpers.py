@@ -6,21 +6,25 @@ Depends on: constants, ErrorHandler, database
 
 import datetime
 import functools
+
 # import libraries
 from typing import Optional
 
 # import discord.py
 import discord
+from ptn_utils.global_constants import DISCORD_GUILD, CHANNEL_BC_BOOZE_CRUISE_CHAT, ROLE_PILOT
+
 import ptn.boozebot.constants as constants
 from discord import Emoji, Guild, Member, Role, Thread, User, app_commands
 from discord.abc import GuildChannel
 from discord.errors import NotFound
 from discord.ext import commands
 from ptn_utils.logger.logger import get_logger
-from ptn.boozebot.constants import bot, bot_guild_id, get_pilot_role_id, get_primary_booze_discussions_channel
+from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.ErrorHandler import CommandChannelError, CommandRoleError
 
 logger = get_logger("boozebot.modules.helpers")
+
 
 async def get_user(user_id: int) -> Optional[User]:
     """Fetch a user from the cache or API."""
@@ -38,7 +42,7 @@ async def get_user(user_id: int) -> Optional[User]:
         return None
 
 
-async def get_guild(guild: int = bot_guild_id()) -> Optional[Guild]:
+async def get_guild(guild: int = DISCORD_GUILD) -> Optional[Guild]:
     """Return bot guild instance for use in get_member()"""
     try:
         guild_instance = bot.get_guild(guild)
@@ -243,8 +247,8 @@ async def bc_channel_status():
     """
     logger.debug("Checking booze cruise channel status.")
     try:
-        bc_chat_channel = await get_channel(get_primary_booze_discussions_channel())
-        pilot_role = await get_role(get_pilot_role_id())
+        bc_chat_channel = await get_channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
+        pilot_role = await get_role(ROLE_PILOT)
 
         logger.debug(f"Fetched bc_chat_channel and pilot_role. {bc_chat_channel}, {pilot_role}")
 

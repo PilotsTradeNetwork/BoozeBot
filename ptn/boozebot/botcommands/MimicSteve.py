@@ -1,10 +1,8 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from ptn_utils.global_constants import any_council_role, ROLE_SOMM, any_moderation_role, CHANNEL_BC_STEVE_SAYS
 from ptn_utils.logger.logger import get_logger
-from ptn.boozebot.constants import (
-    get_steve_says_channel, server_council_role_ids, server_mod_role_id, server_sommelier_role_id
-)
 from ptn.boozebot.modules.helpers import check_roles, get_channel
 
 """
@@ -13,6 +11,7 @@ MIMIC STEVE COMMAND
 """
 
 logger = get_logger("boozebot.commands.mimicsteve")
+
 
 class MimicSteve(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -24,7 +23,7 @@ class MimicSteve(commands.Cog):
     def cog_unload(self):
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     async def reply_as_steve(self, interaction: discord.Interaction, reply_message: discord.Message):
         class ReplyModal(discord.ui.Modal, title="Reply as PirateSteve"):
             message = discord.ui.TextInput(label="Message", style=discord.TextStyle.long)
@@ -49,7 +48,7 @@ class MimicSteve(commands.Cog):
         message="The message to send",
         send_channel="The channel to send the message in",
     )
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     async def mimic_steve(
         self, interaction: discord.Interaction, message: str, send_channel: discord.TextChannel = None
     ):
@@ -87,7 +86,7 @@ class MimicSteve(commands.Cog):
             f"User {interaction.user.name} is sending the message {message} as PirateSteve "
             f"in: {send_channel if send_channel else reply_message.channel}."
         )
-        steve_says_channel = await get_channel(get_steve_says_channel())
+        steve_says_channel = await get_channel(CHANNEL_BC_STEVE_SAYS)
         try:
             if reply_message:
                 send_channel = reply_message.channel

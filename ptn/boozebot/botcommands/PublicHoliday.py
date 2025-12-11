@@ -10,13 +10,25 @@ import discord
 from discord import NotFound, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
+from ptn_utils.global_constants import (
+    CHANNEL_BC_HOLIDAY_ANNOUNCE,
+    any_council_role,
+    ROLE_SOMM,
+    any_moderation_role,
+    CHANNEL_BC_STEVE_SAYS,
+    ROLE_CONN,
+    ROLE_COUNCIL,
+    CHANNEL_BC_WINE_CARRIER,
+    CHANNEL_BC_WINE_CARRIER_COMMAND,
+    CHANNEL_BC_BOOZE_CRUISE_CHAT,
+)
 from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.constants import (
-    get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel, holiday_ended_gif,
-    holiday_query_not_started_gifs, holiday_query_started_gifs, holiday_start_gif, rackhams_holiday_channel,
-    server_connoisseur_role_id, server_council_role_ids, server_mod_role_id, server_sommelier_role_id,
-    wine_carrier_command_channel
+    holiday_ended_gif,
+    holiday_query_not_started_gifs,
+    holiday_query_started_gifs,
+    holiday_start_gif,
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, track_last_run
@@ -36,6 +48,7 @@ PUBLIC HOLIDAY COMMANDS
 """
 
 logger = get_logger("boozebot.commands.publicholiday")
+
 
 class PublicHoliday(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -60,7 +73,7 @@ class PublicHoliday(commands.Cog):
         logger.info(f"Setting public holiday state to: {state}, force update: {force_update}")
         if state:
             logger.info("PH detected, triggering the notifications.")
-            holiday_announce_channel = await get_channel(rackhams_holiday_channel())
+            holiday_announce_channel = await get_channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
 
             # Check if we had a holiday flagged already
             pirate_steve_db.execute("""SELECT state FROM holidaystate""")
@@ -78,7 +91,7 @@ class PublicHoliday(commands.Cog):
                 await holiday_announce_channel.send(holiday_start_gif)
                 await holiday_announce_channel.send(
                     f"Pirate Steve thinks the folks at Rackhams are partying again. "
-                    f"<@&{server_council_role_ids()[0]}>, <@&{server_sommelier_role_id()}> please take note."
+                    f"<@&{ROLE_COUNCIL}>, <@&{ROLE_SOMM}> please take note."
                 )
                 logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
                 await Cleaner.update_status_embed("bc_start")
@@ -106,7 +119,7 @@ class PublicHoliday(commands.Cog):
             if current_time_utc > end_time or force_update:
                 # Current time is after the end time, go turn the checks off.
                 logger.info("Holiday duration expired, turning the check off.")
-                holiday_announce_channel = await get_channel(rackhams_holiday_channel())
+                holiday_announce_channel = await get_channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
 
                 # Check if we had a holiday flagged already
                 pirate_steve_db.execute("""SELECT state FROM holidaystate""")
@@ -152,9 +165,7 @@ class PublicHoliday(commands.Cog):
             logger.exception(f"Error in the public holiday loop: {e}")
 
     @app_commands.command(name="booze_started", description="Returns a GIF for whether the holiday has started.")
-    @check_roles(
-        [server_connoisseur_role_id(), server_sommelier_role_id(), server_mod_role_id(), *server_council_role_ids()]
-    )
+    @check_roles([ROLE_CONN, ROLE_SOMM, *any_moderation_role, *any_council_role])
     async def holiday_query(self, interaction: discord.Interaction):
         await interaction.response.defer()
         logger.info(f"User {interaction.user.name} queried the holiday state.")
@@ -186,12 +197,12 @@ class PublicHoliday(commands.Cog):
         name="booze_started_admin_override",
         description="Overrides the holiday admin flag.Used to set the holiday state before the polling API catches it.",
     )
-    @check_roles([server_sommelier_role_id(), server_mod_role_id(), *server_council_role_ids()])
+    @check_roles([ROLE_SOMM, *any_moderation_role, *any_council_role])
     @describe(
         state="True or False to override the holiday check flag.",
         force_update="Force the update of the holiday state, even if it is already set.",
     )
-    @check_command_channel([get_steve_says_channel()])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def admin_override_holiday_state(
         self, interaction: discord.Interaction, state: bool, force_update: bool = False
     ):
@@ -207,9 +218,9 @@ class PublicHoliday(commands.Cog):
         name="booze_timestamp_admin_override",
         description="Overrides the holiday start time.Used to set the cruise start time used to get the duration",
     )
-    @check_roles([server_sommelier_role_id(), server_mod_role_id(), *server_council_role_ids()])
+    @check_roles([ROLE_SOMM, *any_moderation_role, *any_council_role])
     @describe(timestamp="Date time of the the cruise starting in the format YYYY-MM-DD HH:MI:SS")
-    @check_command_channel([get_steve_says_channel()])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def admin_override_start_timestamp(self, interaction: discord.Interaction, timestamp: str):
         logger.info(f"User {interaction.user.name} requested to override the start time to: {timestamp}.")
 
@@ -248,10 +259,10 @@ class PublicHoliday(commands.Cog):
     )
     @check_command_channel(
         [
-            get_wine_carrier_channel(),
-            get_steve_says_channel(),
-            wine_carrier_command_channel(),
-            get_primary_booze_discussions_channel(),
+            CHANNEL_BC_WINE_CARRIER,
+            CHANNEL_BC_STEVE_SAYS,
+            CHANNEL_BC_WINE_CARRIER_COMMAND,
+            CHANNEL_BC_BOOZE_CRUISE_CHAT,
         ]
     )
     async def remaining_time(self, interaction: discord.Interaction):

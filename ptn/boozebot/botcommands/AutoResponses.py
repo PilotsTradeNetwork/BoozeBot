@@ -4,13 +4,18 @@ import re
 import discord
 from discord import app_commands
 from discord.ext import commands
+from ptn_utils.global_constants import (
+    CHANNEL_BC_BOOZE_CRUISE_CHAT,
+    CHANNEL_BC_WINE_CARRIER,
+    CHANNEL_BC_WINE_CELLAR_DELIVERIES,
+    any_council_role,
+    ROLE_SOMM,
+    any_moderation_role,
+    CHANNEL_BC_STEVE_SAYS,
+)
 from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.AutoResponse import AutoResponse
-from ptn.boozebot.constants import (
-    get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel,
-    get_wine_cellar_deliveries_channel, ping_response_messages, server_council_role_ids, server_mod_role_id,
-    server_sommelier_role_id
-)
+from ptn.boozebot.constants import ping_response_messages
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
@@ -24,6 +29,7 @@ commands
 """
 
 logger = get_logger("boozebot.commands.autoresponses")
+
 
 class AutoResponses(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -43,9 +49,9 @@ class AutoResponses(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.channel.id not in [
-            get_primary_booze_discussions_channel(),
-            get_wine_carrier_channel(),
-            get_wine_cellar_deliveries_channel(),
+            CHANNEL_BC_BOOZE_CRUISE_CHAT,
+            CHANNEL_BC_WINE_CARRIER,
+            CHANNEL_BC_WINE_CELLAR_DELIVERIES,
         ]:
             logger.trace(f"Ignoring message in channel {message.channel.id} (not a monitored channel).")
             return
@@ -100,8 +106,8 @@ class AutoResponses(commands.Cog):
         is_regex="Is the trigger a regex pattern?",
         response="Response message to send when the trigger is matched",
     )
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel(get_steve_says_channel())
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     async def create_auto_response(
         self,
         interaction: discord.Interaction,
@@ -170,8 +176,8 @@ class AutoResponses(commands.Cog):
 
     @app_commands.command(name="booze_delete_auto_response", description="Delete an auto response")
     @app_commands.describe(name="Name of the auto response to delete")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel(get_steve_says_channel())
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     async def delete_auto_response(self, interaction: discord.Interaction, name: str):
         """
         Delete an auto response by name.
@@ -206,8 +212,8 @@ class AutoResponses(commands.Cog):
         await interaction.edit_original_response(content=f"Auto response '{name}' deleted successfully.")
 
     @app_commands.command(name="booze_list_auto_responses", description="List all auto responses")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel(get_steve_says_channel())
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     async def list_auto_responses(self, interaction: discord.Interaction):
         """
         List all auto responses.

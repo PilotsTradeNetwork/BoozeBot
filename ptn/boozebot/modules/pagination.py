@@ -6,6 +6,7 @@ from ptn.boozebot.constants import bot
 
 logger = get_logger("boozebot.modules.pagination")
 
+
 async def createPagination(
     interaction: discord.Interaction, title: str, content: list[tuple[str, str]], pageLength: int = 10
 ):

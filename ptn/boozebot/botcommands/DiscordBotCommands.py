@@ -2,11 +2,10 @@ import sys
 
 import discord
 from discord.ext import commands
+from ptn_utils.global_constants import CHANNEL_DEV_STEVE_BOT, any_council_role, ROLE_SOMM
 from ptn_utils.logger.logger import get_logger
 from ptn.boozebot._metadata import __version__
-from ptn.boozebot.constants import (
-    I_AM_STEVE_GIF, get_bot_control_channel, server_council_role_ids, server_sommelier_role_id
-)
+from ptn.boozebot.constants import I_AM_STEVE_GIF
 from ptn.boozebot.modules.helpers import get_channel
 
 """
@@ -30,6 +29,7 @@ b/sync - admin
 
 logger = get_logger("boozebot.commands.discord")
 
+
 class DiscordBotCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -48,7 +48,7 @@ class DiscordBotCommands(commands.Cog):
         """
         logger.info(f"{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}")
         try:
-            bot_channel = await get_channel(get_bot_control_channel())
+            bot_channel = await get_channel(CHANNEL_DEV_STEVE_BOT)
             embed = discord.Embed(
                 description=f"{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}"
             )
@@ -67,7 +67,7 @@ class DiscordBotCommands(commands.Cog):
     """
 
     @commands.command(name="ping", help="Ping the bot")
-    @commands.has_any_role(*server_council_role_ids(), server_sommelier_role_id())
+    @commands.has_any_role(*any_council_role, ROLE_SOMM)
     async def ping(self, ctx):
         """
         Ping the bot and get a response
@@ -83,7 +83,7 @@ class DiscordBotCommands(commands.Cog):
 
     # quit the bot
     @commands.command(name="exit", help="Stops the bots process on the VM, ending all functions.")
-    @commands.has_any_role(*server_council_role_ids())
+    @commands.has_any_role(*any_council_role)
     async def exit(self, ctx):
         """
         Stop-quit command for the bot.
@@ -97,7 +97,7 @@ class DiscordBotCommands(commands.Cog):
         await sys.exit("User requested exit.")
 
     @commands.command(name="version", help="Logs the bot version")
-    @commands.has_any_role(*server_council_role_ids())
+    @commands.has_any_role(*any_council_role)
     async def version(self, ctx):
         """
         Logs the bot version

@@ -19,10 +19,11 @@ from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
 from ptn.boozebot.botcommands.MimicSteve import MimicSteve
 from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
 from ptn.boozebot.botcommands.Unloading import Unloading
-from ptn.boozebot.constants import TOKEN, _production, bot, bot_guild_id
+from ptn.boozebot.constants import bot
 from ptn.boozebot.database.database import build_database_on_startup
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
 from ptn_utils.logger.logger import Logger
+from ptn_utils.global_constants import _production, TOKEN, DISCORD_GUILD
 
 logger = get_logger("boozebot.application")
 
@@ -82,8 +83,8 @@ async def boozebot():
 
         try:
             logger.info("Syncing command tree...")
-            bot.tree.copy_global_to(guild=Object(bot_guild_id()))
-            await bot.tree.sync(guild=Object(bot_guild_id()))
+            bot.tree.copy_global_to(guild=Object(DISCORD_GUILD))
+            await bot.tree.sync(guild=Object(DISCORD_GUILD))
             logger.info("Command tree synced successfully.")
         except DiscordException as e:
             logger.exception(f"Error in syncing command tree: {e}")

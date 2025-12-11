@@ -2,13 +2,13 @@ import discord
 from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands
+from ptn_utils.global_constants import any_moderation_role, ROLE_SOMM, any_council_role, CHANNEL_BC_STEVE_SAYS
 from ptn_utils.logger.logger import get_logger
-from ptn.boozebot.constants import (
-    bot, get_steve_says_channel, server_council_role_ids, server_mod_role_id, server_sommelier_role_id
-)
+from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
 logger = get_logger("boozebot.commands.background")
+
 
 class BackgroundTaskCommands(commands.Cog):
     task_choices = [
@@ -22,8 +22,8 @@ class BackgroundTaskCommands(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="start_task", description="Starts a background task.")
-    @check_roles([server_mod_role_id(), server_sommelier_role_id(), *server_council_role_ids()])
-    @check_command_channel(get_steve_says_channel())
+    @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     @describe(task_name="The name of the task to start.")
     @app_commands.choices(task_name=task_choices)
     async def start_task(self, interaction: discord.Interaction, task_name: str):
@@ -45,8 +45,8 @@ class BackgroundTaskCommands(commands.Cog):
             await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)
 
     @app_commands.command(name="stop_task", description="Stops a background task.")
-    @check_roles([server_mod_role_id(), server_sommelier_role_id(), *server_council_role_ids()])
-    @check_command_channel(get_steve_says_channel())
+    @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     @describe(task_name="The name of the task to stop.")
     @app_commands.choices(task_name=task_choices)
     async def stop_task(self, interaction: discord.Interaction, task_name: str):
@@ -68,8 +68,8 @@ class BackgroundTaskCommands(commands.Cog):
             await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)
 
     @app_commands.command(name="task_status", description="Gets the status of a background task.")
-    @check_roles([server_mod_role_id(), server_sommelier_role_id(), *server_council_role_ids()])
-    @check_command_channel(get_steve_says_channel())
+    @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     @describe(task_name="The name of the task to check.")
     @app_commands.choices(task_name=task_choices)
     async def task_status(self, interaction: discord.Interaction, task_name: str):

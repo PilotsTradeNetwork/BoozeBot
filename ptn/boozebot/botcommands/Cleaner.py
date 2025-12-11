@@ -9,15 +9,24 @@ from datetime import datetime, timezone
 import discord
 from discord import app_commands
 from discord.ext import commands
+from ptn_utils.global_constants import (
+    any_council_role,
+    ROLE_SOMM,
+    any_moderation_role,
+    CHANNEL_BC_STEVE_SAYS,
+    CHANNEL_BC_PUBLIC,
+    ROLE_PILOT,
+    CHANNEL_BC_WINE_CARRIER_GUIDE,
+    ROLE_BOOZE_CRUISE,
+    ROLE_WINE_CARRIER,
+    ROLE_HITCHHIKER,
+    CHANNEL_BC_WCO_FEEDBACK,
+    CHANNEL_BC_WINE_STATUS,
+)
 from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.Unloading import Unloading
-from ptn.boozebot.constants import (
-    BC_STATUS, BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot, get_feedback_channel_id, get_ptn_booze_cruise_role_id,
-    get_public_channel_list, get_steve_says_channel, get_wine_carrier_guide_channel_id, get_wine_status_channel,
-    server_council_role_ids, server_hitchhiker_role_id, server_mod_role_id, server_pilot_role_id,
-    server_sommelier_role_id, server_wine_carrier_role_id
-)
+from ptn.boozebot.constants import BC_STATUS, BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_role
 from ptn.boozebot.modules.Views import ConfirmView
 
@@ -34,6 +43,7 @@ CLEANER COMMANDS
 """
 
 logger = get_logger("boozebot.commands.cleaner")
+
 
 class Cleaner(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -61,8 +71,8 @@ class Cleaner(commands.Cog):
     """
 
     @app_commands.command(name="booze_channels_open", description="Opens the Booze Cruise channels to the public.")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel([get_steve_says_channel()])
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def booze_channels_open(self, interaction: discord.Interaction):
         """
         Command to open public channels. Generates a message in the channel that it ran in.
@@ -86,14 +96,14 @@ class Cleaner(commands.Cog):
 
         if confirm.value:
             logger.info(f"User {interaction.user.name} accepted the request to open channels.")
-            ids_list = get_public_channel_list()
+            ids_list = CHANNEL_BC_PUBLIC
 
             embed = discord.Embed()
             Departures.departure_announcement_status = "Disabled"
             Unloading.timed_unloads_allowed = False
-            pilot_role = await get_role(server_pilot_role_id())
+            pilot_role = await get_role(ROLE_PILOT)
             channels = {channel_id: pilot_role for channel_id in ids_list}
-            channels[get_wine_carrier_guide_channel_id()] = await get_role(get_ptn_booze_cruise_role_id())
+            channels[CHANNEL_BC_WINE_CARRIER_GUIDE] = await get_role(ROLE_BOOZE_CRUISE)
 
             logger.info("Updating status embed to 'bc_prep'.")
             await self.update_status_embed("bc_prep")
@@ -113,7 +123,7 @@ class Cleaner(commands.Cog):
                     embed.add_field(name="FAILED to open", value="<#" + str(channel_id) + f">: {e}", inline=False)
 
             await interaction.edit_original_response(
-                content=f"<@&{server_sommelier_role_id()}> Avast! We're ready to set sail!", embed=embed, view=None
+                content=f"<@&{ROLE_SOMM}> Avast! We're ready to set sail!", embed=embed, view=None
             )
             logger.info("Booze Cruise channels opened successfully.")
         elif confirm.value is False:
@@ -128,8 +138,8 @@ class Cleaner(commands.Cog):
             )
 
     @app_commands.command(name="booze_channels_close", description="Closes the Booze Cruise channels to the public.")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel([get_steve_says_channel()])
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def booze_channels_close(self, interaction: discord.Interaction):
         """
         Command to close public channels. Generates a message in the channel that it ran in.
@@ -153,12 +163,12 @@ class Cleaner(commands.Cog):
 
         if confirm.value:
             logger.info(f"User {interaction.user.name} accepted the request to close channels.")
-            ids_list = get_public_channel_list()
+            ids_list = CHANNEL_BC_PUBLIC
 
             embed = discord.Embed()
-            pilot_role = await get_role(server_pilot_role_id())
+            pilot_role = await get_role(ROLE_PILOT)
             channels = dict.fromkeys(ids_list, pilot_role)
-            channels[get_wine_carrier_guide_channel_id()] = await get_role(get_ptn_booze_cruise_role_id())
+            channels[CHANNEL_BC_WINE_CARRIER_GUIDE] = await get_role(ROLE_BOOZE_CRUISE)
 
             logger.info("Closing Booze Cruise channels to the public.")
 
@@ -179,7 +189,7 @@ class Cleaner(commands.Cog):
 
             logger.info("Booze Cruise channels closed successfully.")
             await interaction.edit_original_response(
-                content=f"<@&{server_sommelier_role_id()}> That's the end of that, me hearties.", embed=embed, view=None
+                content=f"<@&{ROLE_SOMM}> That's the end of that, me hearties.", embed=embed, view=None
             )
         elif confirm.value is False:
             logger.info(f"User {interaction.user.name} wants to abort the close process.")
@@ -196,8 +206,8 @@ class Cleaner(commands.Cog):
         name="clear_booze_roles",
         description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution.",
     )
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel([get_steve_says_channel()])
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def clear_booze_roles(self, interaction: discord.Interaction):
         """
         Command to clear temporary cruise related roles (wine carrier & hitchhiker). Generates a message in the channel that it ran in.
@@ -221,10 +231,10 @@ class Cleaner(commands.Cog):
 
         if confirm.value:
             logger.info(f"User {interaction.user.name} accepted the request to clear booze roles.")
-            wine_role_id = server_wine_carrier_role_id()
+            wine_role_id = ROLE_WINE_CARRIER
             wine_carrier_role = await get_role(wine_role_id)
 
-            hitch_role_id = server_hitchhiker_role_id()
+            hitch_role_id = ROLE_HITCHHIKER
             hitch_role = await get_role(hitch_role_id)
 
             wine_count = 0
@@ -280,8 +290,8 @@ class Cleaner(commands.Cog):
     @app_commands.command(
         name="booze_update_blurb_message", description="Update a blurb message (WCO welcome or announcement)."
     )
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel([get_steve_says_channel()])
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def update_blurb_message(self, interaction: discord.Interaction, blurb: BLURB_KEYS):
         logger.info(f"User {interaction.user.name} is changing the {blurb} message in {interaction.channel.name}.")
 
@@ -335,15 +345,15 @@ class Cleaner(commands.Cog):
             await message.delete()
 
     @app_commands.command(name="open_wine_carrier_feedback", description="Opens the Wine Carrier feedback channel.")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel([get_steve_says_channel()])
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def open_wine_carrier_feedback(self, interaction: discord.Interaction):
         logger.info(
             f"User {interaction.user.name} is opening the wine carrier feedback channel in {interaction.channel.name}."
         )
 
-        wine_feedback_channel = await get_channel(get_feedback_channel_id())
-        wine_carrier_role = await get_role(server_wine_carrier_role_id())
+        wine_feedback_channel = await get_channel(CHANNEL_BC_WCO_FEEDBACK)
+        wine_carrier_role = await get_role(ROLE_WINE_CARRIER)
         overwrite = discord.PermissionOverwrite(view_channel=True)
 
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
@@ -352,15 +362,15 @@ class Cleaner(commands.Cog):
         await interaction.response.send_message("Opened the Wine Carrier feedback channel.", embed=None)
 
     @app_commands.command(name="close_wine_carrier_feedback", description="Closes the Wine Carrier feedback channel.")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel([get_steve_says_channel()])
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def close_wine_carrier_feedback(self, interaction: discord.Interaction):
         logger.info(
             f"User {interaction.user.name} is closing the wine carrier feedback channel in {interaction.channel.name}."
         )
 
-        wine_feedback_channel = await get_channel(get_feedback_channel_id())
-        wine_carrier_role = await get_role(server_wine_carrier_role_id())
+        wine_feedback_channel = await get_channel(CHANNEL_BC_WCO_FEEDBACK)
+        wine_carrier_role = await get_role(ROLE_WINE_CARRIER)
         overwrite = discord.PermissionOverwrite(view_channel=False)
 
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
@@ -369,8 +379,8 @@ class Cleaner(commands.Cog):
         await interaction.response.send_message("Closed the Wine Carrier feedback channel.", embed=None)
 
     @app_commands.command(name="booze_update_bc_status_embed", description="Updates the booze-cruise-status embed.")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel([get_steve_says_channel()])
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def update_bc_status_embed(self, interaction: discord.Interaction, status: BC_STATUS):
         await interaction.response.defer()
         logger.info(f"User {interaction.user.name} is updating the status embed to {status}.")
@@ -381,7 +391,7 @@ class Cleaner(commands.Cog):
     @classmethod
     async def update_status_embed(cls, status: BC_STATUS):
         logger.debug(f"Updating status embed to: {status}")
-        channel = await get_channel(get_wine_status_channel())
+        channel = await get_channel(CHANNEL_BC_WINE_STATUS)
         async for message in channel.history():
             logger.debug(f"Checking message ID: {message.id} for deletion.")
             if message.author == bot.user or not message.pinned:

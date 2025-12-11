@@ -8,6 +8,7 @@ DepartureStatusType = Literal["Disabled", "Upwards", "All"]
 
 logger = get_logger("boozebot.modules.settings")
 
+
 class SettingsDict(TypedDict):
     departure_announcement_status: DepartureStatusType
     timed_unloads_allowed: bool

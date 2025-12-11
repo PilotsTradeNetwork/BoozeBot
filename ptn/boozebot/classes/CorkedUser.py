@@ -4,6 +4,7 @@ from ptn.boozebot.modules.helpers import get_member
 
 logger = get_logger("boozebot.classes.corkeduser")
 
+
 class CorkedUser:
     def __init__(self, info_dict=None):
         """

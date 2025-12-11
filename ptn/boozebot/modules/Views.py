@@ -5,6 +5,7 @@ from ptn.boozebot.constants import INTERACTION_CHECK_GIF
 
 logger = get_logger("boozebot.modules.views")
 
+
 class ConfirmView(ui.View):
     def __init__(self, author: discord.Member):
         super().__init__()
