@@ -12,7 +12,7 @@ from typing import Optional
 
 # import discord.py
 import discord
-from ptn_utils.global_constants import DISCORD_GUILD, CHANNEL_BC_BOOZE_CRUISE_CHAT, ROLE_PILOT
+from ptn_utils.global_constants import DISCORD_GUILD, CHANNEL_BC_BOOZE_CRUISE_CHAT, ROLE_PILOT, EMBED_COLOUR_ERROR
 
 import ptn.boozebot.constants as constants
 from discord import Emoji, Guild, Member, Role, Thread, User, app_commands
@@ -230,7 +230,7 @@ def check_text_command_channel(permitted_channel):
             )
             embed = discord.Embed(
                 description=f"Sorry, you can only run this command out of: <#{permitted_channel}>.",
-                color=constants.EMBED_COLOUR_ERROR,
+                color=EMBED_COLOUR_ERROR,
             )
             await ctx.channel.send(embed=embed)
             return False
