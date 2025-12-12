@@ -2,8 +2,9 @@ import sys
 
 import discord
 from discord.ext import commands
-from ptn_utils.global_constants import CHANNEL_DEV_STEVE_BOT, any_council_role, ROLE_SOMM
+from ptn_utils.global_constants import CHANNEL_DEV_STEVE_BOT, ROLE_SOMM, any_council_role
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot._metadata import __version__
 from ptn.boozebot.constants import I_AM_STEVE_GIF, bot
 

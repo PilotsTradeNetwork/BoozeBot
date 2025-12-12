@@ -12,20 +12,22 @@ from typing import Literal, TypedDict
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from ptn_utils.get_or_fetch import GetOrFetch
 from ptn_utils.global_constants import (
-    ROLE_WINE_CARRIER,
-    CHANNEL_BC_WINE_CARRIER_GUIDE,
-    CHANNEL_BC_WCO_ANNOUNCEMENTS,
-    ROLE_BOOZE_CRUISE,
-    CHANNEL_BC_BOOZE_CRUISE_SIGNUPS,
-    CHANNEL_BC_WINE_CELLAR_UNLOADING,
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
-    ROLE_HITCHHIKER,
+    CHANNEL_BC_BOOZE_CRUISE_SIGNUPS,
     CHANNEL_BC_DEPARTURE_ANNOUNCEMENT,
-    DATA_DIR, _production, DISCORD_GUILD,
+    CHANNEL_BC_WCO_ANNOUNCEMENTS,
+    CHANNEL_BC_WINE_CARRIER_GUIDE,
+    CHANNEL_BC_WINE_CELLAR_UNLOADING,
+    DATA_DIR,
+    DISCORD_GUILD,
+    ROLE_BOOZE_CRUISE,
+    ROLE_HITCHHIKER,
+    ROLE_WINE_CARRIER,
+    _production,
 )
 from ptn_utils.logger.logger import get_logger
-from ptn_utils.get_or_fetch import GetOrFetch
 
 logger = get_logger("boozebot.constants")
 
@@ -59,7 +61,7 @@ bot = commands.Bot(
     # intents=discord.Intents.all(),
     intents=intents,
     chunk_guilds_at_startup=False,
-    allowed_mentions=discord.AllowedMentions(roles=False, users=False, everyone=False) if not _production else None
+    allowed_mentions=discord.AllowedMentions(roles=False, users=False, everyone=False) if not _production else None,
 )
 bot.get_or_fetch = GetOrFetch(bot, DISCORD_GUILD)
 

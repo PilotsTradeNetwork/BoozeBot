@@ -7,7 +7,9 @@ import asyncio
 
 from discord import ConnectionClosed, DiscordException, GatewayNotFound, HTTPException, LoginFailure, Object
 from discord.ext.prometheus import PrometheusCog
-from ptn_utils.logger.logger import get_logger
+from ptn_utils.global_constants import DISCORD_GUILD, TOKEN, _production
+from ptn_utils.logger.logger import Logger, get_logger
+
 from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 from ptn.boozebot.botcommands.Cleaner import Cleaner
@@ -22,8 +24,6 @@ from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import bot
 from ptn.boozebot.database.database import build_database_on_startup
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
-from ptn_utils.logger.logger import Logger
-from ptn_utils.global_constants import _production, TOKEN, DISCORD_GUILD
 
 logger = get_logger("boozebot.application")
 

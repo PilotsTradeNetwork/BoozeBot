@@ -8,6 +8,7 @@ from discord.app_commands import AppCommandError
 from discord.ext import commands
 from ptn_utils.global_constants import EMBED_COLOUR_ERROR
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.constants import error_gifs
 
 logger = get_logger("boozebot.modules.errorhandler")

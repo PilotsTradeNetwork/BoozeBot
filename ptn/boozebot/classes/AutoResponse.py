@@ -2,10 +2,9 @@ import re
 import sqlite3
 from datetime import datetime, timedelta
 
-from ptn_utils.global_constants import any_council_role, ROLE_SOMM, any_moderation_role, ROLE_CONN
-from ptn_utils.logger.logger import get_logger
-
 from discord import Message
+from ptn_utils.global_constants import ROLE_CONN, ROLE_SOMM, any_council_role, any_moderation_role
+from ptn_utils.logger.logger import get_logger
 
 logger = get_logger("boozebot.classes.autoresponse")
 

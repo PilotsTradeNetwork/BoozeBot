@@ -4,7 +4,7 @@ from datetime import datetime
 
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.constants import CARRIERS_DB_PATH, CARRIERS_DB_DUMPS_PATH
+from ptn.boozebot.constants import CARRIERS_DB_DUMPS_PATH, CARRIERS_DB_PATH
 
 logger = get_logger("boozebot.database")
 sql_logger = get_logger("boozebot.database.sql")

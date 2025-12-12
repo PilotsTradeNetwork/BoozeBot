@@ -1,6 +1,7 @@
 import discord.colour
 from discord import ButtonStyle, Embed, Interaction, ui
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.constants import INTERACTION_CHECK_GIF
 
 logger = get_logger("boozebot.modules.views")

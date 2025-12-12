@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from ptn_utils.global_constants import any_council_role, ROLE_SOMM, any_moderation_role, CHANNEL_BC_STEVE_SAYS
+from ptn_utils.global_constants import CHANNEL_BC_STEVE_SAYS, ROLE_SOMM, any_council_role, any_moderation_role
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import bot

@@ -9,11 +9,11 @@ import functools
 
 # import discord.py
 import discord
-from ptn_utils.global_constants import CHANNEL_BC_BOOZE_CRUISE_CHAT, ROLE_PILOT, EMBED_COLOUR_ERROR
-
 from discord import app_commands
 from discord.ext import commands
+from ptn_utils.global_constants import CHANNEL_BC_BOOZE_CRUISE_CHAT, EMBED_COLOUR_ERROR, ROLE_PILOT
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.ErrorHandler import CommandChannelError, CommandRoleError
 

@@ -1,4 +1,5 @@
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.constants import CARRIER_ID_RE
 
 logger = get_logger("boozebot.classes.boozecarrier")

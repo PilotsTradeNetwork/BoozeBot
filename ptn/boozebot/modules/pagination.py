@@ -2,6 +2,7 @@ import asyncio
 
 import discord
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.constants import bot
 
 logger = get_logger("boozebot.modules.pagination")
