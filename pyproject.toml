@@ -43,7 +43,7 @@ line-length = 120
 target-version = "py313"
 
 [tool.uv.sources]
-ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev = "0.2.4" }
+ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev = "0.2.5" }
 
 [dependency-groups]
 dev = [
