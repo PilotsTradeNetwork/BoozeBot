@@ -21,9 +21,9 @@ from ptn_utils.global_constants import (
     CHANNEL_BC_WINE_CARRIER,
 )
 from ptn_utils.logger.logger import get_logger
-from ptn.boozebot.constants import WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, too_slow_gifs
+from ptn.boozebot.constants import WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, too_slow_gifs, bot
 from ptn.boozebot.database.database import pirate_steve_db
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_member, get_role
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
 """
 MAKE WINE CARRIER COMMANDS
@@ -84,11 +84,11 @@ class MakeWineCarrier(commands.Cog):
         async with wine_carrier_toggle_lock:
             logger.debug("wine_carrier_toggle_lock acquired")
             # set the target role
-            wc_role = await get_role(ROLE_WINE_CARRIER)
+            wc_role = await bot.get_or_fetch.role(ROLE_WINE_CARRIER)
             logger.debug(f"Wine Carrier role name is {wc_role.name}")
 
             # Refetch the user from the interaction inside the lock
-            user = await get_member(user.id)
+            user = await bot.get_or_fetch.member(user.id)
 
             logger.debug(f"Refetched user: {user}")
 
@@ -101,7 +101,7 @@ class MakeWineCarrier(commands.Cog):
 
                     response = f"{user.mention} ({user.name}) no longer has the {wc_role.name} role."
                     await interaction.edit_original_response(content=response)
-                    bot_spam = await get_channel(CHANNEL_BOTSPAM)
+                    bot_spam = await bot.get_or_fetch.channel(CHANNEL_BOTSPAM)
                     embed = discord.Embed(
                         description=f"{user.mention} ({user.name}) has been removed from the {wc_role.mention} role by {interaction.user.mention} ({interaction.user.name}).",
                     )
@@ -124,13 +124,13 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
     logger.debug("Acquiring wine_carrier_toggle_lock to add Wine Carrier role")
     async with wine_carrier_toggle_lock:
         logger.debug("wine_carrier_toggle_lock acquired")
-        channel = await get_channel(CHANNEL_BC_STEVE_SAYS)
+        channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
         # set the target role
-        wc_role = await get_role(ROLE_WINE_CARRIER)
+        wc_role = await bot.get_or_fetch.role(ROLE_WINE_CARRIER)
         logger.debug(f"Wine Carrier role name is {wc_role.name}")
 
         # Refetch the user from the interaction inside the lock
-        user = await get_member(user.id)
+        user = await bot.get_or_fetch.member(user.id)
         logger.debug(f"Refetched user: {user}")
 
         pirate_steve_db.execute(
@@ -169,7 +169,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
 
                 logger.debug(f"Welcome message file read successfully. \n {wine_welcome_message}")
 
-                wine_channel = await get_channel(CHANNEL_BC_WINE_CARRIER)
+                wine_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER)
                 embed = discord.Embed(description=wine_welcome_message)
                 embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
                 await wine_channel.send(f"<@{user.id}>", embed=embed)
@@ -180,7 +180,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
                 await channel.send(content=msg, silent=True)
                 await interaction.edit_original_response(content=response)
 
-                bot_spam = await get_channel(CHANNEL_BOTSPAM)
+                bot_spam = await bot.get_or_fetch.channel(CHANNEL_BOTSPAM)
                 await bot_spam.send(embed=embed)
                 logger.debug("Notified bot_spam and steve_says channels successfully.")
 

@@ -7,122 +7,17 @@ Depends on: constants, ErrorHandler, database
 import datetime
 import functools
 
-# import libraries
-from typing import Optional
-
 # import discord.py
 import discord
-from ptn_utils.global_constants import DISCORD_GUILD, CHANNEL_BC_BOOZE_CRUISE_CHAT, ROLE_PILOT, EMBED_COLOUR_ERROR
+from ptn_utils.global_constants import CHANNEL_BC_BOOZE_CRUISE_CHAT, ROLE_PILOT, EMBED_COLOUR_ERROR
 
-import ptn.boozebot.constants as constants
-from discord import Emoji, Guild, Member, Role, Thread, User, app_commands
-from discord.abc import GuildChannel
-from discord.errors import NotFound
+from discord import app_commands
 from discord.ext import commands
 from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.ErrorHandler import CommandChannelError, CommandRoleError
 
 logger = get_logger("boozebot.modules.helpers")
-
-
-async def get_user(user_id: int) -> Optional[User]:
-    """Fetch a user from the cache or API."""
-    logger.debug(f"Fetching user with ID: {user_id}")
-    try:
-        user = bot.get_user(user_id)
-        if user:
-            logger.debug(f"User found in cache: {user}")
-            return user
-        user = await bot.fetch_user(user_id)
-        logger.debug(f"User fetched from API: {user}")
-        return user
-    except NotFound:
-        logger.warning(f"User with ID {user_id} not found.")
-        return None
-
-
-async def get_guild(guild: int = DISCORD_GUILD) -> Optional[Guild]:
-    """Return bot guild instance for use in get_member()"""
-    try:
-        guild_instance = bot.get_guild(guild)
-        if guild_instance:
-            logger.debug(f"Guild found: {guild_instance.name} (ID: {guild_instance.id})")
-            return guild_instance
-        guild_instance = await bot.fetch_guild(guild)
-        logger.debug(f"Guild fetched from API: {guild_instance.name} (ID: {guild_instance.id})")
-        return guild_instance
-    except NotFound:
-        logger.warning(f"Guild with ID {guild} not found.")
-        return None
-
-
-async def get_member(member_id: int) -> Optional[Member]:
-    """Fetch a member from the cache or API."""
-    logger.debug(f"Fetching member with ID: {member_id}")
-    guild = await get_guild()
-    try:
-        member = guild.get_member(member_id)
-        if member:
-            logger.debug(f"Member found in cache: {member}")
-            return member
-        member = await guild.fetch_member(member_id)
-        logger.debug(f"Member fetched from API: {member}")
-        return member
-    except NotFound:
-        logger.warning(f"Member with ID {member_id} not found in guild {guild.name}.")
-        return None
-
-
-async def get_role(role_id: int) -> Optional[Role]:
-    """Fetch a role from the guild."""
-    logger.debug(f"Fetching role with ID: {role_id}")
-    guild = await get_guild()
-    try:
-        role = guild.get_role(role_id)
-        if role:
-            logger.debug(f"Role found: {role.name} (ID: {role.id})")
-            return role
-        role = await guild.fetch_role(role_id)
-        logger.debug(f"Role fetched from API: {role.name} (ID: {role.id})")
-        return role
-    except NotFound:
-        logger.warning(f"Role with ID {role_id} not found in guild {guild.name}.")
-        return None
-
-
-async def get_channel(channel_id: int) -> Optional[GuildChannel | Thread]:
-    """Fetch a channel or thread from the guild."""
-    logger.debug(f"Fetching channel with ID: {channel_id}")
-    guild = await get_guild()
-    try:
-        channel = guild.get_channel(channel_id)
-        if channel:
-            logger.debug(f"Channel found: {channel.name} (ID: {channel.id})")
-            return channel
-        channel = await bot.fetch_channel(channel_id)
-        logger.debug(f"Channel fetched from API: {channel.name} (ID: {channel.id})")
-        return channel
-    except NotFound:
-        logger.warning(f"Channel with ID {channel_id} not found in guild {guild.name}.")
-        return None
-
-
-async def get_emoji(emoji_id: int) -> Optional[Emoji]:
-    """Fetch an emoji from the guild."""
-    logger.debug(f"Fetching emoji with ID: {emoji_id}")
-    guild = await get_guild()
-    try:
-        emoji = guild.get_emoji(emoji_id)
-        if emoji:
-            logger.debug(f"Emoji found: {emoji.name} (ID: {emoji.id})")
-            return emoji
-        emoji = await bot.fetch_emoji(emoji_id)
-        logger.debug(f"Emoji fetched from API: {emoji.name} (ID: {emoji.id})")
-        return emoji
-    except NotFound:
-        logger.warning(f"Emoji with ID {emoji_id} not found in guild {guild.name}.")
-        return None
 
 
 async def checkroles_actual(interaction: discord.Interaction, permitted_role_ids):
@@ -132,7 +27,7 @@ async def checkroles_actual(interaction: discord.Interaction, permitted_role_ids
     try:
         logger.debug(f"checkroles_actual called for user {interaction.user} ({interaction.user.id})")
         author_roles = interaction.user.roles
-        permitted_roles = [await get_role(role) for role in permitted_role_ids]
+        permitted_roles = [await bot.get_or_fetch.role(role) for role in permitted_role_ids]
         logger.debug(f"Author roles: {[role.name for role in author_roles]}")
         logger.debug(f"Permitted roles: {[role.name for role in permitted_roles if role]}")
         permission = True if any(x in permitted_roles for x in author_roles) else False
@@ -180,9 +75,9 @@ def check_command_channel(permitted_channel):
         """
         logger.debug(f"check_command_channel called for channel {ctx.channel.name} ({ctx.channel.id})")
         if isinstance(permitted_channel, list):
-            permitted_channels = [await get_channel(id) for id in permitted_channel]
+            permitted_channels = [await bot.get_or_fetch.channel(id) for id in permitted_channel]
         else:
-            permitted_channels = [await get_channel(permitted_channel)]
+            permitted_channels = [await bot.get_or_fetch.channel(permitted_channel)]
 
         channel_list = []
         for channel in permitted_channels:
@@ -220,7 +115,7 @@ def check_text_command_channel(permitted_channel):
         Check if the channel the command was run in, matches the channel it can only be run from
         """
         logger.debug(f"check_text_command_channel called for channel {ctx.channel.name} ({ctx.channel.id})")
-        permitted = await get_channel(permitted_channel)
+        permitted = await bot.get_or_fetch.channel(permitted_channel)
         logger.debug(f"Permitted channel: {permitted.name if permitted else 'None'} ({permitted_channel})")
 
         if ctx.channel != permitted:
@@ -247,8 +142,8 @@ async def bc_channel_status():
     """
     logger.debug("Checking booze cruise channel status.")
     try:
-        bc_chat_channel = await get_channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
-        pilot_role = await get_role(ROLE_PILOT)
+        bc_chat_channel = await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
+        pilot_role = await bot.get_or_fetch.role(ROLE_PILOT)
 
         logger.debug(f"Fetched bc_chat_channel and pilot_role. {bc_chat_channel}, {pilot_role}")
 

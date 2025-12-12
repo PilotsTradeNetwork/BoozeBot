@@ -27,7 +27,7 @@ from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import BC_STATUS, BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_role
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.Views import ConfirmView
 
 """
@@ -101,16 +101,16 @@ class Cleaner(commands.Cog):
             embed = discord.Embed()
             Departures.departure_announcement_status = "Disabled"
             Unloading.timed_unloads_allowed = False
-            pilot_role = await get_role(ROLE_PILOT)
+            pilot_role = await bot.get_or_fetch.role(ROLE_PILOT)
             channels = {channel_id: pilot_role for channel_id in ids_list}
-            channels[CHANNEL_BC_WINE_CARRIER_GUIDE] = await get_role(ROLE_BOOZE_CRUISE)
+            channels[CHANNEL_BC_WINE_CARRIER_GUIDE] = await bot.get_or_fetch.role(ROLE_BOOZE_CRUISE)
 
             logger.info("Updating status embed to 'bc_prep'.")
             await self.update_status_embed("bc_prep")
 
             logger.info("Opening Booze Cruise channels to the public.")
             for channel_id, role in channels.items():
-                channel = await get_channel(channel_id)
+                channel = await bot.get_or_fetch.channel(channel_id)
                 logger.debug(f"Setting permissions for channel ID: {channel_id} and role: {role.name}")
                 try:
                     overwrite = channel.overwrites_for(role)
@@ -166,14 +166,14 @@ class Cleaner(commands.Cog):
             ids_list = CHANNEL_BC_PUBLIC
 
             embed = discord.Embed()
-            pilot_role = await get_role(ROLE_PILOT)
+            pilot_role = await bot.get_or_fetch.role(ROLE_PILOT)
             channels = dict.fromkeys(ids_list, pilot_role)
-            channels[CHANNEL_BC_WINE_CARRIER_GUIDE] = await get_role(ROLE_BOOZE_CRUISE)
+            channels[CHANNEL_BC_WINE_CARRIER_GUIDE] = await bot.get_or_fetch.role(ROLE_BOOZE_CRUISE)
 
             logger.info("Closing Booze Cruise channels to the public.")
 
             for channel_id, role in channels.items():
-                channel = await get_channel(channel_id)
+                channel = await bot.get_or_fetch.channel(channel_id)
                 logger.debug(f"Setting permissions for channel ID: {channel_id} and role: {role.name}")
                 try:
                     overwrite = channel.overwrites_for(role)
@@ -232,10 +232,10 @@ class Cleaner(commands.Cog):
         if confirm.value:
             logger.info(f"User {interaction.user.name} accepted the request to clear booze roles.")
             wine_role_id = ROLE_WINE_CARRIER
-            wine_carrier_role = await get_role(wine_role_id)
+            wine_carrier_role = await bot.get_or_fetch.role(wine_role_id)
 
             hitch_role_id = ROLE_HITCHHIKER
-            hitch_role = await get_role(hitch_role_id)
+            hitch_role = await bot.get_or_fetch.role(hitch_role_id)
 
             wine_count = 0
             hitch_count = 0
@@ -352,8 +352,8 @@ class Cleaner(commands.Cog):
             f"User {interaction.user.name} is opening the wine carrier feedback channel in {interaction.channel.name}."
         )
 
-        wine_feedback_channel = await get_channel(CHANNEL_BC_WCO_FEEDBACK)
-        wine_carrier_role = await get_role(ROLE_WINE_CARRIER)
+        wine_feedback_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WCO_FEEDBACK)
+        wine_carrier_role = await bot.get_or_fetch.role(ROLE_WINE_CARRIER)
         overwrite = discord.PermissionOverwrite(view_channel=True)
 
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
@@ -369,8 +369,8 @@ class Cleaner(commands.Cog):
             f"User {interaction.user.name} is closing the wine carrier feedback channel in {interaction.channel.name}."
         )
 
-        wine_feedback_channel = await get_channel(CHANNEL_BC_WCO_FEEDBACK)
-        wine_carrier_role = await get_role(ROLE_WINE_CARRIER)
+        wine_feedback_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WCO_FEEDBACK)
+        wine_carrier_role = await bot.get_or_fetch.role(ROLE_WINE_CARRIER)
         overwrite = discord.PermissionOverwrite(view_channel=False)
 
         await wine_feedback_channel.set_permissions(wine_carrier_role, overwrite=overwrite)
@@ -391,7 +391,7 @@ class Cleaner(commands.Cog):
     @classmethod
     async def update_status_embed(cls, status: BC_STATUS):
         logger.debug(f"Updating status embed to: {status}")
-        channel = await get_channel(CHANNEL_BC_WINE_STATUS)
+        channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_STATUS)
         async for message in channel.history():
             logger.debug(f"Checking message ID: {message.id} for deletion.")
             if message.author == bot.user or not message.pinned:

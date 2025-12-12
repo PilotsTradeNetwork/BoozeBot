@@ -20,8 +20,9 @@ from ptn_utils.global_constants import (
 )
 from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.CorkedUser import CorkedUser
+from ptn.boozebot.constants import bot
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.pagination import createPagination
 
 """
@@ -93,7 +94,7 @@ class Corked(commands.Cog):
         try:
             for channel_id in self.CORK_CHANNELS:
                 logger.debug(f"Setting permissions for user {user} in channel ID {channel_id}.")
-                channel = await get_channel(channel_id)
+                channel = await bot.get_or_fetch.channel(channel_id)
                 await channel.set_permissions(
                     user, overwrite=overwrite, reason="User corked from booze cruise channels"
                 )
@@ -156,7 +157,7 @@ class Corked(commands.Cog):
         try:
             for channel_id in self.CORK_CHANNELS:
                 logger.debug(f"Removing permissions for user {user} in channel ID {channel_id}.")
-                channel = await get_channel(channel_id)
+                channel = await bot.get_or_fetch.channel(channel_id)
                 await channel.set_permissions(user, overwrite=None, reason="User uncorked for booze cruise channels")
 
             logger.info(f"User {user} successfully uncorked from booze cruise channels.")

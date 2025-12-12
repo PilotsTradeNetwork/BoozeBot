@@ -26,7 +26,7 @@ from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import CARRIER_ID_RE, bot
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_role, track_last_run
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.Settings import settings
 
@@ -64,7 +64,7 @@ class Unloading(commands.Cog):
             if reaction_event.channel_id != CHANNEL_BC_WINE_CELLAR_UNLOADING:
                 return
 
-            channel = await get_channel(reaction_event.channel_id)
+            channel = await bot.get_or_fetch.channel(reaction_event.channel_id)
             message = await channel.fetch_message(reaction_event.message_id)
 
             if message.pinned:
@@ -111,7 +111,7 @@ class Unloading(commands.Cog):
                         )
 
                         if carrier_data and carrier_data.discord_unload_poster_id:
-                            wine_carrier_channel = await get_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+                            wine_carrier_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
                             await wine_carrier_channel.send(
                                 f"<@{carrier_data.discord_unload_poster_id}> "
                                 f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
@@ -175,7 +175,7 @@ class Unloading(commands.Cog):
                 return
             logger.info("Last unload time was more than 20 minutes ago, sending reminder message.")
             try:
-                rstc_channel = await get_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+                rstc_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
                 timestamp = int(self.last_unload_time.timestamp())
                 content = f"Arrr, ye scurvy dogs! Our last booze unload was <t:{timestamp}:R>. Might be time to open another vessel to the people, ye think?"
                 message = await rstc_channel.send(content)
@@ -329,7 +329,7 @@ class Unloading(commands.Cog):
                 f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
             )
 
-        wine_alert_channel = await get_channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
+        wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
 
         if carrier_data.discord_unload_notification:
             logger.info(f"Carrier {carrier_data.carrier_identifier} is already unloading wine.")
@@ -386,7 +386,7 @@ class Unloading(commands.Cog):
         logger.info(f"Discord alert ID written to database for {carrier_data.carrier_identifier}")
 
         # Also post a note into the primary channel to go read the announcements.
-        booze_cruise_chat = await get_channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
+        booze_cruise_chat = await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
         await booze_cruise_chat.send(f"A new wine unload is in progress. See <#{wine_unload_alert.channel.id}>")
 
         logger.info(
@@ -464,7 +464,7 @@ class Unloading(commands.Cog):
                 f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
             )
 
-        wine_alert_channel = await get_channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
+        wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
 
         if carrier_data.discord_unload_notification:
             logger.info(f"Carrier {carrier_data.carrier_identifier} is already unloading wine.")
@@ -529,7 +529,7 @@ class Unloading(commands.Cog):
         logger.info(f"Discord alert ID written to database for {carrier_data.carrier_identifier}")
 
         # Also post a note into the primary channel to go read the announcements.
-        booze_cruise_chat = await get_channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
+        booze_cruise_chat = await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
         await booze_cruise_chat.send(f"A new wine unload will be opening soon. See <#{wine_unload_alert.channel.id}>")
 
         logger.info(
@@ -595,7 +595,7 @@ class Unloading(commands.Cog):
             )
 
         logger.debug(f"Fetching unload notification message for carrier: {carrier_id}.")
-        wine_alert_channel = await get_channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
+        wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
         message = await wine_alert_channel.fetch_message(carrier_data.discord_unload_notification)
         # Now delete it in the database
 
@@ -637,7 +637,7 @@ class Unloading(commands.Cog):
             f"-# Unload duration: {time_str}."
         )
         allowed_mentions = discord.AllowedMentions.none()
-        conn_role = await get_role(ROLE_CONN)
+        conn_role = await bot.get_or_fetch.role(ROLE_CONN)
         allowed_mentions.roles = [conn_role]
 
         logger.info(f"Wine unload for carrier {carrier_id} completed by {interaction.user.name}.")
@@ -659,7 +659,7 @@ class Unloading(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         # Log the request
-        steve_says_channel = await get_channel(CHANNEL_BC_STEVE_SAYS)
+        steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
         new_status = "Disabled" if settings.get_setting("timed_unloads_allowed") else "Enabled"
         msg = f"requested to toggle the timed unloads status to: '{new_status}'."
         logger.info(f"{interaction.user.name} {msg}")

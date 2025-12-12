@@ -44,9 +44,6 @@ from ptn.boozebot.modules.helpers import (
     bc_channel_status,
     check_command_channel,
     check_roles,
-    get_channel,
-    get_emoji,
-    get_guild,
     track_last_run,
 )
 from ptn.boozebot.modules.pagination import createPagination
@@ -439,7 +436,7 @@ class DatabaseInteraction(commands.Cog):
                 value="Pirate Steve hope he got this right.",
                 inline=False,
             )
-            steve_says_channel = await get_channel(CHANNEL_BC_STEVE_SAYS)
+            steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
             await steve_says_channel.send(embed=embed)
             logger.info("Database update result reported via embed to steve-says channel")
         logger.debug("Reporting new and invalid carriers if any")
@@ -458,7 +455,7 @@ class DatabaseInteraction(commands.Cog):
         if result is None:
             result = {}
 
-        steve_says_channel = await get_channel(CHANNEL_BC_STEVE_SAYS)
+        steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
 
         if result.get("invalid_database_entries", False):
             # In case any problem carriers found, mark them up
@@ -714,7 +711,7 @@ class DatabaseInteraction(commands.Cog):
         wine_boxes_per_scot_pop = wine_boxes_total / scotland_population
         wine_boxes_litres_per_scot_pop = wine_boxes_litres_total / scotland_population
 
-        server_population = (await get_guild()).member_count
+        server_population = (await bot.get_or_fetch.guild).member_count
         tons_per_server_pop = total_wine / server_population
         wine_bottles_per_server_pop = wine_bottles_total / server_population
         wine_bottles_litres_per_server_pop = wine_bottles_litres_total / server_population
@@ -766,7 +763,7 @@ class DatabaseInteraction(commands.Cog):
             f"Boxes litres per capita: {wine_boxes_litres_per_capita:,.2f}\n\n"
         )
 
-        ptn_logo_emoji = await get_emoji(EMOJI_PTN_ROLE_ICON)
+        ptn_logo_emoji = await bot.get_or_fetch.emoji(EMOJI_PTN_ROLE_ICON)
         server_text = (
             f"### Server Population Stats {ptn_logo_emoji}\n"
             f"Population: {server_population:,}\n"
@@ -890,7 +887,7 @@ class DatabaseInteraction(commands.Cog):
                 logger.info(f"Found {len(all_pins)} pinned messages to update")
                 for pin in all_pins:
                     logger.debug(f"Updating pinned message: {pin}")
-                    channel = await get_channel(int(pin["channel_id"]))
+                    channel = await bot.get_or_fetch.channel(int(pin["channel_id"]))
                     message = await channel.fetch_message(pin["message_id"])
                     await message.edit(embed=stat_embed)
                     logger.debug(f"Pinned message updated successfully: {pin}")
@@ -1333,7 +1330,7 @@ class DatabaseInteraction(commands.Cog):
             if pins:
                 logger.debug(f"Updating pinned messages: {pins}")
                 for pin in pins:
-                    channel = await get_channel(pin["channel_id"])
+                    channel = await bot.get_or_fetch.channel(pin["channel_id"])
                     logger.debug(f"Channel matched as: {channel} from {pin['channel_id']}")
                     # Now go loop over every pin and update it
                     message = await channel.fetch_message(pin["message_id"])
@@ -1363,7 +1360,7 @@ class DatabaseInteraction(commands.Cog):
 
         split_message_link = message_link.split("/")
         channel_id = int(split_message_link[5])
-        channel = await get_channel(channel_id)
+        channel = await bot.get_or_fetch.channel(channel_id)
         message_id = int(split_message_link[6])
 
         message = await channel.fetch_message(message_id)
@@ -1431,7 +1428,7 @@ class DatabaseInteraction(commands.Cog):
         all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
         if all_pins:
             for pin in all_pins:
-                channel = await get_channel(int(pin["channel_id"]))
+                channel = await bot.get_or_fetch.channel(int(pin["channel_id"]))
                 message = await channel.fetch_message(pin["message_id"])
                 await message.unpin(reason=f"Pirate Steve unpinned at the request of: {interaction.user.name}")
                 logger.debug(f"Removed pinned message: {pin['message_id']}.")
@@ -1470,7 +1467,7 @@ class DatabaseInteraction(commands.Cog):
 
         split_message_link = message_link.split("/")
         channel_id = int(split_message_link[5])
-        channel = await get_channel(channel_id)
+        channel = await bot.get_or_fetch.channel(channel_id)
         message_id = int(split_message_link[6])
 
         pirate_steve_db.execute(f"SELECT * FROM pinned_messages WHERE message_id = {message_id}")
@@ -1478,7 +1475,7 @@ class DatabaseInteraction(commands.Cog):
         all_pins = [dict(value) for value in pirate_steve_db.fetchall()]
         if all_pins:
             for pin in all_pins:
-                channel = await get_channel(int(pin["channel_id"]))
+                channel = await bot.get_or_fetch.channel(int(pin["channel_id"]))
                 message = await channel.fetch_message(pin["message_id"])
                 await message.unpin(reason=f"Pirate Steve unpinned at the request of: {interaction.user.name}")
                 logger.debug(f"Removed pinned message: {pin['message_id']}.")

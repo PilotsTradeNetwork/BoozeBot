@@ -28,10 +28,10 @@ from ptn.boozebot.constants import (
     holiday_ended_gif,
     holiday_query_not_started_gifs,
     holiday_query_started_gifs,
-    holiday_start_gif,
+    holiday_start_gif, bot,
 )
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, track_last_run
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.PHcheck import api_ph_check, ph_check
 
 """
@@ -73,7 +73,7 @@ class PublicHoliday(commands.Cog):
         logger.info(f"Setting public holiday state to: {state}, force update: {force_update}")
         if state:
             logger.info("PH detected, triggering the notifications.")
-            holiday_announce_channel = await get_channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
+            holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
 
             # Check if we had a holiday flagged already
             pirate_steve_db.execute("""SELECT state FROM holidaystate""")
@@ -119,7 +119,7 @@ class PublicHoliday(commands.Cog):
             if current_time_utc > end_time or force_update:
                 # Current time is after the end time, go turn the checks off.
                 logger.info("Holiday duration expired, turning the check off.")
-                holiday_announce_channel = await get_channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
+                holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
 
                 # Check if we had a holiday flagged already
                 pirate_steve_db.execute("""SELECT state FROM holidaystate""")

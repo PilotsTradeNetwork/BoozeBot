@@ -28,7 +28,7 @@ from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import CARRIER_ID_RE, N_SYSTEMS, bot
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, get_channel, get_emoji, track_last_run
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView
 
@@ -57,7 +57,7 @@ class Departures(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         try:
-            departure_channel = await get_channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
+            departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
         except Exception as e:
             logger.exception(f"Failed to get departure_channel: {e}")
 
@@ -106,7 +106,7 @@ class Departures(commands.Cog):
             if reaction_event.channel_id != CHANNEL_BC_DEPARTURE_ANNOUNCEMENT:
                 return
 
-            channel = await get_channel(reaction_event.channel_id)
+            channel = await bot.get_or_fetch.channel(reaction_event.channel_id)
             message = await channel.fetch_message(reaction_event.message_id)
 
             logger.debug(
@@ -132,8 +132,8 @@ class Departures(commands.Cog):
     @tasks.loop(minutes=5)
     @track_last_run()
     async def check_departure_messages_loop(self):
-        departure_channel = await get_channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
-        wine_carrier_chat = await get_channel(CHANNEL_BC_WINE_CARRIER)
+        departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
+        wine_carrier_chat = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER)
 
         logger.info("Checking for passed departure messages.")
         async for message in departure_channel.history(limit=100):
@@ -166,7 +166,7 @@ class Departures(commands.Cog):
 
                 if departure_time.startswith("<t:"):
                     departure_time = departure_time.split(":")[1]
-                elif departure_time == f"{await get_emoji(EMOJI_THOON)}":
+                elif departure_time == f"{await bot.get_or_fetch.emoji(EMOJI_THOON)}":
                     departure_time = message.created_at.timestamp() + 25 * 60
 
                 try:
@@ -245,7 +245,7 @@ class Departures(commands.Cog):
         # Convert carrier ID to uppercase
         carrier_id = carrier_id.upper().strip()
 
-        steve_says_channel = await get_channel(CHANNEL_BC_STEVE_SAYS)
+        steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
         # Validate the carrier ID format
         if not CARRIER_ID_RE.fullmatch(carrier_id):
             msg = (
@@ -348,7 +348,7 @@ class Departures(commands.Cog):
             departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
             departing_thoon = datetime.fromtimestamp(departure_timestamp) < datetime.now() + timedelta(hours=2)
         else:
-            departure_time_text = f" {await get_emoji(EMOJI_THOON)} |"
+            departure_time_text = f" {await bot.get_or_fetch.emoji(EMOJI_THOON)} |"
 
         # Check if the departure needs a hitchhiker ping
         hitchhiker_systems = [0, 1, 2, 3]
@@ -372,7 +372,7 @@ class Departures(commands.Cog):
         )
         is_thoon_trip = departure_system_index in thoon_systems or arrival_system_index in thoon_systems
         if is_thoon_trip and departing_thoon:
-            departure_time_text = f" {await get_emoji(EMOJI_THOON)} |"
+            departure_time_text = f" {await bot.get_or_fetch.emoji(EMOJI_THOON)} |"
 
         logger.debug(
             f"Departure system index: {departure_system_index}, Arrival system index: {arrival_system_index}, "
@@ -421,7 +421,7 @@ class Departures(commands.Cog):
         departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{interaction.user.id}> {hitchhiker_ping_text}"
 
         # Send the departure message to the departure announcement channel
-        departure_channel = await get_channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
+        departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
         departure_message = await departure_channel.send(departure_message_text)
         await departure_message.add_reaction("🛬")
         await departure_message.add_reaction("✅")
@@ -447,7 +447,7 @@ class Departures(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         # Log the request
-        steve_says_channel = await get_channel(CHANNEL_BC_STEVE_SAYS)
+        steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
         msg = f"requested to set the departure announcement status to: '{status}'."
         logger.info(f"{interaction.user.name} {msg}")
         await steve_says_channel.send(f"{interaction.user.mention} {msg}", silent=True)
@@ -598,7 +598,7 @@ class Departures(commands.Cog):
                 return
             departure_time_text = f"Departs any time after <t:{timestamp}:f> (<t:{timestamp}:R>) or immediately if the public holiday is announced at Rackham’s Peak."
         elif departure_time_type == "Thoon":
-            departure_time_text = f"Departs {bot.get_emoji(EMOJI_THOON)}"
+            departure_time_text = f"Departs {await bot.get_or_fetch.emoji(EMOJI_THOON)}"
 
         embed = discord.Embed(
             description=f"# {departure_name}\n"
@@ -609,7 +609,7 @@ class Departures(commands.Cog):
             color=15611236,
         )
 
-        departure_channel = await get_channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
+        departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
 
         # Check for existing departure message
         logger.debug("Checking for existing official departure message.")

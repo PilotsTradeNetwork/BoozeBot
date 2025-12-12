@@ -22,9 +22,10 @@ from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
     ROLE_HITCHHIKER,
     CHANNEL_BC_DEPARTURE_ANNOUNCEMENT,
-    DATA_DIR, _production,
+    DATA_DIR, _production, DISCORD_GUILD,
 )
 from ptn_utils.logger.logger import get_logger
+from ptn_utils.get_or_fetch import GetOrFetch
 
 logger = get_logger("boozebot.constants")
 
@@ -46,12 +47,22 @@ GOOGLE_OAUTH_CREDENTIALS_PATH = os.path.join(DATA_DIR, ".ptnboozebot.json")
 load_dotenv(os.path.join(DATA_DIR, ".env"))
 
 # define bot object
+intents = discord.Intents.none()
+intents.guilds = True
+intents.members = True
+intents.messages = True
+intents.message_content = True
+intents.reactions = True
+
 bot = commands.Bot(
     command_prefix=commands.when_mentioned_or("b/"),
-    intents=discord.Intents.all(),
+    # intents=discord.Intents.all(),
+    intents=intents,
     chunk_guilds_at_startup=False,
     allowed_mentions=discord.AllowedMentions(roles=False, users=False, everyone=False) if not _production else None
 )
+bot.get_or_fetch = GetOrFetch(bot, DISCORD_GUILD)
+
 BOOZE_PROFIT_PER_TONNE_WINE = 256000
 RACKHAMS_PEAK_POP = 150000
 

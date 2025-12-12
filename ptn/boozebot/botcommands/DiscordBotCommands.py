@@ -5,8 +5,7 @@ from discord.ext import commands
 from ptn_utils.global_constants import CHANNEL_DEV_STEVE_BOT, any_council_role, ROLE_SOMM
 from ptn_utils.logger.logger import get_logger
 from ptn.boozebot._metadata import __version__
-from ptn.boozebot.constants import I_AM_STEVE_GIF
-from ptn.boozebot.modules.helpers import get_channel
+from ptn.boozebot.constants import I_AM_STEVE_GIF, bot
 
 """
 LISTENERS
@@ -48,7 +47,7 @@ class DiscordBotCommands(commands.Cog):
         """
         logger.info(f"{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}")
         try:
-            bot_channel = await get_channel(CHANNEL_DEV_STEVE_BOT)
+            bot_channel = await bot.get_or_fetch.channel(CHANNEL_DEV_STEVE_BOT)
             embed = discord.Embed(
                 description=f"{self.bot.user.name} has connected to Discord server Booze bot version: {__version__}"
             )

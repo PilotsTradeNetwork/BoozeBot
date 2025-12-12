@@ -3,7 +3,9 @@ from discord import app_commands
 from discord.ext import commands
 from ptn_utils.global_constants import any_council_role, ROLE_SOMM, any_moderation_role, CHANNEL_BC_STEVE_SAYS
 from ptn_utils.logger.logger import get_logger
-from ptn.boozebot.modules.helpers import check_roles, get_channel
+
+from ptn.boozebot.constants import bot
+from ptn.boozebot.modules.helpers import check_roles
 
 """
 MIMIC STEVE COMMAND
@@ -86,7 +88,7 @@ class MimicSteve(commands.Cog):
             f"User {interaction.user.name} is sending the message {message} as PirateSteve "
             f"in: {send_channel if send_channel else reply_message.channel}."
         )
-        steve_says_channel = await get_channel(CHANNEL_BC_STEVE_SAYS)
+        steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
         try:
             if reply_message:
                 send_channel = reply_message.channel
