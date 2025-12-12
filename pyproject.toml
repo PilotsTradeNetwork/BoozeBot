@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.2", "wheel"]
+requires = ["setuptools>=61.2", "wheel", "setuptools_scm[toml] >= 6"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "ptn.boozebot"
@@ -28,15 +29,17 @@ dependencies = [
 ]
 dynamic = ["version"]
 
-[tool.setuptools.dynamic]
-version = { attr = "ptn.boozebot.__version__" }  # any module attribute compatible with ast.literal_eval
-
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["ptn.boozebot*"]
 
 [project.scripts]
 booze = "ptn.boozebot.application:run"
+
+[tool.setuptools_scm]
+# this is used populated when creating a git archive
+# and when there is .git dir and/or there is no git installed
+fallback_version = "0.0.0+unknown"
 
 [tool.ruff]
 line-length = 120
