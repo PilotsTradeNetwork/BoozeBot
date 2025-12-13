@@ -52,13 +52,13 @@ load_dotenv(os.path.join(DATA_DIR, ".env"))
 intents = discord.Intents.none()
 intents.guilds = True
 intents.members = True
-intents.messages = True
+intents.guild_messages = True
 intents.message_content = True
-intents.reactions = True
+intents.guild_reactions = True
+intents.expressions = True
 
 bot = commands.Bot(
     command_prefix=commands.when_mentioned_or("b/"),
-    # intents=discord.Intents.all(),
     intents=intents,
     chunk_guilds_at_startup=False,
     allowed_mentions=discord.AllowedMentions(roles=False, users=False, everyone=False) if not _production else None,
