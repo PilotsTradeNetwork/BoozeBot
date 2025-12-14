@@ -131,7 +131,6 @@ def build_database_on_startup():
             create_statement = (
                 f"CREATE TABLE {table_name} ({', '.join([f'{col} {col_type}' for col, col_type in schema.items()])})"
             )
-            logger.trace(f"Create statement: {create_statement}")
             pirate_steve_db.execute(create_statement)
             pirate_steve_conn.commit()
             logger.trace(f"Committed table creation for {table_name}.")
@@ -176,7 +175,6 @@ def build_database_on_startup():
                 if column_name not in existing_columns:
                     logger.debug(f"Column {column_name} missing in table {table_name}. Adding column.")
                     alter_statement = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
-                    logger.trace(f"Alter statement: {alter_statement}")
                     pirate_steve_db.execute(alter_statement)
                     columns_added += 1
                     logger.info(f"Added column {column_name} to table {table_name}.")
