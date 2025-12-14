@@ -1,8 +1,9 @@
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.modules.helpers import get_member
+from ptn.boozebot.constants import bot
 
 logger = get_logger("boozebot.classes.corkeduser")
+
 
 class CorkedUser:
     def __init__(self, info_dict=None):
@@ -32,7 +33,7 @@ class CorkedUser:
         :rtype: discord.Member | None
         """
         logger.debug(f"Fetching member for corked user ID: {self.user_id}. Database timestamp: {self.timestamp}")
-        return await get_member(self.user_id)
+        return await bot.get_or_fetch.member(self.user_id)
 
     def __str__(self):
         """

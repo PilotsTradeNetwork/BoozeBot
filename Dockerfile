@@ -1,4 +1,5 @@
 FROM python:3.13-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /usr/src/bot /root/boozedatabase \
     && ln -sf /root/boozedatabase/.ptnboozebot.json /root/.ptnboozebot.json \
     && ln -sf /root/boozedatabase/.env /root/.env

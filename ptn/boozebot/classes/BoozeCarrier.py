@@ -1,10 +1,11 @@
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.constants import CARRIER_ID_RE
 
 logger = get_logger("boozebot.classes.boozecarrier")
 
-class BoozeCarrier:
 
+class BoozeCarrier:
     COMPARISON_KEYS = ["carrier_name", "wine_total", "carrier_identifier", "discord_username", "run_count"]
 
     def __init__(self, info_dict=None):
@@ -85,17 +86,20 @@ class BoozeCarrier:
         # The Discord message ID for the departure message
         self.discord_departure_message_id = info_dict.get("discord_departure_message_id", None)
 
-        logger.debug(f"BoozeCarrier initialized: carrier_name={self.carrier_name}, wine_total={self.wine_total}, "
-                     f"carrier_identifier={self.carrier_identifier}, discord_username={self.discord_username}, "
-                     f"timestamp={self.timestamp}, run_count={self.run_count}, total_unloads={self.total_unloads}, "
-                     f"timezone={self.timezone}, discord_unload_notification={self.discord_unload_notification}, "
-                     f"discord_unload_poster_id={self.discord_unload_poster_id}, faction_state={self.faction_state}, "
-                     f"discord_departure_message_id={self.discord_departure_message_id}")
+        logger.debug(
+            f"BoozeCarrier initialized: carrier_name={self.carrier_name}, wine_total={self.wine_total}, "
+            f"carrier_identifier={self.carrier_identifier}, discord_username={self.discord_username}, "
+            f"timestamp={self.timestamp}, run_count={self.run_count}, total_unloads={self.total_unloads}, "
+            f"timezone={self.timezone}, discord_unload_notification={self.discord_unload_notification}, "
+            f"discord_unload_poster_id={self.discord_unload_poster_id}, faction_state={self.faction_state}, "
+            f"discord_departure_message_id={self.discord_departure_message_id}"
+        )
 
     def get_unload_stats(self, include_not_unloaded: bool = True) -> tuple[int, int]:
-
-        logger.debug(f"Calculating unload stats for carrier '{self.carrier_name}' (ID: {self.carrier_identifier}). "
-                     f"Include not unloaded: {include_not_unloaded}")
+        logger.debug(
+            f"Calculating unload stats for carrier '{self.carrier_name}' (ID: {self.carrier_identifier}). "
+            f"Include not unloaded: {include_not_unloaded}"
+        )
 
         if include_not_unloaded:
             logger.debug(f"Returning total wine and run count: {self.wine_total}, {self.run_count}")

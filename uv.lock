@@ -725,7 +725,7 @@ requires-dist = [
     { name = "gspread-asyncio", specifier = "~=2.0.0" },
     { name = "httpx", specifier = "~=0.28.1" },
     { name = "loguru", specifier = "~=0.7.3" },
-    { name = "ptn-utils", git = "https://github.com/PilotsTradeNetwork/PTN-Library.git?rev=0.2.3" },
+    { name = "ptn-utils", git = "https://github.com/PilotsTradeNetwork/PTN-Library.git?rev=0.2.5" },
     { name = "python-dotenv", specifier = "~=1.0.1" },
     { name = "requests", specifier = "~=2.32.5" },
 ]
@@ -739,8 +739,8 @@ dev = [
 
 [[package]]
 name = "ptn-utils"
-version = "0.2.3"
-source = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git?rev=0.2.3#6f81cad790757abf583f9dd5749a1a12ce158bb9" }
+version = "0.2.5"
+source = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git?rev=0.2.5#bb16782c0b95176a90ccceeb7f40afad8542ecd6" }
 dependencies = [
     { name = "discord-py" },
     { name = "loguru" },

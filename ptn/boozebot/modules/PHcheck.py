@@ -6,9 +6,11 @@ from json import JSONDecodeError
 
 import httpx
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.database.database import pirate_steve_db
 
 logger = get_logger("boozebot.modules.phcheck")
+
 
 async def get_state_from_ebgs() -> bool:
     logger.debug("Getting state from EBGS API.")

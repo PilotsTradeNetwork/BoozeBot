@@ -137,4 +137,4 @@ dmypy.json
 .vscode/
 
 # local data
-/ptn/boozebot/data/
+data/

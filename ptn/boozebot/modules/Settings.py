@@ -2,11 +2,13 @@ import json
 from typing import Literal, TypedDict, overload
 
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.constants import SETTINGS_FILE_PATH
 
 DepartureStatusType = Literal["Disabled", "Upwards", "All"]
 
 logger = get_logger("boozebot.modules.settings")
+
 
 class SettingsDict(TypedDict):
     departure_announcement_status: DepartureStatusType

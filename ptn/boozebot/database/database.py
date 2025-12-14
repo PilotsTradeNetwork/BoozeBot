@@ -3,12 +3,13 @@ import sqlite3
 from datetime import datetime
 
 from ptn_utils.logger.logger import get_logger
-from ptn.boozebot.constants import get_db_dumps_path, get_db_path
+
+from ptn.boozebot.constants import CARRIERS_DB_DUMPS_PATH, CARRIERS_DB_PATH
 
 logger = get_logger("boozebot.database")
 sql_logger = get_logger("boozebot.database.sql")
 
-db_path = get_db_path()
+db_path = CARRIERS_DB_PATH
 logger.info(f"Starting database connection at: {db_path}")
 
 pirate_steve_conn = sqlite3.connect(db_path)
@@ -22,7 +23,7 @@ def sql_trace_callback(statement):
 
 
 pirate_steve_conn.set_trace_callback(sql_trace_callback)
-db_sql_store = get_db_dumps_path()
+db_sql_store = CARRIERS_DB_DUMPS_PATH
 pirate_steve_db_lock = asyncio.Lock()
 
 logger.info(f"Database initialized. SQL dumps will be stored at: {db_sql_store}")
