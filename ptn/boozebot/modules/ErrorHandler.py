@@ -71,7 +71,7 @@ class CustomError(Exception):
 async def on_text_command_error(ctx: commands.Context, error: Exception):
     """Global error handler for text commands"""
     gif = random.choice(error_gifs)
-    logger.error(f"Error from {ctx.command} in {ctx.channel} called by {ctx.author}: {error}")
+    logger.exception(f"Error from {ctx.command} in {ctx.channel} called by {ctx.author}: {error}")
     if isinstance(error, commands.BadArgument):
         logger.debug("Bad argument error raised, reporting to user")
         await ctx.send(f"**Bad argument!** {error}")
@@ -102,7 +102,7 @@ async def on_text_command_error(ctx: commands.Context, error: Exception):
 async def on_app_command_error(interaction: Interaction, error: AppCommandError):
     """Global error handler for application commands"""
 
-    logger.error(
+    logger.exception(
         f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
     )
 
