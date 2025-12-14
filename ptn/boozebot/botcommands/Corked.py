@@ -25,6 +25,7 @@ from ptn.boozebot.constants import bot
 from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.pagination import createPagination
+from ptn.boozebot.modules.Views import ConfirmView
 
 """
 CLEANER COMMANDS
@@ -222,3 +223,95 @@ class Corked(commands.Cog):
 
         logger.info("Creating pagination for corked users.")
         await createPagination(interaction, "Corked Users", corked_user_data)
+
+    @app_commands.command(
+        name="booze_admin_rebuild_corked_perms", description="Rebuild corked permissions for all corked users"
+    )
+    @check_roles([*any_council_role, *any_moderation_role])
+    @check_command_channel([CHANNEL_BC_STEVE_SAYS])
+    async def booze_rebuild_corked_perms(self, interaction: discord.Interaction):
+        """
+        Rebuild corked permissions for all corked users
+
+        :param discord.Interaction interaction: The interaction object
+        :returns: None
+        """
+
+        logger.info(f"User {interaction.user} requested to rebuild corked permissions.")
+        await interaction.response.defer()
+
+        logger.debug("Fetching corked users from the database for permission rebuild.")
+        async with pirate_steve_db_lock:
+            pirate_steve_db.execute("SELECT * FROM corked_users")
+            results = pirate_steve_db.fetchall()
+        logger.debug(f"Fetched {len(results)} corked users from the database.")
+
+        if not results:
+            logger.info("No corked users found for permission rebuild.")
+            await interaction.edit_original_response(content="There are no corked users to rebuild permissions for.")
+            return
+
+        confirm = ConfirmView(author=interaction.user)
+        await interaction.edit_original_response(
+            content=f"Are you sure you want to rebuild corked permissions for all {len(results)} corked users? This may take some time.",
+            view=confirm,
+        )
+
+        await confirm.wait()
+
+        if confirm.value is False:
+            logger.info(f"User {interaction.user.name} wants to abort the open process.")
+            await interaction.edit_original_response(
+                content="You aborted the request to rebuild the corked perms", embed=None, view=None
+            )
+            return
+        elif confirm.value is None:
+            logger.info(f"User {interaction.user.name} did not respond in time to the confirmation view.")
+            await interaction.edit_original_response(
+                content="**Waiting for user response - timed out**", embed=None, view=None
+            )
+            return
+
+        corked_users = [CorkedUser(row) for row in results]
+
+        logger.info(f"Rebuilding corked permissions for {len(corked_users)} corked users.")
+        await interaction.edit_original_response(
+            content="Rebuilding corked permissions. This may take a while.", embed=None, view=None
+        )
+
+        failed_users = []
+
+        for corked_user in corked_users:
+            user = await bot.get_or_fetch.member(corked_user.user_id)
+            if user is None:
+                logger.warning(f"Could not find member with ID {corked_user.user_id}, skipping.")
+                failed_users.append((corked_user.user_id, "User not found"))
+                continue
+            overwrite = PermissionOverwrite()
+            overwrite.view_channel = False
+            try:
+                for channel_id in self.CORK_CHANNELS:
+                    logger.debug(f"Setting permissions for corked user {user} in channel ID {channel_id}.")
+                    channel = await bot.get_or_fetch.channel(channel_id)
+                    await channel.set_permissions(user, overwrite=overwrite, reason="Rebuilding corked permissions")
+            except discord.DiscordException as e:
+                logger.exception(f"Error setting permissions for user {user} in channel ID {channel_id}: {e}")
+                failed_users.append((corked_user.user_id, str(e)))
+
+        if failed_users:
+            logger.info(f"Rebuilding corked permissions completed with {len(failed_users)} failures.")
+            failed_user_messages = [f"<@{user_id}>: {reason}" for user_id, reason in failed_users]
+            await interaction.edit_original_response(
+                content="Rebuilding corked permissions completed with some failures:\n"
+                + "\n".join(failed_user_messages),
+                embed=None,
+                view=None,
+            )
+
+        else:
+            logger.info("Rebuilding corked permissions completed successfully for all users.")
+            await interaction.edit_original_response(
+                content="Rebuilding corked permissions completed successfully for all corked users.",
+                embed=None,
+                view=None,
+            )
