@@ -21,6 +21,7 @@ from google.oauth2.service_account import Credentials
 from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
     CHANNEL_BC_WINE_CARRIER,
+    DISCORD_GUILD,
     EMOJI_PTN_ROLE_ICON,
     ROLE_CONN,
     ROLE_SOMM,
@@ -539,8 +540,8 @@ class DatabaseInteraction(commands.Cog):
                 logger.debug("Either no target date or faction state is not Public Holiday, including all carriers")
                 unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
 
-        for stat in unloaded_stats:
-            logger.debug(f"Unload stat: {stat}")
+        for unload_stat in unloaded_stats:
+            logger.debug(f"Unload stat: {unload_stat}")
 
         total_wine = sum(unloaded[0] for unloaded in unloaded_stats)
         unique_carrier_count = len(unloaded_stats)
@@ -669,8 +670,8 @@ class DatabaseInteraction(commands.Cog):
                 logger.debug("Either no target date or faction state is not Public Holiday, including all carriers")
                 unloaded_stats = [carrier.get_unload_stats(include_not_unloaded=True) for carrier in all_carrier_data]
 
-        for stat in unloaded_stats:
-            logger.debug(f"Unload stat: {stat}")
+        for unload_stat in unloaded_stats:
+            logger.debug(f"Unload stat: {unload_stat}")
 
         total_wine = sum(unloaded[0] for unloaded in unloaded_stats)
 
@@ -707,7 +708,7 @@ class DatabaseInteraction(commands.Cog):
         wine_boxes_per_scot_pop = wine_boxes_total / scotland_population
         wine_boxes_litres_per_scot_pop = wine_boxes_litres_total / scotland_population
 
-        server_population = (await bot.get_or_fetch.guild).member_count
+        server_population = (await bot.get_or_fetch.guild(DISCORD_GUILD)).member_count
         tons_per_server_pop = total_wine / server_population
         wine_bottles_per_server_pop = wine_bottles_total / server_population
         wine_bottles_litres_per_server_pop = wine_bottles_litres_total / server_population
@@ -806,7 +807,7 @@ class DatabaseInteraction(commands.Cog):
 
         description_text = f"{state_text}## Wine Tonnes: {total_wine:,}\n\n"
 
-        logger.debug("Assembling extended stat embed description based on selected stat")
+        logger.debug(f"Assembling extended stat embed description based on selected stat: {stat}")
 
         match stat:
             case "All":
