@@ -22,7 +22,6 @@ from ptn.boozebot.botcommands.MimicSteve import MimicSteve
 from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import bot
-from ptn.boozebot.database.database import build_database_on_startup
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
 
 logger = get_logger("boozebot.application")
@@ -37,7 +36,6 @@ def run():
 
 async def boozebot():
     logger.info("Setting up bot cogs and event listeners.")
-    build_database_on_startup()
     async with bot:
         await bot.add_cog(Logger())
         logger.debug("Loaded Logger cog.")

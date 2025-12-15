@@ -34,8 +34,8 @@ logger = get_logger("boozebot.constants")
 # database paths
 DB_PATH = os.path.join(DATA_DIR, "database")
 DB_DUMPS_PATH = os.path.join(DATA_DIR, "database")
-CARRIERS_DB_PATH = os.path.join(DATA_DIR, "database", "booze_carriers.db")
-CARRIERS_DB_DUMPS_PATH = os.path.join(DATA_DIR, "sql", "booze_carriers.sql")
+CARRIERS_DB_PATH = os.path.join(DATA_DIR, "database", "booze.db")
+CARRIERS_DB_DUMPS_PATH = os.path.join(DATA_DIR, "sql", "booze.sql")
 SETTINGS_PATH = os.path.join(DATA_DIR, "settings")
 SETTINGS_FILE_PATH = Path(SETTINGS_PATH, "settings.json")
 WELCOME_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "welcome_message.txt")
@@ -44,9 +44,17 @@ BC_START_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_start_message.txt")
 BC_END_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_end_message.txt")
 GOOGLE_OAUTH_CREDENTIALS_PATH = os.path.join(DATA_DIR, ".ptnboozebot.json")
 
-# Get the discord token from the local .env file. Deliberately not hosted in the repo or Discord takes the bot down
-# because the keys are exposed. DO NOT HOST IN THE PUBLIC REPO.
 load_dotenv(os.path.join(DATA_DIR, ".env"))
+BOOZESHEETS_API_BASE_URL = os.getenv("BOOZESHEETS_API_BASE_URL", None)
+BOOZESHEETS_API_KEY = os.getenv("BOOZESHEETS_API_KEY", None)
+
+if not BOOZESHEETS_API_BASE_URL:
+    logger.critical("BOOZESHEETS_API_BASE_URL is not set")
+    exit(1)
+
+if not BOOZESHEETS_API_KEY:
+    logger.critical("BOOZESHEETS_API_KEY is not set")
+    exit(1)
 
 # define bot object
 intents = discord.Intents.none()
@@ -57,7 +65,13 @@ intents.message_content = True
 intents.guild_reactions = True
 intents.expressions = True
 
-bot = commands.Bot(
+
+# Added for type hints
+class GetFetchBot(commands.Bot):
+    get_or_fetch: GetOrFetch
+
+
+bot = GetFetchBot(
     command_prefix=commands.when_mentioned_or("b/"),
     intents=intents,
     chunk_guilds_at_startup=False,
@@ -229,21 +243,9 @@ if not os.path.exists(SETTINGS_PATH):
     os.makedirs(SETTINGS_PATH)
 
 # Move the old db to the new location if the new location doesn't exist and the old one does
-old_db_path = os.path.join(os.path.expanduser("~"), "boozedatabase", "booze_carriers.db")
+old_db_path = os.path.join(DATA_DIR, "database", "booze_carriers.db")
 if os.path.exists(old_db_path) and not os.path.exists(CARRIERS_DB_PATH):
     os.rename(old_db_path, CARRIERS_DB_PATH)
-
-old_db_dumps_path = os.path.join(os.path.expanduser("~"), "boozedatabase", "dumps", "booze_carriers.sql")
-if os.path.exists(old_db_dumps_path) and not os.path.exists(CARRIERS_DB_DUMPS_PATH):
-    os.rename(old_db_dumps_path, CARRIERS_DB_DUMPS_PATH)
-
-old_wine_carrier_welcome = os.path.join("wine_carrier_welcome.txt")
-if os.path.exists(old_wine_carrier_welcome) and not os.path.exists(WELCOME_MESSAGE_FILE_PATH):
-    os.rename(old_wine_carrier_welcome, WELCOME_MESSAGE_FILE_PATH)
-
-old_google_oauth_credentials_path = os.path.join(os.path.expanduser("~"), ".ptnboozebot.json")
-if os.path.exists(old_google_oauth_credentials_path) and not os.path.exists(GOOGLE_OAUTH_CREDENTIALS_PATH):
-    os.rename(old_google_oauth_credentials_path, GOOGLE_OAUTH_CREDENTIALS_PATH)
 
 _WCO_WELCOME_BLURB = (
     f"Welcome to the <@&{ROLE_WINE_CARRIER}> backrooms! If you are a returning cruiser, it's great to have you back! "

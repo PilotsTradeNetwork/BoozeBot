@@ -7,7 +7,7 @@ from json import JSONDecodeError
 import httpx
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.database.database import pirate_steve_db
+from ptn.boozebot.database.database import database
 
 logger = get_logger("boozebot.modules.phcheck")
 
@@ -87,13 +87,11 @@ async def api_ph_check() -> bool:
     return False
 
 
-def ph_check() -> bool:
+async def ph_check() -> bool:
     logger.info("Checking PH state from the database.")
     try:
-        pirate_steve_db.execute("""SELECT state FROM holidaystate""")
-        holiday_sqlite3 = pirate_steve_db.fetchone()
-        logger.debug(f"Fetched holiday state from database: {dict(holiday_sqlite3)}")
-        holiday_ongoing = bool(dict(holiday_sqlite3).get("state"))
+        holiday_ongoing, timestamp = await database.get_holiday_status()
+        logger.debug(f"Fetched holiday state from database: {holiday_ongoing}")
         if not holiday_ongoing:
             logger.info("PH is not ongoing according to the database.")
             return False

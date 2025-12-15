@@ -32,7 +32,7 @@ from ptn.boozebot.constants import (
     holiday_query_started_gifs,
     holiday_start_gif,
 )
-from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
+from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.PHcheck import api_ph_check, ph_check
 
@@ -78,15 +78,12 @@ class PublicHoliday(commands.Cog):
             holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
 
             # Check if we had a holiday flagged already
-            pirate_steve_db.execute("""SELECT state FROM holidaystate""")
-            holiday_sqlite3 = pirate_steve_db.fetchone()
-            holiday_ongoing = bool(dict(holiday_sqlite3).get("state"))
+            logger.debug("Fetching holiday state from database.")
+            holiday_ongoing, timestamp = await database.get_holiday_status()
             logger.debug(f"Holiday state from database: {holiday_ongoing}")
             if not holiday_ongoing or force_update:
                 logger.debug("Holiday not ongoing - updating database to set it ongoing.")
-                async with pirate_steve_db_lock:
-                    pirate_steve_db.execute("""UPDATE holidaystate SET state=TRUE, timestamp=CURRENT_TIMESTAMP""")
-                    pirate_steve_conn.commit()
+                await database.set_holiday_status(True)
                 logger.debug("Database updated to set holiday state to ongoing.")
 
                 logger.info("Holiday was not ongoing, started now - flag it accordingly")
@@ -106,10 +103,10 @@ class PublicHoliday(commands.Cog):
             # off an ongoing holiday.
             logger.info("No PH detected, checking if holiday duration has expired.")
 
-            pirate_steve_db.execute("""SELECT timestamp FROM holidaystate""")
-            timestamp = pirate_steve_db.fetchone()
+            logger.debug("Fetching holiday start timestamp from database.")
+            holiday_ongoing, start_time = await database.get_holiday_status()
+            logger.debug(f"Holiday state from database: {holiday_ongoing}, timestamp: {start_time}")
 
-            start_time = datetime.strptime(dict(timestamp).get("timestamp"), "%Y-%m-%d %H:%M:%S")
             end_time = start_time + timedelta(hours=48)
 
             current_time_utc = datetime.strptime(
@@ -123,17 +120,9 @@ class PublicHoliday(commands.Cog):
                 logger.info("Holiday duration expired, turning the check off.")
                 holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
 
-                # Check if we had a holiday flagged already
-                pirate_steve_db.execute("""SELECT state FROM holidaystate""")
-                holiday_sqlite3 = pirate_steve_db.fetchone()
-                holiday_ongoing = bool(dict(holiday_sqlite3).get("state"))
-
-                logger.debug(f"Holiday state from database: {holiday_ongoing}")
                 if holiday_ongoing or force_update:
                     logger.debug("Holiday ongoing - updating database to turn it off.")
-                    async with pirate_steve_db_lock:
-                        pirate_steve_db.execute("""UPDATE holidaystate SET state=False, timestamp=CURRENT_TIMESTAMP""")
-                        pirate_steve_conn.commit()
+                    await database.set_holiday_status(False)
                     logger.debug("Database updated to turn off holiday state.")
 
                     # Only post it if it is a state change.
@@ -172,7 +161,7 @@ class PublicHoliday(commands.Cog):
         await interaction.response.defer()
         logger.info(f"User {interaction.user.name} queried the holiday state.")
 
-        if ph_check():
+        if await ph_check():
             logger.info("Rackhams holiday check says yep.")
             try:
                 gif = random.choice(holiday_query_started_gifs)
@@ -227,7 +216,7 @@ class PublicHoliday(commands.Cog):
         logger.info(f"User {interaction.user.name} requested to override the start time to: {timestamp}.")
 
         try:
-            datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+            timestamp = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
         except ValueError:
             logger.exception("Invalid timestamp format provided.")
             await interaction.response.send_message(
@@ -236,14 +225,13 @@ class PublicHoliday(commands.Cog):
             return
 
         # Check if we had a holiday flagged already
-        holiday_ongoing = ph_check()
+        holiday_ongoing = await ph_check()
         logger.debug(f"Holiday state from database: {holiday_ongoing}")
 
         if holiday_ongoing:
             logger.info("Holiday is ongoing, updating the timestamp.")
 
-            pirate_steve_db.execute(f"""UPDATE holidaystate SET state=TRUE, timestamp=\'{timestamp}\'""")
-            pirate_steve_conn.commit()
+            await database.set_holiday_status(True, timestamp=timestamp)
 
             logger.debug("Database updated with new timestamp.")
             await interaction.response.send_message(
@@ -271,7 +259,7 @@ class PublicHoliday(commands.Cog):
         logger.info(f"User {interaction.user.name} requested remaining holiday duration.")
 
         await interaction.response.defer()
-        if not ph_check():
+        if not await ph_check():
             logger.info("Holiday not ongoing, cannot calculate remaining duration.")
             await interaction.edit_original_response(
                 content="Pirate Steve has not detected the holiday state yet, or it is already over."
@@ -284,10 +272,8 @@ class PublicHoliday(commands.Cog):
         # Get the starting timestamp
 
         logger.debug("Fetching holiday start timestamp from database.")
-        pirate_steve_db.execute("""SELECT timestamp FROM holidaystate""")
-        timestamp = pirate_steve_db.fetchone()
+        holiday_ongoing, start_time = await database.get_holiday_status()
 
-        start_time = datetime.strptime(dict(timestamp).get("timestamp"), "%Y-%m-%d %H:%M:%S")
         end_time = start_time + timedelta(hours=duration_hours)
         end_timestamp = int(end_time.timestamp())
 

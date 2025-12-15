@@ -23,7 +23,7 @@ from ptn_utils.global_constants import (
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot, too_slow_gifs
-from ptn.boozebot.database.database import pirate_steve_db
+from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
 """
@@ -134,15 +134,7 @@ async def make_user_wine_carrier(interaction: discord.Interaction, user: discord
         user = await bot.get_or_fetch.member(user.id)
         logger.debug(f"Refetched user: {user}")
 
-        pirate_steve_db.execute(
-            "SELECT * FROM corked_users WHERE user_id = ?",
-            (str(user.id),),
-        )
-        result = pirate_steve_db.fetchone()
-
-        logger.debug(f"Corked user query result: {dict(result) if result else result}")
-
-        if result:
+        if database.is_user_corked(user.id):
             logger.info(f"User {user} is corked, cannot make Wine Carrier.")
             await interaction.edit_original_response(
                 content=f"User {user.mention} ({user.name}) is corked and cannot be made a {wc_role.name}."

@@ -11,7 +11,15 @@ import functools
 import discord
 from discord import app_commands
 from discord.ext import commands
-from ptn_utils.global_constants import CHANNEL_BC_BOOZE_CRUISE_CHAT, EMBED_COLOUR_ERROR, ROLE_PILOT
+from ptn_utils.global_constants import (
+    CHANNEL_BC_BOOZE_CRUISE_CHAT,
+    EMBED_COLOUR_ERROR,
+    ROLE_PILOT,
+    ROLE_SOMM,
+    ROLE_CONN,
+    any_council_role,
+    any_moderation_role,
+)
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import bot
@@ -176,3 +184,24 @@ def track_last_run():
         return wrapper
 
     return decorator
+
+
+def is_staff(user: discord.Member) -> bool:
+    """
+    Check if a user is wine staff based on their roles.
+
+    :param discord.Member user: The user to check.
+    :returns: True if the user is wine staff, False otherwise.
+    """
+
+    logger.debug(f"Checking if user {user} ({user.id}) is wine staff.")
+    staff_roles = {
+        ROLE_SOMM,
+        ROLE_CONN,
+        *any_council_role,
+        *any_moderation_role,
+    }
+
+    is_wine_staff = any(role.id in staff_roles for role in user.roles)
+    logger.debug(f"User {user} wine staff status: {is_wine_staff}")
+    return is_wine_staff

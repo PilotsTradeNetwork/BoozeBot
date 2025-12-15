@@ -3,8 +3,6 @@ Cog for all the commands related to
 
 """
 
-from datetime import datetime, timezone
-
 import discord
 from discord import PermissionOverwrite, app_commands
 from discord.ext import commands
@@ -22,7 +20,7 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.classes.CorkedUser import CorkedUser
 from ptn.boozebot.constants import bot
-from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
+from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.pagination import createPagination
 from ptn.boozebot.modules.Views import ConfirmView
@@ -74,17 +72,7 @@ class Corked(commands.Cog):
             await interaction.followup.send("You cannot cork yourself.")
             return
 
-        logger.debug(f"Checking if user {user} is already corked.")
-        async with pirate_steve_db_lock:
-            pirate_steve_db.execute(
-                "SELECT * FROM corked_users WHERE user_id = ?",
-                (str(user.id),),
-            )
-            result = pirate_steve_db.fetchone()
-
-        logger.debug(f"Database check complete for user {user}. Result: {result}")
-
-        if result:
+        if database.is_user_corked(user.id):
             logger.info(f"User {user} is already corked.")
             await interaction.followup.send(f"User {user.mention} ({user.name}) is already corked.")
             return
@@ -108,15 +96,7 @@ class Corked(commands.Cog):
             await interaction.followup.send("Failed to cork user due to a Discord error.")
             return
 
-        timestamp = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-
-        logger.debug(f"Inserting corked user {user} into the database with timestamp {timestamp}.")
-        async with pirate_steve_db_lock:
-            pirate_steve_db.execute(
-                "INSERT OR IGNORE INTO corked_users (user_id, timestamp) VALUES (?, ?)",
-                (str(user.id), timestamp),
-            )
-            pirate_steve_conn.commit()
+        await database.add_corked_user(user.id)
 
         logger.info(f"User {user} has been successfully corked.")
 
@@ -140,17 +120,7 @@ class Corked(commands.Cog):
         logger.info(f"User {interaction.user} requested to uncork {user}")
         await interaction.response.defer()
 
-        logger.debug(f"Checking if user {user} is corked.")
-        async with pirate_steve_db_lock:
-            pirate_steve_db.execute(
-                "SELECT * FROM corked_users WHERE user_id = ?",
-                (str(user.id),),
-            )
-            result = pirate_steve_db.fetchone()
-
-        logger.debug(f"Database check complete for user {user}. Result: {result}")
-
-        if not result:
+        if not database.is_user_corked(user.id):
             logger.info(f"User {user} is not corked.")
             await interaction.followup.send(f"User {user.mention} ({user.name}) is not corked.")
             return
@@ -169,13 +139,7 @@ class Corked(commands.Cog):
             interaction.followup.send("Failed to uncork user due to a Discord error.")
             return
 
-        logger.debug(f"Removing corked user {user} from the database.")
-        async with pirate_steve_db_lock:
-            pirate_steve_db.execute(
-                "DELETE FROM corked_users WHERE user_id = ?",
-                (str(user.id),),
-            )
-            pirate_steve_conn.commit()
+        await database.remove_corked_user(user.id)
 
         logger.info(f"User {user} has been successfully uncorked.")
         await interaction.followup.send(
@@ -196,11 +160,7 @@ class Corked(commands.Cog):
         logger.info(f"User {interaction.user} requested the list of corked users.")
         await interaction.response.defer()
 
-        logger.debug("Fetching corked users from the database.")
-        async with pirate_steve_db_lock:
-            pirate_steve_db.execute("SELECT * FROM corked_users")
-            results = pirate_steve_db.fetchall()
-        logger.debug(f"Fetched {len(results)} corked users from the database.")
+        results = await database.get_all_corked_users()
 
         if not results:
             logger.info("No corked users found.")
@@ -240,11 +200,7 @@ class Corked(commands.Cog):
         logger.info(f"User {interaction.user} requested to rebuild corked permissions.")
         await interaction.response.defer()
 
-        logger.debug("Fetching corked users from the database for permission rebuild.")
-        async with pirate_steve_db_lock:
-            pirate_steve_db.execute("SELECT * FROM corked_users")
-            results = pirate_steve_db.fetchall()
-        logger.debug(f"Fetched {len(results)} corked users from the database.")
+        results = await database.get_all_corked_users()
 
         if not results:
             logger.info("No corked users found for permission rebuild.")

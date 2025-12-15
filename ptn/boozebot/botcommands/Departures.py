@@ -1,5 +1,5 @@
 """
-Cog for unloading related commands
+Cog for departure related commands
 
 """
 
@@ -26,15 +26,15 @@ from ptn_utils.global_constants import (
 )
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import CARRIER_ID_RE, N_SYSTEMS, bot
-from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
+from ptn.boozebot.database.database import database
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run, is_staff
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView
+from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 
 """
-UNLOADING COMMANDS
+DEPARTURE COMMANDS
 /wine_carrier_departure - wine carrier/somm/mod/admin
 """
 
@@ -78,10 +78,24 @@ class Departures(commands.Cog):
                     for reaction in message.reactions:
                         if reaction.emoji == "✅":
                             logger.debug(f"Message ID: {message.id} has ✅ reaction, checking users.")
+
+                            logger.debug(f"Fetching carrier id for departure message from database.")
+                            carrier_id = await database.get_carrier_for_departure_message(message.id)
+                            if not carrier_id:
+                                logger.warning(
+                                    f"Could not find carrier id for departure message id: {message.id}, skipping."
+                                )
+                                continue
+                            logger.debug(f"Fetching carrier data for carrier id: {carrier_id}")
+                            carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
+                            if not carrier_data:
+                                logger.warning(f"Could not find carrier data for carrier id: {carrier_id}, skipping.")
+                                continue
+
                             async for user in reaction.users():
-                                if self.get_departure_author_id(message) == user.id:
+                                if carrier_data.is_owned_by(user):
                                     logger.info(f"Removing departure message ID: {message.id} for user ID: {user.id}.")
-                                    await self.handle_reaction(reaction.message, user)
+                                    await message.delete()
                 except Exception as e:
                     logger.exception(
                         f"Failed to process departure message while checking for closing. message: {message.id}. Error: {e}"
@@ -123,10 +137,28 @@ class Departures(commands.Cog):
             if reaction_event.emoji.name != "✅":
                 return
 
-            if not self.get_departure_author_id(message) == user.id:
+            logger.debug("Fetching carrier id for departure message from database.")
+            carrier_id = await database.get_carrier_for_departure_message(message.id)
+
+            if not carrier_id:
+                logger.warning(f"Could not find carrier id for departure message id: {message.id}, ignoring reaction.")
                 return
 
-            await self.handle_reaction(message, user)
+            logger.debug(f"Fetching carrier data for carrier id: {carrier_id}")
+            carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
+
+            if not carrier_data:
+                logger.warning(f"Could not find carrier data for carrier id: {carrier_id}")
+                return
+
+            member = await bot.get_or_fetch.member(reaction_event.member.id)
+
+            if not carrier_data.is_owned_by(member):
+                return
+
+            await message.delete()
+            await database.set_departure_message_for_carrier(carrier_id, None)
+
         except Exception as e:
             logger.exception(f"Failed to process reaction: {reaction_event}. Error: {e}")
 
@@ -260,9 +292,9 @@ class Departures(commands.Cog):
             )
             return
 
-        # Acquire the database lock and fetch carrier data
-        pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f"%{carrier_id}%",))
-        carrier_data = pirate_steve_db.fetchone()
+        logger.debug(f"Fetching carrier data for carrier ID: {carrier_id}")
+
+        carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
 
         # Check if carrier data was found
         if not carrier_data:
@@ -274,8 +306,23 @@ class Departures(commands.Cog):
             )
             return
 
-        # Create a BoozeCarrier object from the fetched data
-        carrier_data = BoozeCarrier(carrier_data)
+        if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
+            msg = f"You do not own the carrier with ID: {carrier_id}."
+            logger.info(msg)
+            await interaction.edit_original_response(content=msg)
+            await steve_says_channel.send(
+                f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
+            )
+            return
+
+        if await database.get_departure_message_for_carrier(carrier_id):
+            msg = f"A departure message is already posted for carrier ID: {carrier_id}. Please remove it before posting a new one."
+            logger.info(msg)
+            await interaction.edit_original_response(content=msg)
+            await steve_says_channel.send(
+                f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
+            )
+            return
 
         carrier_name = carrier_data.carrier_name
         carrier_id = carrier_data.carrier_identifier
@@ -419,13 +466,18 @@ class Departures(commands.Cog):
             return
 
         # Construct the departure message text
-        departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{interaction.user.id}> {hitchhiker_ping_text}"
+        departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{carrier_data.owner_discord_id}> {hitchhiker_ping_text}"
 
         # Send the departure message to the departure announcement channel
         departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
         departure_message = await departure_channel.send(departure_message_text)
         await departure_message.add_reaction("🛬")
         await departure_message.add_reaction("✅")
+
+        logger.debug(f"Setting departure message for carrier ID {carrier_id} in database.")
+        await database.set_departure_message_for_carrier(carrier_id, departure_message.id)
+        await database.set_departure_notification_sent(carrier_id, False)
+
         logger.info(f"Departure message sent for carrier {carrier_name} ({carrier_id}).")
 
         # Edit the original interaction response with the jump URL of the departure message
@@ -531,9 +583,9 @@ class Departures(commands.Cog):
             await interaction.edit_original_response(content=msg)
             return
 
-        # Acquire the database lock and fetch carrier data
-        pirate_steve_db.execute("SELECT * FROM boozecarriers WHERE carrierid LIKE (?)", (f"%{carrier_id}%",))
-        carrier_data = pirate_steve_db.fetchone()
+        logger.debug(f"Fetching carrier data for carrier ID: {carrier_id}")
+        carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
+        logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
 
         # Check if carrier data was found
         if not carrier_data:
@@ -541,9 +593,6 @@ class Departures(commands.Cog):
             logger.info(msg)
             await interaction.edit_original_response(content=f"Sorry, we {msg}")
             return
-
-        # Create a BoozeCarrier object from the fetched data
-        carrier_data = BoozeCarrier(carrier_data)
 
         carrier_name = carrier_data.carrier_name
         carrier_id = carrier_data.carrier_identifier
@@ -614,13 +663,11 @@ class Departures(commands.Cog):
 
         # Check for existing departure message
         logger.debug("Checking for existing official departure message.")
-        existing_departure_message = None
-        if carrier_data.discord_departure_message_id:
+        existing_departure_message = await database.get_departure_message_for_carrier(carrier_id)
+        if existing_departure_message:
             try:
-                existing_departure_message = await departure_channel.fetch_message(
-                    carrier_data.discord_departure_message_id
-                )
-            except discord.DiscordException:
+                existing_departure_message = await departure_channel.fetch_message(existing_departure_message)
+            except discord.NotFound:
                 existing_departure_message = None
 
         if existing_departure_message:
@@ -643,7 +690,9 @@ class Departures(commands.Cog):
                 return
 
             logger.info("Editing existing official departure message.")
-            await existing_departure_message.edit(embed=embed)
+            await existing_departure_message.edit(content=None, embed=embed)
+            await existing_departure_message.clear_reaction("✅")
+            await existing_departure_message.clear_reaction("⏲️")
             await interaction.edit_original_response(
                 content=f"Official carrier departure message edited: {existing_departure_message.jump_url}",
                 embed=None,
@@ -657,25 +706,6 @@ class Departures(commands.Cog):
             await interaction.edit_original_response(
                 content=f"Official carrier departure message sent: {departure_message.jump_url}"
             )
-            logger.debug("Updating carrier record with new departure message ID.")
-            async with pirate_steve_db_lock:
-                pirate_steve_db.execute(
-                    "UPDATE boozecarriers SET discord_departure_message_id = ? WHERE carrierid = ?",
-                    (departure_message.id, carrier_id),
-                )
-                pirate_steve_conn.commit()
+            logger.debug("Updating database with departure message ID.")
+            await database.set_departure_message_for_carrier(carrier_id, departure_message.id)
             logger.info("Official departure message posted successfully.")
-
-    def get_departure_author_id(self, message):
-        logger.debug(f"Getting departure author ID from message: {message.id}")
-        try:
-            id = int(message.content.split("<@")[1].split(">")[0])
-            logger.debug(f"Found departure author ID: {id}")
-            return id
-        except IndexError:
-            logger.debug("Failed to get departure author ID from message content.")
-            return None
-
-    async def handle_reaction(self, message, user):
-        logger.info(f"User {user.name} reacted to their departure in {message.channel.name} removing.")
-        await message.delete()
