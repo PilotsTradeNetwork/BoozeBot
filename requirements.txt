@@ -43,6 +43,6 @@ requests-oauthlib==2.0.0
 rsa==4.9.1
 strenum==0.4.15
 uritemplate==4.2.0
-urllib3==2.6.1
+urllib3==2.6.3
 win32-setctime==1.2.0 ; sys_platform == 'win32'
 yarl==1.22.0
