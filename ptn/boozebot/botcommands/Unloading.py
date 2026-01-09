@@ -254,25 +254,13 @@ class Unloading(commands.Cog):
     carrier unload commands
     """
 
-    PLANETARY_CHOICES = [
-        Choice(name="Star", value="Star"),
-        Choice(name="Planet 1", value="Planet 1"),
-        Choice(name="Planet 2", value="Planet 2"),
-        Choice(name="Planet 3", value="Planet 3"),
-        Choice(name="Planet 4", value="Planet 4"),
-        Choice(name="Planet 5", value="Planet 5"),
-        Choice(name="Planet 6", value="Planet 6"),
-    ]
-
     @app_commands.command(
         name="wine_unload",
         description="Posts a new unload notice for a carrier. Admin/Sommelier/WineCarrier role required.",
     )
     @describe(
         carrier_id="The XXX-XXX ID string for the carrier",
-        planetary_body="A string representing the location of the carrier, ie Star, P1, P2",
     )
-    @app_commands.choices(planetary_body=PLANETARY_CHOICES)
     @check_roles(
         [
             *any_council_role,
@@ -283,21 +271,19 @@ class Unloading(commands.Cog):
         ]
     )
     @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
-    async def wine_carrier_unload(self, interaction: discord.Interaction, carrier_id: str, planetary_body: str):
+    async def wine_carrier_unload(self, interaction: discord.Interaction, carrier_id: str):
         """
         Posts a wine unload request to the unloading channel.
 
         :param SlashContext ctx: The discord slash context.
         :param str carrier_id: The carrier ID string
-        :param str planetary_body: Where is the carrier? Star, P1 etc?
         :returns: A message to the user
         :rtype: Union[discord.Message, dict]
         """
 
         await interaction.response.defer()
         logger.info(
-            f"User {interaction.user.name} has requested a new wine unload operation for carrier: {carrier_id} around the "
-            f"body: {planetary_body}."
+            f"User {interaction.user.name} has requested a new wine unload operation for carrier: {carrier_id}."
         )
 
         # Cast this to upper case just in case
@@ -328,10 +314,16 @@ class Unloading(commands.Cog):
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
+        
+        if carrier_data.system != "N0":
+            msg = f"Carrier {carrier_data.carrier_identifier} is not in a N0 system, cannot unload wine."
+            logger.info(msg)
+            await interaction.edit_original_response(content=msg)
+            return
 
         wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
 
-        if not carrier_data.unload_opened:  # TODO replace with proper flag to see for pending unload
+        if carrier_data.wine_status == "Unloading":
             logger.info(f"Carrier {carrier_data.carrier_identifier} is already unloading wine.")
             return await interaction.edit_original_response(
                 content=f"Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is "
@@ -347,7 +339,7 @@ class Unloading(commands.Cog):
             title="Wine unload notification.",
             description=f"Carrier **{carrier_data.carrier_name} ({carrier_data.carrier_identifier})** is currently "
             f"unloading **{carrier_data.wine_total}** tonnes of wine from *"
-            f"*{planetary_body}**.\n Market Conditions: **{market_conditions}**.",
+            f"*{carrier_data.body}**.\n Market Conditions: **{market_conditions}**.",
         )
 
         wine_load_embed.set_footer(
@@ -365,7 +357,7 @@ class Unloading(commands.Cog):
 
         logger.debug(f"Updating database with discord alert ID: {discord_alert_id}")
 
-        await booze_sheets_api.start_carrier_unload(carrier_id)
+        await booze_sheets_api.start_carrier_unload(carrier_data.db_id)
         await database.set_unload_message_for_carrier(carrier_id, discord_alert_id)
         await database.set_unload_notification_sent(carrier_id, False)
 
@@ -388,10 +380,8 @@ class Unloading(commands.Cog):
         description="Posts a new timed unload notice for a carrier. Admin/Sommelier/WineCarrier role required.",
     )
     @describe(
-        carrier_id="The XXX-XXX ID string for the carrier",
-        planetary_body="A string representing the location of the carrier, ie Star, P1, P2",
+        carrier_id="The XXX-XXX ID string for the carrier"
     )
-    @app_commands.choices(planetary_body=PLANETARY_CHOICES)
     @check_roles(
         [
             *any_council_role,
@@ -402,20 +392,18 @@ class Unloading(commands.Cog):
         ]
     )
     @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
-    async def wine_carrier_timed_unload(self, interaction: discord.Interaction, carrier_id: str, planetary_body: str):
+    async def wine_carrier_timed_unload(self, interaction: discord.Interaction, carrier_id: str):
         """
         Posts a wine unload request to the unloading channel.
 
         :param SlashContext ctx: The discord slash context.
         :param str carrier_id: The carrier ID string
-        :param str planetary_body: Where is the carrier? Star, P1 etc?
         :returns: A message to the user
         :rtype: Union[discord.Message, dict]
         """
         await interaction.response.defer()
         logger.info(
             f"User {interaction.user.name} has requested a new wine timed unload operation for carrier: {carrier_id} "
-            f"around the body: {planetary_body}."
         )
 
         if settings.get_setting("timed_unloads_allowed") is False:
@@ -453,10 +441,16 @@ class Unloading(commands.Cog):
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
+        
+        if carrier_data.system != "N0":
+            msg = f"Carrier {carrier_data.carrier_identifier} is not in a N0 system, cannot unload wine."
+            logger.info(msg)
+            await interaction.edit_original_response(content=msg)
+            return
 
         wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
 
-        if not carrier_data.unload_opened:  # TODO replace with proper flag to see for pending unload
+        if carrier_data.wine_status == "Unloading":
             logger.info(f"Carrier {carrier_data.carrier_identifier} is already unloading wine.")
             return await interaction.followup.send(
                 f"Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is "
@@ -477,7 +471,7 @@ class Unloading(commands.Cog):
             title="Timed wine unload notification.",
             description=f"Carrier **{carrier_data.carrier_name} ({carrier_data.carrier_identifier})** will be unloading "
             f"**{carrier_data.wine_total}** tonnes of wine from *"
-            f"*{planetary_body}**."
+            f"*{carrier_data.body}**."
             f"\n Market will open at {open_time_str} (In game time).",
         )
 
@@ -497,7 +491,8 @@ class Unloading(commands.Cog):
         )
 
         logger.debug(f"Updating database with discord alert ID: {discord_alert_id}")
-        await booze_sheets_api.start_carrier_unload(carrier_id, timed=True)
+        delay = settings.get_setting("timed_unload_hold_duration")
+        await booze_sheets_api.start_carrier_unload(carrier_data.db_id, delay=delay)
         await database.set_unload_message_for_carrier(carrier_id, discord_alert_id)
         await database.set_unload_notification_sent(carrier_id, False)
         logger.info(f"Discord alert ID written to database for {carrier_data.carrier_identifier}")
@@ -566,23 +561,22 @@ class Unloading(commands.Cog):
             await interaction.edit_original_response(content=msg)
             return
 
-        if (
-            carrier_data.unload_opened and not carrier_data.unload_closed
-        ):  # TODO replace with proper flag to see for active unload
+        logger.debug(f"Fetching unload notification message for carrier: {carrier_id}.")
+        wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
+        message_id = await database.get_unload_message_for_carrier(carrier_id)
+        
+        if carrier_data.wine_status != "Unloading" or not message_id:
             logger.info(f"No unload notification found in database for carrier: {carrier_id}.")
             return await interaction.edit_original_response(
                 content=f"Sorry {interaction.user.name}, we have no carrier unload notification found in the database for "
                 f"{carrier_id}."
             )
-
-        logger.debug(f"Fetching unload notification message for carrier: {carrier_id}.")
-        wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
-        message_id = await database.get_unload_message_for_carrier(carrier_id)
+        
         message = await wine_alert_channel.fetch_message(message_id)
         # Now delete it in the database
 
         logger.debug(f"Removing unload notification from database for carrier: {carrier_id}.")
-        await booze_sheets_api.complete_carrier_unload(carrier_id)
+        await booze_sheets_api.complete_carrier_unload(carrier_data.db_id)
         await database.set_unload_message_for_carrier(carrier_id, None)
         await database.set_unload_notification_sent(carrier_id, None)
         logger.info(f"Removed unload notification from database for carrier: {carrier_id}.")

@@ -18,6 +18,8 @@ class BoozeCarrier:
 
         fc_data = info_dict.get("fcData", {})
 
+        self.db_id = int(info_dict.get("fcId", 0))
+
         # FC data
         self.carrier_name = fc_data.get("fcName", None)
         self.carrier_identifier = fc_data.get("fcCallsign", None)
@@ -41,9 +43,11 @@ class BoozeCarrier:
             if self.owner_discord_id.startswith("&"):
                 self.owner_discord_id = int(self.owner_discord_id[1:])
                 self.owner_is_role = True
+                self.owner_mention = f"<@&{self.owner_discord_id}>"
             else:
                 self.owner_discord_id = int(self.owner_discord_id)
                 self.owner_is_role = False
+                self.owner_mention = f"<@{self.owner_discord_id}>"
         self.owner_display_name = fc_data.get("owner", {}).get("displayName", None)
 
         # Trip data
