@@ -314,7 +314,7 @@ class Unloading(commands.Cog):
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
-        
+
         if carrier_data.system != "N0":
             msg = f"Carrier {carrier_data.carrier_identifier} is not in a N0 system, cannot unload wine."
             logger.info(msg)
@@ -379,9 +379,7 @@ class Unloading(commands.Cog):
         name="wine_timed_unload",
         description="Posts a new timed unload notice for a carrier. Admin/Sommelier/WineCarrier role required.",
     )
-    @describe(
-        carrier_id="The XXX-XXX ID string for the carrier"
-    )
+    @describe(carrier_id="The XXX-XXX ID string for the carrier")
     @check_roles(
         [
             *any_council_role,
@@ -441,7 +439,7 @@ class Unloading(commands.Cog):
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
-        
+
         if carrier_data.system != "N0":
             msg = f"Carrier {carrier_data.carrier_identifier} is not in a N0 system, cannot unload wine."
             logger.info(msg)
@@ -564,14 +562,14 @@ class Unloading(commands.Cog):
         logger.debug(f"Fetching unload notification message for carrier: {carrier_id}.")
         wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
         message_id = await database.get_unload_message_for_carrier(carrier_id)
-        
+
         if carrier_data.wine_status != "Unloading" or not message_id:
             logger.info(f"No unload notification found in database for carrier: {carrier_id}.")
             return await interaction.edit_original_response(
                 content=f"Sorry {interaction.user.name}, we have no carrier unload notification found in the database for "
                 f"{carrier_id}."
             )
-        
+
         message = await wine_alert_channel.fetch_message(message_id)
         # Now delete it in the database
 

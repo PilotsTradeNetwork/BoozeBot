@@ -513,21 +513,21 @@ class DatabaseInteraction(commands.Cog):
         logger.info(f"{interaction.user.name} ({interaction.user.id}) wants to find a carrier by ID: {carrier_id}.")
 
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
-        
+
         if not carrier_data:
             logger.info(f"No carrier found for ID: {carrier_id}.")
             await interaction.edit_original_response(content=f'No carrier found for ID: "{carrier_id}".')
             return
-        
+
         all_carrier_trips = [carrier_data]
-        
+
         for trip_id in range(1, carrier_data.trip_id):
             trip_data = await booze_sheets_api.get_trip_for_carrier(carrier_id, trip_id)
             if trip_data:
                 all_carrier_trips.append(trip_data)
-                
+
         all_carrier_trips.sort(key=lambda x: x.trip_id)
-        
+
         total_wine = sum(trip.wine_total for trip in all_carrier_trips)
         total_unloads = sum(1 if trip.unload_closed else 0 for trip in all_carrier_trips)
 
@@ -575,7 +575,7 @@ class DatabaseInteraction(commands.Cog):
         """
 
         await interaction.response.defer()
-        
+
         include_not_unloaded_bool = False if include_not_unloaded == "Only Unloaded" else True
 
         cruise = "this" if cruise_select == 0 else f"-{cruise_select}"
@@ -872,7 +872,7 @@ class DatabaseInteraction(commands.Cog):
             f"{interaction.user.name} ({interaction.user.id}) requested the biggest cruise tally, extended: {extended}."
         )
         await interaction.response.defer()
-        
+
         include_not_unloaded_bool = False if include_not_unloaded == "Only Unloaded" else True
 
         cruise_stats = await booze_sheets_api.get_biggest_cruise_stats(include_not_unloaded_bool)

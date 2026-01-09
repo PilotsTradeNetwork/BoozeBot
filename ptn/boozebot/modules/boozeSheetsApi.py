@@ -13,9 +13,7 @@ class BoozeSheetsApi:
     def __init__(self):
         self.base_url = BOOZESHEETS_API_BASE_URL
         self.client = httpx.AsyncClient(
-            base_url=self.base_url, 
-            cookies={"X-API-KEY": BOOZESHEETS_API_KEY},
-            timeout=30.0
+            base_url=self.base_url, cookies={"X-API-KEY": BOOZESHEETS_API_KEY}, timeout=30.0
         )
         self.client_lock = asyncio.Lock()
 
@@ -110,7 +108,7 @@ class BoozeSheetsApi:
 
         logger.debug(f"Starting unload for carrier_id={carrier_id}, delay={delay}")
         endpoint = f"/carriers/{carrier_id}/unload?unloading=true"
-        
+
         data = {"delay": delay} if delay is not None else None
 
         logger.debug(f"Sending POST request to {endpoint} with data={data}")
@@ -223,7 +221,7 @@ class BoozeSheetsApi:
         logger.debug(f"Biggest cruise stats retrieved: {biggest_cruise}")
 
         return biggest_cruise.get("stats", {})
-    
+
     async def get_trip_for_carrier(self, carrier_id: str, trip_id: str) -> dict:
         """
         Retrieves a specific trip for a specific carrier.
@@ -261,5 +259,6 @@ class BoozeSheetsApi:
             "firstUnload_date": "01/01/2024",
             "lastUnload_date": "01/01/2025",
         }
+
 
 booze_sheets_api = BoozeSheetsApi()

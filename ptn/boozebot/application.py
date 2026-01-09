@@ -82,7 +82,7 @@ async def boozebot():
         try:
             logger.info("Syncing command tree...")
             bot.tree.copy_global_to(guild=Object(DISCORD_GUILD))
-            #await bot.tree.sync(guild=Object(DISCORD_GUILD))
+            await bot.tree.sync(guild=Object(DISCORD_GUILD))
             logger.info("Command tree synced successfully.")
         except DiscordException as e:
             logger.exception(f"Error in syncing command tree: {e}")
