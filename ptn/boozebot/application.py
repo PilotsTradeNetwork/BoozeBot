@@ -14,7 +14,7 @@ from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.botcommands.Corked import Corked
-from ptn.boozebot.botcommands.DatabaseInteraction import DatabaseInteraction
+from ptn.boozebot.botcommands.Statistics import DatabaseInteraction
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.DiscordBotCommands import DiscordBotCommands
 from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
