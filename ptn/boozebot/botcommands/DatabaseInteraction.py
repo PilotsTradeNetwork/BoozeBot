@@ -27,7 +27,7 @@ from ptn_utils.global_constants import (
 )
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
+from ptn.boozebot.classes.Cruise import Cruise
 from ptn.boozebot.constants import (
     BOOZE_PROFIT_PER_TONNE_WINE,
     CARRIER_ID_RE,
@@ -104,15 +104,15 @@ class DatabaseInteraction(commands.Cog):
 
     async def build_stat_embed(
         self,
-        cruise_stats: dict,
+        cruise: Cruise,
         target_date: str = None,
         include_timestamp: bool = False,
     ) -> discord.Embed:
         # Get faction state from the first carrier, assuming all carriers have the same state
         logger.info(f"Building stat embed for booze tally, target_date: {target_date}")
-        total_wine = cruise_stats.get("totalWine", 0)
-        unique_carrier_count = cruise_stats.get("totalCarriers", 0)
-        total_trips = cruise_stats.get("totalTrips", 0)
+        total_wine = cruise.stats.total_wine
+        unique_carrier_count = cruise.stats.total_carriers
+        total_trips = cruise.stats.total_trips
 
         wine_per_capita = (total_wine / RACKHAMS_PEAK_POP) if total_wine else 0
         wine_per_carrier = (total_wine / unique_carrier_count) if total_wine else 0
@@ -156,7 +156,7 @@ class DatabaseInteraction(commands.Cog):
         state_warning_msg = (
             "### The Public Holiday did not happen for this cruise.\n### None of these carriers got unloaded.\n\n"
         )
-        state_text = state_warning_msg if cruise_stats.get("factionState") not in ["Public Holiday", None] else ""
+        state_text = state_warning_msg if cruise.faction_state not in ["Public Holiday", None] else ""
 
         # Build the embed
         stat_embed = discord.Embed(
@@ -188,7 +188,7 @@ class DatabaseInteraction(commands.Cog):
 
     async def build_extended_stat_embed(
         self,
-        cruise_stats: dict,
+        cruise: Cruise,
         target_date: str = None,
         stat: StatChoices = "All",
     ) -> discord.Embed:
@@ -198,7 +198,7 @@ class DatabaseInteraction(commands.Cog):
             f"Building extended stat embed for booze tally extra stats, target_date: {target_date}, stat: {stat}"
         )
 
-        total_wine = cruise_stats.get("totalWine", 0)
+        total_wine = cruise.stats.total_wine
 
         total_wine_per_capita = total_wine / RACKHAMS_PEAK_POP
 
@@ -259,7 +259,7 @@ class DatabaseInteraction(commands.Cog):
         state_warning_msg = (
             "### The Public Holiday did not happen for this cruise.\n### None of these carriers got unloaded.\n\n"
         )
-        state_text = state_warning_msg if cruise_stats.get("factionState") not in ["Public Holiday", None] else ""
+        state_text = state_warning_msg if cruise.factionState not in ["Public Holiday", None] else ""
 
         volume_text = (
             "### Volume Maths :straight_ruler:\n"
@@ -395,8 +395,8 @@ class DatabaseInteraction(commands.Cog):
             # Get everything
             all_pins = await database.get_all_pinned_messages()
 
-            cruise_stats = await booze_sheets_api.get_cruise_stats(0)
-            stat_embed = await self.build_stat_embed(cruise_stats, None, True)
+            cruise = await booze_sheets_api.get_cruise_with_stats(0)
+            stat_embed = await self.build_stat_embed(cruise, None, True)
 
             logger.debug("Updating pinned messages with new stat embed")
             if all_pins:
@@ -412,7 +412,7 @@ class DatabaseInteraction(commands.Cog):
                 logger.debug("No pinned messages found to update")
 
             logger.debug("Updating bot activity status")
-            total_wine = cruise_stats.get("total_wine", 0)
+            total_wine = cruise.stats.total_wine
 
             state_text = (
                 f"Total Wine Tracked: {total_wine:,}"
@@ -538,7 +538,7 @@ class DatabaseInteraction(commands.Cog):
             f"Total Tonnes of Wine: **{total_wine}**\n"
             f"Number of trips to the peak: **{carrier_data.trip_id}**\n"
             f"Total Unloads: **{total_unloads}**\n"
-            f"Operated by: {carrier_data.owner_mention}",
+            f"Operated by: {carrier_data.owner.mention}",
         )
         await interaction.edit_original_response(embed=carrier_embed)
 
@@ -584,18 +584,18 @@ class DatabaseInteraction(commands.Cog):
         )
         target_date = None
 
-        cruise_stats = await booze_sheets_api.get_cruise_stats(cruise_select, include_not_unloaded_bool)
+        cruise = await booze_sheets_api.get_cruise_with_stats(cruise_select, include_not_unloaded_bool)
 
         if cruise_select != 0:
-            target_date = cruise_stats.get("cruise_start_date")
+            target_date = cruise.start.strftime("%Y-%m-%d")
             logger.debug(f"Target date for historical cruise determined as: {target_date}")
 
-        stat_embed = await self.build_stat_embed(cruise_stats, target_date=target_date)
+        stat_embed = await self.build_stat_embed(cruise, target_date=target_date)
 
         await interaction.edit_original_response(embed=stat_embed)
 
         if cruise_select == 0:
-            pinned_stat_embed = await self.build_stat_embed(cruise_stats, None, True)
+            pinned_stat_embed = await self.build_stat_embed(cruise, None, True)
 
             # Go update all the pinned embeds also.
             pins = await database.get_all_pinned_messages()
@@ -781,13 +781,13 @@ class DatabaseInteraction(commands.Cog):
 
         include_not_unloaded_bool = False if include_not_unloaded == "Only Unloaded" else True
 
-        cruise_stats = await booze_sheets_api.get_cruise_stats(cruise_select, include_not_unloaded_bool)
+        cruise = await booze_sheets_api.get_cruise_with_stats(cruise_select, include_not_unloaded_bool)
 
         if cruise_select != 0:
-            target_date = cruise_stats.get("cruise_start_date")
+            target_date = cruise.start.strftime("%Y-%m-%d")
             logger.debug(f"Target date for historical cruise determined as: {target_date}")
 
-        stat_embed = await self.build_extended_stat_embed(cruise_stats, target_date, stat)
+        stat_embed = await self.build_extended_stat_embed(cruise, target_date, stat)
         await interaction.edit_original_response(embed=stat_embed)
 
     @app_commands.command(
@@ -813,11 +813,11 @@ class DatabaseInteraction(commands.Cog):
         await interaction.response.defer()
         logger.info(f"User {interaction.user.name} ({interaction.user.id}) requested a carrier summary")
 
-        cruise_stats = await booze_sheets_api.get_cruise_stats(0)
+        cruise = await booze_sheets_api.get_cruise_with_stats(0)
 
-        total_carriers = cruise_stats.get("totalCarriers", 0)
-        total_unloads = cruise_stats.get("totalUnloads", 0)
-        remaining_carriers = cruise_stats.get("carriersRemaining", 0)
+        total_carriers = cruise.stats.total_carriers
+        total_unloads = cruise.stats.total_unloads
+        remaining_carriers = cruise.stats.remaining_carriers
         unloaded_carriers = total_carriers - remaining_carriers
 
         logger.debug(
@@ -875,13 +875,13 @@ class DatabaseInteraction(commands.Cog):
 
         include_not_unloaded_bool = False if include_not_unloaded == "Only Unloaded" else True
 
-        cruise_stats = await booze_sheets_api.get_biggest_cruise_stats(include_not_unloaded_bool)
+        cruise = await booze_sheets_api.get_biggest_cruise_with_stats(include_not_unloaded_bool)
 
         # Build the stat embed based on the extended flag
         if not extended:
-            stat_embed = await self.build_stat_embed(cruise_stats)
+            stat_embed = await self.build_stat_embed(cruise)
         else:
-            stat_embed = await self.build_extended_stat_embed(cruise_stats, stat)
+            stat_embed = await self.build_extended_stat_embed(cruise, stat)
 
         # Edit the original interaction response with the stat embed
         await interaction.edit_original_response(embed=stat_embed)
@@ -922,23 +922,20 @@ class DatabaseInteraction(commands.Cog):
             )
             return
 
-        carrier_name = carrier_stats.get("carrierName", "")
-        total_trips = carrier_stats.get("totalTrips", 0)
-        total_wine = carrier_stats.get("totalWine", 0)
-        total_cruises = carrier_stats.get("totalCruises", 0)
-        owner = carrier_stats.get("owner", {}).get("discordId", "Unknown")
-
         logger.debug(
-            f"Carrier stats for {carrier_id} - Name: {carrier_name}, Total Runs: {total_trips}, "
-            f"Total Wine: {total_wine}, Total Cruises: {total_cruises}, Owner: {owner}"
+            f"Carrier stats for {carrier_id} - Name: {carrier_stats.name}, "
+            f"Total Wine: {carrier_stats.total_wine}, "
+            f"Total Trips: {carrier_stats.total_trips}, "
+            f"Total Cruises: {carrier_stats.total_cruises}, "
+            f"Owner: {carrier_stats.owner}."
         )
 
         stat_embed = discord.Embed(
-            title=f"Stats for {carrier_name} ({carrier_id})",
-            description=f"Total Wine: {total_wine}\n"
-            f"Total Runs: {total_trips}\n"
-            f"Total Cruises: {total_cruises}\n"
-            f"Owner: {owner}",
+            title=f"Stats for {carrier_stats.name} ({carrier_id})",
+            description=f"Total Wine: {carrier_stats.total_wine} tonnes\n"
+            f"Total Runs: {carrier_stats.total_trips}\n"
+            f"Total Cruises: {carrier_stats.total_cruises}\n"
+            f"Owner: {carrier_stats.owner.mention}",
         )
 
         logger.info(f"Sending stats embed for carrier {carrier_id}.")

@@ -7,6 +7,7 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 
 logger = get_logger("boozebot.commands.background")
 
@@ -21,6 +22,18 @@ class BackgroundTaskCommands(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.websocket_started = False
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        """Start the BoozeSheets websocket listener when the bot is ready."""
+        if not self.websocket_started:
+            try:
+                await booze_sheets_api.start_websocket_listener()
+                self.websocket_started = True
+                logger.info("BoozeSheets websocket listener started")
+            except Exception as e:
+                logger.error(f"Failed to start websocket listener: {e}", exc_info=True)
 
     @app_commands.command(name="start_task", description="Starts a background task.")
     @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
@@ -113,3 +126,16 @@ class BackgroundTaskCommands(commands.Cog):
         }
         logger.debug(f"Retrieving task {task_name} from available tasks: {list(tasks.keys())}")
         return tasks.get(task_name)
+
+    @app_commands.command(
+        name="get_websocket_status", description="Gets the status of the BoozeSheets API websocket connection."
+    )
+    @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
+    async def get_websocket_status(self, interaction: discord.Interaction):
+        logger.info(f"/get_websocket_status command called by {interaction.user}")
+
+        ws_status = booze_sheets_api.get_websocket_status()
+        logger.debug(f"BoozeSheets API websocket status: {ws_status}")
+
+        await interaction.response.send_message(f"BoozeSheets API websocket status: {ws_status}.")

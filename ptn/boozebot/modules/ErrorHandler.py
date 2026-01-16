@@ -1,9 +1,9 @@
 import random
 
-import discord
+from httpx import HTTPStatusError
 
 # import local constants
-from discord import Interaction, InteractionResponded, app_commands
+from discord import Interaction, InteractionResponded, app_commands, Embed
 from discord.app_commands import AppCommandError
 from discord.ext import commands
 from ptn_utils.global_constants import EMBED_COLOUR_ERROR
@@ -113,7 +113,7 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             )
             formatted_channel_list = error.formatted_channel_list
 
-            embed = discord.Embed(
+            embed = Embed(
                 description=f"Sorry, you can only run this command out of: {formatted_channel_list}",
                 color=EMBED_COLOUR_ERROR,
             )
@@ -125,12 +125,12 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             permitted_roles = error.permitted_roles
             formatted_role_list = error.formatted_role_list
             if len(permitted_roles) > 1:
-                embed = discord.Embed(
+                embed = Embed(
                     description=f"**Permission denied**: You need one of the following roles to use this command:\n{formatted_role_list}",
                     color=EMBED_COLOUR_ERROR,
                 )
             else:
-                embed = discord.Embed(
+                embed = Embed(
                     description=f"**Permission denied**: You need the following role to use this command:\n{formatted_role_list}",
                     color=EMBED_COLOUR_ERROR,
                 )
@@ -141,7 +141,7 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             message = error.message
             is_private = error.is_private
             logger.debug(f"Custom error raised with message: {message}, is_private: {is_private}")
-            embed = discord.Embed(description=f"❌ {message}", color=EMBED_COLOUR_ERROR)
+            embed = Embed(description=f"❌ {message}", color=EMBED_COLOUR_ERROR)
             if is_private:  # message should be ephemeral
                 try:
                     await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -156,16 +156,26 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
 
         elif isinstance(error, GenericError):
             logger.debug(f"Generic error raised with message: {error}, reporting to user")
-            embed = discord.Embed(description=f"❌ {error}", color=EMBED_COLOUR_ERROR)
+            embed = Embed(description=f"❌ {error}", color=EMBED_COLOUR_ERROR)
             try:
                 await interaction.response.send_message(embed=embed, ephemeral=True)
             except InteractionResponded:
                 await interaction.followup.send(embed=embed, ephemeral=True)
             logger.debug("Generic error message sent to user")
 
+        elif isinstance(error.original, HTTPStatusError):
+            logger.debug(f"HTTPStatusError raised with message: {error}, reporting to user without details")
+            status_code = error.original.response.status_code
+            embed = Embed(description=f"❌ An HTTP error occurred: {status_code}", color=EMBED_COLOUR_ERROR)
+            try:
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            except InteractionResponded:
+                await interaction.followup.send(embed=embed, ephemeral=True)
+            logger.debug("HTTPStatusError message sent to user")
+
         else:
             logger.debug(f"Unhandled error type: {type(error)}, reporting to user")
-            embed = discord.Embed(description=f"❌ Unhandled Error: {error}", color=EMBED_COLOUR_ERROR)
+            embed = Embed(description=f"❌ Unhandled Error: {error}", color=EMBED_COLOUR_ERROR)
             try:
                 await interaction.response.send_message(embed=embed, ephemeral=True)
             except InteractionResponded:

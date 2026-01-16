@@ -122,7 +122,7 @@ class Unloading(commands.Cog):
 
                     wine_carrier_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
                     await wine_carrier_channel.send(
-                        f"<@{carrier_data.owner_discord_id}> "
+                        f"<@{carrier_data.owner.discord_id}> "
                         f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
                         f"has been marked completed. Please check, then run the following command to close it "
                         "if it is correct.\n"
@@ -133,7 +133,7 @@ class Unloading(commands.Cog):
                     database.set_unload_notification_sent(carrier_data.carrier_identifier, True)
 
                     logger.info(
-                        f"Notified poster {carrier_data.owner_username} for carrier {carrier_data.carrier_identifier}"
+                        f"Notified poster {carrier_data.owner.username} for carrier {carrier_data.carrier_identifier}"
                     )
                 break
 
@@ -305,8 +305,8 @@ class Unloading(commands.Cog):
 
         if not carrier_data:
             logger.info(f"No carrier found for: {carrier_id}.")
-            return await interaction.response.send_message(
-                f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
+            return await interaction.edit_original_response(
+                content=f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
             )
 
         if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
@@ -323,10 +323,15 @@ class Unloading(commands.Cog):
 
         wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
 
-        if carrier_data.wine_status == "Unloading":
+        if carrier_data.unload_closed:
+            msg = f"Carrier {carrier_data.carrier_identifier} has already completed all of its unloads."
+            logger.info(msg)
+            return await interaction.followup.send(msg)
+
+        if carrier_data.unload_opened:
             logger.info(f"Carrier {carrier_data.carrier_identifier} is already unloading wine.")
-            return await interaction.edit_original_response(
-                content=f"Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is "
+            return await interaction.followup.send(
+                f"Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is "
                 f"already unloading wine. Check the notification in <#{wine_alert_channel.id}>."
             )
 
@@ -448,7 +453,12 @@ class Unloading(commands.Cog):
 
         wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
 
-        if carrier_data.wine_status == "Unloading":
+        if carrier_data.unload_closed:
+            msg = f"Carrier {carrier_data.carrier_identifier} has already completed all of its unloads."
+            logger.info(msg)
+            return await interaction.followup.send(msg)
+
+        if carrier_data.unload_opened:
             logger.info(f"Carrier {carrier_data.carrier_identifier} is already unloading wine.")
             return await interaction.followup.send(
                 f"Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is "

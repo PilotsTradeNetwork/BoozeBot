@@ -466,7 +466,7 @@ class Departures(commands.Cog):
             return
 
         # Construct the departure message text
-        departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{carrier_data.owner_discord_id}> {hitchhiker_ping_text}"
+        departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{carrier_data.owner.discord_id}> {hitchhiker_ping_text}"
 
         # Send the departure message to the departure announcement channel
         departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
