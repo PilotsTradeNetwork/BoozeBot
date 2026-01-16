@@ -119,7 +119,7 @@ class BackgroundTaskCommands(commands.Cog):
 
     def get_task(self, task_name: str):
         tasks = {
-            "periodic_stat_update": bot.get_cog("DatabaseInteraction").periodic_stat_update,
+            "periodic_stat_update": bot.get_cog("Statistics").periodic_stat_update,
             "check_departure_messages_loop": bot.get_cog("Departures").check_departure_messages_loop,
             "public_holiday_loop": bot.get_cog("PublicHoliday").public_holiday_loop,
             "last_unload_time_loop": bot.get_cog("Unloading").last_unload_time_loop,

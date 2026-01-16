@@ -14,7 +14,7 @@ from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.botcommands.Corked import Corked
-from ptn.boozebot.botcommands.Statistics import DatabaseInteraction
+from ptn.boozebot.botcommands.Statistics import Statistics
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.DiscordBotCommands import DiscordBotCommands
 from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
@@ -43,8 +43,8 @@ async def boozebot():
         logger.debug("Loaded DiscordBotCommands cog.")
         await bot.add_cog(Unloading(bot))
         logger.debug("Loaded Unloading cog.")
-        await bot.add_cog(DatabaseInteraction(bot))
-        logger.debug("Loaded DatabaseInteraction cog.")
+        await bot.add_cog(Statistics(bot))
+        logger.debug("Loaded Statistics cog.")
         await bot.add_cog(PublicHoliday(bot))
         logger.debug("Loaded PublicHoliday cog.")
         await bot.add_cog(MimicSteve(bot))

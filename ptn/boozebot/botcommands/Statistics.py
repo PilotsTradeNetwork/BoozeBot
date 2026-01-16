@@ -57,7 +57,7 @@ DATABASE INTERACTION COMMANDS
 /booze_carrier_stats - admin/mod/somm/conn/wine carrier
 """
 
-logger = get_logger("boozebot.commands.database")
+logger = get_logger("boozebot.commands.statistics")
 
 IncludeNotUnloadedChoices = Literal["All Carriers", "Only Unloaded"]
 FactionStateChoices = Literal[
@@ -98,7 +98,7 @@ StatChoices = Literal[
 ]
 
 
-class DatabaseInteraction(commands.Cog):
+class Statistics(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
