@@ -18,6 +18,7 @@ class BackgroundTaskCommands(commands.Cog):
         Choice(name="check_departure_messages_loop", value="check_departure_messages_loop"),
         Choice(name="public_holiday_loop", value="public_holiday_loop"),
         Choice(name="last_unload_time_loop", value="last_unload_time_loop"),
+        Choice(name="periodic_signup_poll", value="periodic_signup_poll"),
     ]
 
     def __init__(self, bot: commands.Bot):
@@ -123,6 +124,7 @@ class BackgroundTaskCommands(commands.Cog):
             "check_departure_messages_loop": bot.get_cog("Departures").check_departure_messages_loop,
             "public_holiday_loop": bot.get_cog("PublicHoliday").public_holiday_loop,
             "last_unload_time_loop": bot.get_cog("Unloading").last_unload_time_loop,
+            "periodic_signup_poll": bot.get_cog("MakeWineCarrier").booze_tracker_signup_check,
         }
         logger.debug(f"Retrieving task {task_name} from available tasks: {list(tasks.keys())}")
         return tasks.get(task_name)
@@ -135,7 +137,10 @@ class BackgroundTaskCommands(commands.Cog):
     async def get_websocket_status(self, interaction: discord.Interaction):
         logger.info(f"/get_websocket_status command called by {interaction.user}")
 
-        ws_status = booze_sheets_api.get_websocket_status()
+        ws_status, last_message_time = booze_sheets_api.get_websocket_status()
         logger.debug(f"BoozeSheets API websocket status: {ws_status}")
 
-        await interaction.response.send_message(f"BoozeSheets API websocket status: {ws_status}.")
+        discord_timestamp = f"<t:{int(last_message_time.timestamp())}:R>" if last_message_time else "N/A"
+        await interaction.response.send_message(
+            f"BoozeSheets API Websocket Status: {ws_status}\nLast Message Received: {discord_timestamp}"
+        )

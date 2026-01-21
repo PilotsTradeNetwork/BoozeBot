@@ -49,10 +49,10 @@ async def checkroles_actual(interaction: discord.Interaction, permitted_role_ids
 def check_roles(permitted_role_ids):
     async def checkroles(
         interaction: discord.Interaction,
-    ):  # TODO convert messages to custom error handler, make work with text commands
+    ):
         permission, permitted_roles = await checkroles_actual(interaction, permitted_role_ids)
         logger.debug(f"Permission result from checkroles_actual: {permission}")
-        if not permission:  # raise our custom error to notify the user gracefully
+        if not permission:
             role_list = []
             for role in permitted_role_ids:
                 role_list.append(f"<@&{role}> ")

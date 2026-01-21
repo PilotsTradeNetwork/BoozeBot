@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 import discord
-from discord import app_commands
+from discord import Embed, app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
 from ptn_utils.global_constants import (
@@ -29,21 +29,19 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.classes.Cruise import Cruise
 from ptn.boozebot.constants import (
-    BOOZE_PROFIT_PER_TONNE_WINE,
     CARRIER_ID_RE,
     RACKHAMS_PEAK_POP,
     bot,
 )
 from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.ErrorHandler import CustomError
 from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.pagination import createPagination
 from ptn.boozebot.modules.PHcheck import ph_check
-from ptn.boozebot.modules.Views import ConfirmView
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
+from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 
 """
-DATABASE INTERACTION COMMANDS
+Statistics COMMANDS
 
 /find_carriers_with_wine - admin/mod/somm/conn/wine carrier
 /find_wine_carrier_by_id - admin/mod/somm/conn/wine carrier
@@ -113,15 +111,15 @@ class Statistics(commands.Cog):
         total_wine = cruise.stats.total_wine
         unique_carrier_count = cruise.stats.total_carriers
         total_trips = cruise.stats.total_trips
+        total_profit = cruise.stats.total_profit
 
-        wine_per_capita = (total_wine / RACKHAMS_PEAK_POP) if total_wine else 0
-        wine_per_carrier = (total_wine / unique_carrier_count) if total_wine else 0
-        python_loads = (total_wine / 288) if total_wine else 0
-        t8_loads = (total_wine / 400) if total_wine else 0
+        profit_per_tonne = total_profit // total_wine if total_wine else 0
 
-        total_profit = total_wine * BOOZE_PROFIT_PER_TONNE_WINE
-
-        fleet_carrier_buy_count = (total_profit / 5000000000) if total_profit else 0
+        wine_per_capita = total_wine / RACKHAMS_PEAK_POP
+        wine_per_carrier = total_wine / unique_carrier_count if unique_carrier_count > 0 else 0
+        python_loads = total_wine / 288
+        t8_loads = total_wine / 400
+        fleet_carrier_buy_count = total_profit / 5000000000
 
         logger.debug(
             f"Calculated stats - Carrier Count: {unique_carrier_count}, Total Wine: {total_wine}, Total Profit: {total_profit}, "
@@ -164,7 +162,7 @@ class Statistics(commands.Cog):
             description=f"{state_text}"
             f"**Total number of carrier trips:** — {total_trips:>1}\n"
             f"**Total number of unique carriers:** — {unique_carrier_count:>24}\n"
-            f"**Profit per ton:** — {BOOZE_PROFIT_PER_TONNE_WINE:>56,}\n"
+            f"**Profit per ton:** — {profit_per_tonne:>56,}\n"
             f"**Rackham pop:** — {RACKHAMS_PEAK_POP:>56,}\n"
             f"**Wine per capita:** — {wine_per_capita:>56,.2f}\n"
             f"**Wine per carrier:** — {math.ceil(wine_per_carrier):>56,}\n"
@@ -380,6 +378,28 @@ class Statistics(commands.Cog):
         if not self.periodic_stat_update.is_running():
             self.periodic_stat_update.start()
 
+    @commands.Cog.listener()
+    async def on_boozesheets_carrier_created(self, data: dict):
+        logger.info("BoozeSheets carrier created event received")
+
+        carrier = BoozeCarrier(data.get("carrier", {}))
+
+        embed = Embed(
+            title="New WineCarrier signed up!",
+            description=(
+                f"**{carrier.carrier_name} ({carrier.carrier_identifier})**\n"
+                f"Trip Number: {carrier.trip_id}\n"
+                f"**{carrier.wine_total} tonnes of wine**\n"
+                f"Owned by {carrier.owner.mention} ({carrier.owner.username})"
+            ),
+        )
+
+        steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
+
+        await steve_says.send(embed=embed)
+
+        logger.info("New WineCarrier announcement sent to Steve Says channel")
+
     @tasks.loop(minutes=10)
     @track_last_run()
     async def periodic_stat_update(self):
@@ -576,11 +596,17 @@ class Statistics(commands.Cog):
 
         await interaction.response.defer()
 
-        include_not_unloaded_bool = False if include_not_unloaded == "Only Unloaded" else True
+        if include_not_unloaded:
+            if include_not_unloaded == "All Carriers":
+                include_not_unloaded_bool = True
+            else:
+                include_not_unloaded_bool = False
+        else:
+            include_not_unloaded_bool = None
 
-        cruise = "this" if cruise_select == 0 else f"-{cruise_select}"
+        cruise_name = "this" if cruise_select == 0 else f"-{cruise_select}"
         logger.info(
-            f"User {interaction.user.name} ({interaction.user.id}) requested the current tally of the cruise stats for {cruise} cruise."
+            f"User {interaction.user.name} ({interaction.user.id}) requested the current tally of the cruise stats for {cruise_name} cruise."
         )
         target_date = None
 
@@ -779,7 +805,13 @@ class Statistics(commands.Cog):
         )
         target_date = None
 
-        include_not_unloaded_bool = False if include_not_unloaded == "Only Unloaded" else True
+        if include_not_unloaded:
+            if include_not_unloaded == "All Carriers":
+                include_not_unloaded_bool = True
+            else:
+                include_not_unloaded_bool = False
+        else:
+            include_not_unloaded_bool = None
 
         cruise = await booze_sheets_api.get_cruise_with_stats(cruise_select, include_not_unloaded_bool)
 
@@ -823,7 +855,7 @@ class Statistics(commands.Cog):
         logger.debug(
             f"User {interaction.user.name} ({interaction.user.id}) wanted to know the remaining time of the holiday."
         )
-        holiday_ongoing, start_time = database.get_holiday_status()
+        holiday_ongoing, start_time = await database.get_holiday_status()
         if not holiday_ongoing:
             duration_remaining = "Pirate Steve has not detected the holiday state yet, or it is already over."
         else:
@@ -873,7 +905,13 @@ class Statistics(commands.Cog):
         )
         await interaction.response.defer()
 
-        include_not_unloaded_bool = False if include_not_unloaded == "Only Unloaded" else True
+        if include_not_unloaded:
+            if include_not_unloaded == "All Carriers":
+                include_not_unloaded_bool = True
+            else:
+                include_not_unloaded_bool = False
+        else:
+            include_not_unloaded_bool = None
 
         cruise = await booze_sheets_api.get_biggest_cruise_with_stats(include_not_unloaded_bool)
 
@@ -940,3 +978,61 @@ class Statistics(commands.Cog):
 
         logger.info(f"Sending stats embed for carrier {carrier_id}.")
         await interaction.edit_original_response(content=None, embed=stat_embed)
+
+    @app_commands.command(
+        name="booze_all_time_tally",
+        description="Returns an all-time tally of the booze cruises. Restricted to Somms and Connoisseurs.",
+    )
+    @check_roles(
+        [
+            *any_council_role,
+            *any_moderation_role,
+            ROLE_SOMM,
+            ROLE_CONN,
+        ]
+    )
+    async def all_time_tally(self, interaction: discord.Interaction):
+        """
+        Returns an embed of the all-time booze cruise stats.
+
+        :param discord.Interaction interaction: The discord interaction context
+        :return: None
+        """
+
+        await interaction.response.defer()
+
+        logger.info(
+            f"User {interaction.user.name} ({interaction.user.id}) requested the all-time tally of the booze cruise stats."
+        )
+
+        stats = await booze_sheets_api.get_all_time_stats()
+
+        cruises = await booze_sheets_api.get_cruises_list()
+
+        total_cruises = len(cruises)
+
+        avg_wine_per_cruise = stats.total_wine // total_cruises if total_cruises > 0 else 0
+        avg_profit_per_cruise = stats.total_profit // total_cruises if total_cruises > 0 else 0
+        avg_trips_per_cruise = stats.total_trips / total_cruises if total_cruises > 0 else 0
+
+        embed = Embed(
+            title="Pirate Steve's All-Time Booze Cruise Tally",
+            description=(
+                f"**Total Wine Delivered:** — {stats.total_wine:,} tonnes\n"
+                f"**Total Cruises:** — {total_cruises:,}\n"
+                f"**Total Trips:** — {stats.total_trips:,}\n"
+                f"**Total Carriers:** — {stats.total_carriers:,}\n"
+                f"**Total Carrier Owners:** — {stats.total_owners:,}\n"
+                f"**Total Profit:** — {stats.total_profit:,.2f} credits\n"
+                f"**Carriers Remaining:** — {stats.carriers_remaining:,}\n"
+                f"**Wine Remaining:** — {stats.wine_remaining:,} tonnes\n"
+                f"**Average Unload Duration:** — {stats.avg_unload_dur:.0f} seconds\n"
+                f"**Minimum Unload Duration:** — {stats.min_unload_dur:.0f} seconds\n"
+                f"**Maximum Unload Duration:** — {stats.max_unload_dur:.0f} seconds\n\n"
+                f"**Average Wine per Cruise:** — {avg_wine_per_cruise:,} tonnes\n"
+                f"**Average Profit per Cruise:** — {avg_profit_per_cruise:,.2f} credits\n"
+                f"**Average Trips per Cruise:** — {avg_trips_per_cruise:.2f}\n"
+            ),
+        )
+
+        await interaction.edit_original_response(embed=embed)

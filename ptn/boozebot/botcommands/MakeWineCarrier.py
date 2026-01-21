@@ -6,10 +6,11 @@ Cog for granting and removing the wine carrier role
 import asyncio
 import random
 
-from discord import app_commands, Embed, Member, Interaction, DiscordException, ButtonStyle
+from discord import app_commands, Embed, Member, Interaction, DiscordException
+from discord.colour import Colour
 from discord.app_commands import describe
 from discord.ext import commands, tasks
-from discord.ui import Button, View
+from discord.ui import View
 from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
     CHANNEL_BC_WINE_CARRIER,
@@ -27,6 +28,7 @@ from ptn.boozebot.constants import WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH,
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
+from ptn.boozebot.modules.Views import DynamicButton
 
 """
 MAKE WINE CARRIER COMMANDS
@@ -42,25 +44,23 @@ logger = get_logger("boozebot.commands.makewinecarrier")
 wine_carrier_toggle_lock = asyncio.Lock()
 
 
-class MakeWineCarrierButtonView(View):
-    """Persistent view for making wine carriers from signup alerts."""
+# initialise the Cog
+class MakeWineCarrier(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.ctx_menu = app_commands.ContextMenu(name="Make Wine Carrier", callback=self.context_menu_make_wine_carrier)
+        self.bot.tree.add_command(self.ctx_menu)
 
-    def __init__(self, owner_id: int = None):
-        super().__init__(timeout=None)
-        if owner_id:
-            self.add_item(MakeWineCarrierButton(owner_id))
+    @commands.Cog.listener()
+    async def on_ready(self):
+        logger.info("Starting periodic signup poll task loop")
+        if not self.booze_tracker_signup_check.is_running():
+            self.booze_tracker_signup_check.start()
 
-
-class MakeWineCarrierButton(Button):
-    """Button to make a user a wine carrier."""
-
-    def __init__(self, owner_id: int):
-        super().__init__(style=ButtonStyle.green, label="Make Wine Carrier", custom_id=f"make_wine_carrier:{owner_id}")
-        self.owner_id = owner_id
-
-    async def callback(self, interaction: Interaction):
-        """Handle button click to make user a wine carrier."""
-        logger.info(f"Make Wine Carrier button clicked by {interaction.user.name} for user {self.owner_id}")
+    @commands.Cog.listener()
+    async def on_dynamic_button_makewinecarrier(self, interaction: Interaction, button: DynamicButton):
+        """Handle dynamic button click for making a wine carrier."""
+        logger.info(f"Make Wine Carrier button clicked by {interaction.user.name} for user {button.user_id}")
 
         user_roles = [role.id for role in interaction.user.roles]
         allowed_roles = [*any_council_role, *any_moderation_role, ROLE_SOMM, ROLE_CONN]
@@ -69,31 +69,25 @@ class MakeWineCarrierButton(Button):
             await interaction.response.send_message("You don't have permission to use this button.", ephemeral=True)
             return
 
-        user = await bot.get_or_fetch.member(self.owner_id)
+        user = await bot.get_or_fetch.member(button.user_id)
         if not user:
-            await interaction.response.send_message(f"Could not find user with ID {self.owner_id}", ephemeral=True)
+            await interaction.response.send_message(f"Could not find user with ID {button.user_id}", ephemeral=True)
             return
 
         await make_user_wine_carrier(interaction, user)
 
-
-# initialise the Cog and attach our global error handler
-class MakeWineCarrier(commands.Cog):
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
-        self.ctx_menu = app_commands.ContextMenu(name="Make Wine Carrier", callback=self.context_menu_make_wine_carrier)
-        self.bot.tree.add_command(self.ctx_menu)
-        self.bot.add_view(MakeWineCarrierButtonView())
-
     @commands.Cog.listener()
-    async def on_boozetracker_signup(self, data):
+    async def on_boozesheets_signup(self, data):
         logger.info(f"Received booze tracker signup data: {data}")
 
-        self.alert_new_signup(
-            owner_id=data.get("owner_id"),
+        color = int(data["color"], 16) if data.get("color") else 0x000000
+
+        await self.alert_new_signup(
+            owner_id=data.get("userId"),
             status=data.get("status"),
             notes=data.get("notes"),
-            first_time=data.get("first_time", True),
+            first_time=data.get("firstTime", False),
+            color=color,
         )
 
     @tasks.loop(minutes=5)
@@ -105,18 +99,31 @@ class MakeWineCarrier(commands.Cog):
 
         logger.debug(f"Found {len(new_signups)} new signups")
 
+        unique_signups = {}
+
         for signup in new_signups:
-            await self.alert_new_signup(
-                owner_id=signup.owner.discord_id,
-                status=signup.signup_info.status if signup.signup_info else None,
-                notes=signup.signup_info.notes if signup.signup_info else "",
-                first_time=signup.signup_info.first_time if signup.signup_info else True,
-                color=signup.signup_info.color if signup.signup_info else 0xF71B86,
-            )
-            logger.debug(f"Marked signup {signup.get('signup_id')} as pinged")
+            if signup.owner.discord_id in unique_signups:
+                continue
+
+            unique_signups[signup.owner.discord_id] = signup
+
+            try:
+                color = int(signup.signup_info.color, 16) if signup.signup_info else 0x000000
+
+                await self.alert_new_signup(
+                    owner_id=signup.owner.discord_id,
+                    status=signup.signup_info.status if signup.signup_info else None,
+                    notes=signup.signup_info.notes if signup.signup_info else "",
+                    first_time=signup.signup_info.first_time if signup.signup_info else True,
+                    color=color,
+                )
+                logger.debug(f"Marked signup {signup.owner.discord_id} as pinged")
+            except DiscordException as e:
+                logger.exception(f"Failed to alert new signup for user {signup.owner.discord_id}: {e}")
+                continue
 
     async def alert_new_signup(
-        self, owner_id: int, status: str | None, notes: str, color: int | str = 0xF71B86, first_time: bool = True
+        self, owner_id: int, status: str | None, notes: str, color: int | str = "gray", first_time: bool = True
     ):
         """Alert about a new signup."""
 
@@ -132,16 +139,22 @@ class MakeWineCarrier(commands.Cog):
 
         description = f"User <@{owner_id}> ({owner.display_name}) has signed up."
         if first_time:
-            description += f"\nFirst time WCO, React with {bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE)} and then DM them the onboarding message."
+            description += f"\nFirst time WCO, React with {await bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE)} and then DM them the onboarding message."
         if status:
             description += f"\nStatus: {status}"
             description += f"\nNotes: {notes}"
 
-        embed = Embed(title="New Wine Carrier Signup", color=color, description=description)
+        embed = Embed(title="New Wine Carrier Owner Signup", color=color, description=description)
 
-        view = MakeWineCarrierButtonView(owner_id) if not first_time else None
+        view = None
+        if not first_time:
+            view = View(timeout=None)
+            view.add_item(
+                DynamicButton(label="Make Wine Carrier", action="makewinecarrier", user_id=owner_id, message_id=0)
+            )
 
         await steve_says.send(embed=embed, view=view)
+        await booze_sheets_api.set_user_pinged(owner_id)
 
         logger.info(f"Sent new signup alert for user {owner_id} to steve_says channel")
 
@@ -232,18 +245,22 @@ async def make_user_wine_carrier(interaction: Interaction, user: Member) -> None
         user = await bot.get_or_fetch.member(user.id)
         logger.debug(f"Refetched user: {user}")
 
-        if database.is_user_corked(user.id):
+        async def respond(content=None, embed=None):
+            if interaction.message:
+                return await interaction.followup.send(content=content, embed=embed)
+            else:
+                return await interaction.edit_original_response(content=content, embed=embed)
+
+        if await database.is_user_corked(user.id):
             logger.info(f"User {user} is corked, cannot make Wine Carrier.")
-            await interaction.edit_original_response(
-                content=f"User {user.mention} ({user.name}) is corked and cannot be made a {wc_role.name}."
-            )
+            await respond(content=f"User {user.mention} ({user.name}) is corked and cannot be made a {wc_role.name}.")
             return
 
         if wc_role in user.roles:
             logger.info(f"User {user} is already a {wc_role.name}, cannot add role again.")
             embed = Embed(description=f"{user.mention} is already a {wc_role.name}")
             embed.set_image(url=random.choice(too_slow_gifs))
-            await interaction.edit_original_response(embed=embed)
+            await respond(embed=embed)
             return
         else:
             # toggle on
@@ -254,9 +271,8 @@ async def make_user_wine_carrier(interaction: Interaction, user: Member) -> None
                 response = f"{user.display_name} now has the {wc_role.name} role."
 
                 logger.debug("Opening welcome message file")
-                # Open the file in read mode.
                 with open(WELCOME_MESSAGE_FILE_PATH, "r", encoding="utf-8") as file:
-                    wine_welcome_message = file.read()  # read contents to variable
+                    wine_welcome_message = file.read()
 
                 logger.debug(f"Welcome message file read successfully. \n {wine_welcome_message}")
 
@@ -269,10 +285,10 @@ async def make_user_wine_carrier(interaction: Interaction, user: Member) -> None
                 msg = f"{user.mention} ({user.name}) has been given the {wc_role.name} role by {interaction.user.mention} ({interaction.user.name})."
                 embed = Embed(description=msg)
                 await channel.send(content=msg, silent=True)
-                await interaction.edit_original_response(content=response)
+                await respond(content=response)
 
                 if interaction.message:
-                    await interaction.message.add_reaction(bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE))
+                    await interaction.message.add_reaction(await bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE))
                     await interaction.message.edit(view=None)
 
                 bot_spam = await bot.get_or_fetch.channel(CHANNEL_BOTSPAM)

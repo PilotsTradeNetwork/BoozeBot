@@ -24,6 +24,8 @@ from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
 
+from ptn.boozebot.modules.Views import DynamicButton
+
 logger = get_logger("boozebot.application")
 
 logger.info(f"Booze bot is connecting against production: {_production}.")
@@ -71,6 +73,10 @@ async def boozebot():
         bot.tree.on_error = on_app_command_error
         bot.add_listener(on_text_command_error, "on_command_error")
         logger.info("Error handlers setup complete.")
+
+        logger.info("Adding dynamic items to the bot.")
+        bot.add_dynamic_items(DynamicButton)
+        logger.info("Dynamic items added to the bot.")
 
         try:
             logger.info("Logging in the bot...")

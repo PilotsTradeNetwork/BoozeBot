@@ -72,7 +72,7 @@ class Corked(commands.Cog):
             await interaction.followup.send("You cannot cork yourself.")
             return
 
-        if database.is_user_corked(user.id):
+        if await database.is_user_corked(user.id):
             logger.info(f"User {user} is already corked.")
             await interaction.followup.send(f"User {user.mention} ({user.name}) is already corked.")
             return
@@ -120,7 +120,7 @@ class Corked(commands.Cog):
         logger.info(f"User {interaction.user} requested to uncork {user}")
         await interaction.response.defer()
 
-        if not database.is_user_corked(user.id):
+        if not await database.is_user_corked(user.id):
             logger.info(f"User {user} is not corked.")
             await interaction.followup.send(f"User {user.mention} ({user.name}) is not corked.")
             return

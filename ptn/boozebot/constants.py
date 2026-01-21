@@ -79,7 +79,6 @@ bot = GetFetchBot(
 )
 bot.get_or_fetch = GetOrFetch(bot, DISCORD_GUILD)
 
-BOOZE_PROFIT_PER_TONNE_WINE = 256000
 RACKHAMS_PEAK_POP = 150000
 
 WCO_ROLE_ICON_URL = (

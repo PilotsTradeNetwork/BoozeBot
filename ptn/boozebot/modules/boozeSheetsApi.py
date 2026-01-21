@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import httpx
 import asyncio
 import json
@@ -8,7 +8,7 @@ import websockets
 
 from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
-from ptn.boozebot.classes.Cruise import Cruise
+from ptn.boozebot.classes.Cruise import Cruise, CruiseStats
 from ptn_utils.logger.logger import get_logger
 
 logger = get_logger("boozebot.modules.boozeSheetsApi")
@@ -25,6 +25,8 @@ class BoozeSheetsApi:
         self.ws_client: Optional[httpx.AsyncClient] = None
         self.ws_task: Optional[asyncio.Task] = None
         self._ws_running = False
+        self._last_ws_message_time: Optional[datetime] = None
+        self._ws_connected = False
 
     async def _request(self, method: str, endpoint: str, data: Optional[dict] = None) -> dict:
         """
@@ -95,31 +97,6 @@ class BoozeSheetsApi:
             else:
                 raise
         logger.debug(f"All carriers info retrieved: {carriers_info}")
-
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
-
-    async def get_non_conn_pinged_signups(self) -> list[BoozeCarrier]:
-        """
-        Retrieves a list of non-conn pinged signups from the BoozeSheets API.
-
-        :return: A list of carriers that the owners need pinged for.
-        """
-
-        logger.debug("Getting info for non-conn pinged signups")
-        endpoint = "/carriers?owner_pinged=false"
-
-        logger.debug(f"Sending GET request to {endpoint}")
-        try:
-            carriers_info = await self._request("GET", endpoint)
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                logger.warning("No non-conn pinged signups found")
-                return []
-            else:
-                raise
-        logger.debug(f"Non-conn pinged signups info retrieved: {carriers_info}")
 
         carriers = [BoozeCarrier(info) for info in carriers_info]
 
@@ -201,7 +178,30 @@ class BoozeSheetsApi:
 
         return carriers
 
-    async def get_cruise_with_stats(self, cruise_id: str, include_not_unloaded: bool = False) -> Optional[Cruise]:
+    async def get_cruises_list(self) -> list[dict]:
+        """
+        Retrieves a list of all cruises from the BoozeSheets API.
+
+        :return: A list of cruises.
+        """
+
+        logger.debug("Getting list of all cruises")
+        endpoint = "/cruises"
+
+        logger.debug(f"Sending GET request to {endpoint}")
+        try:
+            cruises = await self._request("GET", endpoint)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.warning("No cruises found")
+                return []
+            else:
+                raise
+        logger.debug(f"Cruises list retrieved: {cruises}")
+
+        return cruises
+
+    async def get_cruise_with_stats(self, cruise_id: str, include_not_unloaded: bool | None = None) -> Optional[Cruise]:
         """
         Retrieves stats for a specific cruise.
 
@@ -227,7 +227,10 @@ class BoozeSheetsApi:
         actual_cruise_id = sorted_cruises[cruise_id].get("cruiseId", None)
 
         stats_endpoint = f"/cruises/{actual_cruise_id}"
-        data = {"include_not_unloaded": include_not_unloaded}
+        if include_not_unloaded is not None:
+            data = {"include_not_unloaded": include_not_unloaded}
+        else:
+            data = {}
 
         logger.debug(f"Sending GET request to {stats_endpoint} with data={data}")
         try:
@@ -240,9 +243,9 @@ class BoozeSheetsApi:
                 raise
         logger.debug(f"Cruise stats retrieved: {cruise_data}")
 
-        return Cruise(cruise_data.get("stats", {}))
+        return Cruise(cruise_data)
 
-    async def get_biggest_cruise_with_stats(self, include_not_unloaded: bool = False) -> Optional[Cruise]:
+    async def get_biggest_cruise_with_stats(self, include_not_unloaded: bool | None = None) -> Optional[Cruise]:
         """
         Retrieves the biggest cruise stats.
         :param include_not_unloaded: Whether to include carriers that have not yet unloaded.
@@ -251,7 +254,10 @@ class BoozeSheetsApi:
 
         logger.debug("Getting biggest cruise stats")
         endpoint = "/cruises/biggest_cruise"
-        data = {"include_not_unloaded": include_not_unloaded}
+        if include_not_unloaded is not None:
+            data = {"include_not_unloaded": include_not_unloaded}
+        else:
+            data = {}
 
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         try:
@@ -314,7 +320,7 @@ class BoozeSheetsApi:
         logger.debug(f"Carrier stats retrieved: {stats_data}")
 
         return CarrierStats(stats_data)
-    
+
     async def get_unpinged_signups(self) -> list[BoozeCarrier]:
         """
         Retrieves a list of unpinged signups from the BoozeSheets API.
@@ -329,10 +335,51 @@ class BoozeSheetsApi:
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         carriers_info = await self._request("GET", endpoint, data=data)
         logger.debug(f"Unpinged signups info retrieved: {carriers_info}")
-        
+
         carriers = [BoozeCarrier(info) for info in carriers_info]
-        
+
         return carriers
+
+    async def set_user_pinged(self, user_id: int) -> None:
+        """
+        Sets a user as having been pinged.
+
+        :param user_id: The Discord ID of the user to set as pinged.
+        """
+
+        logger.debug(f"Setting user_id={user_id} as pinged")
+        endpoint = f"/users/{user_id}/pinged"
+
+        logger.debug(f"Sending POST request to {endpoint}")
+        try:
+            await self._request("POST", endpoint)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to set user_id={user_id} as pinged: {e}")
+        logger.debug(f"User_id={user_id} set as pinged")
+
+    async def get_all_time_stats(self) -> Optional[CruiseStats]:
+        """
+        Retrieves all-time stats from the BoozeSheets API.
+
+        :return: A dictionary containing all-time stats.
+        """
+
+        logger.debug("Getting all-time stats")
+        endpoint = "/cruises/all_time"
+
+        logger.debug(f"Sending GET request to {endpoint}")
+        try:
+            stats_data = await self._request("GET", endpoint)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to get all-time stats: {e}")
+            return None
+        logger.debug(f"All-time stats retrieved: {stats_data}")
+
+        return CruiseStats(stats_data)
+
+    """
+    Websocket stuff
+    """
 
     async def start_websocket_listener(self):
         """
@@ -383,12 +430,15 @@ class BoozeSheetsApi:
 
         while self._ws_running:
             try:
+                self._ws_connected = True
                 await self._connect_and_listen()
             except asyncio.CancelledError:
                 logger.info("Websocket loop cancelled")
+                self._ws_connected = False
                 break
             except Exception as e:
                 logger.exception(f"Websocket error: {e}")
+                self._ws_connected = False
 
                 if self._ws_running:
                     logger.info(f"Reconnecting websocket in {reconnect_delay} seconds...")
@@ -401,18 +451,21 @@ class BoozeSheetsApi:
         """
         Connect to the websocket and listen for events.
         """
-        ws_url = f"{self.base_url.replace('http', 'ws')}ws/?token={BOOZESHEETS_API_KEY}"
+        ws_url = f"{self.base_url.replace('http', 'ws')}ws/?api_key={BOOZESHEETS_API_KEY}"
 
-        logger.info(f"Connecting to BoozeSheets websocket: {ws_url}")
+        logger.info(f"Connecting to BoozeSheets websocket: {ws_url.split('?')[0]}")
 
         async with websockets.connect(uri=ws_url) as websocket:
             logger.info("Connected to BoozeSheets websocket")
 
             async for message in websocket:
+                logger.trace(f"Websocket message received: {message}")
+
                 if not self._ws_running:
                     break
 
                 try:
+                    self._last_ws_message_time = datetime.now(tz=timezone.utc)
                     await self._handle_websocket_message(message)
                 except Exception as e:
                     logger.error(f"Error handling websocket message: {e}", exc_info=True)
@@ -444,16 +497,14 @@ class BoozeSheetsApi:
         except Exception as e:
             logger.error(f"Error in websocket message handler: {e}", exc_info=True)
 
-    def get_websocket_status(self) -> str:
+    def get_websocket_status(self) -> tuple[str, datetime]:
         """
         Get the current status of the websocket connection.
 
-        :return: A string representing the websocket status.
+        :return: A tuple containing the connection status and the timestamp of the last received message.
         """
-        if self._ws_running:
-            return "Connected"
-        else:
-            return "Disconnected"
+        status = "Connected" if self._ws_connected else "Disconnected"
+        return status, self._last_ws_message_time
 
 
 booze_sheets_api = BoozeSheetsApi()

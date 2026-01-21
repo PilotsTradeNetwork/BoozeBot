@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ptn_utils.logger.logger import get_logger
 
@@ -17,9 +17,13 @@ class Cruise:
         self.start = info_dict.get("cruiseStart", None)
         if self.start:
             self.start = datetime.fromisoformat(self.start.replace("Z", "+00:00"))
+        else:
+            self.start = datetime.min.replace(tzinfo=timezone.utc)
         self.end = info_dict.get("cruiseEnd", None)
         if self.end:
             self.end = datetime.fromisoformat(self.end.replace("Z", "+00:00"))
+        else:
+            self.end = datetime.max.replace(tzinfo=timezone.utc)
         self.faction_state = info_dict.get("factionState", None)
         self.carrier_limit = int(info_dict.get("carrierLimit", 0))
         self.stats = CruiseStats(info_dict.get("stats", {}))
@@ -41,7 +45,9 @@ class CruiseStats:
         self.total_trips = int(info_dict.get("totalTrips", 0))
         self.total_carriers = int(info_dict.get("totalCarriers", 0))
         self.carriers_remaining = int(info_dict.get("carriersRemaining", 0))
+        self.total_owners = int(info_dict.get("totalCarrierOwners", 0))
         self.wine_remaining = int(info_dict.get("wineRemaining", 0))
+        self.total_profit = int(info_dict.get("totalProfit", 0))
         self.avg_unload_dur = info_dict.get("avgUnloadDur", None)
         if self.avg_unload_dur is not None:
             self.avg_unload_dur = float(self.avg_unload_dur)

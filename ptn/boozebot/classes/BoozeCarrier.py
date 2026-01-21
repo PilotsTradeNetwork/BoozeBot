@@ -37,7 +37,7 @@ class BoozeCarrier:
         self.staff_comment = fc_data.get("staffComment", None)
 
         # Owner data
-        self.owner = CarrierOwner(info_dict.get("owner", {}))
+        self.owner = CarrierOwner(fc_data.get("owner", {}))
 
         # Notable info
         if "notable" in info_dict:
@@ -224,6 +224,6 @@ class SignupInfo:
         """
 
         self.status = info_dict.get("status", None)
-        self.color = info_dict.get("color", None)
+        self.color = info_dict.get("color", "000000")
         self.notes = info_dict.get("notes", None)
         self.first_time = info_dict.get("firstTime", True)
