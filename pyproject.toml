@@ -44,7 +44,7 @@ line-length = 120
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["T001", "T002", "T003"]
+select = ["FIX001", "FIX002", "FIX003"]
 
 [tool.uv.sources]
 ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev = "0.2.5" }
