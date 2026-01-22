@@ -21,6 +21,55 @@ from ptn_utils.logger.logger import get_logger
 logger = get_logger("boozebot.modules.boozeSheetsApi")
 
 
+def _on_api_failure(retry_state):
+    """
+    Called when API requests fail after all retries are exhausted.
+    Schedules async task to post error message to bot_spam channel.
+
+    :param retry_state: The retry state containing information about the failed attempts.
+    """
+    exception = retry_state.outcome.exception()
+    # Get the method, endpoint, and data from the retry state args
+    args = retry_state.args
+    method = args[1] if len(args) > 1 else "UNKNOWN"
+    endpoint = args[2] if len(args) > 2 else "UNKNOWN"
+    data = args[3] if len(args) > 3 else None
+
+    logger.error(
+        f"BoozeSheets API request failed after {retry_state.attempt_number} attempts: "
+        f"{method} {endpoint} - {exception}"
+    )
+
+    # Schedule async task to send notification
+    asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
+
+
+async def _send_failure_to_discord(method: str, endpoint: str, data: Optional[dict], exception: Exception, attempts: int):
+    """
+    Sends API failure notification to bot_spam channel.
+
+    :param method: The HTTP method that failed.
+    :param endpoint: The API endpoint that failed.
+    :param data: The request data.
+    :param exception: The exception that occurred.
+    :param attempts: Number of retry attempts made.
+    """
+    try:
+        bot_spam = await bot.get_or_fetch.channel(CHANNEL_BOTSPAM)
+        embed = Embed(
+            title="⚠️ BoozeSheets API Failure",
+            description=f"API request failed after {attempts} retry attempts.\n\n"
+            f"**Method:** `{method}`\n"
+            f"**Endpoint:** `{endpoint}`\n"
+            f"**Data:** `{data}`\n"
+            f"**Error:** {exception}",
+            color=0xFF0000,
+        )
+        await bot_spam.send(embed=embed)
+    except Exception as e:
+        logger.exception(f"Failed to send API failure notification to bot_spam: {e}")
+
+
 class BoozeSheetsApi:
     def __init__(self):
         self.base_url = BOOZESHEETS_API_BASE_URL
@@ -72,6 +121,7 @@ class BoozeSheetsApi:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         before_sleep=before_sleep_log(logger, "warning"),
+        retry_error_callback=_on_api_failure,
         reraise=True,
     )
     async def _request(self, method: str, endpoint: str, data: Optional[dict] = None) -> dict:
