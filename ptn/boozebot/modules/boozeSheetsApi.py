@@ -330,7 +330,7 @@ class BoozeSheetsApi:
 
         logger.debug("Getting info for unpinged signups")
         endpoint = "/carriers"
-        data = {"owner_pinged": False}
+        data = {"owner_pinged": False, "pending": True}
 
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         carriers_info = await self._request("GET", endpoint, data=data)
