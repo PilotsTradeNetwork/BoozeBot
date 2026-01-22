@@ -5,6 +5,13 @@ import json
 from typing import Optional
 from discord.ext import commands
 import websockets
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
 
 from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
@@ -17,8 +24,13 @@ logger = get_logger("boozebot.modules.boozeSheetsApi")
 class BoozeSheetsApi:
     def __init__(self):
         self.base_url = BOOZESHEETS_API_BASE_URL
+        # Configure transport with retries for connection-level failures
+        transport = httpx.AsyncHTTPTransport(retries=3)
         self.client = httpx.AsyncClient(
-            base_url=self.base_url, cookies={"X-API-KEY": BOOZESHEETS_API_KEY}, timeout=30.0
+            base_url=self.base_url,
+            cookies={"X-API-KEY": BOOZESHEETS_API_KEY},
+            timeout=10.0,
+            transport=transport,
         )
         self.client_lock = asyncio.Lock()
         self.bot: commands.Bot = bot
@@ -28,6 +40,40 @@ class BoozeSheetsApi:
         self._last_ws_message_time: Optional[datetime] = None
         self._ws_connected = False
 
+    def _should_retry(self, exception: Exception) -> bool:
+        """
+        Determine if a request should be retried based on the exception.
+
+        :param exception: The exception that was raised.
+        :return: True if the request should be retried, False otherwise.
+        """
+        # Retry on timeout errors
+        if isinstance(exception, httpx.TimeoutException):
+            logger.debug(f"Request timed out, will retry: {exception}")
+            return True
+
+        # Retry on connection errors
+        if isinstance(exception, (httpx.ConnectError, httpx.NetworkError)):
+            logger.debug(f"Connection/network error, will retry: {exception}")
+            return True
+
+        # Retry on specific HTTP status codes (5xx server errors and 429 rate limit)
+        if isinstance(exception, httpx.HTTPStatusError):
+            status_code = exception.response.status_code
+            # Retry on server errors and rate limiting
+            if status_code in (429, 500, 502, 503, 504):
+                logger.debug(f"HTTP {status_code} error, will retry: {exception}")
+                return True
+
+        return False
+
+    @retry(
+        retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        before_sleep=before_sleep_log(logger, "warning"),
+        reraise=True,
+    )
     async def _request(self, method: str, endpoint: str, data: Optional[dict] = None) -> dict:
         """
         Internal method to send HTTP requests to the BoozeSheets API.
@@ -39,16 +85,33 @@ class BoozeSheetsApi:
         """
 
         logger.debug(f"Sending {method} request to BoozeSheets API: endpoint={endpoint}, data={data}")
-        async with self.client_lock:
-            if method.upper() == "GET":
-                response = await self.client.request(method, endpoint, params=data, follow_redirects=True)
-            else:
-                response = await self.client.request(method, endpoint, json=data, follow_redirects=True)
-        response.raise_for_status()
-        response_data = response.json()
-        logger.debug(f"Received response from BoozeSheets API: {response_data}")
 
-        return response_data
+        try:
+            async with self.client_lock:
+                if method.upper() == "GET":
+                    response = await self.client.request(method, endpoint, params=data, follow_redirects=True)
+                else:
+                    response = await self.client.request(method, endpoint, json=data, follow_redirects=True)
+
+            # Check for retryable HTTP errors
+            if response.status_code in (429, 500, 502, 503, 504):
+                response.raise_for_status()  # Will raise HTTPStatusError
+
+            response.raise_for_status()
+            response_data = response.json()
+            logger.debug(f"Received response from BoozeSheets API: {response_data}")
+
+            return response_data
+
+        except httpx.HTTPStatusError as e:
+            # Check if we should retry this error
+            if self._should_retry(e):
+                logger.warning(f"Retryable HTTP error occurred: {e}")
+                raise  # Let tenacity handle the retry
+            else:
+                # Don't retry client errors (4xx except 429) or other status codes
+                logger.debug(f"Non-retryable HTTP error, not retrying: {e}")
+                raise
 
     async def get_carrier_info(self, carrier_id: str) -> Optional[BoozeCarrier]:
         """
