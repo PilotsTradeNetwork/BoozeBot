@@ -24,6 +24,7 @@ dependencies = [
     "httpx~=0.28.1",
     "tenacity~=9.0.0",
     "ptn-utils",
+    "websockets"
 ]
 dynamic = ["version"]
 

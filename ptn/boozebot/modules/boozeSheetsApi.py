@@ -9,10 +9,11 @@ from tenacity import (
     retry,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
+    retry_if_exception,
 )
 
+from discord import Embed
+from ptn_utils.global_constants import CHANNEL_BOTSPAM
 from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
 from ptn.boozebot.classes.Cruise import Cruise, CruiseStats
@@ -21,30 +22,47 @@ from ptn_utils.logger.logger import get_logger
 logger = get_logger("boozebot.modules.boozeSheetsApi")
 
 
+def _should_retry_exception(exception: Exception) -> bool:
+    """
+    Determine if a request should be retried based on the exception.
+    """
+    if isinstance(exception, httpx.TimeoutException):
+        return True
+    if isinstance(exception, (httpx.ConnectError, httpx.NetworkError)):
+        return True
+    if isinstance(exception, httpx.HTTPStatusError):
+        return exception.response.status_code in (429, 500, 502, 503, 504)
+    return False
+
+
 def _on_api_failure(retry_state):
     """
     Called when API requests fail after all retries are exhausted.
     Schedules async task to post error message to bot_spam channel.
-
-    :param retry_state: The retry state containing information about the failed attempts.
     """
     exception = retry_state.outcome.exception()
-    # Get the method, endpoint, and data from the retry state args
     args = retry_state.args
+    kwargs = retry_state.kwargs
+
+    # args: [self, method, endpoint, data?]
+    # data can be positional arg or keyword arg
     method = args[1] if len(args) > 1 else "UNKNOWN"
     endpoint = args[2] if len(args) > 2 else "UNKNOWN"
-    data = args[3] if len(args) > 3 else None
+    data = args[3] if len(args) > 3 else kwargs.get("data")
 
-    logger.error(
+    error_msg = str(exception) or type(exception).__name__
+
+    logger.exception(
         f"BoozeSheets API request failed after {retry_state.attempt_number} attempts: "
-        f"{method} {endpoint} - {exception}"
+        f"method={method}, endpoint={endpoint}, data={data}, error={error_msg}"
     )
 
-    # Schedule async task to send notification
     asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
 
 
-async def _send_failure_to_discord(method: str, endpoint: str, data: Optional[dict], exception: Exception, attempts: int):
+async def _send_failure_to_discord(
+    method: str, endpoint: str, data: Optional[dict], exception: Exception, attempts: int
+):
     """
     Sends API failure notification to bot_spam channel.
 
@@ -56,18 +74,29 @@ async def _send_failure_to_discord(method: str, endpoint: str, data: Optional[di
     """
     try:
         bot_spam = await bot.get_or_fetch.channel(CHANNEL_BOTSPAM)
+        error_msg = str(exception) or type(exception).__name__
         embed = Embed(
             title="⚠️ BoozeSheets API Failure",
             description=f"API request failed after {attempts} retry attempts.\n\n"
             f"**Method:** `{method}`\n"
             f"**Endpoint:** `{endpoint}`\n"
             f"**Data:** `{data}`\n"
-            f"**Error:** {exception}",
+            f"**Error:** {error_msg}",
             color=0xFF0000,
         )
         await bot_spam.send(embed=embed)
     except Exception as e:
         logger.exception(f"Failed to send API failure notification to bot_spam: {e}")
+
+
+def _log_before_sleep(retry_state):
+    """Log retry attempts with exception details."""
+    exception = retry_state.outcome.exception()
+    error_msg = str(exception) or type(exception).__name__
+    logger.warning(
+        f"Retrying BoozeSheets API request: attempt {retry_state.attempt_number} "
+        f"after {retry_state.idle_for:.1f}s due to {error_msg}"
+    )
 
 
 class BoozeSheetsApi:
@@ -89,38 +118,11 @@ class BoozeSheetsApi:
         self._last_ws_message_time: Optional[datetime] = None
         self._ws_connected = False
 
-    def _should_retry(self, exception: Exception) -> bool:
-        """
-        Determine if a request should be retried based on the exception.
-
-        :param exception: The exception that was raised.
-        :return: True if the request should be retried, False otherwise.
-        """
-        # Retry on timeout errors
-        if isinstance(exception, httpx.TimeoutException):
-            logger.debug(f"Request timed out, will retry: {exception}")
-            return True
-
-        # Retry on connection errors
-        if isinstance(exception, (httpx.ConnectError, httpx.NetworkError)):
-            logger.debug(f"Connection/network error, will retry: {exception}")
-            return True
-
-        # Retry on specific HTTP status codes (5xx server errors and 429 rate limit)
-        if isinstance(exception, httpx.HTTPStatusError):
-            status_code = exception.response.status_code
-            # Retry on server errors and rate limiting
-            if status_code in (429, 500, 502, 503, 504):
-                logger.debug(f"HTTP {status_code} error, will retry: {exception}")
-                return True
-
-        return False
-
     @retry(
-        retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError)),
+        retry=retry_if_exception(_should_retry_exception),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        before_sleep=before_sleep_log(logger, "warning"),
+        before_sleep=_log_before_sleep,
         retry_error_callback=_on_api_failure,
         reraise=True,
     )
@@ -136,32 +138,17 @@ class BoozeSheetsApi:
 
         logger.debug(f"Sending {method} request to BoozeSheets API: endpoint={endpoint}, data={data}")
 
-        try:
-            async with self.client_lock:
-                if method.upper() == "GET":
-                    response = await self.client.request(method, endpoint, params=data, follow_redirects=True)
-                else:
-                    response = await self.client.request(method, endpoint, json=data, follow_redirects=True)
-
-            # Check for retryable HTTP errors
-            if response.status_code in (429, 500, 502, 503, 504):
-                response.raise_for_status()  # Will raise HTTPStatusError
-
-            response.raise_for_status()
-            response_data = response.json()
-            logger.debug(f"Received response from BoozeSheets API: {response_data}")
-
-            return response_data
-
-        except httpx.HTTPStatusError as e:
-            # Check if we should retry this error
-            if self._should_retry(e):
-                logger.warning(f"Retryable HTTP error occurred: {e}")
-                raise  # Let tenacity handle the retry
+        async with self.client_lock:
+            if method.upper() == "GET":
+                response = await self.client.request(method, endpoint, params=data, follow_redirects=True)
             else:
-                # Don't retry client errors (4xx except 429) or other status codes
-                logger.debug(f"Non-retryable HTTP error, not retrying: {e}")
-                raise
+                response = await self.client.request(method, endpoint, json=data, follow_redirects=True)
+
+        response.raise_for_status()
+        response_data = response.json()
+        logger.debug(f"Received response from BoozeSheets API: {response_data}")
+
+        return response_data
 
     async def get_carrier_info(self, carrier_id: str) -> Optional[BoozeCarrier]:
         """
@@ -330,6 +317,10 @@ class BoozeSheetsApi:
         all_cruises = await self._request("GET", all_cruises_endpoint)
         logger.debug(f"All cruises retrieved: {all_cruises}")
 
+        if not all_cruises:
+            logger.warning("No cruises available to retrieve stats for")
+            return None
+
         sorted_cruises = sorted(
             all_cruises, key=lambda x: datetime.fromisoformat(x.get("cruiseStart", "")), reverse=True
         )
@@ -448,6 +439,9 @@ class BoozeSheetsApi:
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         carriers_info = await self._request("GET", endpoint, data=data)
         logger.debug(f"Unpinged signups info retrieved: {carriers_info}")
+
+        if not carriers_info:
+            return []
 
         carriers = [BoozeCarrier(info) for info in carriers_info]
 

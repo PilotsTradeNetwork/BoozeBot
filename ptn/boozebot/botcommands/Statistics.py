@@ -416,6 +416,11 @@ class Statistics(commands.Cog):
             all_pins = await database.get_all_pinned_messages()
 
             cruise = await booze_sheets_api.get_cruise_with_stats(0)
+
+            if not cruise:
+                logger.warning("No cruise data available, skipping periodic stat update")
+                return
+
             stat_embed = await self.build_stat_embed(cruise, None, True)
 
             logger.debug("Updating pinned messages with new stat embed")
