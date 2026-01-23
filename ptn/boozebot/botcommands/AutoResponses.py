@@ -17,7 +17,7 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.classes.AutoResponse import AutoResponse
 from ptn.boozebot.constants import ping_response_messages
-from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
+from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
 """
@@ -38,13 +38,10 @@ class AutoResponses(commands.Cog):
 
         self.text_commands = ["ping", "exit", "update", "version", "sync"]
 
-        pirate_steve_db.execute(
-            """
-            SELECT * FROM auto_responses
-        """
-        )
-        self.auto_responses = [AutoResponse(row) for row in pirate_steve_db.fetchall()]
+        self.auto_responses: list[AutoResponse] = []
 
+    async def cog_load(self):
+        self.auto_responses = await database.get_auto_responses()
         logger.debug(f"Loaded {len(self.auto_responses)} auto responses from database.")
 
     @commands.Cog.listener()
@@ -141,24 +138,12 @@ class AutoResponses(commands.Cog):
                 await interaction.edit_original_response(content=f"Invalid regex pattern: {trigger}. Error: {e}")
                 return
 
-        async with pirate_steve_db_lock:
-            logger.debug(f"Acquiring database lock for creating auto response '{name}'.")
-            # Check if the name already exists
-            pirate_steve_db.execute("SELECT * FROM auto_responses WHERE name = ?", (name,))
-            if pirate_steve_db.fetchone():
-                logger.warning(f"Auto response creation failed: name '{name}' already exists.")
-                await interaction.edit_original_response(
-                    content=f"An auto response with the name '{name}' already exists.",
-                )
-                return
+        if await database.get_auto_response_by_name(name):
+            logger.warning(f"Auto response creation failed: name '{name}' already exists.")
+            await interaction.edit_original_response(content=f"An auto response with the name '{name}' already exists.")
+            return
 
-            # Insert the new auto response
-            pirate_steve_db.execute(
-                "INSERT INTO auto_responses (name, trigger, is_regex, response) VALUES (?, ?, ?, ?)",
-                (name, trigger, is_regex, response),
-            )
-            pirate_steve_conn.commit()
-            logger.debug(f"Auto response '{name}' inserted into database and committed.")
+        await database.create_auto_response(name, trigger, is_regex, response)
 
         # Add the new auto response to the list
         self.auto_responses.append(
@@ -191,19 +176,12 @@ class AutoResponses(commands.Cog):
 
         logger.info(f"{interaction.user} ({interaction.user.id}) called {interaction.command.name} with name: {name}")
 
-        async with pirate_steve_db_lock:
-            logger.debug(f"Acquiring database lock for deleting auto response '{name}'.")
-            # Check if the auto response exists
-            pirate_steve_db.execute("SELECT * FROM auto_responses WHERE name = ?", (name,))
-            if not pirate_steve_db.fetchone():
-                logger.warning(f"Auto response deletion failed: name '{name}' does not exist.")
-                await interaction.edit_original_response(content=f"No auto response found with the name '{name}'.")
-                return
+        if not await database.get_auto_response_by_name(name):
+            logger.warning(f"Auto response deletion failed: name '{name}' does not exist.")
+            await interaction.edit_original_response(content=f"No auto response found with the name '{name}'.")
+            return
 
-            # Delete the auto response
-            pirate_steve_db.execute("DELETE FROM auto_responses WHERE name = ?", (name,))
-            pirate_steve_conn.commit()
-            logger.debug(f"Auto response '{name}' deleted from database and committed.")
+        await database.delete_auto_response(name)
 
         # Remove the auto response from the list
         self.auto_responses = [ar for ar in self.auto_responses if ar.name != name]
@@ -379,8 +357,7 @@ class ListAutoResponseView(discord.ui.View):
         Refetch the auto responses from the database and update the view, also update the main auto_responses list to match the db for any edits.
         """
         logger.debug("Refreshing auto response list view from database.")
-        pirate_steve_db.execute("SELECT * FROM auto_responses")
-        self.auto_responses = [AutoResponse(row) for row in pirate_steve_db.fetchall()]
+        self.auto_responses = await database.get_auto_responses()
         self.cog.auto_responses = self.auto_responses
         self.total_pages = (len(self.auto_responses) - 1) // self.page_size + 1 if self.auto_responses else 1
         logger.debug(f"Refreshed view with {len(self.auto_responses)} auto responses, {self.total_pages} total pages.")
@@ -449,14 +426,7 @@ class EditAutoResponseModal(discord.ui.Modal):
                 await interaction.followup.send(f"Invalid regex pattern: {new_trigger}. Error: {e}")
                 return
 
-        async with pirate_steve_db_lock:
-            logger.debug(f"Acquiring database lock for updating auto response '{self.auto_response.name}'.")
-            pirate_steve_db.execute(
-                "UPDATE auto_responses SET trigger = ?, response = ? WHERE name = ?",
-                (new_trigger, new_response, self.auto_response.name),
-            )
-            pirate_steve_conn.commit()
-            logger.debug(f"Auto response '{self.auto_response.name}' updated in database and committed.")
+        await database.update_auto_response(self.auto_response.name, new_trigger, new_response)
 
         await self.view.refresh_view()
         embed = self.view.create_embed()

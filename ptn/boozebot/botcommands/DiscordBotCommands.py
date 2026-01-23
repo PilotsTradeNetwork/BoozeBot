@@ -76,7 +76,9 @@ class DiscordBotCommands(commands.Cog):
         :returns: None
         """
         logger.info(f"Ping command called by {ctx.author}.")
-        embed = discord.Embed(description=f"**Avast Ye Landlubber! {self.bot.user.name} is here!**")
+        embed = discord.Embed(
+            description=f"**Avast Ye Landlubber! {self.bot.user.name} version {__version__} is here!**"
+        )
         embed.set_image(url=I_AM_STEVE_GIF)
         await ctx.send(embed=embed)
         logger.debug(f"Ping response sent to {ctx.author}.")

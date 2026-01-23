@@ -14,7 +14,7 @@ from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.botcommands.Corked import Corked
-from ptn.boozebot.botcommands.DatabaseInteraction import DatabaseInteraction
+from ptn.boozebot.botcommands.Statistics import Statistics
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.DiscordBotCommands import DiscordBotCommands
 from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
@@ -22,8 +22,9 @@ from ptn.boozebot.botcommands.MimicSteve import MimicSteve
 from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import bot
-from ptn.boozebot.database.database import build_database_on_startup
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
+
+from ptn.boozebot.modules.Views import DynamicButton
 
 logger = get_logger("boozebot.application")
 
@@ -37,7 +38,6 @@ def run():
 
 async def boozebot():
     logger.info("Setting up bot cogs and event listeners.")
-    build_database_on_startup()
     async with bot:
         await bot.add_cog(Logger())
         logger.debug("Loaded Logger cog.")
@@ -45,8 +45,8 @@ async def boozebot():
         logger.debug("Loaded DiscordBotCommands cog.")
         await bot.add_cog(Unloading(bot))
         logger.debug("Loaded Unloading cog.")
-        await bot.add_cog(DatabaseInteraction(bot))
-        logger.debug("Loaded DatabaseInteraction cog.")
+        await bot.add_cog(Statistics(bot))
+        logger.debug("Loaded Statistics cog.")
         await bot.add_cog(PublicHoliday(bot))
         logger.debug("Loaded PublicHoliday cog.")
         await bot.add_cog(MimicSteve(bot))
@@ -73,6 +73,10 @@ async def boozebot():
         bot.tree.on_error = on_app_command_error
         bot.add_listener(on_text_command_error, "on_command_error")
         logger.info("Error handlers setup complete.")
+
+        logger.info("Adding dynamic items to the bot.")
+        bot.add_dynamic_items(DynamicButton)
+        logger.info("Dynamic items added to the bot.")
 
         try:
             logger.info("Logging in the bot...")

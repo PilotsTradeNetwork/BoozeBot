@@ -7,6 +7,7 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 
 logger = get_logger("boozebot.commands.background")
 
@@ -17,10 +18,23 @@ class BackgroundTaskCommands(commands.Cog):
         Choice(name="check_departure_messages_loop", value="check_departure_messages_loop"),
         Choice(name="public_holiday_loop", value="public_holiday_loop"),
         Choice(name="last_unload_time_loop", value="last_unload_time_loop"),
+        Choice(name="periodic_signup_poll", value="periodic_signup_poll"),
     ]
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.websocket_started = False
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        """Start the BoozeSheets websocket listener when the bot is ready."""
+        if not self.websocket_started:
+            try:
+                await booze_sheets_api.start_websocket_listener()
+                self.websocket_started = True
+                logger.info("BoozeSheets websocket listener started")
+            except Exception as e:
+                logger.exception(f"Failed to start websocket listener: {e}")
 
     @app_commands.command(name="start_task", description="Starts a background task.")
     @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
@@ -106,10 +120,27 @@ class BackgroundTaskCommands(commands.Cog):
 
     def get_task(self, task_name: str):
         tasks = {
-            "periodic_stat_update": bot.get_cog("DatabaseInteraction").periodic_stat_update,
+            "periodic_stat_update": bot.get_cog("Statistics").periodic_stat_update,
             "check_departure_messages_loop": bot.get_cog("Departures").check_departure_messages_loop,
             "public_holiday_loop": bot.get_cog("PublicHoliday").public_holiday_loop,
             "last_unload_time_loop": bot.get_cog("Unloading").last_unload_time_loop,
+            "periodic_signup_poll": bot.get_cog("MakeWineCarrier").booze_tracker_signup_check,
         }
         logger.debug(f"Retrieving task {task_name} from available tasks: {list(tasks.keys())}")
         return tasks.get(task_name)
+
+    @app_commands.command(
+        name="get_websocket_status", description="Gets the status of the BoozeSheets API websocket connection."
+    )
+    @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
+    async def get_websocket_status(self, interaction: discord.Interaction):
+        logger.info(f"/get_websocket_status command called by {interaction.user}")
+
+        ws_status, last_message_time = booze_sheets_api.get_websocket_status()
+        logger.debug(f"BoozeSheets API websocket status: {ws_status}")
+
+        discord_timestamp = f"<t:{int(last_message_time.timestamp())}:R>" if last_message_time else "N/A"
+        await interaction.response.send_message(
+            f"BoozeSheets API Websocket Status: {ws_status}\nLast Message Received: {discord_timestamp}"
+        )
