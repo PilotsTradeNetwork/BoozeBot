@@ -137,11 +137,11 @@ class Statistics(commands.Cog):
         elif total_wine > 2000000:
             flavour_text = "Blimey! Pieces of eight all round! We have a lot of grog. Savvy?"
         elif total_wine > 1500000:
-            flavour_text = "The coffers are looking better, get the Galley's filled with wine!"
+            flavour_text = "The coffers are looking better, get the Galleys filled with wine!"
         elif total_wine > 1000000:
             flavour_text = "Yo ho ho we have some grog!"
         else:
-            flavour_text = "Heave Ho ye Scurvy Dog's! Pirate Steve wants more grog!"
+            flavour_text = "Heave Ho ye Scurvy Dogs! Pirate Steve wants more grog!"
 
         date_text = (
             f":\nHistorical Data: [{target_date} - "

@@ -44,11 +44,9 @@ def _on_api_failure(retry_state):
     args = retry_state.args
     kwargs = retry_state.kwargs
 
-    # args: [self, method, endpoint, data?]
-    # data can be positional arg or keyword arg
     method = args[1] if len(args) > 1 else "UNKNOWN"
     endpoint = args[2] if len(args) > 2 else "UNKNOWN"
-    data = args[3] if len(args) > 3 else kwargs.get("data")
+    data = kwargs.get("data")
 
     error_msg = str(exception) or type(exception).__name__
 

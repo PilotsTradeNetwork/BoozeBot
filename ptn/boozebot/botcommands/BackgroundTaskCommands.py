@@ -34,7 +34,7 @@ class BackgroundTaskCommands(commands.Cog):
                 self.websocket_started = True
                 logger.info("BoozeSheets websocket listener started")
             except Exception as e:
-                logger.error(f"Failed to start websocket listener: {e}", exc_info=True)
+                logger.exception(f"Failed to start websocket listener: {e}")
 
     @app_commands.command(name="start_task", description="Starts a background task.")
     @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
