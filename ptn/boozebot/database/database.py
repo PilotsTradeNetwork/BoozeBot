@@ -1,6 +1,7 @@
 import asyncio
 import sqlite3
 from datetime import datetime
+from typing import Literal
 
 from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.AutoResponse import AutoResponse
@@ -407,6 +408,37 @@ class Database:
         logger.debug(
             f"Successfully set departure notification sent flag to {notification_sent} for carrier ID: {carrier_id}"
         )
+
+    async def delete_carrier_message(self, carrier_id: str, message_type: Literal['unload', 'departure']) -> None:
+        """
+        Deletes a carrier message entry (unload or departure) for a given carrier ID.
+        If both message types are cleared, the entire row is deleted.
+
+        :param carrier_id: The carrier ID string.
+        :param message_type: Either 'unload' or 'departure'.
+        """
+        if message_type not in ['unload', 'departure']:
+            raise ValueError(f"Invalid message_type: {message_type}. Must be 'unload' or 'departure'.")
+
+        logger.debug(f"Deleting {message_type} message entry for carrier ID: {carrier_id}")
+
+        if message_type == 'unload':
+            fields = "unload_id = NULL, unload_notification_sent = NULL"
+        else:  # departure
+            fields = "departure_id = NULL, departure_notification_sent = NULL"
+
+        async with self.lock:
+            self.db.execute(
+                f"UPDATE carrier_messages SET {fields} WHERE carrier_id = ?",
+                (f"{carrier_id}",)
+            )
+            # Clean up the row if both unload and departure are NULL
+            self.db.execute(
+                "DELETE FROM carrier_messages WHERE carrier_id = ? AND unload_id IS NULL AND departure_id IS NULL",
+                (f"{carrier_id}",)
+            )
+            self.conn.commit()
+        logger.debug(f"Successfully deleted {message_type} message entry for carrier ID: {carrier_id}")
 
     async def add_auto_response(self, name: str, trigger: str, response: str, is_regex: bool = False) -> None:
         """

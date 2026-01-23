@@ -5,7 +5,15 @@ import json
 from typing import Optional
 from discord.ext import commands
 import websockets
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception,
+)
 
+from discord import Embed
+from ptn_utils.global_constants import CHANNEL_BOTSPAM
 from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
 from ptn.boozebot.classes.Cruise import Cruise, CruiseStats
@@ -14,11 +22,93 @@ from ptn_utils.logger.logger import get_logger
 logger = get_logger("boozebot.modules.boozeSheetsApi")
 
 
+def _should_retry_exception(exception: Exception) -> bool:
+    """
+    Determine if a request should be retried based on the exception.
+    """
+    if isinstance(exception, httpx.TimeoutException):
+        return True
+    if isinstance(exception, (httpx.ConnectError, httpx.NetworkError)):
+        return True
+    if isinstance(exception, httpx.HTTPStatusError):
+        return exception.response.status_code in (429, 500, 502, 503, 504)
+    return False
+
+
+def _on_api_failure(retry_state):
+    """
+    Called when API requests fail after all retries are exhausted.
+    Schedules async task to post error message to bot_spam channel.
+    """
+    exception = retry_state.outcome.exception()
+    args = retry_state.args
+    kwargs = retry_state.kwargs
+
+    # args: [self, method, endpoint, data?]
+    # data can be positional arg or keyword arg
+    method = args[1] if len(args) > 1 else "UNKNOWN"
+    endpoint = args[2] if len(args) > 2 else "UNKNOWN"
+    data = args[3] if len(args) > 3 else kwargs.get("data")
+
+    error_msg = str(exception) or type(exception).__name__
+
+    logger.exception(
+        f"BoozeSheets API request failed after {retry_state.attempt_number} attempts: "
+        f"method={method}, endpoint={endpoint}, data={data}, error={error_msg}"
+    )
+
+    asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
+
+
+async def _send_failure_to_discord(
+    method: str, endpoint: str, data: Optional[dict], exception: Exception, attempts: int
+):
+    """
+    Sends API failure notification to bot_spam channel.
+
+    :param method: The HTTP method that failed.
+    :param endpoint: The API endpoint that failed.
+    :param data: The request data.
+    :param exception: The exception that occurred.
+    :param attempts: Number of retry attempts made.
+    """
+    try:
+        bot_spam = await bot.get_or_fetch.channel(CHANNEL_BOTSPAM)
+        error_msg = str(exception) or type(exception).__name__
+        embed = Embed(
+            title="⚠️ BoozeSheets API Failure",
+            description=f"API request failed after {attempts} retry attempts.\n\n"
+            f"**Method:** `{method}`\n"
+            f"**Endpoint:** `{endpoint}`\n"
+            f"**Data:** `{data}`\n"
+            f"**Error:** {error_msg}",
+            color=0xFF0000,
+        )
+        await bot_spam.send(embed=embed)
+    except Exception as e:
+        logger.exception(f"Failed to send API failure notification to bot_spam: {e}")
+
+
+def _log_before_sleep(retry_state):
+    """Log retry attempts with exception details."""
+    exception = retry_state.outcome.exception()
+    error_msg = str(exception) or type(exception).__name__
+    logger.warning(
+        f"Retrying BoozeSheets API request: attempt {retry_state.attempt_number} "
+        f"after {retry_state.idle_for:.1f}s due to {error_msg}"
+    )
+
+
 class BoozeSheetsApi:
     def __init__(self):
         self.base_url = BOOZESHEETS_API_BASE_URL
+        # Configure transport with retries for connection-level failures
+        transport = httpx.AsyncHTTPTransport(retries=3)
         self.client = httpx.AsyncClient(
-            base_url=self.base_url, cookies={"X-API-KEY": BOOZESHEETS_API_KEY}, timeout=30.0
+            base_url=self.base_url,
+            cookies={"X-API-KEY": BOOZESHEETS_API_KEY},
+            timeout=10.0,
+            transport=transport,
         )
         self.client_lock = asyncio.Lock()
         self.bot: commands.Bot = bot
@@ -28,6 +118,14 @@ class BoozeSheetsApi:
         self._last_ws_message_time: Optional[datetime] = None
         self._ws_connected = False
 
+    @retry(
+        retry=retry_if_exception(_should_retry_exception),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        before_sleep=_log_before_sleep,
+        retry_error_callback=_on_api_failure,
+        reraise=True,
+    )
     async def _request(self, method: str, endpoint: str, data: Optional[dict] = None) -> dict:
         """
         Internal method to send HTTP requests to the BoozeSheets API.
@@ -39,11 +137,13 @@ class BoozeSheetsApi:
         """
 
         logger.debug(f"Sending {method} request to BoozeSheets API: endpoint={endpoint}, data={data}")
+
         async with self.client_lock:
             if method.upper() == "GET":
                 response = await self.client.request(method, endpoint, params=data, follow_redirects=True)
             else:
                 response = await self.client.request(method, endpoint, json=data, follow_redirects=True)
+
         response.raise_for_status()
         response_data = response.json()
         logger.debug(f"Received response from BoozeSheets API: {response_data}")
@@ -217,6 +317,10 @@ class BoozeSheetsApi:
         all_cruises = await self._request("GET", all_cruises_endpoint)
         logger.debug(f"All cruises retrieved: {all_cruises}")
 
+        if not all_cruises:
+            logger.warning("No cruises available to retrieve stats for")
+            return None
+
         sorted_cruises = sorted(
             all_cruises, key=lambda x: datetime.fromisoformat(x.get("cruiseStart", "")), reverse=True
         )
@@ -335,6 +439,9 @@ class BoozeSheetsApi:
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         carriers_info = await self._request("GET", endpoint, data=data)
         logger.debug(f"Unpinged signups info retrieved: {carriers_info}")
+
+        if not carriers_info:
+            return []
 
         carriers = [BoozeCarrier(info) for info in carriers_info]
 
