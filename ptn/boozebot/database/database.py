@@ -173,13 +173,6 @@ class Database:
 
         default_values = {
             "holidaystate": [{"state": 0, "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}],
-            "trackingforms": [
-                {
-                    "worksheet_key": "1fhdNd1zM4cQrQA0mCWzJAQWy70uiR3I8NLhBO7TAIL8",
-                    "loader_input_form_url": "https://forms.gle/U1YeSg9Szj1jcFHr5",
-                    "worksheet_with_data_id": 1,
-                }
-            ],
         }
 
         # Insert default values into tables if they're empty
