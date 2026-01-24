@@ -585,7 +585,7 @@ class Unloading(commands.Cog):
 
         logger.debug(f"Removing unload notification from database for carrier: {carrier_id}.")
         await booze_sheets_api.complete_carrier_unload(carrier_data.db_id)
-        await database.delete_carrier_message(carrier_id, 'unload')
+        await database.delete_carrier_message(carrier_id, "unload")
         logger.info(f"Removed unload notification from database for carrier: {carrier_id}.")
 
         self.last_unload_time = datetime.now(timezone.utc)
