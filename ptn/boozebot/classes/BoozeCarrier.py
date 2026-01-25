@@ -40,7 +40,7 @@ class BoozeCarrier:
         self.owner = CarrierOwner(fc_data.get("owner", {}))
 
         # Notable info
-        if "notable" in info_dict:
+        if "notable" in info_dict and info_dict.get("notable"):
             self.signup_info = SignupInfo(info_dict.get("notable"))
         else:
             self.signup_info = None
@@ -187,7 +187,7 @@ class CarrierStats:
 
         self.db_id = int(info_dict.get("fcId", 0))
         self.name = info_dict.get("fcName", None)
-        owner: CarrierOwner = CarrierOwner(info_dict.get("owner", {}))
+        self.owner = CarrierOwner(info_dict.get("owner", {}))
         self.total_wine = int(info_dict.get("totalWine", 0))
         self.total_cruises = int(info_dict.get("totalCruises", 0))
         self.total_trips = int(info_dict.get("totalTrips", 0))
@@ -202,7 +202,7 @@ class CarrierStats:
                 timezone.utc
             )
         logger.debug(
-            f"CarrierStats initialized: carrier_name={self.name}, owner_username={owner.username}, owner_discord_id={owner.discord_id}, "
+            f"CarrierStats initialized: carrier_name={self.name}, owner_username={self.owner.username}, owner_discord_id={self.owner.discord_id}, "
             f"total_wine={self.total_wine}, total_cruises={self.total_cruises}, total_trips={self.total_trips}, "
             f"first_unload_date={self.first_unload_date}, last_unload_date={self.last_unload_date}"
         )

@@ -1,10 +1,7 @@
 FROM python:3.13-slim-bookworm AS build
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/bot
-COPY .git/ .git/
-COPY pyproject.toml .
-COPY requirements.txt .
-COPY ptn ptn
+COPY . .
 RUN pip3 wheel --no-deps -w wheels . && pip3 download -d wheels -r requirements.txt
 
 FROM python:3.13-slim-bookworm

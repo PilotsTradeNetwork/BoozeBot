@@ -316,7 +316,7 @@ class Unloading(commands.Cog):
             return
 
         if carrier_data.system != "N0":
-            msg = f"Carrier {carrier_data.carrier_identifier} is not in a N0 system, cannot unload wine."
+            msg = f"Carrier {carrier_data.carrier_identifier} is not in N0 (HIP 58832); cannot unload wine."
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
@@ -446,7 +446,7 @@ class Unloading(commands.Cog):
             return
 
         if carrier_data.system != "N0":
-            msg = f"Carrier {carrier_data.carrier_identifier} is not in a N0 system, cannot unload wine."
+            msg = f"Carrier {carrier_data.carrier_identifier} is not in N0 (HIP 58832); cannot unload wine."
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
