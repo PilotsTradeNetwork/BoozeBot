@@ -48,7 +48,7 @@ target-version = "py313"
 select = ["FIX001", "FIX002", "FIX003"]
 
 [tool.uv.sources]
-ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev = "0.2.5" }
+ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev = "0.2.6" }
 
 [dependency-groups]
 dev = [

@@ -157,7 +157,7 @@ class Departures(commands.Cog):
                 return
 
             await message.delete()
-            await database.delete_carrier_message(carrier_id, 'departure')
+            await database.delete_carrier_message(carrier_id, "departure")
 
         except Exception as e:
             logger.exception(f"Failed to process reaction: {reaction_event}. Error: {e}")
