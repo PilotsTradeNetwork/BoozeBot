@@ -32,10 +32,6 @@ dynamic = ["version"]
 where = ["."]
 include = ["ptn.boozebot*"]
 
-[tool.pyright]
-include = ["ptn"]
-
-
 [project.scripts]
 booze = "ptn.boozebot.application:run"
 
