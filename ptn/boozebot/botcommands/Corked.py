@@ -160,24 +160,22 @@ class Corked(commands.Cog):
         logger.info(f"User {interaction.user} requested the list of corked users.")
         await interaction.response.defer()
 
-        results = await database.get_all_corked_users()
+        corked_users = await database.get_corked_users()
 
-        if not results:
+        if not corked_users:
             logger.info("No corked users found.")
             await interaction.followup.send("There are no corked users.")
             return
-
-        corked_users = [CorkedUser(row) for row in results]
 
         for corked_user in corked_users:
             logger.debug(f"Corked User - ID: {corked_user.user_id}, Timestamp: {corked_user.timestamp}")
 
         corked_user_data = [
             (
-                (await user.get_member()).name,
-                f"{(await user.get_member()).mention} Corked at {user.timestamp}",
+                (await corked_user.get_member()).name,
+                f"{(await corked_user.get_member()).mention} Corked at {corked_user.timestamp}",
             )
-            for user in corked_users
+            for corked_user in corked_users
         ]
         logger.debug(f"Prepared corked user data for pagination: {corked_user_data}")
 
@@ -200,16 +198,16 @@ class Corked(commands.Cog):
         logger.info(f"User {interaction.user} requested to rebuild corked permissions.")
         await interaction.response.defer()
 
-        results = await database.get_all_corked_users()
+        corked_users = await database.get_corked_users()
 
-        if not results:
+        if not corked_users:
             logger.info("No corked users found for permission rebuild.")
             await interaction.edit_original_response(content="There are no corked users to rebuild permissions for.")
             return
 
         confirm = ConfirmView(author=interaction.user)
         await interaction.edit_original_response(
-            content=f"Are you sure you want to rebuild corked permissions for all {len(results)} corked users? This may take some time.",
+            content=f"Are you sure you want to rebuild corked permissions for all {len(corked_users)} corked users? This may take some time.",
             view=confirm,
         )
 
@@ -227,8 +225,6 @@ class Corked(commands.Cog):
                 content="**Waiting for user response - timed out**", embed=None, view=None
             )
             return
-
-        corked_users = [CorkedUser(row) for row in results]
 
         logger.info(f"Rebuilding corked permissions for {len(corked_users)} corked users.")
         await interaction.edit_original_response(

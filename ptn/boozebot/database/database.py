@@ -565,7 +565,7 @@ class Database:
             self.conn.commit()
         logger.debug(f"Successfully set holiday status to ongoing={ongoing} at {timestamp_str}")
 
-    async def get_corked_users(self) -> list[int]:
+    async def get_corked_users(self) -> list[CorkedUser]:
         """
         Retrieves a list of corked user IDs from the database.
 

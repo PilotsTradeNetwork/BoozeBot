@@ -257,7 +257,7 @@ class Statistics(commands.Cog):
         state_warning_msg = (
             "### The Public Holiday did not happen for this cruise.\n### None of these carriers got unloaded.\n\n"
         )
-        state_text = state_warning_msg if cruise.factionState not in ["Public Holiday", None] else ""
+        state_text = state_warning_msg if cruise.faction_state not in ["Public Holiday", None] else ""
 
         volume_text = (
             "### Volume Maths :straight_ruler:\n"
@@ -853,8 +853,8 @@ class Statistics(commands.Cog):
         cruise = await booze_sheets_api.get_cruise_with_stats(0)
 
         total_carriers = cruise.stats.total_carriers
-        total_unloads = cruise.stats.total_unloads
-        remaining_carriers = cruise.stats.remaining_carriers
+        remaining_carriers = cruise.stats.carriers_remaining
+        total_unloads = cruise.stats.total_trips - remaining_carriers
         unloaded_carriers = total_carriers - remaining_carriers
 
         logger.debug(
