@@ -428,8 +428,8 @@ class Statistics(commands.Cog):
                 logger.info(f"Found {len(all_pins)} pinned messages to update")
                 for pin in all_pins:
                     logger.debug(f"Updating pinned message: {pin}")
-                    channel = await bot.get_or_fetch.channel(int(pin["channel_id"]))
-                    message = await channel.fetch_message(pin["message_id"])
+                    channel = await bot.get_or_fetch.channel(int(pin[1]))
+                    message = await channel.fetch_message(pin[0])
                     await message.edit(embed=stat_embed)
                     logger.debug(f"Pinned message updated successfully: {pin}")
                 logger.info("All pinned messages updated successfully")
@@ -633,11 +633,12 @@ class Statistics(commands.Cog):
             if pins:
                 logger.debug(f"Updating pinned messages: {pins}")
                 for pin in pins:
-                    channel = await bot.get_or_fetch.channel(pin["channel_id"])
-                    logger.debug(f"Channel matched as: {channel} from {pin['channel_id']}")
+                    logger.debug(pin)
+                    channel = await bot.get_or_fetch.channel(pin[1])
+                    logger.debug(f"Channel matched as: {channel} from {pin[1]}")
                     # Now go loop over every pin and update it
-                    message = await channel.fetch_message(pin["message_id"])
-                    logger.debug(f"Message matched as: {message} from {pin['message_id']}")
+                    message = await channel.fetch_message(pin[0])
+                    logger.debug(f"Message matched as: {message} from {pin[0]}")
                     await message.edit(embed=pinned_stat_embed)
             else:
                 logger.debug("No pinned messages to update")
@@ -689,7 +690,7 @@ class Statistics(commands.Cog):
             )
             return
 
-        await database.pin_message(channel.id, message.id)
+        await database.pin_message(message.id, channel.id)
 
         if not message.pinned:
             logger.info(f"Message is not pinned - pinning now: {message_id}")
@@ -722,10 +723,10 @@ class Statistics(commands.Cog):
         all_pins = await database.get_all_pinned_messages()
         if all_pins:
             for pin in all_pins:
-                channel = await bot.get_or_fetch.channel(int(pin["channel_id"]))
-                message = await channel.fetch_message(pin["message_id"])
+                channel = await bot.get_or_fetch.channel(int(pin[1]))
+                message = await channel.fetch_message(pin[0])
                 await message.unpin(reason=f"Pirate Steve unpinned at the request of: {interaction.user.name}")
-                logger.debug(f"Removed pinned message: {pin['message_id']}.")
+                logger.debug(f"Removed pinned message: {pin[0]}.")
             await database.clear_all_pins()
             logger.info("All pinned messages removed successfully")
             await interaction.edit_original_response(content="Pirate Steve removed all the pinned stat messages")
@@ -759,7 +760,7 @@ class Statistics(commands.Cog):
         message_id = int(split_message_link[6])
         message = await channel.fetch_message(message_id)
 
-        if not database.is_message_pinned(channel.id, message.id):
+        if not await database.is_message_pinned(message.id):
             logger.warning(f"Message {message_link} is not recorded as pinned in the database.")
             await interaction.edit_original_response(
                 content=f"Pirate Steve could not find the pinned message {message_link} in his records."
@@ -768,8 +769,11 @@ class Statistics(commands.Cog):
 
         await message.unpin(reason=f"Pirate Steve unpinned at the request of: {interaction.user.name}")
         logger.debug(f"Unpinned message: {message_id}.")
-        await database.unpin_message(channel.id, message.id)
+        await database.unpin_message(message.id)
         logger.info(f"Removed pinned message {message_id} from the database.")
+        await interaction.edit_original_response(
+            content=f"Pirate Steve unpinned the message {message_link}."
+        )
 
     @app_commands.command(
         name="booze_tally_extra_stats",

@@ -1,5 +1,6 @@
 import random
 import re
+from typing import cast
 
 import discord
 from discord import app_commands
@@ -143,7 +144,7 @@ class AutoResponses(commands.Cog):
             await interaction.edit_original_response(content=f"An auto response with the name '{name}' already exists.")
             return
 
-        await database.create_auto_response(name, trigger, is_regex, response)
+        await database.add_auto_response(name, trigger, response, is_regex)
 
         # Add the new auto response to the list
         self.auto_responses.append(
@@ -219,6 +220,7 @@ class AutoResponses(commands.Cog):
         # Used to allow the message to be edited on timeout
         view.message = message
         view.user = interaction.user
+        view.user = cast(discord.User, interaction.user)
 
 
 class ListAutoResponseView(discord.ui.View):
