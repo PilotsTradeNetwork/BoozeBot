@@ -47,6 +47,19 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["FIX001", "FIX002", "FIX003"]
 
+[tool.basedpyright]
+reportOptionalMemberAccess=false
+reportArgumentType=false
+reportAny=false
+reportMissingTypeStubs=false
+reportAttributeAccessIssue=false
+reportAssignmentType=false
+reportUnusedCallResult=false
+reportUnknownVariableType=false
+reportUnknownArgumentType=false
+reportUnknownMemberType=false
+reportUnknownParameterType=false
+
 [tool.uv.sources]
 ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev = "0.2.6" }
 
