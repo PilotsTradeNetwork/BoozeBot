@@ -20,7 +20,7 @@ loguru==0.7.3
 multidict==6.7.0
 prometheus-client==0.24.1
 propcache==0.4.1
-ptn-utils @ git+https://github.com/PilotsTradeNetwork/PTN-Library.git@bb16782c0b95176a90ccceeb7f40afad8542ecd6
+ptn-utils @ git+https://github.com/PilotsTradeNetwork/PTN-Library.git@aef4b28b2be931d9f0775bc1beb70a8edf9214ac
 python-dotenv==1.2.1
 requests==2.32.5
 tenacity==9.1.2
