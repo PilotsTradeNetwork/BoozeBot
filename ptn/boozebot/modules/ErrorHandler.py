@@ -112,10 +112,6 @@ async def on_text_command_error(ctx: commands.Context, error: Exception):
 async def on_app_command_error(interaction: Interaction, error: AppCommandError):
     """Global error handler for application commands"""
 
-    logger.exception(
-        f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
-    )
-
     try:
         if isinstance(error, CommandChannelError):
             logger.debug(
@@ -191,6 +187,9 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             except InteractionResponded:
                 await interaction.followup.send(embed=embed, ephemeral=True)
             logger.debug("Unhandled error message sent to user")
+            logger.exception(
+                f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
+            )
 
     except Exception as e:
         logger.exception(f"An error occurred in the error handler (lol): {e}")
