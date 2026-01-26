@@ -43,7 +43,9 @@ def _on_api_failure(retry_state: RetryCallState):
     Called when API requests fail after all retries are exhausted.
     Schedules async task to post error message to bot_spam channel.
     """
-    exception = retry_state.outcome.exception()
+    exception: BaseException | None = retry_state.outcome.exception()
+    if exception is None:
+        return
     args = retry_state.args
     kwargs = retry_state.kwargs
 
@@ -59,6 +61,8 @@ def _on_api_failure(retry_state: RetryCallState):
     )
 
     asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
+
+    raise exception
 
 
 async def _send_failure_to_discord(
@@ -90,7 +94,7 @@ async def _send_failure_to_discord(
         logger.exception(f"Failed to send API failure notification to bot_spam: {e}")
 
 
-def _log_before_sleep(retry_state):
+def _log_before_sleep(retry_state: RetryCallState):
     """Log retry attempts with exception details."""
     exception = retry_state.outcome.exception()
     error_msg = str(exception) or type(exception).__name__
@@ -103,7 +107,7 @@ def _log_before_sleep(retry_state):
 class BoozeSheetsApi:
     _ws_connected: bool
     _ws_running: bool
-    ws_task: asyncio.Task[Any] | None
+    ws_task: asyncio.Task[None] | None
     ws_client: AsyncClient | None
     bot: Bot
     client_lock: Lock
@@ -134,7 +138,6 @@ class BoozeSheetsApi:
         wait=wait_exponential(multiplier=1, min=2, max=10),
         before_sleep=_log_before_sleep,
         retry_error_callback=_on_api_failure,
-        reraise=True,
     )
     async def _request(self, method: str, endpoint: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
         """
