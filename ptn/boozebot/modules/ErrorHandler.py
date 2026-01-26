@@ -113,6 +113,9 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
     """Global error handler for application commands"""
 
     try:
+        logger.error(
+            f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
+        )
         if isinstance(error, CommandChannelError):
             logger.debug(
                 f"Channel check error raised. Permitted channel(s): {error.permitted_channel}, reporting to user"
@@ -187,9 +190,7 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             except InteractionResponded:
                 await interaction.followup.send(embed=embed, ephemeral=True)
             logger.debug("Unhandled error message sent to user")
-            logger.exception(
-                f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
-            )
+            logger.exception(error)
 
     except Exception as e:
         logger.exception(f"An error occurred in the error handler (lol): {e}")
