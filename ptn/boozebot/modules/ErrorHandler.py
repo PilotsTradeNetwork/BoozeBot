@@ -1,6 +1,6 @@
 import random
 
-from httpx import HTTPStatusError
+from httpx import HTTPStatusError, TimeoutException, ConnectError, NetworkError
 
 # import local constants
 from discord import Interaction, InteractionResponded, app_commands, Embed
@@ -79,7 +79,7 @@ class CustomError(Exception):
         super().__init__(self.message, "CustomError raised")
 
 
-async def on_text_command_error(ctx: commands.Context, error: Exception):
+async def on_text_command_error(ctx: commands.Context[commands.Bot], error: Exception):
     gif = random.choice(error_gifs)
     logger.exception(f"Error from {ctx.command} in {ctx.channel} called by {ctx.author}: {error}")
     if isinstance(error, commands.BadArgument):
@@ -177,10 +177,22 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             status_code = error.original.response.status_code
             embed = Embed(description=f"❌ An HTTP error occurred: {status_code}", color=EMBED_COLOUR_ERROR)
             try:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await interaction.response.send_message(embed=embed)
             except InteractionResponded:
-                await interaction.followup.send(embed=embed, ephemeral=True)
+                await interaction.followup.send(embed=embed)
             logger.debug("HTTPStatusError message sent to user")
+            
+        elif isinstance(error.original, (TimeoutException, ConnectError, NetworkError)):
+            logger.debug(f"Network-related error raised with message: {error}, reporting to user")
+            embed = Embed(
+                description="❌ A network error occurred",
+                color=EMBED_COLOUR_ERROR
+            )
+            try:
+                await interaction.response.send_message(embed=embed)
+            except InteractionResponded:
+                await interaction.followup.send(embed=embed)
+            logger.debug("Network-related error message sent to user")
 
         else:
             logger.debug(f"Unhandled error type: {type(error)}, reporting to user")
