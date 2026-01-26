@@ -18,6 +18,7 @@ requires-python = "~=3.13.0"
 dependencies = [
     "discord-py~=2.5",
     "discord-ext-prometheus~=0.2.1",
+    "isodate~=0.7.2",
     "loguru~=0.7.3",
     "python-dotenv~=1.2.1",
     "requests~=2.32.5",

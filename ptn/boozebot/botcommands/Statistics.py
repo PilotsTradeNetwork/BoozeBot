@@ -3,16 +3,15 @@ Cog for all the commands that interact with the database
 
 """
 
-import asyncio
 import math
-import re
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, Any
 
 import discord
 from discord import Embed, app_commands
-from discord.app_commands import Choice, describe
+from discord.app_commands import describe
 from discord.ext import commands, tasks
+from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
     CHANNEL_BC_WINE_CARRIER,
@@ -21,7 +20,6 @@ from ptn_utils.global_constants import (
     ROLE_CONN,
     ROLE_SOMM,
     ROLE_WINE_CARRIER,
-    _production,
     any_council_role,
     any_moderation_role,
 )
@@ -29,14 +27,12 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.classes.Cruise import Cruise
 from ptn.boozebot.constants import (
-    CARRIER_ID_RE,
     RACKHAMS_PEAK_POP,
     bot,
 )
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.pagination import createPagination
-from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 
@@ -97,6 +93,8 @@ StatChoices = Literal[
 
 
 class Statistics(commands.Cog):
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -123,7 +121,7 @@ class Statistics(commands.Cog):
 
         logger.debug(
             f"Calculated stats - Carrier Count: {unique_carrier_count}, Total Wine: {total_wine}, Total Profit: {total_profit}, "
-            f"Wine/Carrier: {wine_per_carrier}, PythonLoads: {python_loads}, Wine/Capita: {wine_per_capita}, Carrier Buys: {fleet_carrier_buy_count}"
+            + f"Wine/Carrier: {wine_per_carrier}, PythonLoads: {python_loads}, Wine/Capita: {wine_per_capita}, Carrier Buys: {fleet_carrier_buy_count}"
         )
 
         if total_wine > 4000000:
@@ -145,7 +143,7 @@ class Statistics(commands.Cog):
 
         date_text = (
             f":\nHistorical Data: [{target_date} - "
-            f"{datetime.strptime(target_date, '%Y-%m-%d').date() + timedelta(days=2)}]"
+            + f"{datetime.strptime(target_date, '%Y-%m-%d').date() + timedelta(days=2)}]"
             if target_date
             else ""
         )
@@ -160,19 +158,19 @@ class Statistics(commands.Cog):
         stat_embed = discord.Embed(
             title=f"Pirate Steve's Booze Cruise Tally {date_text}",
             description=f"{state_text}"
-            f"**Total number of carrier trips:** — {total_trips:>1}\n"
-            f"**Total number of unique carriers:** — {unique_carrier_count:>24}\n"
-            f"**Profit per ton:** — {profit_per_tonne:>56,}\n"
-            f"**Rackham pop:** — {RACKHAMS_PEAK_POP:>56,}\n"
-            f"**Wine per capita:** — {wine_per_capita:>56,.2f}\n"
-            f"**Wine per carrier:** — {math.ceil(wine_per_carrier):>56,}\n"
-            f"**Python loads (288t):** — {math.ceil(python_loads):>56,}\n"
-            f"**Type-8 loads (400t):** — {math.ceil(t8_loads):>56,}\n\n"
-            f"**Total wine:** — {total_wine:,}\n"
-            f"**Total profit:** — {total_profit:,}\n\n"
-            f"**Total number of fleet carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n"
-            f"{flavour_text}\n\n"
-            f"{updated_timestamp}",
+            + f"**Total number of carrier trips:** — {total_trips:>1}\n"
+            + f"**Total number of unique carriers:** — {unique_carrier_count:>24}\n"
+            + f"**Profit per ton:** — {profit_per_tonne:>56,}\n"
+            + f"**Rackham pop:** — {RACKHAMS_PEAK_POP:>56,}\n"
+            + f"**Wine per capita:** — {wine_per_capita:>56,.2f}\n"
+            + f"**Wine per carrier:** — {math.ceil(wine_per_carrier):>56,}\n"
+            + f"**Python loads (288t):** — {math.ceil(python_loads):>56,}\n"
+            + f"**Type-8 loads (400t):** — {math.ceil(t8_loads):>56,}\n\n"
+            + f"**Total wine:** — {total_wine:,}\n"
+            + f"**Total profit:** — {total_profit:,}\n\n"
+            + f"**Total number of fleet carriers that profit can buy:** — {fleet_carrier_buy_count:,.2f}\n\n"
+            + f"{flavour_text}\n\n"
+            + f"{updated_timestamp}",
         )
         stat_embed.set_image(
             url="https://cdn.discordapp.com/attachments/783783142737182724/849157248923992085/unknown.png"
@@ -231,7 +229,7 @@ class Statistics(commands.Cog):
         wine_boxes_per_scot_pop = wine_boxes_total / scotland_population
         wine_boxes_litres_per_scot_pop = wine_boxes_litres_total / scotland_population
 
-        server_population = (await bot.get_or_fetch.guild(DISCORD_GUILD)).member_count
+        server_population = (await bot.get_or_fetch.guild(DISCORD_GUILD)).member_count or 1
         tons_per_server_pop = total_wine / server_population
         wine_bottles_per_server_pop = wine_bottles_total / server_population
         wine_bottles_litres_per_server_pop = wine_bottles_litres_total / server_population
@@ -250,7 +248,7 @@ class Statistics(commands.Cog):
 
         date_text = (
             f":\nHistorical Data: [{target_date} - "
-            f"{datetime.strptime(target_date, '%Y-%m-%d').date() + timedelta(days=2)}]"
+            + f"{datetime.strptime(target_date, '%Y-%m-%d').date() + timedelta(days=2)}]"
             if target_date
             else ""
         )
@@ -379,7 +377,7 @@ class Statistics(commands.Cog):
             self.periodic_stat_update.start()
 
     @commands.Cog.listener()
-    async def on_boozesheets_carrier_created(self, data: dict):
+    async def on_boozesheets_carrier_created(self, data: dict[str, Any]):
         logger.info("BoozeSheets carrier created event received")
 
         carrier = BoozeCarrier(data.get("carrier", {}))
@@ -559,11 +557,11 @@ class Statistics(commands.Cog):
         carrier_embed = discord.Embed(
             title=f"YARR! Found carrier details for the input: {carrier_id}",
             description=f"CarrierName: **{carrier_data.carrier_name}**\n"
-            f"ID: **{carrier_data.carrier_identifier}**\n"
-            f"Total Tonnes of Wine: **{total_wine}**\n"
-            f"Number of trips to the peak: **{carrier_data.trip_id}**\n"
-            f"Total Unloads: **{total_unloads}**\n"
-            f"Operated by: {carrier_data.owner.mention}",
+            + f"ID: **{carrier_data.carrier_identifier}**\n"
+            + f"Total Tonnes of Wine: **{total_wine}**\n"
+            + f"Number of trips to the peak: **{carrier_data.trip_id}**\n"
+            + f"Total Unloads: **{total_unloads}**\n"
+            + f"Operated by: {carrier_data.owner.mention}",
         )
         await interaction.edit_original_response(embed=carrier_embed)
 
@@ -713,7 +711,7 @@ class Statistics(commands.Cog):
         """
         Clears all the pinned messages
 
-        :param Interaction discord.Interaction: The discord interaction context
+        :param interaction: The discord interaction context
         :returns: None
         """
 
@@ -744,7 +742,7 @@ class Statistics(commands.Cog):
         """
         Clears the pinned embed described by the message_link string.
 
-        :param Interaction discord.Interaction: The discord interaction context
+        :param interaction: The discord interaction context
         :param str message_link: The message url to unpin
         :returns: None
         """
@@ -771,9 +769,7 @@ class Statistics(commands.Cog):
         logger.debug(f"Unpinned message: {message_id}.")
         await database.unpin_message(message.id)
         logger.info(f"Removed pinned message {message_id} from the database.")
-        await interaction.edit_original_response(
-            content=f"Pirate Steve unpinned the message {message_link}."
-        )
+        await interaction.edit_original_response(content=f"Pirate Steve unpinned the message {message_link}.")
 
     @app_commands.command(
         name="booze_tally_extra_stats",
@@ -877,10 +873,10 @@ class Statistics(commands.Cog):
         stat_embed = discord.Embed(
             title="Pirate Steve's Booze Carrier Summary",
             description=f"Total Carriers: {total_carriers}\n"
-            f"Unloaded Carriers: {unloaded_carriers}\n"
-            f"Total Unloads: {total_unloads}\n"
-            f"Remaining Carriers: {remaining_carriers}\n"
-            f"{duration_remaining}",
+            + f"Unloaded Carriers: {unloaded_carriers}\n"
+            + f"Total Unloads: {total_unloads}\n"
+            + f"Remaining Carriers: {remaining_carriers}\n"
+            + f"{duration_remaining}",
         )
         await interaction.edit_original_response(embed=stat_embed)
 
@@ -903,6 +899,7 @@ class Statistics(commands.Cog):
         """
         Returns the tally for the cruise with the most wine.
 
+        :param stat: Selection of stats to print. can take values 'All', 'Rackhams Population', 'Server Population', 'USA Population', 'Scotland Population', 'London Busses', 'Swimming Pools', 'Volume Maths'
         :param discord.Interaction interaction: The discord interaction context.
         :param bool extended: If the extended stats should be shown.
         :param IncludeNotUnloadedChoices include_not_unloaded: If we should include carriers that did not unload
@@ -926,9 +923,9 @@ class Statistics(commands.Cog):
 
         # Build the stat embed based on the extended flag
         if not extended:
-            stat_embed = await self.build_stat_embed(cruise)
+            stat_embed = await self.build_stat_embed(cruise, target_date=cruise.start.strftime("%Y-%m-%d"))
         else:
-            stat_embed = await self.build_extended_stat_embed(cruise, stat)
+            stat_embed = await self.build_extended_stat_embed(cruise, cruise.start.strftime("%Y-%m-%d"), stat)
 
         # Edit the original interaction response with the stat embed
         await interaction.edit_original_response(embed=stat_embed)
@@ -971,18 +968,18 @@ class Statistics(commands.Cog):
 
         logger.debug(
             f"Carrier stats for {carrier_id} - Name: {carrier_stats.name}, "
-            f"Total Wine: {carrier_stats.total_wine}, "
-            f"Total Trips: {carrier_stats.total_trips}, "
-            f"Total Cruises: {carrier_stats.total_cruises}, "
-            f"Owner: {carrier_stats.owner}."
+            + f"Total Wine: {carrier_stats.total_wine}, "
+            + f"Total Trips: {carrier_stats.total_trips}, "
+            + f"Total Cruises: {carrier_stats.total_cruises}, "
+            + f"Owner: {carrier_stats.owner}."
         )
 
         stat_embed = discord.Embed(
             title=f"Stats for {carrier_stats.name} ({carrier_id})",
             description=f"Total Wine: {carrier_stats.total_wine} tonnes\n"
-            f"Total Runs: {carrier_stats.total_trips}\n"
-            f"Total Cruises: {carrier_stats.total_cruises}\n"
-            f"Owner: {carrier_stats.owner.mention}",
+            + f"Total Runs: {carrier_stats.total_trips}\n"
+            + f"Total Cruises: {carrier_stats.total_cruises}\n"
+            + f"Owner: {carrier_stats.owner.mention}",
         )
 
         logger.info(f"Sending stats embed for carrier {carrier_id}.")
@@ -1028,19 +1025,19 @@ class Statistics(commands.Cog):
             title="Pirate Steve's All-Time Booze Cruise Tally",
             description=(
                 f"**Total Wine Delivered:** — {stats.total_wine:,} tonnes\n"
-                f"**Total Cruises:** — {total_cruises:,}\n"
-                f"**Total Trips:** — {stats.total_trips:,}\n"
-                f"**Total Carriers:** — {stats.total_carriers:,}\n"
-                f"**Total Carrier Owners:** — {stats.total_owners:,}\n"
-                f"**Total Profit:** — {stats.total_profit:,.2f} credits\n"
-                f"**Carriers Remaining:** — {stats.carriers_remaining:,}\n"
-                f"**Wine Remaining:** — {stats.wine_remaining:,} tonnes\n"
-                f"**Average Unload Duration:** — {stats.avg_unload_dur:.0f} seconds\n"
-                f"**Minimum Unload Duration:** — {stats.min_unload_dur:.0f} seconds\n"
-                f"**Maximum Unload Duration:** — {stats.max_unload_dur:.0f} seconds\n\n"
-                f"**Average Wine per Cruise:** — {avg_wine_per_cruise:,} tonnes\n"
-                f"**Average Profit per Cruise:** — {avg_profit_per_cruise:,.2f} credits\n"
-                f"**Average Trips per Cruise:** — {avg_trips_per_cruise:.2f}\n"
+                + f"**Total Cruises:** — {total_cruises:,}\n"
+                + f"**Total Trips:** — {stats.total_trips:,}\n"
+                + f"**Total Carriers:** — {stats.total_carriers:,}\n"
+                + f"**Total Carrier Owners:** — {stats.total_owners:,}\n"
+                + f"**Total Profit:** — {stats.total_profit:,.2f} credits\n"
+                + f"**Carriers Remaining:** — {stats.carriers_remaining:,}\n"
+                + f"**Wine Remaining:** — {stats.wine_remaining:,} tonnes\n"
+                + f"**Average Unload Duration:** — {stats.avg_unload_dur:.0f} seconds\n"
+                + f"**Minimum Unload Duration:** — {stats.min_unload_dur:.0f} seconds\n"
+                + f"**Maximum Unload Duration:** — {stats.max_unload_dur:.0f} seconds\n\n"
+                + f"**Average Wine per Cruise:** — {avg_wine_per_cruise:,} tonnes\n"
+                + f"**Average Profit per Cruise:** — {avg_profit_per_cruise:,.2f} credits\n"
+                + f"**Average Trips per Cruise:** — {avg_trips_per_cruise:.2f}\n"
             ),
         )
 

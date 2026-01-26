@@ -372,7 +372,7 @@ class BoozeSheetsApi:
                 raise
         logger.debug(f"Biggest cruise stats retrieved: {cruise_data}")
 
-        return Cruise(cruise_data.get("stats", {}))
+        return Cruise(cruise_data)
 
     async def get_trip_for_carrier(self, carrier_id: str, trip_id: str) -> Optional[BoozeCarrier]:
         """

@@ -5,12 +5,13 @@ Cog for departure related commands
 
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Literal
+from typing import Literal, Any
 
 import discord
 from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
+from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
     CHANNEL_BC_DEPARTURE_ANNOUNCEMENT,
     CHANNEL_BC_STEVE_SAYS,
@@ -43,6 +44,8 @@ logger = get_logger("boozebot.commands.departures")
 
 # initialise the Cog and attach our global error handler
 class Departures(commands.Cog):
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -50,7 +53,7 @@ class Departures(commands.Cog):
     This class is a collection functionality for posting departure messages for carriers.
     """
 
-    system_choices = [
+    system_choices: list[Choice[str | int | float | Any]] = [
         Choice(name=f"{system_id} ({system_name})", value=system_id) for system_id, system_name in N_SYSTEMS.items()
     ]
 

@@ -4,10 +4,10 @@ A module for helper functions called by other modules.
 Depends on: constants, ErrorHandler, database
 """
 
-import datetime
+from datetime import datetime, timezone
 import functools
+import isodate
 
-# import discord.py
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -177,7 +177,7 @@ def track_last_run():
             logger.debug(f"Executing wrapped coroutine {coro.__name__}")
             result = await coro(self, *args, **kwargs)
             loop = getattr(self, coro.__name__)
-            loop.last_run_time = datetime.datetime.now(datetime.timezone.utc)
+            loop.last_run_time = datetime.now(timezone.utc)
             logger.debug(f"Updated last_run_time for {coro.__name__} to {loop.last_run_time}")
             return result
 
@@ -205,3 +205,16 @@ def is_staff(user: discord.Member) -> bool:
     is_wine_staff = any(role.id in staff_roles for role in user.roles)
     logger.debug(f"User {user} wine staff status: {is_wine_staff}")
     return is_wine_staff
+
+
+def sane_default_datetime(possibly_none: str | None) -> datetime | None:
+    return (
+        datetime.fromisoformat(possibly_none.replace("Z", "+00:00")).astimezone(timezone.utc) if possibly_none else None
+    )
+
+
+def sane_default_duration(possibly_none: str | None) -> float | None:
+    return isodate.parse_duration(possibly_none).total_seconds() if possibly_none else None
+
+def sane_default_float(possibly_none: str | None)->float | None:
+    return float(possibly_none) if possibly_none else None
