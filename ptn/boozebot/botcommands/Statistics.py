@@ -386,9 +386,9 @@ class Statistics(commands.Cog):
             title="New WineCarrier signed up!",
             description=(
                 f"**{carrier.carrier_name} ({carrier.carrier_identifier})**\n"
-                f"Trip Number: {carrier.trip_id}\n"
-                f"**{carrier.wine_total} tonnes of wine**\n"
-                f"Owned by {carrier.owner.mention} ({carrier.owner.username})"
+                + f"Trip Number: {carrier.trip_id}\n"
+                + f"**{carrier.wine_total} tonnes of wine**\n"
+                + f"Owned by {carrier.owner.mention} ({carrier.owner.username})"
             ),
         )
 

@@ -1,10 +1,13 @@
+from asyncio import Lock, Task
 from datetime import datetime, timezone
 import httpx
 import asyncio
 import json
-from typing import Optional
+from typing import Any, Literal, Optional
 from discord.ext import commands
 import websockets
+from discord.ext.commands import Bot
+from httpx import AsyncClient
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -52,14 +55,14 @@ def _on_api_failure(retry_state):
 
     logger.exception(
         f"BoozeSheets API request failed after {retry_state.attempt_number} attempts: "
-        f"method={method}, endpoint={endpoint}, data={data}, error={error_msg}"
+        + f"method={method}, endpoint={endpoint}, data={data}, error={error_msg}"
     )
 
     asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
 
 
 async def _send_failure_to_discord(
-    method: str, endpoint: str, data: Optional[dict], exception: Exception, attempts: int
+    method: str, endpoint: str, data: dict[str, Any], exception: Exception, attempts: int
 ):
     """
     Sends API failure notification to bot_spam channel.
@@ -76,10 +79,10 @@ async def _send_failure_to_discord(
         embed = Embed(
             title="⚠️ BoozeSheets API Failure",
             description=f"API request failed after {attempts} retry attempts.\n\n"
-            f"**Method:** `{method}`\n"
-            f"**Endpoint:** `{endpoint}`\n"
-            f"**Data:** `{data}`\n"
-            f"**Error:** {error_msg}",
+            + f"**Method:** `{method}`\n"
+            + f"**Endpoint:** `{endpoint}`\n"
+            + f"**Data:** `{data}`\n"
+            + f"**Error:** {error_msg}",
             color=0xFF0000,
         )
         await bot_spam.send(embed=embed)
@@ -93,11 +96,20 @@ def _log_before_sleep(retry_state):
     error_msg = str(exception) or type(exception).__name__
     logger.warning(
         f"Retrying BoozeSheets API request: attempt {retry_state.attempt_number} "
-        f"after {retry_state.idle_for:.1f}s due to {error_msg}"
+        + f"after {retry_state.idle_for:.1f}s due to {error_msg}"
     )
 
 
 class BoozeSheetsApi:
+    _ws_connected: bool
+    _ws_running: bool
+    ws_task: asyncio.Task | None
+    ws_client: AsyncClient | None
+    bot: Bot
+    client_lock: Lock
+    client: AsyncClient
+    base_url: str
+
     def __init__(self):
         self.base_url = BOOZESHEETS_API_BASE_URL
         # Configure transport with retries for connection-level failures
@@ -109,9 +121,9 @@ class BoozeSheetsApi:
             transport=transport,
         )
         self.client_lock = asyncio.Lock()
-        self.bot: commands.Bot = bot
-        self.ws_client: Optional[httpx.AsyncClient] = None
-        self.ws_task: Optional[asyncio.Task] = None
+        self.bot = bot
+        self.ws_client = None
+        self.ws_task = None
         self._ws_running = False
         self._last_ws_message_time: Optional[datetime] = None
         self._ws_connected = False
@@ -311,6 +323,8 @@ class BoozeSheetsApi:
         logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}")
         all_cruises_endpoint = "/cruises"
 
+        cruise_id_int = int(cruise_id)
+
         logger.debug(f"Sending GET request to {all_cruises_endpoint}")
         all_cruises = await self._request("GET", all_cruises_endpoint)
         logger.debug(f"All cruises retrieved: {all_cruises}")
@@ -323,10 +337,10 @@ class BoozeSheetsApi:
             all_cruises, key=lambda x: datetime.fromisoformat(x.get("cruiseStart", "")), reverse=True
         )
 
-        if cruise_id > len(sorted_cruises):
+        if cruise_id_int > len(sorted_cruises):
             logger.warning(f"Cruise ID {cruise_id} is out of range. Total cruises: {len(sorted_cruises)}")
             raise ValueError("Cruise ID is out of range.")
-        actual_cruise_id = sorted_cruises[cruise_id].get("cruiseId", None)
+        actual_cruise_id = sorted_cruises[cruise_id_int].get("cruiseId", None)
 
         stats_endpoint = f"/cruises/{actual_cruise_id}"
         if include_not_unloaded is not None:
@@ -602,7 +616,7 @@ class BoozeSheetsApi:
         except Exception as e:
             logger.error(f"Error in websocket message handler: {e}", exc_info=True)
 
-    def get_websocket_status(self) -> tuple[str, datetime]:
+    def get_websocket_status(self) -> tuple[Literal["Connected", "Disconnected"], datetime | None]:
         """
         Get the current status of the websocket connection.
 

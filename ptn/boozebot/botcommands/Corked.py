@@ -241,6 +241,7 @@ class Corked(commands.Cog):
                 continue
             overwrite = PermissionOverwrite()
             overwrite.view_channel = False
+            channel_id = -1
             try:
                 for channel_id in self.CORK_CHANNELS:
                     logger.debug(f"Setting permissions for corked user {user} in channel ID {channel_id}.")

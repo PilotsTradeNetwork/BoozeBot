@@ -39,12 +39,11 @@ class CruiseStats:
         self.min_unload_dur = sane_default_float(info_dict.get("minUnloadDur", None))
         self.max_unload_dur = sane_default_float(info_dict.get("maxUnloadDur", None))
 
-
         logger.debug(
-            f"CruiseStats initialized: total_wine={self.total_wine}, total_trips={self.total_trips}, " +
-            f"total_carriers={self.total_carriers}, carriers_remaining={self.carriers_remaining}, " +
-            f"wine_remaining={self.wine_remaining}, avg_unload_dur={self.avg_unload_dur}, " +
-            f"min_unload_dur={self.min_unload_dur}, max_unload_dur={self.max_unload_dur}"
+            f"CruiseStats initialized: total_wine={self.total_wine}, total_trips={self.total_trips}, "
+            + f"total_carriers={self.total_carriers}, carriers_remaining={self.carriers_remaining}, "
+            + f"wine_remaining={self.wine_remaining}, avg_unload_dur={self.avg_unload_dur}, "
+            + f"min_unload_dur={self.min_unload_dur}, max_unload_dur={self.max_unload_dur}"
         )
 
 
@@ -65,7 +64,8 @@ class Cruise:
 
         self.id = int(info_dict.get("cruiseId", 0))
         self.start = sane_default_datetime(info_dict.get("cruiseStart", None)) or datetime.min.replace(
-            tzinfo=timezone.utc)
+            tzinfo=timezone.utc
+        )
         self.end = sane_default_datetime(info_dict.get("cruiseEnd", None)) or datetime.max.replace(tzinfo=timezone.utc)
 
         self.faction_state = info_dict.get("factionState", None)

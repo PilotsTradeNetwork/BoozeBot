@@ -1,4 +1,5 @@
 import re
+from typing import Any, override
 
 import discord.colour
 from discord import ButtonStyle, Embed, Interaction, ui
@@ -75,6 +76,7 @@ class DynamicButton(
         self.message_id: int = message_id
         logger.debug("DynamicButton created successfully")
 
+    @override
     @classmethod
     async def from_custom_id(cls, interaction: discord.Interaction, item: discord.ui.Button, match: re.Match[str], /):
         logger.debug(f"Parsing DynamicButton from custom_id: {item.custom_id}")

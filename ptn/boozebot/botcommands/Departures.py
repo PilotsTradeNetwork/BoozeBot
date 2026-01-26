@@ -64,6 +64,7 @@ class Departures(commands.Cog):
             departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
         except Exception as e:
             logger.exception(f"Failed to get departure_channel: {e}")
+            return
 
         logger.info("Checking for completed departure messages.")
         try:
@@ -114,7 +115,7 @@ class Departures(commands.Cog):
 
     # On reaction check if its in the departures channel and if it was from who posted the departure, if it is remove it.
     @commands.Cog.listener()
-    async def on_raw_reaction_add(self, reaction_event):
+    async def on_raw_reaction_add(self, reaction_event: discord.RawReactionActionEvent):
         try:
             user = reaction_event.member
 
@@ -272,7 +273,7 @@ class Departures(commands.Cog):
 
         logger.info(
             f"User {interaction.user.name} has requested a new wine carrier departure operation for carrier: {carrier_id} from the "
-            f"location: {departure_location} to {arrival_location}."
+            + f"location: {departure_location} to {arrival_location}."
         )
 
         # Defer the interaction response to allow more time for processing
@@ -331,7 +332,7 @@ class Departures(commands.Cog):
         carrier_id = carrier_data.carrier_identifier
 
         # Function to sanitize input by removing certain characters
-        def sanitize_input(text):
+        def sanitize_input(text: str):
             return text.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
 
         # Sanitize the input data
@@ -427,8 +428,8 @@ class Departures(commands.Cog):
 
         logger.debug(
             f"Departure system index: {departure_system_index}, Arrival system index: {arrival_system_index}, "
-            f"is_hitchhiking_trip: {is_hitchhiking_trip}, is_thoon_trip: {is_thoon_trip}, "
-            f"departing_thoon: {departing_thoon}"
+            + f"is_hitchhiking_trip: {is_hitchhiking_trip}, is_thoon_trip: {is_thoon_trip}, "
+            + f"departing_thoon: {departing_thoon}"
         )
 
         hitchhiker_ping_text = ""
@@ -605,35 +606,36 @@ class Departures(commands.Cog):
 
         logger.debug(f"Departure location: {departure_location}, Arrival location: {arrival_location}")
 
-        async def validate_timestamp(timestamp: str) -> int | None:
-            if not timestamp:
+        async def validate_timestamp(input: str) -> int | None:
+            if not input:
                 msg = "You must provide a departure timestamp when using the 'Custom' departure time type."
                 logger.info(msg)
                 await interaction.edit_original_response(content=msg)
                 return None
 
             try:
-                if timestamp.startswith("<t:") and timestamp.endswith(">"):
-                    timestamp = timestamp.rstrip(">").split(":")[1]
-                timestamp = int(timestamp)
+                if input.startswith("<t:") and input.endswith(">"):
+                    input = input.rstrip(">").split(":")[1]
+                timestamp = int(input)
                 if timestamp < datetime.now(timezone.utc).timestamp():
-                    msg = f"Departure timestamp must be in the future: {timestamp}"
+                    msg = f"Departure timestamp must be in the future: {input}"
                     logger.info(msg)
                     await interaction.edit_original_response(content=msg)
                     return None
                 elif timestamp > (datetime.now(timezone.utc) + timedelta(days=7)).timestamp():
-                    msg = f"Departure timestamp must be within 1 week of now: {timestamp}"
+                    msg = f"Departure timestamp must be within 1 week of now: {input}"
                     logger.info(msg)
                     await interaction.edit_original_response(content=msg)
                     return None
             except ValueError:
-                msg = f"Departure timestamp was not a valid integer: {timestamp}"
+                msg = f"Departure timestamp was not a valid integer: {input}"
                 logger.info(msg)
                 await interaction.edit_original_response(content=msg)
                 return None
 
             return timestamp
 
+        departure_time_text = ""
         if departure_time_type == "Start Of Cruise":
             departure_time_text = "Departs when the public holiday is announced at Rackham's Peak"
         elif departure_time_type == "End of Cruise":
@@ -655,10 +657,10 @@ class Departures(commands.Cog):
 
         embed = discord.Embed(
             description=f"# {departure_name}\n"
-            f"## {carrier_name} ({carrier_id})\n"
-            f"## {departure_location} > {arrival_location}\n"
-            f"{departure_time_text}\n"
-            f"Operated by {operated_by.mention}",
+            + f"## {carrier_name} ({carrier_id})\n"
+            + f"## {departure_location} > {arrival_location}\n"
+            + f"{departure_time_text}\n"
+            + f"Operated by {operated_by.mention}",
             color=15611236,
         )
 
@@ -712,3 +714,9 @@ class Departures(commands.Cog):
             logger.debug("Updating database with departure message ID.")
             await database.set_departure_message_for_carrier(carrier_id, departure_message.id)
             logger.info("Official departure message posted successfully.")
+
+    def get_departure_author_id(self, message: discord.Message) -> int | None:
+        try:
+            return int(message.content.split("<@")[1].split(">")[0])
+        except IndexError:
+            return None

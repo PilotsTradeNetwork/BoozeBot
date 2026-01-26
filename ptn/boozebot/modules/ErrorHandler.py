@@ -40,7 +40,11 @@ class CommandRoleError(app_commands.CheckFailure):
 class AsyncioTimeoutError(Exception):
     """Timeout error"""
 
-    def __init__(self, message, is_private=True):
+    is_private: bool
+    message: str
+
+    def __init__(self, message: str, is_private: bool = True):
+        super().__init__()
         self.message = message
         self.is_private = is_private
 
@@ -62,7 +66,10 @@ class GenericError(Exception):
 class CustomError(Exception):
     """A custom error that notifies the user with a custom message"""
 
-    def __init__(self, message, is_private=True):
+    is_private: bool
+    message: str
+
+    def __init__(self, message: str, is_private: bool = True):
         self.message = message
         self.is_private = is_private
         super().__init__(self.message, "CustomError raised")

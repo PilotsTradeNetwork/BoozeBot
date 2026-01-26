@@ -28,7 +28,7 @@ from ptn.boozebot.modules.ErrorHandler import CommandChannelError, CommandRoleEr
 logger = get_logger("boozebot.modules.helpers")
 
 
-async def checkroles_actual(interaction: discord.Interaction, permitted_role_ids):
+async def checkroles_actual(interaction: discord.Interaction, permitted_role_ids: list[int]):
     """
     Check if the user has at least one of the permitted roles to run a command
     """
@@ -46,12 +46,13 @@ async def checkroles_actual(interaction: discord.Interaction, permitted_role_ids
         return False, []
 
 
-def check_roles(permitted_role_ids):
+def check_roles(permitted_role_ids: list[int]):
     async def checkroles(
         interaction: discord.Interaction,
     ):
         permission, permitted_roles = await checkroles_actual(interaction, permitted_role_ids)
         logger.debug(f"Permission result from checkroles_actual: {permission}")
+        formatted_role_list = ""
         if not permission:
             role_list = []
             for role in permitted_role_ids:
@@ -72,7 +73,7 @@ def check_roles(permitted_role_ids):
 
 
 # decorator for interaction channel checks
-def check_command_channel(permitted_channel):
+def check_command_channel(permitted_channel: list[int]):
     """
     Decorator used on an interaction to limit it to specified channels
     """
@@ -113,7 +114,7 @@ def check_command_channel(permitted_channel):
 
 
 # decorator for text command channel checks
-def check_text_command_channel(permitted_channel):
+def check_text_command_channel(permitted_channel: list[int]):
     """
     Decorator used on a text command to limit it to a specified channel
     """
@@ -209,12 +210,15 @@ def is_staff(user: discord.Member) -> bool:
 
 def sane_default_datetime(possibly_none: str | None) -> datetime | None:
     return (
-        datetime.fromisoformat(possibly_none.replace("Z", "+00:00")).astimezone(timezone.utc) if possibly_none else None
+        datetime.fromisoformat(possibly_none.replace("Z", "+00:00")).astimezone(timezone.utc)
+        if possibly_none is not None
+        else None
     )
 
 
 def sane_default_duration(possibly_none: str | None) -> float | None:
-    return isodate.parse_duration(possibly_none).total_seconds() if possibly_none else None
+    return isodate.parse_duration(possibly_none).total_seconds() if possibly_none is not None else None
 
-def sane_default_float(possibly_none: str | None)->float | None:
-    return float(possibly_none) if possibly_none else None
+
+def sane_default_float(possibly_none: str | None) -> float | None:
+    return float(possibly_none) if possibly_none is not None else None

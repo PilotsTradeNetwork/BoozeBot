@@ -20,6 +20,7 @@ class AutoResponse:
         is_regex (bool): Whether the trigger is a regex pattern.
         response (str): The response message to send when the trigger is matched.
     """
+
     trigger: str | re.Pattern[str]
     response: str
     is_regex: bool

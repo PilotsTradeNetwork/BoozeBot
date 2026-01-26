@@ -8,7 +8,6 @@ from ptn.boozebot.modules.helpers import sane_default_datetime, sane_default_dur
 logger = get_logger("boozebot.classes.boozecarrier")
 
 
-
 class CarrierOwner:
     display_name: str | None
     discord_id: int

@@ -160,7 +160,7 @@ class PublicHoliday(commands.Cog):
     async def holiday_query(self, interaction: discord.Interaction):
         await interaction.response.defer()
         logger.info(f"User {interaction.user.name} queried the holiday state.")
-
+        gif = ""
         if await ph_check():
             logger.info("Rackhams holiday check says yep.")
             try:

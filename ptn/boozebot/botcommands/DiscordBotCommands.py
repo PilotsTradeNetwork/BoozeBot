@@ -96,7 +96,7 @@ class DiscordBotCommands(commands.Cog):
         logger.info(f"Exit command called by {ctx.author}.")
         await ctx.send("Ahoy! k thx bye")
         logger.warning("Bot is shutting down per user request.")
-        await sys.exit("User requested exit.")
+        sys.exit("User requested exit.")
 
     @commands.command(name="version", help="Logs the bot version")
     @commands.has_any_role(*any_council_role)

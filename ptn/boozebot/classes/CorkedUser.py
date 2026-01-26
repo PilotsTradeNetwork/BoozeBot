@@ -12,7 +12,7 @@ class CorkedUser:
     user_id: int | None
     timestamp: datetime | None
 
-    def __init__(self, info_dict: dict[str, int | datetime]=None)->None:
+    def __init__(self, info_dict: dict[str, int | datetime] = None) -> None:
         """
         Class represents a corked user object as returned from the database.
 
@@ -32,7 +32,7 @@ class CorkedUser:
 
         logger.debug(f"CorkedUser initialized: user_id={self.user_id}, timestamp={self.timestamp}")
 
-    async def get_member(self)->Member | None:
+    async def get_member(self) -> Member | None:
         """
         Returns the discord.Member object for the corked user.
 
@@ -42,7 +42,7 @@ class CorkedUser:
         return await bot.get_or_fetch.member(self.user_id)
 
     @override
-    def __str__(self)->str:
+    def __str__(self) -> str:
         """
         Overloads str to return a readable object
 
