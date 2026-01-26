@@ -9,6 +9,7 @@ from typing import Any
 
 import discord
 from discord import app_commands, Embed, Member, Interaction, DiscordException
+from discord.abc import GuildChannel
 from discord.app_commands import describe, ContextMenu
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
@@ -136,6 +137,7 @@ class MakeWineCarrier(commands.Cog):
         logger.debug(f"Alerting new signup for user {owner_id} with status {status} and notes {notes}")
 
         steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
+        assert isinstance(steve_says, GuildChannel)
 
         owner = await bot.get_or_fetch.member(owner_id)
         if not owner:

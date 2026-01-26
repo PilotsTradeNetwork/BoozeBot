@@ -17,8 +17,10 @@ logger = get_logger("boozebot.modules.errorhandler")
 # custom errors
 class CommandChannelError(app_commands.CheckFailure):
     """Channel check error"""
+    formatted_channel_list: str
+    permitted_channel: int
 
-    def __init__(self, permitted_channel, formatted_channel_list):
+    def __init__(self, permitted_channel: int, formatted_channel_list: str):
         self.permitted_channel = permitted_channel
         self.formatted_channel_list = formatted_channel_list
         super().__init__(permitted_channel, formatted_channel_list, "Channel check error raised")
@@ -28,8 +30,10 @@ class CommandChannelError(app_commands.CheckFailure):
 
 class CommandRoleError(app_commands.CheckFailure):
     """Role check error"""
+    formatted_role_list: str
+    permitted_roles: list[int]
 
-    def __init__(self, permitted_roles, formatted_role_list):
+    def __init__(self, permitted_roles: list[int], formatted_role_list: str):
         self.permitted_roles = permitted_roles
         self.formatted_role_list = formatted_role_list
         super().__init__(permitted_roles, formatted_role_list, "Role check error raised")
@@ -76,7 +80,6 @@ class CustomError(Exception):
 
 
 async def on_text_command_error(ctx: commands.Context, error: Exception):
-    """Global error handler for text commands"""
     gif = random.choice(error_gifs)
     logger.exception(f"Error from {ctx.command} in {ctx.channel} called by {ctx.author}: {error}")
     if isinstance(error, commands.BadArgument):
@@ -88,8 +91,8 @@ async def on_text_command_error(ctx: commands.Context, error: Exception):
     elif isinstance(error, commands.MissingRequiredArgument):
         logger.debug("Missing required argument error raised, reporting to user")
         await ctx.send(
-            "**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details."
-            "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation"
+            "**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details." +
+            "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation" +
             " marks are of the same type, i.e. all straight or matching open/close smartquotes."
         )
     elif isinstance(error, commands.MissingPermissions):

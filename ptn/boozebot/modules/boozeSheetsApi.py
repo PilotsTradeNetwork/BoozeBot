@@ -1,14 +1,14 @@
-from asyncio import Lock, Task
+from asyncio import Lock
 from datetime import datetime, timezone
 import httpx
 import asyncio
 import json
-from typing import Any, Literal, Optional
-from discord.ext import commands
+from typing import Any
 import websockets
 from discord.ext.commands import Bot
 from httpx import AsyncClient
 from tenacity import (
+    RetryCallState,
     retry,
     stop_after_attempt,
     wait_exponential,
@@ -38,7 +38,7 @@ def _should_retry_exception(exception: Exception) -> bool:
     return False
 
 
-def _on_api_failure(retry_state):
+def _on_api_failure(retry_state: RetryCallState):
     """
     Called when API requests fail after all retries are exhausted.
     Schedules async task to post error message to bot_spam channel.
@@ -103,7 +103,7 @@ def _log_before_sleep(retry_state):
 class BoozeSheetsApi:
     _ws_connected: bool
     _ws_running: bool
-    ws_task: asyncio.Task | None
+    ws_task: asyncio.Task[Any] | None
     ws_client: AsyncClient | None
     bot: Bot
     client_lock: Lock
@@ -125,7 +125,7 @@ class BoozeSheetsApi:
         self.ws_client = None
         self.ws_task = None
         self._ws_running = False
-        self._last_ws_message_time: Optional[datetime] = None
+        self._last_ws_message_time: datetime | None = None
         self._ws_connected = False
 
     @retry(
@@ -136,7 +136,7 @@ class BoozeSheetsApi:
         retry_error_callback=_on_api_failure,
         reraise=True,
     )
-    async def _request(self, method: str, endpoint: str, data: Optional[dict] = None) -> dict:
+    async def _request(self, method: str, endpoint: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Internal method to send HTTP requests to the BoozeSheets API.
 
@@ -160,7 +160,7 @@ class BoozeSheetsApi:
 
         return response_data
 
-    async def get_carrier_info(self, carrier_id: str) -> Optional[BoozeCarrier]:
+    async def get_carrier_info(self, carrier_id: str) -> BoozeCarrier | None:
         """
         Retrieves carrier information from the BoozeSheets API.
 
@@ -212,7 +212,7 @@ class BoozeSheetsApi:
 
         return carriers
 
-    async def update_carrier_info(self, carrier_id: str, update_data: dict) -> BoozeCarrier:
+    async def update_carrier_info(self, carrier_id: str, update_data: dict[str, Any]) -> BoozeCarrier:
         """
         Updates carrier information in the BoozeSheets API.
 
@@ -232,7 +232,7 @@ class BoozeSheetsApi:
 
         return updated_carrier
 
-    async def start_carrier_unload(self, carrier_id: str, delay: Optional[int] = None) -> BoozeCarrier:
+    async def start_carrier_unload(self, carrier_id: str, delay: int | None = None) -> BoozeCarrier:
         """
         Marks a carrier as having started unloading.
 
@@ -288,7 +288,7 @@ class BoozeSheetsApi:
 
         return carriers
 
-    async def get_cruises_list(self) -> list[dict]:
+    async def get_cruises_list(self) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Retrieves a list of all cruises from the BoozeSheets API.
 
@@ -311,7 +311,7 @@ class BoozeSheetsApi:
 
         return cruises
 
-    async def get_cruise_with_stats(self, cruise_id: str, include_not_unloaded: bool | None = None) -> Optional[Cruise]:
+    async def get_cruise_with_stats(self, cruise_id: int, include_not_unloaded: bool | None = None) -> Cruise | None:
         """
         Retrieves stats for a specific cruise.
 
@@ -323,7 +323,6 @@ class BoozeSheetsApi:
         logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}")
         all_cruises_endpoint = "/cruises"
 
-        cruise_id_int = int(cruise_id)
 
         logger.debug(f"Sending GET request to {all_cruises_endpoint}")
         all_cruises = await self._request("GET", all_cruises_endpoint)
@@ -337,10 +336,10 @@ class BoozeSheetsApi:
             all_cruises, key=lambda x: datetime.fromisoformat(x.get("cruiseStart", "")), reverse=True
         )
 
-        if cruise_id_int > len(sorted_cruises):
+        if cruise_id > len(sorted_cruises):
             logger.warning(f"Cruise ID {cruise_id} is out of range. Total cruises: {len(sorted_cruises)}")
             raise ValueError("Cruise ID is out of range.")
-        actual_cruise_id = sorted_cruises[cruise_id_int].get("cruiseId", None)
+        actual_cruise_id = sorted_cruises[cruise_id].get("cruiseId", None)
 
         stats_endpoint = f"/cruises/{actual_cruise_id}"
         if include_not_unloaded is not None:
@@ -361,7 +360,7 @@ class BoozeSheetsApi:
 
         return Cruise(cruise_data)
 
-    async def get_biggest_cruise_with_stats(self, include_not_unloaded: bool | None = None) -> Optional[Cruise]:
+    async def get_biggest_cruise_with_stats(self, include_not_unloaded: bool | None = None) -> Cruise | None:
         """
         Retrieves the biggest cruise stats.
         :param include_not_unloaded: Whether to include carriers that have not yet unloaded.
@@ -388,7 +387,7 @@ class BoozeSheetsApi:
 
         return Cruise(cruise_data)
 
-    async def get_trip_for_carrier(self, carrier_id: str, trip_id: str) -> Optional[BoozeCarrier]:
+    async def get_trip_for_carrier(self, carrier_id: str, trip_id: str) -> BoozeCarrier | None:
         """
         Retrieves a specific trip for a specific carrier.
 
@@ -413,7 +412,7 @@ class BoozeSheetsApi:
 
         return BoozeCarrier(trip_data)
 
-    async def get_carrier_stats(self, carrier_id: str) -> Optional[CarrierStats]:
+    async def get_carrier_stats(self, carrier_id: str) -> CarrierStats | None:
         """
         Retrieves stats for a specific carrier.
 
@@ -476,7 +475,7 @@ class BoozeSheetsApi:
             logger.error(f"Failed to set user_id={user_id} as pinged: {e}")
         logger.debug(f"User_id={user_id} set as pinged")
 
-    async def get_all_time_stats(self) -> Optional[CruiseStats]:
+    async def get_all_time_stats(self) -> CruiseStats | None:
         """
         Retrieves all-time stats from the BoozeSheets API.
 
@@ -616,7 +615,7 @@ class BoozeSheetsApi:
         except Exception as e:
             logger.error(f"Error in websocket message handler: {e}", exc_info=True)
 
-    def get_websocket_status(self) -> tuple[Literal["Connected", "Disconnected"], datetime | None]:
+    def get_websocket_status(self) -> tuple[str, datetime | None]:
         """
         Get the current status of the websocket connection.
 

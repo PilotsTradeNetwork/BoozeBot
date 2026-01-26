@@ -86,6 +86,7 @@ class DynamicButton(
         label = item.label
         return cls(label, action, user_id, message_id)
 
+    @override
     async def callback(self, interaction: discord.Interaction) -> None:
         logger.info(
             f"DynamicButton clicked: action={self.action}, user_id={self.user_id}, message_id={self.message_id} by {interaction.user} ({interaction.user.id})"

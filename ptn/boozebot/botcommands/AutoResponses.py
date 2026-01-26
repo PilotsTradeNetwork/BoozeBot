@@ -1,10 +1,13 @@
 import random
 import re
-from typing import cast
+from typing import cast, override
 
 import discord
-from discord import app_commands
+from discord import app_commands, Message, User
 from discord.ext import commands
+from discord.ext.commands import Bot
+from discord.ui import TextInput
+from discord.ui.view import BaseView
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
     CHANNEL_BC_STEVE_SAYS,
@@ -34,13 +37,18 @@ logger = get_logger("boozebot.commands.autoresponses")
 
 
 class AutoResponses(commands.Cog):
+    auto_responses: list[AutoResponse]
+    text_commands: list[str]
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
         self.text_commands = ["ping", "exit", "update", "version", "sync"]
 
-        self.auto_responses: list[AutoResponse] = []
+        self.auto_responses = []
 
+    @override
     async def cog_load(self):
         self.auto_responses = await database.get_auto_responses()
         logger.debug(f"Loaded {len(self.auto_responses)} auto responses from database.")
@@ -227,6 +235,13 @@ class ListAutoResponseView(discord.ui.View):
     """
     View for displaying paginated list of auto responses with edit buttons.
     """
+    user: User | None
+    message: Message | None
+    total_pages: int
+    page_size: int
+    current_page: int
+    cog: AutoResponses
+    auto_responses: list[AutoResponse]
 
     def __init__(self, auto_responses: list[AutoResponse], cog: AutoResponses):
         super().__init__(timeout=180)
@@ -236,9 +251,10 @@ class ListAutoResponseView(discord.ui.View):
         self.page_size = 5
         self.total_pages = (len(auto_responses) - 1) // self.page_size + 1
         self.update_buttons()
-        self.message: discord.Message = None
-        self.user: discord.User = None
+        self.message = None
+        self.user = None
 
+    @override
     async def on_timeout(self):
         """
         Handle view timeout by disabling all buttons.
@@ -376,6 +392,10 @@ class EditAutoResponseModal(discord.ui.Modal):
     """
     Modal for editing auto response trigger and response text.
     """
+    response_input: TextInput[BaseView]
+    trigger_input: TextInput[BaseView]
+    view: ListAutoResponseView
+    auto_response: AutoResponse
 
     def __init__(self, auto_response: AutoResponse, view: ListAutoResponseView):
         super().__init__(title=f"Edit Auto Response: {auto_response.name}")
@@ -390,6 +410,7 @@ class EditAutoResponseModal(discord.ui.Modal):
         )
         self.add_item(self.response_input)
 
+    @override
     async def on_submit(self, interaction: discord.Interaction):
         """
         Handle modal submission and update auto response in database.

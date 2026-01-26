@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, override
 
 import discord
@@ -195,7 +195,7 @@ class BoozeCarrier:
 
         logger.debug(f"Checking boolean state of BoozeCarrier '{self.carrier_name}'.")
 
-        state = any([value for key, value in vars(self).items()])
+        state = any([value for _key, value in vars(self).items()])
 
         logger.debug(f"BoozeCarrier '{self.carrier_name}' boolean state: {state}")
 

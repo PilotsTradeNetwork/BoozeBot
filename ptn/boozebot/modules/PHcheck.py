@@ -90,7 +90,7 @@ async def api_ph_check() -> bool:
 async def ph_check() -> bool:
     logger.info("Checking PH state from the database.")
     try:
-        holiday_ongoing, timestamp = await database.get_holiday_status()
+        holiday_ongoing, _timestamp = await database.get_holiday_status()
         logger.debug(f"Fetched holiday state from database: {holiday_ongoing}")
         if not holiday_ongoing:
             logger.info("PH is not ongoing according to the database.")

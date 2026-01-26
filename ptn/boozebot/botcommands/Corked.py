@@ -6,6 +6,7 @@ Cog for all the commands related to
 import discord
 from discord import PermissionOverwrite, app_commands
 from discord.ext import commands
+from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_SIGNUPS,
     CHANNEL_BC_BOOZE_GUIDE,
@@ -18,7 +19,6 @@ from ptn_utils.global_constants import (
 )
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.classes.CorkedUser import CorkedUser
 from ptn.boozebot.constants import bot
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
@@ -37,10 +37,12 @@ logger = get_logger("boozebot.commands.corked")
 
 
 class Corked(commands.Cog):
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    CORK_CHANNELS = CHANNEL_BC_PUBLIC + [
+    CORK_CHANNELS: list[int] = CHANNEL_BC_PUBLIC + [
         CHANNEL_BC_BOOZE_CRUISE_SIGNUPS,
         CHANNEL_BC_WINE_STATUS,
         CHANNEL_BC_BOOZE_GUIDE,
@@ -136,7 +138,7 @@ class Corked(commands.Cog):
 
         except discord.DiscordException as e:
             logger.exception(f"Error uncorking user {user}: {e}")
-            interaction.followup.send("Failed to uncork user due to a Discord error.")
+            await interaction.followup.send("Failed to uncork user due to a Discord error.")
             return
 
         await database.remove_corked_user(user.id)

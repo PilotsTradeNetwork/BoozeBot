@@ -1,5 +1,5 @@
 import json
-from typing import Literal, TypedDict, overload
+from typing import Any, Literal, TypedDict, overload
 
 from ptn_utils.logger.logger import get_logger
 
@@ -90,7 +90,7 @@ class Settings:
     @overload
     def set_setting(self, key: Literal["timed_unload_hold_duration"], value: float) -> None: ...
 
-    def set_setting(self, key: str, value) -> None:
+    def set_setting(self, key: str, value: Any) -> None:
         """Set a setting value based on the key."""
         logger.info(f"Setting '{key}' to '{value}'")
         self.settings[key] = value

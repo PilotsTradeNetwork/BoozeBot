@@ -73,7 +73,7 @@ def check_roles(permitted_role_ids: list[int]):
 
 
 # decorator for interaction channel checks
-def check_command_channel(permitted_channel: list[int]):
+def check_command_channel(permitted_channel: int | list[int]):
     """
     Decorator used on an interaction to limit it to specified channels
     """
