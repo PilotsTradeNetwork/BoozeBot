@@ -161,7 +161,7 @@ class MakeWineCarrier(commands.Cog):
                 DynamicButton(label="Make Wine Carrier", action="makewinecarrier", user_id=owner_id, message_id=0)
             )
 
-        await steve_says.send(embed=embed, view=view)
+        await steve_says.send(content=f"<@&{ROLE_CONN}>", embed=embed, view=view)
         await booze_sheets_api.set_user_pinged(owner_id)
 
         logger.info(f"Sent new signup alert for user {owner_id} to steve_says channel")
