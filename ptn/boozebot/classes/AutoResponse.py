@@ -1,6 +1,7 @@
 import re
 import sqlite3
 from datetime import datetime, timedelta
+from typing import Any
 
 from discord import Message
 from ptn_utils.global_constants import ROLE_CONN, ROLE_SOMM, any_council_role, any_moderation_role
@@ -20,7 +21,12 @@ class AutoResponse:
         response (str): The response message to send when the trigger is matched.
     """
 
-    def __init__(self, info_dict: sqlite3.Row | dict):
+    trigger: str | re.Pattern[str]
+    response: str
+    is_regex: bool
+    name: str
+
+    def __init__(self, info_dict: sqlite3.Row | dict[str, Any]):
         if isinstance(info_dict, sqlite3.Row):
             info_dict = dict(info_dict)
 
@@ -31,7 +37,7 @@ class AutoResponse:
         self.name = info_dict.get("name", "")
         self.is_regex = bool(info_dict.get("is_regex", False))
         self.response = info_dict.get("response", "")
-        self.trigger: str | re.Pattern = info_dict.get("trigger", "").lower()
+        self.trigger = info_dict.get("trigger", "").lower()
 
         if self.is_regex:
             logger.debug(f"Compiling regex trigger for auto response '{self.name}': {self.trigger}")

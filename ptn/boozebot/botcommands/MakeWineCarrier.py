@@ -5,11 +5,14 @@ Cog for granting and removing the wine carrier role
 
 import asyncio
 import random
+from typing import Any
 
+import discord
 from discord import app_commands, Embed, Member, Interaction, DiscordException
-from discord.colour import Colour
-from discord.app_commands import describe
+from discord.abc import GuildChannel
+from discord.app_commands import describe, ContextMenu
 from discord.ext import commands, tasks
+from discord.ext.commands import Bot
 from discord.ui import View
 from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
@@ -26,7 +29,7 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import WCO_ROLE_ICON_URL, WELCOME_MESSAGE_FILE_PATH, bot, too_slow_gifs
 from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.Views import DynamicButton
 
@@ -46,6 +49,9 @@ wine_carrier_toggle_lock = asyncio.Lock()
 
 # initialise the Cog
 class MakeWineCarrier(commands.Cog):
+    ctx_menu: ContextMenu
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.ctx_menu = app_commands.ContextMenu(name="Make Wine Carrier", callback=self.context_menu_make_wine_carrier)
@@ -77,7 +83,7 @@ class MakeWineCarrier(commands.Cog):
         await make_user_wine_carrier(interaction, user)
 
     @commands.Cog.listener()
-    async def on_boozesheets_signup(self, data):
+    async def on_boozesheets_signup(self, data: dict[str, Any]):
         logger.info(f"Received booze tracker signup data: {data}")
 
         color = int(data["color"], 16) if data.get("color") else 0x000000
@@ -91,6 +97,7 @@ class MakeWineCarrier(commands.Cog):
         )
 
     @tasks.loop(minutes=5)
+    @track_last_run()
     async def booze_tracker_signup_check(self):
         """Periodically check for new booze tracker signups."""
         logger.debug("Running booze_tracker_signup_check task")
@@ -130,6 +137,7 @@ class MakeWineCarrier(commands.Cog):
         logger.debug(f"Alerting new signup for user {owner_id} with status {status} and notes {notes}")
 
         steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
+        assert isinstance(steve_says, GuildChannel)
 
         owner = await bot.get_or_fetch.member(owner_id)
         if not owner:
@@ -245,7 +253,7 @@ async def make_user_wine_carrier(interaction: Interaction, user: Member) -> None
         user = await bot.get_or_fetch.member(user.id)
         logger.debug(f"Refetched user: {user}")
 
-        async def respond(content=None, embed=None):
+        async def respond(content: str | None = None, embed: discord.Embed | None = None):
             if interaction.message:
                 return await interaction.followup.send(content=content, embed=embed)
             else:

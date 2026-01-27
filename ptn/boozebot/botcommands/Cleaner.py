@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import discord
 from discord import app_commands
 from discord.ext import commands
+from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
     CHANNEL_BC_PUBLIC,
     CHANNEL_BC_STEVE_SAYS,
@@ -46,6 +47,8 @@ logger = get_logger("boozebot.commands.cleaner")
 
 
 class Cleaner(commands.Cog):
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         logger.info("Initializing Cleaner cog.")
@@ -268,7 +271,7 @@ class Cleaner(commands.Cog):
                     f"Role removal process completed successfully. Removed {hitch_count} Hitchhiker roles and {wine_count} Wine Carrier roles."
                 )
                 await interaction.edit_original_response(
-                    content=f"Successfully removed {hitch_count} users from the Hitchhiker role.\n"
+                    content=f"Successfully removed {hitch_count} users from the Hitchhiker role.\n" +
                     f"Successfully removed {wine_count} users from the Wine Carrier role.",
                     embed=None,
                     view=None,
@@ -307,12 +310,12 @@ class Cleaner(commands.Cog):
             f"Prompting user {interaction.user.name} to provide new {blurb} message within {response_timeout} seconds."
         )
         await interaction.response.send_message(
-            f"Existing message: ```\n{blurb_message}\n```\n"
-            f"<@{interaction.user.id}> your next message in this channel will be used as the new {blurb} message, "
+            f"Existing message: ```\n{blurb_message}\n```\n" +
+            f"<@{interaction.user.id}> your next message in this channel will be used as the new {blurb} message, " +
             f"or wait {response_timeout} seconds to cancel."
         )
 
-        def check(response):
+        def check(response: discord.Message):
             valid = response.author == interaction.user and response.channel == interaction.channel
             if not valid:
                 logger.debug(f"Ignored message from {response.author.name} in channel {response.channel.name}.")

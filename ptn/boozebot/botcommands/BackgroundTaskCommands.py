@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands
+from discord.ext.commands import Bot
 from ptn_utils.global_constants import CHANNEL_BC_STEVE_SAYS, ROLE_SOMM, any_council_role, any_moderation_role
 from ptn_utils.logger.logger import get_logger
 
@@ -13,7 +14,9 @@ logger = get_logger("boozebot.commands.background")
 
 
 class BackgroundTaskCommands(commands.Cog):
-    task_choices = [
+    websocket_started: bool
+    bot: Bot
+    task_choices: list[Choice[str]] = [
         Choice(name="periodic_stat_update", value="periodic_stat_update"),
         Choice(name="check_departure_messages_loop", value="check_departure_messages_loop"),
         Choice(name="public_holiday_loop", value="public_holiday_loop"),

@@ -1,6 +1,8 @@
 import asyncio
 import sqlite3
+from asyncio import Lock
 from datetime import datetime
+from sqlite3 import Connection, Cursor
 from typing import Literal
 
 from ptn_utils.logger.logger import get_logger
@@ -14,6 +16,10 @@ sql_logger = get_logger("boozebot.database.sql")
 
 
 class Database:
+    db: Cursor
+    conn: Connection
+    lock: Lock
+
     def __init__(self):
         logger.info(f"Starting database connection at: {CARRIERS_DB_PATH}")
         self.lock = asyncio.Lock()
@@ -254,7 +260,7 @@ class Database:
         async with self.lock:
             self.db.execute(
                 "INSERT INTO carrier_messages (carrier_id, unload_id) VALUES (?, ?) "
-                "ON CONFLICT(carrier_id) DO UPDATE SET unload_id = ?",
+                + "ON CONFLICT(carrier_id) DO UPDATE SET unload_id = ?",
                 (f"{carrier_id}", message_id, message_id),
             )
             self.conn.commit()
@@ -294,7 +300,7 @@ class Database:
         async with self.lock:
             self.db.execute(
                 "INSERT INTO carrier_messages (carrier_id, unload_notification_sent) VALUES (?, ?) "
-                "ON CONFLICT(carrier_id) DO UPDATE SET unload_notification_sent = ?",
+                + "ON CONFLICT(carrier_id) DO UPDATE SET unload_notification_sent = ?",
                 (f"{carrier_id}", notification_sent, notification_sent),
             )
             self.conn.commit()
@@ -354,7 +360,7 @@ class Database:
         async with self.lock:
             self.db.execute(
                 "INSERT INTO carrier_messages (carrier_id, departure_id) VALUES (?, ?) "
-                "ON CONFLICT(carrier_id) DO UPDATE SET departure_id = ?",
+                + "ON CONFLICT(carrier_id) DO UPDATE SET departure_id = ?",
                 (f"{carrier_id}", message_id, message_id),
             )
             self.conn.commit()
@@ -394,7 +400,7 @@ class Database:
         async with self.lock:
             self.db.execute(
                 "INSERT INTO carrier_messages (carrier_id, departure_notification_sent) VALUES (?, ?) "
-                "ON CONFLICT(carrier_id) DO UPDATE SET departure_notification_sent = ?",
+                + "ON CONFLICT(carrier_id) DO UPDATE SET departure_notification_sent = ?",
                 (f"{carrier_id}", notification_sent, notification_sent),
             )
             self.conn.commit()

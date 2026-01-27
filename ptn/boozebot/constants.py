@@ -7,7 +7,7 @@ Constants used throughout BoozeBot.
 import os
 import re
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 import discord
 from discord.ext import commands
@@ -70,6 +70,10 @@ intents.expressions = True
 class GetFetchBot(commands.Bot):
     get_or_fetch: GetOrFetch
 
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.get_or_fetch = GetOrFetch(self, DISCORD_GUILD)
+
 
 bot = GetFetchBot(
     command_prefix=commands.when_mentioned_or("b/"),
@@ -77,7 +81,6 @@ bot = GetFetchBot(
     chunk_guilds_at_startup=False,
     allowed_mentions=discord.AllowedMentions(roles=False, users=False, everyone=False) if not _production else None,
 )
-bot.get_or_fetch = GetOrFetch(bot, DISCORD_GUILD)
 
 RACKHAMS_PEAK_POP = 150000
 

@@ -10,6 +10,7 @@ import discord
 from discord import NotFound, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
+from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
     CHANNEL_BC_HOLIDAY_ANNOUNCE,
@@ -53,6 +54,8 @@ logger = get_logger("boozebot.commands.publicholiday")
 
 
 class PublicHoliday(commands.Cog):
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -60,7 +63,7 @@ class PublicHoliday(commands.Cog):
     The public holiday state checker mechanism for booze bot.
     """
 
-    rackhams_holiday_active = False
+    rackhams_holiday_active: bool = False
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -79,7 +82,7 @@ class PublicHoliday(commands.Cog):
 
             # Check if we had a holiday flagged already
             logger.debug("Fetching holiday state from database.")
-            holiday_ongoing, timestamp = await database.get_holiday_status()
+            holiday_ongoing, _timestamp = await database.get_holiday_status()
             logger.debug(f"Holiday state from database: {holiday_ongoing}")
             if not holiday_ongoing or force_update:
                 logger.debug("Holiday not ongoing - updating database to set it ongoing.")
@@ -89,7 +92,7 @@ class PublicHoliday(commands.Cog):
                 logger.info("Holiday was not ongoing, started now - flag it accordingly")
                 await holiday_announce_channel.send(holiday_start_gif)
                 await holiday_announce_channel.send(
-                    f"Pirate Steve thinks the folks at Rackhams are partying again. "
+                    f"Pirate Steve thinks the folks at Rackhams are partying again. " +
                     f"<@&{ROLE_COUNCIL}>, <@&{ROLE_SOMM}> please take note."
                 )
                 logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
@@ -160,7 +163,7 @@ class PublicHoliday(commands.Cog):
     async def holiday_query(self, interaction: discord.Interaction):
         await interaction.response.defer()
         logger.info(f"User {interaction.user.name} queried the holiday state.")
-
+        gif = ""
         if await ph_check():
             logger.info("Rackhams holiday check says yep.")
             try:
@@ -200,7 +203,7 @@ class PublicHoliday(commands.Cog):
         logger.info(
             f"User {interaction.user.name} requested to override the admin holiday state to: {state}, forced: {force_update}."
         )
-        success, message = await self._set_public_holiday_state(state, force_update)
+        _success, message = await self._set_public_holiday_state(state, force_update)
 
         logger.info(f"Admin override result: {message}")
         await interaction.response.send_message(f"{message}. Check with /booze_started.")
@@ -272,7 +275,7 @@ class PublicHoliday(commands.Cog):
         # Get the starting timestamp
 
         logger.debug("Fetching holiday start timestamp from database.")
-        holiday_ongoing, start_time = await database.get_holiday_status()
+        _holiday_ongoing, start_time = await database.get_holiday_status()
 
         end_time = start_time + timedelta(hours=duration_hours)
         end_timestamp = int(end_time.timestamp())

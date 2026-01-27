@@ -2,6 +2,7 @@ import sys
 
 import discord
 from discord.ext import commands
+from discord.ext.commands import Bot
 from ptn_utils.global_constants import CHANNEL_DEV_STEVE_BOT, ROLE_SOMM, any_council_role
 from ptn_utils.logger.logger import get_logger
 
@@ -31,6 +32,8 @@ logger = get_logger("boozebot.commands.discord")
 
 
 class DiscordBotCommands(commands.Cog):
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -96,7 +99,7 @@ class DiscordBotCommands(commands.Cog):
         logger.info(f"Exit command called by {ctx.author}.")
         await ctx.send("Ahoy! k thx bye")
         logger.warning("Bot is shutting down per user request.")
-        await sys.exit("User requested exit.")
+        sys.exit("User requested exit.")
 
     @commands.command(name="version", help="Logs the bot version")
     @commands.has_any_role(*any_council_role)

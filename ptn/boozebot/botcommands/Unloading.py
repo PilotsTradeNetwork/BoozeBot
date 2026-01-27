@@ -7,8 +7,9 @@ from datetime import datetime, timedelta, timezone
 
 import discord
 from discord import app_commands
-from discord.app_commands import Choice, describe
+from discord.app_commands import describe
 from discord.ext import commands, tasks
+from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
     CHANNEL_BC_STEVE_SAYS,
@@ -44,6 +45,8 @@ logger = get_logger("boozebot.commands.unloading")
 
 # initialise the Cog and attach our global error handler
 class Unloading(commands.Cog):
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -55,7 +58,7 @@ class Unloading(commands.Cog):
     # On reaction check if it's in the unloading channel and if the reaction is fc complete,
     # If it is and there are 5 reactions ping the poster
     @commands.Cog.listener()
-    async def on_raw_reaction_add(self, reaction_event):
+    async def on_raw_reaction_add(self, reaction_event: discord.RawReactionActionEvent):
         try:
             user = reaction_event.member
 
@@ -116,21 +119,21 @@ class Unloading(commands.Cog):
 
                     logger.debug(f"Fetching carrier data for ID: {carrier_id}")
 
-                    carrier_data = booze_sheets_api.get_carrier_info(carrier_id)
+                    carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
 
                     logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
 
                     wine_carrier_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
                     await wine_carrier_channel.send(
                         f"<@{carrier_data.owner.discord_id}> "
-                        f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
-                        f"has been marked completed. Please check, then run the following command to close it "
-                        "if it is correct.\n"
-                        f"```/wine_unload_complete carrier_id:{carrier_data.carrier_identifier}```"
+                        + f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
+                        + f"has been marked completed. Please check, then run the following command to close it "
+                        + "if it is correct.\n"
+                        + f"```/wine_unload_complete carrier_id:{carrier_data.carrier_identifier}```"
                     )
 
                     logger.debug("Updating database to set to NULL to avoid multiple notifications.")
-                    database.set_unload_notification_sent(carrier_data.carrier_identifier, True)
+                    await database.set_unload_notification_sent(carrier_data.carrier_identifier, True)
 
                     logger.info(
                         f"Notified poster {carrier_data.owner.username} for carrier {carrier_data.carrier_identifier}"
@@ -208,8 +211,8 @@ class Unloading(commands.Cog):
         embed = discord.Embed(title="Avast Ye!")
         embed.add_field(
             name="If you are INTENDING TO BUY, please react with: :airplane_arriving:.\n"
-            f"Once you are DOCKED react with: <:Assassin:{str(EMOJI_ASSASSIN)}>\n"
-            f"Once you PURCHASE WINE, react with: :wine_glass:",
+            + f"Once you are DOCKED react with: <:Assassin:{str(EMOJI_ASSASSIN)}>\n"
+            + f"Once you PURCHASE WINE, react with: :wine_glass:",
             value="Market will be opened once we have aligned the number of commanders.",
             inline=True,
         )
@@ -275,6 +278,7 @@ class Unloading(commands.Cog):
         """
         Posts a wine unload request to the unloading channel.
 
+        :param interaction: the interaction from discord
         :param SlashContext ctx: The discord slash context.
         :param str carrier_id: The carrier ID string
         :returns: A message to the user
@@ -309,6 +313,12 @@ class Unloading(commands.Cog):
                 content=f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
             )
 
+        if not carrier_data.body:
+            logger.info(f"No body found for: {carrier_id}.")
+            return await interaction.edit_original_response(
+                content=f"Sorry, you must first set a body for your carrier {carrier_id} in the Wine Carrier Sheet before unloading."
+            )
+
         if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
             msg = f"You do not own the carrier with ID: {carrier_id}."
             logger.info(msg)
@@ -332,7 +342,7 @@ class Unloading(commands.Cog):
             logger.info(f"Carrier {carrier_data.carrier_identifier} is already unloading wine.")
             return await interaction.followup.send(
                 f"Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is "
-                f"already unloading wine. Check the notification in <#{wine_alert_channel.id}>."
+                + f"already unloading wine. Check the notification in <#{wine_alert_channel.id}>."
             )
 
         logger.debug(f"Preparing to send unload notification to Discord for carrier {carrier_data.carrier_identifier}.")
@@ -343,8 +353,8 @@ class Unloading(commands.Cog):
         wine_load_embed = discord.Embed(
             title="Wine unload notification.",
             description=f"Carrier **{carrier_data.carrier_name} ({carrier_data.carrier_identifier})** is currently "
-            f"unloading **{carrier_data.wine_total}** tonnes of wine from *"
-            f"*{carrier_data.body}**.\n Market Conditions: **{market_conditions}**.",
+            + f"unloading **{carrier_data.wine_total}** tonnes of wine from *"
+            + f"*{carrier_data.body}**.\n Market Conditions: **{market_conditions}**.",
         )
 
         wine_load_embed.set_footer(
@@ -377,7 +387,7 @@ class Unloading(commands.Cog):
         )
         await interaction.edit_original_response(
             content=f"Wine unload requested by {interaction.user.name} for **{carrier_data.carrier_name} ({carrier_id})** "
-            f"processed successfully. Market: **{market_conditions}**."
+            + f"processed successfully. Market: **{market_conditions}**."
         )
 
     @app_commands.command(
@@ -399,7 +409,7 @@ class Unloading(commands.Cog):
         """
         Posts a wine unload request to the unloading channel.
 
-        :param SlashContext ctx: The discord slash context.
+        :param interaction: the interaction
         :param str carrier_id: The carrier ID string
         :returns: A message to the user
         :rtype: Union[discord.Message, dict]
@@ -439,6 +449,12 @@ class Unloading(commands.Cog):
                 f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
             )
 
+        if not carrier_data.body:
+            logger.info(f"No body found for: {carrier_id}.")
+            return await interaction.edit_original_response(
+                content=f"Sorry, you must first set a body for your carrier {carrier_id} in the Wine Carrier Sheet before unloading."
+            )
+
         if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
             msg = f"You do not own the carrier with ID: {carrier_id}."
             logger.info(msg)
@@ -462,7 +478,7 @@ class Unloading(commands.Cog):
             logger.info(f"Carrier {carrier_data.carrier_identifier} is already unloading wine.")
             return await interaction.followup.send(
                 f"Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is "
-                f"already unloading wine. Check the notification in <#{wine_alert_channel.id}>."
+                + f"already unloading wine. Check the notification in <#{wine_alert_channel.id}>."
             )
 
         logger.debug(
@@ -478,9 +494,9 @@ class Unloading(commands.Cog):
         wine_load_embed = discord.Embed(
             title="Timed wine unload notification.",
             description=f"Carrier **{carrier_data.carrier_name} ({carrier_data.carrier_identifier})** will be unloading "
-            f"**{carrier_data.wine_total}** tonnes of wine from *"
-            f"*{carrier_data.body}**."
-            f"\n Market will open at {open_time_str} (In game time).",
+            + f"**{carrier_data.wine_total}** tonnes of wine from *"
+            + f"*{carrier_data.body}**."
+            + f"\n Market will open at {open_time_str} (In game time).",
         )
 
         wine_load_embed.set_footer(
@@ -514,7 +530,7 @@ class Unloading(commands.Cog):
         )
         return await interaction.followup.send(
             f"Timed wine unload requested by {interaction.user.name} for **{carrier_data.carrier_name} ({carrier_id})**\n"
-            f"Open the market at {open_time_str} (In game time)."
+            + f"Open the market at {open_time_str} (In game time)."
         )
 
     @app_commands.command(
@@ -577,35 +593,27 @@ class Unloading(commands.Cog):
             logger.info(f"No unload notification found in database for carrier: {carrier_id}.")
             return await interaction.edit_original_response(
                 content=f"Sorry {interaction.user.name}, we have no carrier unload notification found in the database for "
-                f"{carrier_id}."
+                + f"{carrier_id}."
             )
 
         message = await wine_alert_channel.fetch_message(message_id)
-        # Now delete it in the database
+        if message:
+            await message.delete()
 
+        # Now delete it in the database
         logger.debug(f"Removing unload notification from database for carrier: {carrier_id}.")
-        await booze_sheets_api.complete_carrier_unload(carrier_data.db_id)
+        completed_trip = await booze_sheets_api.complete_carrier_unload(carrier_data.db_id)
         await database.delete_carrier_message(carrier_id, "unload")
         logger.info(f"Removed unload notification from database for carrier: {carrier_id}.")
 
         self.last_unload_time = datetime.now(timezone.utc)
-        logger.debug(f"Set last unload time to {self.last_unload_time.isoformat()}")
-
-        if message.embeds[0].title.startswith("Timed"):
-            unload_start = message.created_at.replace(tzinfo=timezone.utc) + timedelta(
-                minutes=settings.get_setting("timed_unload_hold_duration")
-            )
-            unload_start = unload_start + timedelta(seconds=60 - unload_start.second)
-        else:
-            unload_start = message.created_at.replace(tzinfo=timezone.utc)
-
-        unload_duration = max(self.last_unload_time - unload_start, timedelta(seconds=0)).total_seconds()
+        unload_duration = completed_trip.unload_duration
 
         logger.debug(f"Calculated unload duration: {unload_duration} seconds")
 
         minutes, seconds = divmod(int(unload_duration), 60)
         time_str = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
-        await message.delete()
+
         logger.info(f"Deleted unload notification message for carrier: {carrier_id}.")
         response = (
             f"Removed the unload notification for {carrier_data.carrier_name} ({carrier_id})\n"

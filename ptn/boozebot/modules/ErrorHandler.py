@@ -1,6 +1,6 @@
 import random
 
-from httpx import HTTPStatusError
+from httpx import HTTPStatusError, TimeoutException, ConnectError, NetworkError
 
 # import local constants
 from discord import Interaction, InteractionResponded, app_commands, Embed
@@ -17,8 +17,10 @@ logger = get_logger("boozebot.modules.errorhandler")
 # custom errors
 class CommandChannelError(app_commands.CheckFailure):
     """Channel check error"""
+    formatted_channel_list: str
+    permitted_channel: int
 
-    def __init__(self, permitted_channel, formatted_channel_list):
+    def __init__(self, permitted_channel: int, formatted_channel_list: str):
         self.permitted_channel = permitted_channel
         self.formatted_channel_list = formatted_channel_list
         super().__init__(permitted_channel, formatted_channel_list, "Channel check error raised")
@@ -28,8 +30,10 @@ class CommandChannelError(app_commands.CheckFailure):
 
 class CommandRoleError(app_commands.CheckFailure):
     """Role check error"""
+    formatted_role_list: str
+    permitted_roles: list[int]
 
-    def __init__(self, permitted_roles, formatted_role_list):
+    def __init__(self, permitted_roles: list[int], formatted_role_list: str):
         self.permitted_roles = permitted_roles
         self.formatted_role_list = formatted_role_list
         super().__init__(permitted_roles, formatted_role_list, "Role check error raised")
@@ -40,7 +44,11 @@ class CommandRoleError(app_commands.CheckFailure):
 class AsyncioTimeoutError(Exception):
     """Timeout error"""
 
-    def __init__(self, message, is_private=True):
+    is_private: bool
+    message: str
+
+    def __init__(self, message: str, is_private: bool = True):
+        super().__init__()
         self.message = message
         self.is_private = is_private
 
@@ -62,14 +70,16 @@ class GenericError(Exception):
 class CustomError(Exception):
     """A custom error that notifies the user with a custom message"""
 
-    def __init__(self, message, is_private=True):
+    is_private: bool
+    message: str
+
+    def __init__(self, message: str, is_private: bool = True):
         self.message = message
         self.is_private = is_private
         super().__init__(self.message, "CustomError raised")
 
 
-async def on_text_command_error(ctx: commands.Context, error: Exception):
-    """Global error handler for text commands"""
+async def on_text_command_error(ctx: commands.Context[commands.Bot], error: Exception):
     gif = random.choice(error_gifs)
     logger.exception(f"Error from {ctx.command} in {ctx.channel} called by {ctx.author}: {error}")
     if isinstance(error, commands.BadArgument):
@@ -81,8 +91,8 @@ async def on_text_command_error(ctx: commands.Context, error: Exception):
     elif isinstance(error, commands.MissingRequiredArgument):
         logger.debug("Missing required argument error raised, reporting to user")
         await ctx.send(
-            "**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details."
-            "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation"
+            "**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details." +
+            "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation" +
             " marks are of the same type, i.e. all straight or matching open/close smartquotes."
         )
     elif isinstance(error, commands.MissingPermissions):
@@ -102,11 +112,10 @@ async def on_text_command_error(ctx: commands.Context, error: Exception):
 async def on_app_command_error(interaction: Interaction, error: AppCommandError):
     """Global error handler for application commands"""
 
-    logger.exception(
-        f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
-    )
-
     try:
+        logger.error(
+            f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
+        )
         if isinstance(error, CommandChannelError):
             logger.debug(
                 f"Channel check error raised. Permitted channel(s): {error.permitted_channel}, reporting to user"
@@ -168,10 +177,22 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             status_code = error.original.response.status_code
             embed = Embed(description=f"❌ An HTTP error occurred: {status_code}", color=EMBED_COLOUR_ERROR)
             try:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await interaction.response.send_message(embed=embed)
             except InteractionResponded:
-                await interaction.followup.send(embed=embed, ephemeral=True)
+                await interaction.followup.send(embed=embed)
             logger.debug("HTTPStatusError message sent to user")
+            
+        elif isinstance(error.original, (TimeoutException, ConnectError, NetworkError)):
+            logger.debug(f"Network-related error raised with message: {error}, reporting to user")
+            embed = Embed(
+                description="❌ A network error occurred",
+                color=EMBED_COLOUR_ERROR
+            )
+            try:
+                await interaction.response.send_message(embed=embed)
+            except InteractionResponded:
+                await interaction.followup.send(embed=embed)
+            logger.debug("Network-related error message sent to user")
 
         else:
             logger.debug(f"Unhandled error type: {type(error)}, reporting to user")
@@ -181,6 +202,7 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             except InteractionResponded:
                 await interaction.followup.send(embed=embed, ephemeral=True)
             logger.debug("Unhandled error message sent to user")
+            logger.exception(error)
 
     except Exception as e:
         logger.exception(f"An error occurred in the error handler (lol): {e}")

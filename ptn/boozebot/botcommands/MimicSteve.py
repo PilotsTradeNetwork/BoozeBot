@@ -1,6 +1,12 @@
+from typing import override
+
 import discord
 from discord import app_commands
+from discord.app_commands import ContextMenu
 from discord.ext import commands
+from discord.ext.commands import Bot
+from discord.ui import TextInput
+from discord.ui.view import BaseView
 from ptn_utils.global_constants import CHANNEL_BC_STEVE_SAYS, ROLE_SOMM, any_council_role, any_moderation_role
 from ptn_utils.logger.logger import get_logger
 
@@ -16,22 +22,27 @@ logger = get_logger("boozebot.commands.mimicsteve")
 
 
 class MimicSteve(commands.Cog):
+    ctx_menu: ContextMenu
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.ctx_menu = app_commands.ContextMenu(name="Reply as Steve", callback=self.reply_as_steve)
         logger.debug("Adding context menu command: Reply as Steve")
         self.bot.tree.add_command(self.ctx_menu)
 
-    def cog_unload(self):
+    @override
+    def cog_unload(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     async def reply_as_steve(self, interaction: discord.Interaction, reply_message: discord.Message):
         class ReplyModal(discord.ui.Modal, title="Reply as PirateSteve"):
-            message = discord.ui.TextInput(label="Message", style=discord.TextStyle.long)
+            message: TextInput[BaseView] = discord.ui.TextInput(label="Message", style=discord.TextStyle.long)
 
             logger.debug(f"Modal for {interaction.user.name} to reply as PirateSteve opened.")
 
+            @override
             async def on_submit(self, interaction: discord.Interaction):
                 logger.debug(f"User {interaction.user.name} submitted a reply as PirateSteve: {self.message.value}.")
 
@@ -52,7 +63,7 @@ class MimicSteve(commands.Cog):
     )
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     async def mimic_steve(
-        self, interaction: discord.Interaction, message: str, send_channel: discord.TextChannel = None
+        self, interaction: discord.Interaction, message: str, send_channel: discord.TextChannel | None = None
     ):
         """
         Command to send a message as pirate steve. Generates a message in the channel that it ran in.
@@ -64,7 +75,7 @@ class MimicSteve(commands.Cog):
         """
 
         logger.info(
-            f"User {interaction.user.name} has requested to send the message {message} as PirateSteve "
+            f"User {interaction.user.name} has requested to send the message {message} as PirateSteve " +
             f"in: {send_channel}."
         )
 
@@ -81,11 +92,11 @@ class MimicSteve(commands.Cog):
     async def _steve_speak(
         interaction: discord.Interaction,
         message: str,
-        send_channel: discord.TextChannel = None,
-        reply_message: discord.Message = None,
+        send_channel: discord.TextChannel | None = None,
+        reply_message: discord.Message | None = None,
     ):
         logger.info(
-            f"User {interaction.user.name} is sending the message {message} as PirateSteve "
+            f"User {interaction.user.name} is sending the message {message} as PirateSteve " +
             f"in: {send_channel if send_channel else reply_message.channel}."
         )
         steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
@@ -111,7 +122,7 @@ class MimicSteve(commands.Cog):
                 f"User {interaction.user.name} sent the message ``{message}\u200b`` as PirateSteve in: {send_channel.name}. {msg.jump_url}"
             )
             logger.info(
-                f"User {interaction.user.name} successfully sent the message {message} as PirateSteve "
+                f"User {interaction.user.name} successfully sent the message {message} as PirateSteve " +
                 f"in: {send_channel}."
             )
         except discord.DiscordException:
