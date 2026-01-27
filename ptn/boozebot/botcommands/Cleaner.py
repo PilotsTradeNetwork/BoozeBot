@@ -30,6 +30,7 @@ from ptn.boozebot.constants import BC_STATUS, BLURB_KEYS, BLURBS, WCO_ROLE_ICON_
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.Views import ConfirmView
 from ptn.boozebot.modules.Settings import settings
+from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 
 """
 CLEANER COMMANDS
@@ -111,6 +112,9 @@ class Cleaner(commands.Cog):
             logger.info("Updating status embed to 'bc_prep'.")
             await self.update_status_embed("bc_prep")
 
+            logger.info("Updating cruise state on backend to 'prep")
+            await booze_sheets_api.update_cruise_state("prep")
+
             logger.info("Opening Booze Cruise channels to the public.")
             for channel_id, role in channels.items():
                 channel = await bot.get_or_fetch.channel(channel_id)
@@ -189,6 +193,9 @@ class Cleaner(commands.Cog):
 
             logger.info("Updating status embed to 'bc_end'.")
             await self.update_status_embed("bc_end")
+
+            logger.info("Updating cruise state on backend to 'channels_closed'")
+            await booze_sheets_api.update_cruise_state("channels_closed")
 
             logger.info("Booze Cruise channels closed successfully.")
             await interaction.edit_original_response(
@@ -271,8 +278,8 @@ class Cleaner(commands.Cog):
                     f"Role removal process completed successfully. Removed {hitch_count} Hitchhiker roles and {wine_count} Wine Carrier roles."
                 )
                 await interaction.edit_original_response(
-                    content=f"Successfully removed {hitch_count} users from the Hitchhiker role.\n" +
-                    f"Successfully removed {wine_count} users from the Wine Carrier role.",
+                    content=f"Successfully removed {hitch_count} users from the Hitchhiker role.\n"
+                    + f"Successfully removed {wine_count} users from the Wine Carrier role.",
                     embed=None,
                     view=None,
                 )
@@ -310,9 +317,9 @@ class Cleaner(commands.Cog):
             f"Prompting user {interaction.user.name} to provide new {blurb} message within {response_timeout} seconds."
         )
         await interaction.response.send_message(
-            f"Existing message: ```\n{blurb_message}\n```\n" +
-            f"<@{interaction.user.id}> your next message in this channel will be used as the new {blurb} message, " +
-            f"or wait {response_timeout} seconds to cancel."
+            f"Existing message: ```\n{blurb_message}\n```\n"
+            + f"<@{interaction.user.id}> your next message in this channel will be used as the new {blurb} message, "
+            + f"or wait {response_timeout} seconds to cancel."
         )
 
         def check(response: discord.Message):

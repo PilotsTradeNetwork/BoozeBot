@@ -1,9 +1,9 @@
 from asyncio import Lock
 from datetime import datetime, timezone
+from typing import Any, Literal
 import httpx
 import asyncio
 import json
-from typing import Any
 import websockets
 from discord.ext.commands import Bot
 from httpx import AsyncClient
@@ -326,7 +326,6 @@ class BoozeSheetsApi:
         logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}")
         all_cruises_endpoint = "/cruises"
 
-
         logger.debug(f"Sending GET request to {all_cruises_endpoint}")
         all_cruises = await self._request("GET", all_cruises_endpoint)
         logger.debug(f"All cruises retrieved: {all_cruises}")
@@ -497,6 +496,21 @@ class BoozeSheetsApi:
         logger.debug(f"All-time stats retrieved: {stats_data}")
 
         return CruiseStats(stats_data)
+
+    async def update_cruise_state(self, state: Literal["prep", "active", "ended", "channels_closed"]):
+        """
+        Update the current cruise state in BoozeSheets.
+
+        :param state: The new cruise state.
+        """
+
+        logger.debug(f"Updating cruise state to {state}")
+        endpoint = "/cruises/state"
+        data = {"state": state}
+
+        logger.debug(f"Sending PATCH request to {endpoint} with data={data}")
+        await self._request("PATCH", endpoint, data)
+        logger.debug(f"Cruise state updated to {state}")
 
     """
     Websocket stuff
