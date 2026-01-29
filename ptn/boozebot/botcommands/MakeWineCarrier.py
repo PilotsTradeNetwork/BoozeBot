@@ -145,7 +145,7 @@ class MakeWineCarrier(commands.Cog):
             await steve_says.send(f"Could not find user with ID {owner_id} for new signup alert.")
             return
 
-        description = f"User <@{owner_id}> ({owner.display_name}) has signed up."
+        description = f"User <@{owner_id}> ({owner.name}) has signed up."
         if first_time:
             description += f"\nFirst time WCO, React with {await bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE)} and then DM them the onboarding message."
         if status:
