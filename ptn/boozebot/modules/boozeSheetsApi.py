@@ -3,17 +3,16 @@ from datetime import datetime, timezone
 import httpx
 import asyncio
 import json
-from typing import Any
+from typing import Any, Callable, override
 import websockets
 from discord.ext.commands import Bot
 from httpx import AsyncClient
 from tenacity import (
     RetryCallState,
     retry,
-    stop_after_attempt,
     wait_exponential,
-    retry_if_exception,
 )
+from tenacity.stop import stop_base
 
 from discord import Embed
 from ptn_utils.global_constants import CHANNEL_BOTSPAM
@@ -37,6 +36,27 @@ def _should_retry_exception(exception: Exception) -> bool:
         return exception.response.status_code in (429, 500, 502, 503, 504)
     return False
 
+class dynamic_attempts(stop_base):
+    """ Stop strategy that adjusts max attempts based on a condition. """
+
+    def __init__(
+        self, condition: Callable[[RetryCallState], bool],
+        attempts_if_true: int = 3,
+        attempts_if_false: int = 1
+    ) -> None:
+        super().__init__()
+        self.condition: Callable[[RetryCallState], bool] = condition
+        self.attempts_if_true: int = attempts_if_true
+        self.attempts_if_false: int = attempts_if_false
+
+    @override
+    def __call__(self, retry_state: "RetryCallState") -> bool:
+        exception = retry_state.outcome.exception() if retry_state.outcome else None
+        if exception and self.condition(exception):
+            max_attempts = self.attempts_if_true
+        else:
+            max_attempts = self.attempts_if_false
+        return retry_state.attempt_number >= max_attempts
 
 def _on_api_failure(retry_state: RetryCallState):
     """
@@ -61,8 +81,6 @@ def _on_api_failure(retry_state: RetryCallState):
     )
 
     asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
-
-    raise exception
 
 
 async def _send_failure_to_discord(
@@ -133,11 +151,11 @@ class BoozeSheetsApi:
         self._ws_connected = False
 
     @retry(
-        retry=retry_if_exception(_should_retry_exception),
-        stop=stop_after_attempt(3),
+        stop=dynamic_attempts(_should_retry_exception, 3, 1),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         before_sleep=_log_before_sleep,
-        retry_error_callback=_on_api_failure,
+        after=_on_api_failure,
+        reraise=True,
     )
     async def _request(self, method: str, endpoint: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
         """
