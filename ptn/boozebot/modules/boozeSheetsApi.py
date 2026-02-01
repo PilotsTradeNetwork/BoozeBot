@@ -35,6 +35,8 @@ def _should_retry_exception(exception: Exception) -> bool:
         return True
     if isinstance(exception, httpx.HTTPStatusError):
         return exception.response.status_code in (429, 500, 502, 503, 504)
+    error_msg = str(exception) or type(exception).__name__
+    logger.warning(f"Non-retried error occurred in BoozeSheets API request: {error_msg}")
     return False
 
 
