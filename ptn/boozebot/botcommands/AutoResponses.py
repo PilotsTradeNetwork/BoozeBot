@@ -235,6 +235,7 @@ class ListAutoResponseView(discord.ui.View):
     """
     View for displaying paginated list of auto responses with edit buttons.
     """
+
     user: User | None
     message: Message | None
     total_pages: int
@@ -392,6 +393,7 @@ class EditAutoResponseModal(discord.ui.Modal):
     """
     Modal for editing auto response trigger and response text.
     """
+
     response_input: TextInput[BaseView]
     trigger_input: TextInput[BaseView]
     view: ListAutoResponseView

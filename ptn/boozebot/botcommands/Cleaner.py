@@ -271,8 +271,8 @@ class Cleaner(commands.Cog):
                     f"Role removal process completed successfully. Removed {hitch_count} Hitchhiker roles and {wine_count} Wine Carrier roles."
                 )
                 await interaction.edit_original_response(
-                    content=f"Successfully removed {hitch_count} users from the Hitchhiker role.\n" +
-                    f"Successfully removed {wine_count} users from the Wine Carrier role.",
+                    content=f"Successfully removed {hitch_count} users from the Hitchhiker role.\n"
+                    + f"Successfully removed {wine_count} users from the Wine Carrier role.",
                     embed=None,
                     view=None,
                 )
@@ -310,9 +310,9 @@ class Cleaner(commands.Cog):
             f"Prompting user {interaction.user.name} to provide new {blurb} message within {response_timeout} seconds."
         )
         await interaction.response.send_message(
-            f"Existing message: ```\n{blurb_message}\n```\n" +
-            f"<@{interaction.user.id}> your next message in this channel will be used as the new {blurb} message, " +
-            f"or wait {response_timeout} seconds to cancel."
+            f"Existing message: ```\n{blurb_message}\n```\n"
+            + f"<@{interaction.user.id}> your next message in this channel will be used as the new {blurb} message, "
+            + f"or wait {response_timeout} seconds to cancel."
         )
 
         def check(response: discord.Message):

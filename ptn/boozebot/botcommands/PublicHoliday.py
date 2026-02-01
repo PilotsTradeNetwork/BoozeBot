@@ -92,8 +92,8 @@ class PublicHoliday(commands.Cog):
                 logger.info("Holiday was not ongoing, started now - flag it accordingly")
                 await holiday_announce_channel.send(holiday_start_gif)
                 await holiday_announce_channel.send(
-                    f"Pirate Steve thinks the folks at Rackhams are partying again. " +
-                    f"<@&{ROLE_COUNCIL}>, <@&{ROLE_SOMM}> please take note."
+                    f"Pirate Steve thinks the folks at Rackhams are partying again. "
+                    + f"<@&{ROLE_COUNCIL}>, <@&{ROLE_SOMM}> please take note."
                 )
                 logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
                 await Cleaner.update_status_embed("bc_start")
