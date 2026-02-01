@@ -104,6 +104,14 @@ def _log_before_sleep(retry_state: RetryCallState):
     )
 
 
+def _log_before(retry_state: RetryCallState):
+    """Log once if retry will not be attempted"""
+    if not retry_state.outcome:
+        exception = retry_state.outcome.exception()
+        error_msg = str(exception) or type(exception).__name__
+        logger.warning(f"Non-retried error occurred in BoozeSheets API request: {error_msg}")
+
+
 class BoozeSheetsApi:
     _ws_connected: bool
     _ws_running: bool
@@ -136,6 +144,7 @@ class BoozeSheetsApi:
         retry=retry_if_exception(_should_retry_exception),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
+        before=_log_before,
         before_sleep=_log_before_sleep,
         retry_error_callback=_on_api_failure,
     )
@@ -325,7 +334,6 @@ class BoozeSheetsApi:
 
         logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}")
         all_cruises_endpoint = "/cruises"
-
 
         logger.debug(f"Sending GET request to {all_cruises_endpoint}")
         all_cruises = await self._request("GET", all_cruises_endpoint)
