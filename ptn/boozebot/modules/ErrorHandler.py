@@ -17,6 +17,7 @@ logger = get_logger("boozebot.modules.errorhandler")
 # custom errors
 class CommandChannelError(app_commands.CheckFailure):
     """Channel check error"""
+
     formatted_channel_list: str
     permitted_channel: int
 
@@ -30,6 +31,7 @@ class CommandChannelError(app_commands.CheckFailure):
 
 class CommandRoleError(app_commands.CheckFailure):
     """Role check error"""
+
     formatted_role_list: str
     permitted_roles: list[int]
 
@@ -91,9 +93,9 @@ async def on_text_command_error(ctx: commands.Context[commands.Bot], error: Exce
     elif isinstance(error, commands.MissingRequiredArgument):
         logger.debug("Missing required argument error raised, reporting to user")
         await ctx.send(
-            "**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details." +
-            "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation" +
-            " marks are of the same type, i.e. all straight or matching open/close smartquotes."
+            "**Sorry, that didn't work**.\n• Check you've included all required arguments. Use `/pirate_steve_help` for details."
+            + "\n• If using quotation marks, check they're opened *and* closed, and are in the proper place.\n• Check quotation"
+            + " marks are of the same type, i.e. all straight or matching open/close smartquotes."
         )
     elif isinstance(error, commands.MissingPermissions):
         logger.debug("Missing permissions error raised, reporting to user")
@@ -181,13 +183,10 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             except InteractionResponded:
                 await interaction.followup.send(embed=embed)
             logger.debug("HTTPStatusError message sent to user")
-            
+
         elif isinstance(error.original, (TimeoutException, ConnectError, NetworkError)):
             logger.debug(f"Network-related error raised with message: {error}, reporting to user")
-            embed = Embed(
-                description="❌ A network error occurred",
-                color=EMBED_COLOUR_ERROR
-            )
+            embed = Embed(description="❌ A network error occurred", color=EMBED_COLOUR_ERROR)
             try:
                 await interaction.response.send_message(embed=embed)
             except InteractionResponded:

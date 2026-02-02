@@ -75,8 +75,8 @@ class MimicSteve(commands.Cog):
         """
 
         logger.info(
-            f"User {interaction.user.name} has requested to send the message {message} as PirateSteve " +
-            f"in: {send_channel}."
+            f"User {interaction.user.name} has requested to send the message {message} as PirateSteve "
+            + f"in: {send_channel}."
         )
 
         if not send_channel:
@@ -96,8 +96,8 @@ class MimicSteve(commands.Cog):
         reply_message: discord.Message | None = None,
     ):
         logger.info(
-            f"User {interaction.user.name} is sending the message {message} as PirateSteve " +
-            f"in: {send_channel if send_channel else reply_message.channel}."
+            f"User {interaction.user.name} is sending the message {message} as PirateSteve "
+            + f"in: {send_channel if send_channel else reply_message.channel}."
         )
         steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
         try:
@@ -122,8 +122,8 @@ class MimicSteve(commands.Cog):
                 f"User {interaction.user.name} sent the message ``{message}\u200b`` as PirateSteve in: {send_channel.name}. {msg.jump_url}"
             )
             logger.info(
-                f"User {interaction.user.name} successfully sent the message {message} as PirateSteve " +
-                f"in: {send_channel}."
+                f"User {interaction.user.name} successfully sent the message {message} as PirateSteve "
+                + f"in: {send_channel}."
             )
         except discord.DiscordException:
             logger.exception(f"Failed to send the message {message} as PirateSteve in: {send_channel}.")

@@ -344,7 +344,6 @@ class BoozeSheetsApi:
         logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}")
         all_cruises_endpoint = "/cruises"
 
-
         logger.debug(f"Sending GET request to {all_cruises_endpoint}")
         all_cruises = await self._request("GET", all_cruises_endpoint)
         logger.debug(f"All cruises retrieved: {all_cruises}")

@@ -80,7 +80,7 @@ def format_duration(seconds: int | float) -> str:
     """
     if seconds < 60:
         return f"{seconds:.0f} seconds"
-    elif seconds < 60*60:
+    elif seconds < 60 * 60:
         return f"{seconds / 60:.2f} minutes"
     else:
         return f"{seconds / 3600:.2f} hours"
