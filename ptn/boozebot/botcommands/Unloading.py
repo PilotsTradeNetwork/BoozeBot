@@ -313,23 +313,21 @@ class Unloading(commands.Cog):
                 content=f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
             )
 
+        if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
+            msg = f"You do not own the carrier with ID: {carrier_id}."
+            logger.info(msg)
+            return await interaction.edit_original_response(content=msg)
+
+        if carrier_data.system != "N0":
+            msg = f"Carrier {carrier_data.carrier_identifier} is not in N0 (HIP 58832); cannot unload wine."
+            logger.info(msg)
+            return await interaction.edit_original_response(content=msg)
+
         if not carrier_data.body:
             logger.info(f"No body found for: {carrier_id}.")
             return await interaction.edit_original_response(
                 content=f"Sorry, you must first set a body for your carrier {carrier_id} in the Wine Carrier Sheet before unloading."
             )
-
-        if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
-            msg = f"You do not own the carrier with ID: {carrier_id}."
-            logger.info(msg)
-            await interaction.edit_original_response(content=msg)
-            return
-
-        if carrier_data.system != "N0":
-            msg = f"Carrier {carrier_data.carrier_identifier} is not in N0 (HIP 58832); cannot unload wine."
-            logger.info(msg)
-            await interaction.edit_original_response(content=msg)
-            return
 
         wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
 
@@ -596,13 +594,20 @@ class Unloading(commands.Cog):
                 + f"{carrier_id}."
             )
 
-        message = await wine_alert_channel.fetch_message(message_id)
-        if message:
-            await message.delete()
+        try:
+            message = await wine_alert_channel.fetch_message(message_id)
+        except discord.NotFound:
+            logger.warning(f"Unload notification message ID {message_id} for carrier {carrier_id} not found in channel.")
+            message = None
 
         # Now delete it in the database
         logger.debug(f"Removing unload notification from database for carrier: {carrier_id}.")
         completed_trip = await booze_sheets_api.complete_carrier_unload(carrier_data.db_id)
+        
+        if message:
+            await message.delete()
+            logger.info(f"Deleted unload notification message from Discord for carrier: {carrier_id}.")
+        
         await database.delete_carrier_message(carrier_id, "unload")
         logger.info(f"Removed unload notification from database for carrier: {carrier_id}.")
 

@@ -53,6 +53,39 @@ Statistics COMMANDS
 
 logger = get_logger("boozebot.commands.statistics")
 
+
+def format_large_number(number: int | float) -> str:
+    """
+    Formats a large number with proper quantifier (Million, Billion, Trillion).
+
+    :param number: The number to format
+    :returns: Formatted string with quantifier
+    """
+    if number < 10**6:
+        return f"{number:,.0f}"
+    elif number < 10**9:
+        return f"{number / 10**6:.2f} Million"
+    elif number < 10**12:
+        return f"{number / 10**9:.2f} Billion"
+    else:
+        return f"{number / 10**12:.2f} Trillion"
+
+
+def format_duration(seconds: int | float) -> str:
+    """
+    Formats a duration in seconds with proper time units (seconds/minutes/hours).
+
+    :param seconds: The duration in seconds
+    :returns: Formatted string with time unit
+    """
+    if seconds < 60:
+        return f"{seconds:.0f} seconds"
+    elif seconds < 60 * 60:
+        return f"{seconds / 60:.2f} minutes"
+    else:
+        return f"{seconds / 3600:.2f} hours"
+
+
 IncludeNotUnloadedChoices = Literal["All Carriers", "Only Unloaded"]
 FactionStateChoices = Literal[
     "Public Holiday",
@@ -1024,19 +1057,19 @@ class Statistics(commands.Cog):
         embed = Embed(
             title="Pirate Steve's All-Time Booze Cruise Tally",
             description=(
-                f"**Total Wine Delivered:** — {stats.total_wine:,} tonnes\n"
+                f"**Total Wine Delivered:** — {format_large_number(stats.total_wine)} tonnes\n"
                 + f"**Total Cruises:** — {total_cruises:,}\n"
                 + f"**Total Trips:** — {stats.total_trips:,}\n"
                 + f"**Total Carriers:** — {stats.total_carriers:,}\n"
                 + f"**Total Carrier Owners:** — {stats.total_owners:,}\n"
-                + f"**Total Profit:** — {stats.total_profit:,.2f} credits\n"
+                + f"**Total Profit:** — {format_large_number(stats.total_profit)} credits\n"
                 + f"**Carriers Remaining:** — {stats.carriers_remaining:,}\n"
-                + f"**Wine Remaining:** — {stats.wine_remaining:,} tonnes\n"
-                + f"**Average Unload Duration:** — {stats.avg_unload_dur:.0f} seconds\n"
-                + f"**Minimum Unload Duration:** — {stats.min_unload_dur:.0f} seconds\n"
-                + f"**Maximum Unload Duration:** — {stats.max_unload_dur:.0f} seconds\n\n"
-                + f"**Average Wine per Cruise:** — {avg_wine_per_cruise:,} tonnes\n"
-                + f"**Average Profit per Cruise:** — {avg_profit_per_cruise:,.2f} credits\n"
+                + f"**Wine Remaining:** — {format_large_number(stats.wine_remaining)} tonnes\n"
+                + f"**Average Unload Duration:** — {format_duration(stats.avg_unload_dur)}\n"
+                + f"**Minimum Unload Duration:** — {format_duration(stats.min_unload_dur)}\n"
+                + f"**Maximum Unload Duration:** — {format_duration(stats.max_unload_dur)}\n\n"
+                + f"**Average Wine per Cruise:** — {format_large_number(avg_wine_per_cruise)} tonnes\n"
+                + f"**Average Profit per Cruise:** — {format_large_number(avg_profit_per_cruise)} credits\n"
                 + f"**Average Trips per Cruise:** — {avg_trips_per_cruise:.2f}\n"
             ),
         )

@@ -107,8 +107,8 @@ async def createPagination(
             else:
                 # It should be impossible to hit this part, but lets gate it just in case.
                 logger.error(
-                    f"HAL9000 error: {interaction.user.name} ended in a random state while trying to handle: {reaction.emoji} " +
-                    f"and on page: {current_page}."
+                    f"HAL9000 error: {interaction.user.name} ended in a random state while trying to handle: {reaction.emoji} "
+                    + f"and on page: {current_page}."
                 )
                 # HAl-9000 error response.
                 error_embed = discord.Embed(title=f"I'm sorry {interaction.user.name}, I'm afraid I can't do that.")
