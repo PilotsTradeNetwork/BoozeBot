@@ -36,6 +36,7 @@ from ptn.boozebot.constants import (
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.PHcheck import api_ph_check, ph_check
+from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 
 """
 PUBLIC HOLIDAY TASK LOOP
@@ -97,6 +98,10 @@ class PublicHoliday(commands.Cog):
                 )
                 logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
                 await Cleaner.update_status_embed("bc_start")
+
+                logger.info("Updating cruise state on backend to 'active'")
+                await booze_sheets_api.update_cruise_state("active")
+
                 return True, "Holiday started and flagged in the database"
             else:
                 logger.info("Holiday already flagged - no need to set it again")
@@ -131,8 +136,12 @@ class PublicHoliday(commands.Cog):
                     # Only post it if it is a state change.
                     logger.info("Holiday was ongoing, no longer ongoing - flag it accordingly")
                     await holiday_announce_channel.send(holiday_ended_gif)
-                    await Cleaner.update_status_embed("bc_end")
                     logger.debug("Notified holiday end. Updating status embed.")
+                    await Cleaner.update_status_embed("bc_end")
+
+                    logger.info("Updating cruise state on backend to 'ended'")
+                    await booze_sheets_api.update_cruise_state("ended")
+
                     return True, "Holiday ended and flagged in the database"
                 else:
                     logger.info("Holiday was not ongoing - no need to turn it off")

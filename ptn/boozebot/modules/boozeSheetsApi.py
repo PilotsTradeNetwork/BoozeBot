@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import httpx
 import asyncio
 import json
-from typing import Any, Callable, override
+from typing import Any, Callable, Literal, override
 import websockets
 from discord.ext.commands import Bot
 from httpx import AsyncClient
@@ -514,6 +514,21 @@ class BoozeSheetsApi:
         logger.debug(f"All-time stats retrieved: {stats_data}")
 
         return CruiseStats(stats_data)
+
+    async def update_cruise_state(self, state: Literal["prep", "active", "ended", "channels_closed"]):
+        """
+        Update the current cruise state in BoozeSheets.
+
+        :param state: The new cruise state.
+        """
+
+        logger.debug(f"Updating cruise state to {state}")
+        endpoint = "/cruises/state"
+        data = {"state": state}
+
+        logger.debug(f"Sending PATCH request to {endpoint} with data={data}")
+        await self._request("PATCH", endpoint, data)
+        logger.debug(f"Cruise state updated to {state}")
 
     """
     Websocket stuff
