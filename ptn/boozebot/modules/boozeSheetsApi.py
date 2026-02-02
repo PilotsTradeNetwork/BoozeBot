@@ -1,7 +1,6 @@
 from asyncio import Lock
 from datetime import datetime, timezone
 from enum import Enum
-from aiohttp import payload_type
 import httpx
 import asyncio
 import json
