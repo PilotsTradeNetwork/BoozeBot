@@ -18,7 +18,7 @@ httpx==0.28.1
 idna==3.11
 isodate==0.7.2
 loguru==0.7.3
-multidict==6.7.0
+multidict==6.7.1
 prometheus-client==0.24.1
 propcache==0.4.1
 ptn-utils @ git+https://github.com/PilotsTradeNetwork/PTN-Library.git@aef4b28b2be931d9f0775bc1beb70a8edf9214ac
