@@ -53,6 +53,7 @@ include = ["ptn"]
 reportOptionalMemberAccess=false
 reportArgumentType=false
 reportAny=false
+reportExplicitAny=false
 reportMissingTypeStubs=false
 reportAttributeAccessIssue=false
 reportAssignmentType=false
