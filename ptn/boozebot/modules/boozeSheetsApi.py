@@ -352,6 +352,26 @@ class BoozeSheetsApi:
         logger.debug(f"Cruises list retrieved: {cruises}")
 
         return cruises
+    
+    async def get_current_cruise_state(self) -> str:
+        """
+        Retrieves the current cruise state from the BoozeSheets API.
+
+        :return: The current cruise state as a string.
+        """
+
+        logger.debug("Getting current cruise state")
+        endpoint = "/cruises/state"
+
+        logger.debug(f"Sending GET request to {endpoint}")
+        try:
+            state_data = await self._request("GET", endpoint)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to get current cruise state: {e}")
+            return "channels_closed"
+        logger.debug(f"Current cruise state retrieved: {state_data}")
+
+        return state_data.get("state", "channels_closed")
 
     async def get_cruise_with_stats(self, cruise_id: int, include_not_unloaded: bool | None = None) -> Cruise | None:
         """
