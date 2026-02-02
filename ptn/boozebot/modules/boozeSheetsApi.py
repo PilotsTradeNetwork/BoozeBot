@@ -1,5 +1,7 @@
 from asyncio import Lock
 from datetime import datetime, timezone
+from enum import Enum
+from aiohttp import payload_type
 import httpx
 import asyncio
 import json
@@ -20,6 +22,12 @@ from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
 from ptn.boozebot.classes.Cruise import Cruise, CruiseStats
 from ptn_utils.logger.logger import get_logger
+
+
+class PayloadType(Enum):
+    BODY = 0
+    QUERY = 1
+
 
 logger = get_logger("boozebot.modules.boozeSheetsApi")
 
@@ -157,23 +165,34 @@ class BoozeSheetsApi:
         after=_on_api_failure,
         reraise=True,
     )
-    async def _request(self, method: str, endpoint: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def _request(
+        self,
+        method: str,
+        endpoint: str,
+        data: dict[str, Any] | None = None,
+        payload_type: PayloadType | None = PayloadType.QUERY,
+    ) -> dict[str, Any]:
         """
         Internal method to send HTTP requests to the BoozeSheets API.
 
         :param method: The HTTP method (GET, POST, PATCH, DELETE, etc.)
         :param endpoint: The API endpoint to send the request to.
         :param data: The data to send in the request body or get params (optional).
+        :param payload_type: Determines whether to use query params or json body to pass data to the API (optional)
         :return: The response from the API as a dictionary.
         """
 
         logger.debug(f"Sending {method} request to BoozeSheets API: endpoint={endpoint}, data={data}")
 
         async with self.client_lock:
-            if method.upper() == "GET":
-                response = await self.client.request(method, endpoint, params=data, follow_redirects=True)
-            else:
-                response = await self.client.request(method, endpoint, json=data, follow_redirects=True)
+            match payload_type:
+                case PayloadType.QUERY:
+                    response = await self.client.request(method, endpoint, params=data, follow_redirects=True)
+                case PayloadType.BODY:
+                    response = await self.client.request(method, endpoint, json=data, follow_redirects=True)
+                case _:
+                    logger.error(f"Invalid payload_type: {payload_type}, assuming QUERY")
+                    response = await self.client.request(method, endpoint, params=data, follow_redirects=True)
 
         response.raise_for_status()
         response_data = response.json()
@@ -245,7 +264,7 @@ class BoozeSheetsApi:
         logger.debug(f"Updating carrier info for carrier_id={carrier_id}")
         endpoint = f"/carriers/{carrier_id}/admin"
 
-        updated_carrier_info = await self._request("PATCH", endpoint, update_data)
+        updated_carrier_info = await self._request("PATCH", endpoint, update_data, PayloadType.BODY)
 
         logger.debug(f"Carrier info updated: {updated_carrier_info}")
 
@@ -263,12 +282,14 @@ class BoozeSheetsApi:
         """
 
         logger.debug(f"Starting unload for carrier_id={carrier_id}, delay={delay}")
-        endpoint = f"/carriers/{carrier_id}/unload?unloading=true"
+        endpoint = f"/carriers/{carrier_id}/unload"
 
-        data = {"delay": delay} if delay is not None else None
+        data: dict[str, str | int] = {"unloading": "true"}
+        if delay is not None:
+            data["delay"] = delay
 
         logger.debug(f"Sending POST request to {endpoint} with data={data}")
-        updated_carrier = await self._request("POST", endpoint, data)
+        updated_carrier = await self._request("POST", endpoint, data, PayloadType.BODY)
         logger.debug(f"Carrier unload started: {updated_carrier}")
 
         return BoozeCarrier(updated_carrier)
@@ -282,10 +303,11 @@ class BoozeSheetsApi:
         """
 
         logger.debug(f"Completing unload for carrier_id={carrier_id}")
-        endpoint = f"/carriers/{carrier_id}/unload?unloading=false"
+        endpoint = f"/carriers/{carrier_id}/unload"
 
-        logger.debug(f"Sending POST request to {endpoint} with")
-        updated_carrier = await self._request("POST", endpoint)
+        data = {"unloading": "false"}
+        logger.debug(f"Sending POST request to {endpoint} with data={data}")
+        updated_carrier = await self._request("POST", endpoint, data, PayloadType.QUERY)
         logger.debug(f"Carrier unload completed: {updated_carrier}")
 
         return BoozeCarrier(updated_carrier)
@@ -302,7 +324,7 @@ class BoozeSheetsApi:
         data = {"wine_status": ["Full", "Partially Full"]}
 
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
-        carriers_info = await self._request("GET", endpoint, data=data)
+        carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"All carriers info retrieved: {carriers_info}")
 
         carriers = [BoozeCarrier(info) for info in carriers_info]
@@ -369,7 +391,7 @@ class BoozeSheetsApi:
 
         logger.debug(f"Sending GET request to {stats_endpoint} with data={data}")
         try:
-            cruise_data = await self._request("GET", stats_endpoint, data)
+            cruise_data = await self._request("GET", stats_endpoint, data, PayloadType.QUERY)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.warning(f"Cruise stats not found for cruise_id={actual_cruise_id}")
@@ -396,7 +418,7 @@ class BoozeSheetsApi:
 
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         try:
-            cruise_data = await self._request("GET", endpoint, data)
+            cruise_data = await self._request("GET", endpoint, data, PayloadType.QUERY)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.warning("Biggest cruise stats not found")
@@ -468,7 +490,7 @@ class BoozeSheetsApi:
         data = {"owner_pinged": False, "pending": True}
 
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
-        carriers_info = await self._request("GET", endpoint, data=data)
+        carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"Unpinged signups info retrieved: {carriers_info}")
 
         if not carriers_info:
