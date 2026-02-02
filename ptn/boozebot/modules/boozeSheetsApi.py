@@ -288,7 +288,7 @@ class BoozeSheetsApi:
             data["delay"] = delay
 
         logger.debug(f"Sending POST request to {endpoint} with data={data}")
-        updated_carrier = await self._request("POST", endpoint, data, PayloadType.BODY)
+        updated_carrier = await self._request("POST", endpoint, data, PayloadType.QUERY)
         logger.debug(f"Carrier unload started: {updated_carrier}")
 
         return BoozeCarrier(updated_carrier)
