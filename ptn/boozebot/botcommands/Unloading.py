@@ -594,13 +594,20 @@ class Unloading(commands.Cog):
                 + f"{carrier_id}."
             )
 
-        message = await wine_alert_channel.fetch_message(message_id)
-        if message:
-            await message.delete()
+        try:
+            message = await wine_alert_channel.fetch_message(message_id)
+        except discord.NotFound:
+            logger.warning(f"Unload notification message ID {message_id} for carrier {carrier_id} not found in channel.")
+            message = None
 
         # Now delete it in the database
         logger.debug(f"Removing unload notification from database for carrier: {carrier_id}.")
         completed_trip = await booze_sheets_api.complete_carrier_unload(carrier_data.db_id)
+        
+        if message:
+            await message.delete()
+            logger.info(f"Deleted unload notification message from Discord for carrier: {carrier_id}.")
+        
         await database.delete_carrier_message(carrier_id, "unload")
         logger.info(f"Removed unload notification from database for carrier: {carrier_id}.")
 
