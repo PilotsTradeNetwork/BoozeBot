@@ -17,38 +17,6 @@ class StaleDataException(Exception):
     pass
 
 
-async def get_state_from_ebgs() -> bool:
-    logger.debug("Getting state from EBGS API.")
-    ebgs_params = {"name": "Rackham Capital Investments"}
-    async with httpx.AsyncClient() as client:
-        r = await client.get("https://elitebgs.app/api/ebgs/v5/factions", params=ebgs_params, timeout=5)
-        r.raise_for_status()
-        result = r.json()
-
-    logger.debug(f"EBGS API response: {result}")
-
-    # Search each element in the result
-    for element in result["docs"]:
-        # Search each system in which the faction is present
-        for system in element["faction_presence"]:
-            # If there are no active states in the system, skip to the next system
-            if not system["active_states"] or system["system_name"] != "HIP 58832":
-                continue
-            # If there is an active state, look through the active states for a public holiday
-            else:
-                updated_at = datetime.fromisoformat(system["updated_at"])
-                if datetime.now(UTC) - updated_at > STALE_DATA_THRESHOLD:
-                    raise StaleDataException(f"Stale data detected from EBGS. Last Updated: {updated_at}")
-                for active_states in system["active_states"]:
-                    # If the system is in public holiday, return True
-                    if active_states["state"] == "publicholiday":
-                        logger.debug("Public Holiday state found in EBGS response.")
-                        return True
-
-    logger.debug("No Public Holiday state found in EBGS response.")
-    return False
-
-
 async def get_state_from_edsm() -> bool:
     logger.debug("Getting state from EDSM API.")
     edsm_params = {
@@ -91,23 +59,8 @@ async def api_ph_check() -> bool:
         else:
             raise
 
-        logger.debug("Attempting to get the state from EBGS.")
-
-        try:
-            if await get_state_from_ebgs():
-                logger.info("PH state detected from EBGS.")
-                return True
-        except Exception as e:
-            logger.error("Problem while getting the state from EBGS.")
-            if isinstance(e, httpx.HTTPError) or isinstance(e, JSONDecodeError):
-                logger.error(f"HTTP Exception for {e.request.url} - {e}")
-            elif isinstance(e, StaleDataException):
-                logger.error(e)
-            else:
-                raise
-
     # Return false if there are no public holiday hits
-    logger.info("No PH state detected from external APIs.")
+    logger.info("No PH state detected from external API.")
     return False
 
 
