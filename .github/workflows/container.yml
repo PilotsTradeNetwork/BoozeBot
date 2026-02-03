@@ -2,7 +2,8 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "main" ]
+    tags:
+      - '*'
 
 env:
   IMAGE_NAME: boozebot
@@ -22,11 +23,10 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Generate version timestamp
+      - name: Get tag name
         id: prep
         run: |
-          ts=$(date "+%Y%m%d-%H%M%S")
-          echo "BUILD_VER=${ts}" >> $GITHUB_OUTPUT
+          echo "BUILD_VER=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
