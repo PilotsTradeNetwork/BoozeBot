@@ -255,7 +255,7 @@ async def make_user_wine_carrier(interaction: Interaction, user: Member) -> None
 
         async def respond(content: str | None = None, embed: discord.Embed | None = None):
             if interaction.message:
-                return await interaction.followup.send(content=content, embed=embed)
+                return await interaction.followup.send(content=content, embed=embed, ephemeral=True)
             else:
                 return await interaction.edit_original_response(content=content, embed=embed)
 
