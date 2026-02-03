@@ -36,6 +36,7 @@
 -    \#733 Add staleness check to automatic PH detection (axleantilles)
 -    \#734 Alias b/exit with b/sober_up (axleantilles)
 -    \#735 Fix regex auto response errors (Conshmea)
+-    \#737 Build docker images only on new tags (IndorilReborn)
 
 ## 2.1.1a
 -    \#663 - db insertion hotfix (conshmea)
