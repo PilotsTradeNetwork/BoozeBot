@@ -548,7 +548,7 @@ class BoozeSheetsApi:
         data = {"state": state}
 
         logger.debug(f"Sending PATCH request to {endpoint} with data={data}")
-        await self._request("PATCH", endpoint, data)
+        await self._request("PATCH", endpoint, data, PayloadType.BODY)
         logger.debug(f"Cruise state updated to {state}")
 
     """
