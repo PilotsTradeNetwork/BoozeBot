@@ -45,7 +45,6 @@ async def get_state_from_edsm() -> bool:
 async def api_ph_check() -> bool:
     logger.info("Checking PH state from external APIs.")
     try:
-        raise StaleDataException("test")
         logger.debug("Attempting to get the state from EDSM.")
         if await get_state_from_edsm():
             logger.info("PH state detected from EDSM.")
