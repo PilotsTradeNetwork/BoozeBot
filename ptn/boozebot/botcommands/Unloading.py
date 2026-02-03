@@ -317,6 +317,12 @@ class Unloading(commands.Cog):
             msg = f"You do not own the carrier with ID: {carrier_id}."
             logger.info(msg)
             return await interaction.edit_original_response(content=msg)
+        
+        if await booze_sheets_api.get_current_cruise_state() != "active":
+            msg = "Sorry, unloads can only be started during an active booze cruise."
+            logger.info(msg)
+            await interaction.edit_original_response(content=msg)
+            return
 
         if carrier_data.system != "N0":
             msg = f"Carrier {carrier_data.carrier_identifier} is not in N0 (HIP 58832); cannot unload wine."
@@ -447,14 +453,14 @@ class Unloading(commands.Cog):
                 f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
             )
 
-        if not carrier_data.body:
-            logger.info(f"No body found for: {carrier_id}.")
-            return await interaction.edit_original_response(
-                content=f"Sorry, you must first set a body for your carrier {carrier_id} in the Wine Carrier Sheet before unloading."
-            )
-
         if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
             msg = f"You do not own the carrier with ID: {carrier_id}."
+            logger.info(msg)
+            await interaction.edit_original_response(content=msg)
+            return
+        
+        if await booze_sheets_api.get_current_cruise_state() != "active":
+            msg = "Sorry, unloads can only be started during an active booze cruise."
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
@@ -463,6 +469,13 @@ class Unloading(commands.Cog):
             msg = f"Carrier {carrier_data.carrier_identifier} is not in N0 (HIP 58832); cannot unload wine."
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
+            return
+        
+        if not carrier_data.body:
+            logger.info(f"No body found for: {carrier_id}.")
+            await interaction.edit_original_response(
+                content=f"Sorry, you must first set a body for your carrier {carrier_id} in the Wine Carrier Sheet before unloading."
+            )
             return
 
         wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
