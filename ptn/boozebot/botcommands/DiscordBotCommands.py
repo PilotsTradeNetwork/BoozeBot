@@ -87,9 +87,9 @@ class DiscordBotCommands(commands.Cog):
         logger.debug(f"Ping response sent to {ctx.author}.")
 
     # quit the bot
-    @commands.command(name="exit", help="Stops the bots process on the VM, ending all functions.")
+    @commands.command(name="sober_up", help="Stops the bots process on the VM, ending all functions.")
     @commands.has_any_role(*any_council_role)
-    async def exit(self, ctx):
+    async def sober_up(self, ctx):
         """
         Stop-quit command for the bot.
 
@@ -97,9 +97,9 @@ class DiscordBotCommands(commands.Cog):
         :returns: None
         """
         logger.info(f"Exit command called by {ctx.author}.")
-        await ctx.send("Ahoy! k thx bye")
+        await ctx.send("YARRR I'm not as think as you drunk I am!")
         logger.warning("Bot is shutting down per user request.")
-        sys.exit("User requested exit.")
+        sys.exit("User requested that Steve sober up.")
 
     @commands.command(name="version", help="Logs the bot version")
     @commands.has_any_role(*any_council_role)
