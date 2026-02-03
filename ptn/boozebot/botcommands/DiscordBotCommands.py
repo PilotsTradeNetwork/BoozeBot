@@ -87,7 +87,7 @@ class DiscordBotCommands(commands.Cog):
         logger.debug(f"Ping response sent to {ctx.author}.")
 
     # quit the bot
-    @commands.command(name="sober_up", help="Stops the bots process on the VM, ending all functions.")
+    @commands.command(name="exit", aliases=["sober_up"], help="Stops the bots process on the VM, ending all functions.")
     @commands.has_any_role(*any_council_role)
     async def sober_up(self, ctx):
         """
