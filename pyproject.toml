@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=61.2", "wheel", "setuptools_scm[toml] >= 6"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ptn.boozebot"
+description = "Pilots Trade Network Booze Bot"
+authors = [
+    { name = "Conshmea"},
+    { name = "Axle Antilles"},
+    { name = "IndorilReborn"},
+    { name = "Graeme Cruickshank"},
+]
+readme = "README.md"
+license = { text = "MIT" }
+keywords = ["PTN"]
+requires-python = "~=3.13.0"
+dependencies = [
+    "discord-py~=2.5",
+    "discord-ext-prometheus~=0.2.1",
+    "isodate~=0.7.2",
+    "loguru~=0.7.3",
+    "python-dotenv~=1.2.1",
+    "requests~=2.32.5",
+    "httpx~=0.28.1",
+    "tenacity~=9.1.2",
+    "ptn-utils",
+    "websockets"
+]
+dynamic = ["version"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ptn.boozebot*"]
+
+[project.scripts]
+booze = "ptn.boozebot.application:run"
+
+[tool.setuptools_scm]
+# this is used populated when creating a git archive
+# and when there is .git dir and/or there is no git installed
+fallback_version = "0.0.0+unknown"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["FIX001", "FIX002", "FIX003"]
+
+[tool.basedpyright]
+include = ["ptn"]
+reportOptionalMemberAccess=false
+reportArgumentType=false
+reportAny=false
+reportExplicitAny=false
+reportMissingTypeStubs=false
+reportAttributeAccessIssue=false
+reportAssignmentType=false
+reportUnusedCallResult=false
+reportUnknownVariableType=false
+reportUnknownArgumentType=false
+reportUnknownMemberType=false
+reportUnknownParameterType=false
+
+[tool.uv.sources]
+ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev = "0.2.6" }
+
+[dependency-groups]
+dev = [
+    "basedpyright~=1.37.1",
+    "ipython~=9.9.0",
+    "ruff~=0.14.3",
+]

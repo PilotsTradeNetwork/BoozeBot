@@ -1,5 +1,43 @@
 # Changelog
 
+## 3.0.0
+-    \#673 Update to Python 3.13 (axleantilles)
+-    \#672 Fix 0 wine crash (IndorilReborn)
+-    \#675 Use UV for package management (IndorilReborn)
+-    \#666 Use loguru for logging (Conshmea)
+-    \#676 Use PTN-Utils logger (IndorilReborn)
+-    \#684 PTN-Utils Global Constants & Get or Fetch (axleantilles)
+-    \#684 Dynamic Versioning (axleantilles)
+-    \#684 Minimal Intents (axleantilles)
+-    \#686 Fix extra stats (Conshmea)
+-    \#687 Fix settings on channels open (Conshmea)
+-    \#689 Remove unnecessary trace logging in database (axleantilles)
+-    \#692 Booze Sheets Integration (Conshmea)
+-    \#692 Remove DB admin commands (Conshmea)
+-    \#692 Add owner checks to departure and unload commands (Conshmea)
+-    \#692 Move all DB operations to own class (Conshmea)
+-    \#702 Dependency bump
+-    \#705 Fix dynamic versioning (axleantilles)
+-    \#707 Fix error when no notable data is returned (axleantilles)
+-    \#710 Based pyright config (Conshmea)
+-    \#712 Http error fix (Conshmea)
+-    \#711 Test bug fixes (axleantilles)
+-    \#716 Ping conns for carrier signup (Conshmea)
+-    \#717 Use display name not username in signup
+-    \#720 Simplify tally numbers to millions/billions, minutes, etc (IndorilReborn)
+-    \#728 Log all HTTP errors (Conshmea)
+-    \#725 Unload command error order fix (axleantilles)
+-    \#723 Dependency bump
+-    \#722 Fix unload complete order (Conshmea)
+-    \#718 Update cruise state on boozesheets automatically (Conshmea)
+-    \#729 Fix API requests to use correct paramater type (axleantilles)
+-    \#730 Make Make WCO button ephemeral
+-    \#731 Lock unloads during inactive states (Conshmea)
+-    \#733 Add staleness check to automatic PH detection (axleantilles)
+-    \#734 Alias b/exit with b/sober_up (axleantilles)
+-    \#735 Fix regex auto response errors (Conshmea)
+-    \#737 Build docker images only on new tags (IndorilReborn)
+
 ## 2.1.1a
 -    \#663 - db insertion hotfix (conshmea)
 

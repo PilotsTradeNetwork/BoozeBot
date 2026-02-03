@@ -1,94 +1,161 @@
+from datetime import datetime
+from typing import Any, override
 
-from ptn.boozebot.constants import CARRIER_ID_RE
+import discord
+from ptn_utils.logger.logger import get_logger
+from ptn.boozebot.modules.helpers import sane_default_datetime, sane_default_duration
+
+logger = get_logger("boozebot.classes.boozecarrier")
+
+
+class CarrierOwner:
+    display_name: str | None
+    discord_id: int
+    is_role: bool
+    mention: str | None
+    username: str | None
+
+    def __init__(self, info_dict: dict[str, Any]):
+        """
+        Class represents a carrier owner object as returned from the api.
+
+        :param info_dict: The dictionary containing the carrier owner information.
+        """
+
+        logger.debug(f"Initializing CarrierOwner with info_json: {info_dict}")
+
+        self.username = info_dict.get("username", None)
+        self.display_name = info_dict.get("displayName", None)
+        discord_id = info_dict.get("discordId", None)
+        if discord_id:
+            if discord_id.startswith("&"):
+                self.discord_id = int(discord_id[1:])
+                self.is_role = True
+                self.mention = f"<@&{self.discord_id}>"
+            else:
+                self.discord_id = int(discord_id)
+                self.is_role = False
+                self.mention = f"<@{self.discord_id}>"
+        else:
+            self.discord_id = 0
+            self.is_role = False
+            self.mention = None
+
+        logger.debug(
+            f"CarrierOwner initialized: username={self.username}, discord_id={self.discord_id}, "
+            + f"display_name={self.display_name}"
+        )
+
+    @override
+    def __str__(self) -> str:
+        """
+        Overloads str to return a readable object
+
+        :rtype: str
+        """
+        return f"CarrierOwner(): {self.username}, ({self.discord_id})"
+
+
+class SignupInfo:
+    first_time: bool
+    notes: str | None
+    color: str
+    status: str | None
+
+    def __init__(self, info_dict: dict[str, Any]):
+        """
+        Class represents signup information about a carrier as returned from the api.
+
+        :param info_dict: The dictionary containing the signup information.
+        """
+
+        self.status = info_dict.get("status", None)
+        self.color = info_dict.get("color", "000000")
+        self.notes = info_dict.get("notes", None)
+        self.first_time = info_dict.get("firstTime", True)
 
 
 class BoozeCarrier:
+    unload_closed: datetime | None
+    unload_opened: datetime | None
+    availability_end: datetime | None
+    availability_start: datetime | None
+    status: str | None
+    wine_status: str | None
+    wine_total: int
+    trip_id: int
+    cruise_id: int
+    owner: CarrierOwner
+    queue_timestamp: datetime | None
+    carrier_name: str | None
+    carrier_identifier: str | None
+    system: str | None
+    body: str | None
+    staff_comment: str | None
+    swap_with: str | None
+    plotted_body: str | None
+    plotted_system: str | None
+    in_queue: bool
+    db_id: int
+    unload_duration: float | None
+    signup_info: SignupInfo | None
 
-    COMPARISON_KEYS = ["carrier_name", "wine_total", "carrier_identifier", "discord_username", "run_count"]
-
-    def __init__(self, info_dict=None):
+    def __init__(self, info_dict: dict[str, Any]):
         """
-        Class represents a carrier object as returned from the database.
+        Class represents a carrier object as returned from the api.
 
-        :param sqlite3.Row info_dict: A single row from the sqlite query.
+        :param info_dict: The dictionary containing the carrier information.
         """
 
-        if info_dict:
-            # Convert the sqlite3.Row object to a dictionary
-            info_dict = dict(info_dict)
+        logger.debug(f"Initializing BoozeCarrier with info_json: {info_dict}")
+
+        fc_data = info_dict.get("fcData", {})
+
+        self.db_id = int(info_dict.get("fcId", 0))
+
+        # FC data
+        self.carrier_name = fc_data.get("fcName", None)
+        self.carrier_identifier = fc_data.get("fcCallsign", None)
+        self.system = fc_data.get("currentSystem", None)
+        self.body = fc_data.get("currentBody", None)
+        self.in_queue = bool(fc_data.get("isInQueue", False))
+        self.plotted_system = fc_data.get("plottedSystem", None)
+        self.plotted_body = fc_data.get("plottedBody", None)
+        self.swap_with = fc_data.get("swapWith", None)
+        self.queue_timestamp = sane_default_datetime(fc_data.get("queueTs", None))
+        self.staff_comment = fc_data.get("staffComment", None)
+
+        # Owner data
+        self.owner = CarrierOwner(fc_data.get("owner", {}))
+
+        # Notable info
+        if "notable" in info_dict and info_dict.get("notable"):
+            self.signup_info = SignupInfo(info_dict.get("notable"))
         else:
-            info_dict = dict()
+            self.signup_info = None
 
-        # Because we also pass a DB object, we should also covert those to the same fields
-        self.carrier_name = info_dict.get("Carrier Name", None) or info_dict.get("carriername", None)
+        # Trip data
+        self.cruise_id = int(info_dict.get("cruiseId", 0))
+        self.trip_id = int(info_dict.get("tripId", 0))
+        self.wine_total = int(info_dict.get("wineTotal", 0))
+        self.wine_status = info_dict.get("wineStatus", None)
+        self.status = info_dict.get("status", None)
+        self.availability_start = sane_default_datetime(info_dict.get("availabilityStart", None))
+        self.availability_end = sane_default_datetime(info_dict.get("availabilityEnd", None))
+        self.unload_opened = sane_default_datetime(info_dict.get("unloadOpened", None))
+        self.unload_closed = sane_default_datetime(info_dict.get("unloadClosed", None))
+        self.unload_duration = sane_default_duration(info_dict.get("unloadDur", None))
 
-        if self.carrier_name:
-            self.carrier_name = str(self.carrier_name)
-
-        self.wine_total = info_dict.get("Wine Total (tons)", None) or info_dict.get("winetotal", None)
-
-        if self.wine_total:
-            try:
-                self.wine_total = int(self.wine_total)
-            except ValueError:
-                self.wine_total = None
-
-        self.carrier_identifier = info_dict.get("Carrier ID", None) or info_dict.get("carrierid", None)
-        if self.carrier_identifier:
-            # Cast the carrier ID to upper case for consistency
-            self.carrier_identifier = str(self.carrier_identifier).upper()
-
-            # make sure it matches the regex
-            if not CARRIER_ID_RE.fullmatch(self.carrier_identifier):
-                raise ValueError(f"Incompatible carrier ID found: {self.carrier_identifier} - {self.carrier_name}")
-
-        self.platform = "PC (Horizons + Odyssey)"
-
-        # We no longer track whether a carrier is associated with PTN in an official capacity or not. Since the DB
-        # still contains this field, set it to False for now and phase it out
-        self.ptn_carrier = False
-
-        self.discord_username = info_dict.get("Discord Username", None) or info_dict.get("discordusername", None)
-
-        if self.discord_username:
-            self.discord_username = str(self.discord_username)
-
-        self.timestamp = info_dict.get("Timestamp", None) or info_dict.get("timestamp", None)
-
-        # This being set that an unload is ongoing
-        self.discord_unload_notification = info_dict.get("discord_unload_in_progress", None)
-        # Discord unload poster ID, the user who posted the unload notification
-        self.discord_unload_poster_id = info_dict.get("discord_unload_poster_id", None)
-
-        # Track number of runs the carrier completed
-        self.run_count = info_dict.get("run_count", None) or info_dict.get("runtotal", None)
-        if self.carrier_name and not self.run_count:
-            # Increment to 1 in the case of a carrier name without a run count defined
-            self.run_count = 1
-
-        # How many unloading operations are completed.
-        self.total_unloads = info_dict.get("totalunloads", None)
-        if self.carrier_name and not self.total_unloads:
-            # Set to 0 in the case of a carrier name without a total unloads value defined
-            self.total_unloads = 0
-
-        # A UTC representation of when the user usually is available. We use UTC as we need a common reference time,
-        # and game time works for that.
-        self.timezone = info_dict.get("user_timezone_in_utc", None)
-
-        # The faction state that the peak was in during the booze cruise, for historical records
-        self.faction_state = info_dict.get("faction_state", None)
-        
-        # The Discord message ID for the departure message
-        self.discord_departure_message_id = info_dict.get("discord_departure_message_id", None)
-
-    def get_unload_stats(self, include_not_unloaded: bool = True) -> tuple[int, int]:
-        if include_not_unloaded:
-            return self.wine_total, self.run_count
-
-        else:
-            unloaded_wine = int(self.wine_total / self.run_count * self.total_unloads)
-            return unloaded_wine, self.total_unloads
+        logger.debug(
+            f"BoozeCarrier initialized: carrier_name={self.carrier_name}, carrier_identifier={self.carrier_identifier}, "
+            + f"system={self.system}, body={self.body}, in_queue={self.in_queue}, plotted_system={self.plotted_system}, "
+            + f"plotted_body={self.plotted_body}, swap_with={self.swap_with}, queue_timestamp={self.queue_timestamp}, "
+            + f"staff_comment={self.staff_comment}, owner_username={self.owner.username}, owner_discord_id={self.owner.discord_id}, "
+            + f"owner_display_name={self.owner.display_name}, cruise_id={self.cruise_id}, trip_id={self.trip_id}, "
+            + f"wine_total={self.wine_total}, wine_status={self.wine_status}, status={self.status}, "
+            + f"availability_start={self.availability_start}, availability_end={self.availability_end}, "
+            + f"unload_opened={self.unload_opened}, unload_closed={self.unload_closed}, unload_duration={self.unload_duration}"
+        )
 
     def to_dictionary(self):
         """
@@ -97,24 +164,26 @@ class BoozeCarrier:
         :returns: A dictionary representation for the carrier data.
         :rtype: dict
         """
+
+        logger.debug(f"Converting BoozeCarrier '{self.carrier_name}' to dictionary.")
+
         response = {}
         for key, value in vars(self).items():
             if value is not None:
                 response[key] = value
+
+        logger.debug(f"BoozeCarrier dictionary representation: {response}")
+
         return response
 
-    def __str__(self):
+    @override
+    def __str__(self) -> str:
         """
         Overloads str to return a readable object
 
         :rtype: str
         """
-        return (
-            'BoozeCarrier: CarrierName:"{0.carrier_name}" WineTotal:{0.wine_total} '
-            'CarrierIdentifier:"{0.carrier_identifier}" Platform:{0.platform} '
-            'DiscordUser:{0.discord_username} AddedAt:"{0.timestamp}" RunCount: {0.run_count} TotalUnloads: '
-            '{0.total_unloads} TimeZone:{0.timezone} DiscordUnload: {0.discord_unload_notification}"'.format(self)
-        )
+        return "BoozeCarrier: (" + " ".join(f"{key}={value}" for key, value in vars(self).items()) + ")"
 
     def __bool__(self):
         """
@@ -123,21 +192,71 @@ class BoozeCarrier:
 
         :rtype: bool
         """
-        return any(
-            [
-                value
-                for key, value in vars(self).items()
-                if key not in ["timestamp", "platform", "discord_unload_poster_id"] and value
-            ]
+
+        logger.debug(f"Checking boolean state of BoozeCarrier '{self.carrier_name}'.")
+
+        state = any([value for _key, value in vars(self).items()])
+
+        logger.debug(f"BoozeCarrier '{self.carrier_name}' boolean state: {state}")
+
+        return state
+
+    def is_owned_by(self, user: discord.Member) -> bool:
+        """
+        Check if the carrier is owned by the given Discord ID.
+
+        :param user: The Discord member to check ownership against.
+        :return: True if the carrier is owned by the given Discord ID, False otherwise.
+        """
+
+        logger.debug(f"Checking ownership of BoozeCarrier '{self.carrier_name}' by user: {user}.")
+
+        if self.owner.is_role:
+            is_owner = any(role.id == self.owner.discord_id for role in user.roles)
+        else:
+            is_owner = user.id == self.owner.discord_id
+
+        logger.debug(f"BoozeCarrier '{self.carrier_name}' owned by user {user}: {is_owner}")
+        return is_owner
+
+
+class CarrierStats:
+    last_unload_date: datetime | None
+    first_unload_date: datetime | None
+    total_trips: int
+    total_cruises: int
+    total_wine: int
+    owner: CarrierOwner
+    name: str | None
+    db_id: int
+
+    def __init__(self, info_dict: dict[str, Any]) -> None:
+        """
+        Class represents carrier statistics as returned from the api.
+
+        :param info_dict: The dictionary containing the carrier statistics information.
+        """
+
+        logger.debug(f"Initializing CarrierStats with info_json: {info_dict}")
+
+        self.db_id = int(info_dict.get("fcId", 0))
+        self.name = info_dict.get("fcName", None)
+        self.owner = CarrierOwner(info_dict.get("owner", {}))
+        self.total_wine = int(info_dict.get("totalWine", 0))
+        self.total_cruises = int(info_dict.get("totalCruises", 0))
+        self.total_trips = int(info_dict.get("totalTrips", 0))
+        self.first_unload_date = sane_default_datetime(info_dict.get("firstUnloadDate", None))
+        self.last_unload_date = sane_default_datetime(info_dict.get("lastUnloadDate", None))
+        logger.debug(
+            f"CarrierStats initialized: carrier_name={self.name}, owner_username={self.owner.username}, owner_discord_id={self.owner.discord_id}, "
+            + f"total_wine={self.total_wine}, total_cruises={self.total_cruises}, total_trips={self.total_trips}, "
+            + f"first_unload_date={self.first_unload_date}, last_unload_date={self.last_unload_date}"
         )
 
-    def __eq__(self, other):
+    @override
+    def __str__(self) -> str:
         """
-        Override for equality check.
-
-        :returns: The boolean state
-        :rtype: bool
+        Overloads str to return a readable object
+        :rtype: str
         """
-        if isinstance(other, BoozeCarrier):
-            return all(getattr(self, key) == getattr(other, key) for key in self.COMPARISON_KEYS)
-        return False
+        return "CarrierStats: (" + " ".join(f"{key}={value}" for key, value in vars(self).items()) + ")"

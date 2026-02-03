@@ -1,12 +1,13 @@
 import re
 import sqlite3
 from datetime import datetime, timedelta
+from typing import Any
 
 from discord import Message
-from ptn.boozebot.constants import (
-    server_connoisseur_role_id, server_council_role_ids, server_mod_role_id,
-    server_sommelier_role_id
-)
+from ptn_utils.global_constants import ROLE_CONN, ROLE_SOMM, any_council_role, any_moderation_role
+from ptn_utils.logger.logger import get_logger
+
+logger = get_logger("boozebot.classes.autoresponse")
 
 
 class AutoResponse:
@@ -20,23 +21,39 @@ class AutoResponse:
         response (str): The response message to send when the trigger is matched.
     """
 
-    def __init__(self, info_dict: sqlite3.Row | dict):
-        self.channel_cooldowns: dict[int, datetime] = {}
+    trigger: str | re.Pattern[str]
+    response: str
+    is_regex: bool
+    name: str
 
+    def __init__(self, info_dict: sqlite3.Row | dict[str, Any]):
         if isinstance(info_dict, sqlite3.Row):
             info_dict = dict(info_dict)
+
+        logger.debug(f"Initializing AutoResponse with info_dict: {info_dict}")
+
+        self.channel_cooldowns: dict[int, datetime] = {}
 
         self.name = info_dict.get("name", "")
         self.is_regex = bool(info_dict.get("is_regex", False))
         self.response = info_dict.get("response", "")
-        self.trigger: str | re.Pattern = info_dict.get("trigger", "").lower()
+        self.trigger = info_dict.get("trigger", "").lower()
 
         if self.is_regex:
+            logger.debug(f"Compiling regex trigger for auto response '{self.name}': {self.trigger}")
             try:
                 self.trigger = re.compile(info_dict.get("trigger", ""))
+                logger.debug(f"Compiled regex trigger for auto response '{self.name}': {self.trigger.pattern}")
             except re.error:
+                logger.error(
+                    f"Invalid regex pattern for auto response '{self.name}': {info_dict.get('trigger', '')}. Falling back to empty trigger."
+                )
                 self.trigger = info_dict.get("trigger", "")
                 self.is_regex = False
+
+        logger.debug(
+            f"AutoResponse initialized: name={self.name}, is_regex={self.is_regex}, trigger={self.trigger}, response={self.response}"
+        )
 
     def to_tuple(self):
         """
@@ -46,6 +63,9 @@ class AutoResponse:
         """
 
         trigger = self.trigger if isinstance(self.trigger, str) else self.trigger.pattern
+        logger.debug(
+            f"Converting AutoResponse '{self.name}' to tuple with trigger: {trigger} and response: {self.response}"
+        )
         return self.name, f"{trigger}\n{self.response}"
 
     def _on_cooldown(self, message: Message) -> bool:
@@ -55,7 +75,11 @@ class AutoResponse:
         :param Message message: The message to check.
         :returns: True if the auto response is on cooldown, False otherwise.
         """
-        return datetime.now() < self.channel_cooldowns.get(message.channel.id, datetime.min)
+        logger.debug(f"Checking cooldown for AutoResponse '{self.name}' in channel ID: {message.channel.id}")
+        is_on_cooldown = datetime.now() < self.channel_cooldowns.get(message.channel.id, datetime.min)
+        expires_at = self.channel_cooldowns.get(message.channel.id, "N/A")
+        logger.debug(f"AutoResponse '{self.name}' on cooldown: {is_on_cooldown}. Cooldown expires at: {expires_at}")
+        return is_on_cooldown
 
     def _matches_name(self, message: Message) -> bool:
         """
@@ -64,7 +88,10 @@ class AutoResponse:
         :param Message message: The message to check.
         :returns: True if the message matches the auto response name, False otherwise.
         """
-        return f"!{self.name}" in message.content.lower()
+        logger.debug(f"Checking name match for AutoResponse '{self.name}' in message content.")
+        matches_name = f"!{self.name}" in message.content.lower()
+        logger.debug(f"AutoResponse '{self.name}' name match: {matches_name}")
+        return matches_name
 
     def _matches_trigger(self, message: Message) -> bool:
         """
@@ -74,20 +101,26 @@ class AutoResponse:
         :returns: True if the message matches the auto response trigger, False otherwise.
         """
 
+        logger.debug(f"Checking trigger match for AutoResponse '{self.name}' in message content.")
+
         is_staff = {role.id for role in message.author.roles} & {
-            *server_council_role_ids(),
-            server_mod_role_id(),
-            server_sommelier_role_id(),
-            server_connoisseur_role_id(),
+            *any_council_role,
+            *any_moderation_role,
+            ROLE_SOMM,
+            ROLE_CONN,
         }
 
         if is_staff:
+            logger.debug(f"User {message.author.id} is wine staff; skipping AutoResponse '{self.name}' trigger match.")
             return False
 
         if isinstance(self.trigger, re.Pattern):
-            return re.search(self.trigger, message.content.lower()) is not None
+            matches_content = re.search(self.trigger, message.content.lower()) is not None
         else:
-            return self.trigger in message.content.lower()
+            matches_content = self.trigger in message.content.lower()
+
+        logger.debug(f"AutoResponse '{self.name}' trigger match: {matches_content}")
+        return matches_content
 
     def matches(self, message: Message) -> bool:
         """
@@ -97,13 +130,24 @@ class AutoResponse:
         :returns: True if the message matches the trigger, False otherwise.
         """
 
+        logger.debug(f"Checking if AutoResponse '{self.name}' matches message.")
+
         if not message.content:
+            logger.debug(f"Message content is empty; AutoResponse '{self.name}' cannot match.")
             return False
 
         if self._on_cooldown(message):
+            logger.debug(f"AutoResponse '{self.name}' is on cooldown for channel ID: {message.channel.id}.")
             return False
 
         if self._matches_name(message) or self._matches_trigger(message):
-            self.channel_cooldowns[message.channel.id] = datetime.now() + timedelta(seconds=60)
+            logger.debug(f"AutoResponse '{self.name}' matches message.")
+            cooldown_expires_at = datetime.now() + timedelta(seconds=60)
+            self.channel_cooldowns[message.channel.id] = cooldown_expires_at
+            logger.debug(
+                f"Set cooldown for AutoResponse '{self.name}' in channel ID: {message.channel.id} until {cooldown_expires_at}."
+            )
             return True
+
+        logger.debug(f"AutoResponse '{self.name}' does not match message.")
         return False

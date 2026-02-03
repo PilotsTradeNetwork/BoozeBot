@@ -3,34 +3,41 @@ Constants used throughout BoozeBot.
 
 """
 
+import datetime
+
 # libraries
-import ast
-import logging
 import os
 import re
-import sys
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from ptn_utils.get_or_fetch import GetOrFetch
+from ptn_utils.global_constants import (
+    CHANNEL_BC_BOOZE_CRUISE_CHAT,
+    CHANNEL_BC_BOOZE_CRUISE_SIGNUPS,
+    CHANNEL_BC_DEPARTURE_ANNOUNCEMENT,
+    CHANNEL_BC_WCO_ANNOUNCEMENTS,
+    CHANNEL_BC_WINE_CARRIER_GUIDE,
+    CHANNEL_BC_WINE_CELLAR_UNLOADING,
+    DATA_DIR,
+    DISCORD_GUILD,
+    ROLE_BOOZE_CRUISE,
+    ROLE_HITCHHIKER,
+    ROLE_WINE_CARRIER,
+    _production,
+)
+from ptn_utils.logger.logger import get_logger
 
-# Define whether the bot is in testing or live mode. Default is testing mode.
-_production = ast.literal_eval(os.environ.get("PTN_BOOZE_BOT", "False"))
-
-# define paths
-# TODO - check these all work in both live and testing, particularly default / fonts
-TESTING_DATA_PATH = os.path.join(
-    os.getcwd(), "ptn", "boozebot", "data"
-)  # defines the path for use in a local testing environment
-DATA_DIR = os.getenv("PTN_BOOZEBOT_DATA_DIR", TESTING_DATA_PATH)
+logger = get_logger("boozebot.constants")
 
 # database paths
 DB_PATH = os.path.join(DATA_DIR, "database")
 DB_DUMPS_PATH = os.path.join(DATA_DIR, "database")
-CARRIERS_DB_PATH = os.path.join(DATA_DIR, "database", "booze_carriers.db")
-CARRIERS_DB_DUMPS_PATH = os.path.join(DATA_DIR, "sql", "booze_carriers.sql")
+CARRIERS_DB_PATH = os.path.join(DATA_DIR, "database", "booze.db")
+CARRIERS_DB_DUMPS_PATH = os.path.join(DATA_DIR, "sql", "booze.sql")
 SETTINGS_PATH = os.path.join(DATA_DIR, "settings")
 SETTINGS_FILE_PATH = Path(SETTINGS_PATH, "settings.json")
 WELCOME_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "welcome_message.txt")
@@ -39,114 +46,48 @@ BC_START_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_start_message.txt")
 BC_END_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_end_message.txt")
 GOOGLE_OAUTH_CREDENTIALS_PATH = os.path.join(DATA_DIR, ".ptnboozebot.json")
 
-# Get the discord token from the local .env file. Deliberately not hosted in the repo or Discord takes the bot down
-# because the keys are exposed. DO NOT HOST IN THE PUBLIC REPO.
-# load_dotenv(os.path.join(DATA_DIR, '.env'))
 load_dotenv(os.path.join(DATA_DIR, ".env"))
+BOOZESHEETS_API_BASE_URL = os.getenv("BOOZESHEETS_API_BASE_URL", None)
+BOOZESHEETS_API_KEY = os.getenv("BOOZESHEETS_API_KEY", None)
 
-# define bot token
-TOKEN = os.getenv("DISCORD_TOKEN_PROD") if _production else os.getenv("DISCORD_TOKEN_TESTING")
+if not BOOZESHEETS_API_BASE_URL:
+    logger.critical("BOOZESHEETS_API_BASE_URL is not set")
+    exit(1)
+
+if not BOOZESHEETS_API_KEY:
+    logger.critical("BOOZESHEETS_API_KEY is not set")
+    exit(1)
+
+# Stale Data checking from EDSM/EBGS
+STALE_DATA_THRESHOLD = datetime.timedelta(days=2)
 
 # define bot object
-bot = commands.Bot(
-    command_prefix=commands.when_mentioned_or("b/"), intents=discord.Intents.all(), chunk_guilds_at_startup=False
+intents = discord.Intents.none()
+intents.guilds = True
+intents.members = True
+intents.guild_messages = True
+intents.message_content = True
+intents.guild_reactions = True
+intents.expressions = True
+
+
+# Added for type hints
+class GetFetchBot(commands.Bot):
+    get_or_fetch: GetOrFetch
+
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.get_or_fetch = GetOrFetch(self, DISCORD_GUILD)
+
+
+bot = GetFetchBot(
+    command_prefix=commands.when_mentioned_or("b/"),
+    intents=intents,
+    chunk_guilds_at_startup=False,
+    allowed_mentions=discord.AllowedMentions(roles=False, users=False, everyone=False) if not _production else None,
 )
 
-# Production variables
-PROD_DISCORD_GUILD = 800080948716503040  # PTN Discord server
-PROD_ASSASSIN_ID = 806498760586035200
-PROD_BOOZE_UNLOAD_ID = 932918003639648306  # Was 838699587249242162 booze-cruise-announcements
-PROD_ADMIN_IDS = (800091021852803072, 1226645094439063612)  # Council, Council Advisor
-PROD_SOMMELIER_ID = 838520893181263872
-PROD_CONNOISSEUR_ID = 1105144902645448915
-PROD_WINE_CARRIER_ID = 839149899596955708
-PROD_PILOT_ID = 800396412217982999
-PROD_BOOZE_BOT_CHANNEL = 841413917468917781  # This is #booze-bot
-PROD_STEVE_SAYS_CHANNEL = 937024914572070922  # This is #steve-says
-PROD_WINE_CARRIER_CHANNEL = 839149134938112030  # wine-carrier-chat
-PROD_WINE_CARRIER_COMMAND_CHANNEL = 839503109679349780  # rackhams-space-traffic-control
-PROD_WINE_STATUS_CHANNEL = 1223312512276107285  # booze-cruise-status
-PROD_MOD_ID = 813814494563401780
-PROD_HOLIDAY_ANNOUNCE_CHANNEL_ID = 851110121870196777  # Dread-pirate-steve
-PROD_BOOZE_CRUISE_CHAT_CHANNEL = 819295547289501736  # Booze-Cruise
-PROD_BOOZE_CRUISE_SIGNUPS_CHANNEL = 838515030588653599
-PROD_WCO_ANNOUNCEMENTS_CHANNEL = 839495951131475988
-PROD_FC_COMPLETE_ID = 878216234653605968
-PROD_HITCHHIKER_ID = 998344068524417175
-PROD_BOT_SPAM_CHANNEL = 801258393205604372  # Certain bot logging messages go here
-PROD_BC_PUBLIC_CHANNEL_IDS = [
-    838699587249242162,
-    849460909273120856,
-    932918003639648306,
-    819295547289501736,
-    837764138692378634,
-    849249916676603944,
-    1078840174227763301,
-    1079384804098854972,
-]
-# booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
-PROD_DEPARTURE_ANNOUNCEMENT_CHANNEL = 849460909273120856
-PROD_THOON_EMOJI_ID = 1058010828458176563
-PROD_FEEDBACK_CHANNEL_ID = 936218839362969621
-PROD_PILOT_ID = 800396412217982999
-PROD_WINE_CARRIER_GUIDE_CHANNEL_ID = 943919705763233822
-PROD_BOOZE_GUIDE_CHANNEL_ID = 932918421270712341
-PROD_PTN_BOOZE_CRUISE_ROLE_ID = 838516571571355689
-PROD_WINE_CELLAR_DELIVERIES_ID = 837764138692378634
-PROD_PTN_ROLE_ICON_EMOJI_ID = 1109925017443115088
-
-# Testing variables
-TEST_DISCORD_GUILD = 818174236480897055  # test Discord server
-TEST_ASSASSIN_ID = 848957573792137247
-TEST_BOOZE_UNLOAD_ID = 1107757340381425768
-TEST_ADMIN_IDS = (877586918228000819, 1227350727131660359)  # Council, Council Advisor
-# TEST_ADMIN_IDS = (1364570643353571388,) # Somm-Dev - TODO: comment out
-TEST_SOMMELIER_ID = 849907019502059530
-# TEST_SOMMELIER_ID = 1364570643353571388 # Somm-Dev - TODO: comment out
-TEST_CONNOISSEUR_ID = 1105144147582656663
-TEST_WINE_CARRIER_ID = 849909113776898071
-TEST_PILOT_ID = 818174614810787840
-TEST_BOOZE_BOT_CHANNEL = (
-    937026057188552745  # Actually Steve says because we don't have a bot channel on the test server
-)
-TEST_STEVE_SAYS_CHANNEL = 937026057188552745  # This is #steve-says
-TEST_WINE_CARRIER_CHANNEL = 1108010143070834788  # wine-carrier-chat
-TEST_WINE_CARRIER_COMMAND_CHANNEL = 1241483631785152604  # rackhams-space-traffic-control
-TEST_WINE_STATUS_CHANNEL = 1364573272531927132  # booze-cruise-status
-TEST_MOD_ID = 818174400997228545
-TEST_HOLIDAY_ANNOUNCE_CHANNEL_ID = 818174236480897058
-TEST_BOOZE_CRUISE_CHAT_CHANNEL = 1107757384069288056
-TEST_BOOZE_CRUISE_SIGNUPS_CHANNEL = 1420421580944838748
-TEST_WCO_ANNOUNCEMENTS_CHANNEL = 839495951131475988
-TEST_FC_COMPLETE_ID = 884673510067286076
-TEST_HITCHHIKER_ID = 1108112740800798750
-TEST_BOT_SPAM_CHANNEL = 842525081858867211  # Bot logging messages on the test server
-TEST_BC_PUBLIC_CHANNEL_IDS = [
-    1107757218318782586,
-    1107757285817712721,
-    1107757340381425768,
-    1107757384069288056,
-    1107757418517110955,
-    1107757456517505055,
-    1107757490940153956,
-    1107757548779601940,
-]
-# booze-cruise-announcements, booze-cruise-departures, wine-cellar-unloading, booze-cruise-chat, wine-cellar-deliveries, wine-cellar-loading, booze-snooze-and-garage, Rackham’s Peak Tavern
-TEST_DEPARTURE_ANNOUNCEMENT_CHANNEL = 1107757285817712721
-TEST_THOON_EMOJI_ID = 1301319362489356289
-TEST_FEEDBACK_CHANNEL_ID = 1314640487587643532
-TEST_PILOT_ID = 818174614810787840
-TEST_WINE_CARRIER_GUIDE_CHANNEL_ID = 1333822679400059003
-TEST_BOOZE_GUIDE_CHANNEL_ID = 1107758079535235085
-TEST_PTN_BOOZE_CRUISE_ROLE_ID = 1333819581596303461
-TEST_WINE_CELLAR_DELIVERIES_ID = 1107757418517110955
-TEST_PTN_ROLE_ICON_EMOJI_ID = 1409301482934898719
-
-BOOZE_PROFIT_PER_TONNE_WINE = 256000
 RACKHAMS_PEAK_POP = 150000
-
-EMBED_COLOUR_ERROR = 0x800000
-EMBED_COLOUR_STATUS = 0xEE3563
 
 WCO_ROLE_ICON_URL = (
     "https://cdn.discordapp.com/role-icons/839149899596955708/2d8298304adbadac79679171ab7f0ae6.webp?quality=lossless"
@@ -155,27 +96,6 @@ WCO_ROLE_ICON_URL = (
 I_AM_STEVE_GIF = "https://pilotstradenetwork.com/wp-content/uploads/2025/07/I-Am-Steve.gif"
 
 INTERACTION_CHECK_GIF = "https://c.tenor.com/91firFcrcYsAAAAC/tenor.gif"
-
-# define the logger for discord client
-# TODO: use PTNLogger and extend to all Steve Logging
-log_handler = logging.StreamHandler(sys.stdout)
-
-loglevel_input = os.getenv("PTN_BOOZEBOT_LOG_LEVEL", "INFO")
-match loglevel_input:
-    case "CRITICAL":
-        LOG_LEVEL = logging.CRITICAL
-
-    case "ERROR":
-        LOG_LEVEL = logging.ERROR
-
-    case "INFO":
-        LOG_LEVEL = logging.INFO
-
-    case "DEBUG":
-        LOG_LEVEL = logging.DEBUG
-
-    case _:
-        LOG_LEVEL = logging.INFO
 
 CARRIER_ID_RE = re.compile(r"[A-HJ-NP-Za-hj-np-z0-9]{3}-[A-HJ-NP-Za-hj-np-z0-9]{3}|\w{4}")
 
@@ -316,361 +236,27 @@ N_SYSTEMS = {
 
 # Check the folder exists
 if not os.path.exists(os.path.dirname(CARRIERS_DB_PATH)):
-    print(f"Folder {os.path.dirname(CARRIERS_DB_PATH)} does not exist, making it now.")
+    logger.info(f"Folder {os.path.dirname(CARRIERS_DB_PATH)} does not exist, making it now.")
     os.makedirs(os.path.dirname(CARRIERS_DB_PATH))
 
 # check the dumps folder exists
 if not os.path.exists(os.path.dirname(CARRIERS_DB_DUMPS_PATH)):
-    print(f"Folder {os.path.dirname(CARRIERS_DB_DUMPS_PATH)} does not exist, making it now.")
+    logger.info(f"Folder {os.path.dirname(CARRIERS_DB_DUMPS_PATH)} does not exist, making it now.")
     os.makedirs(os.path.dirname(CARRIERS_DB_DUMPS_PATH))
 
 # check the settings folder exists
 if not os.path.exists(SETTINGS_PATH):
-    print(f"Folder {SETTINGS_PATH} does not exist, making it now.")
+    logger.info(f"Folder {SETTINGS_PATH} does not exist, making it now.")
     os.makedirs(SETTINGS_PATH)
 
 # Move the old db to the new location if the new location doesn't exist and the old one does
-old_db_path = os.path.join(os.path.expanduser("~"), "boozedatabase", "booze_carriers.db")
+old_db_path = os.path.join(DATA_DIR, "database", "booze_carriers.db")
 if os.path.exists(old_db_path) and not os.path.exists(CARRIERS_DB_PATH):
     os.rename(old_db_path, CARRIERS_DB_PATH)
 
-old_db_dumps_path = os.path.join(os.path.expanduser("~"), "boozedatabase", "dumps", "booze_carriers.sql")
-if os.path.exists(old_db_dumps_path) and not os.path.exists(CARRIERS_DB_DUMPS_PATH):
-    os.rename(old_db_dumps_path, CARRIERS_DB_DUMPS_PATH)
-
-old_wine_carrier_welcome = os.path.join("wine_carrier_welcome.txt")
-if os.path.exists(old_wine_carrier_welcome) and not os.path.exists(WELCOME_MESSAGE_FILE_PATH):
-    os.rename(old_wine_carrier_welcome, WELCOME_MESSAGE_FILE_PATH)
-
-old_google_oauth_credentials_path = os.path.join(os.path.expanduser("~"), ".ptnboozebot.json")
-if os.path.exists(old_google_oauth_credentials_path) and not os.path.exists(GOOGLE_OAUTH_CREDENTIALS_PATH):
-    os.rename(old_google_oauth_credentials_path, GOOGLE_OAUTH_CREDENTIALS_PATH)
-
-
-def get_db_path():
-    """
-    Returns the database path. For testing we keep the file locally for ease
-
-    :returns: The path to the db file
-    :rtype: str
-    """
-    return CARRIERS_DB_PATH
-
-
-def server_council_role_ids():
-    """
-    Wrapper that returns the council role IDs
-
-    :returns: Council role ids
-    :rtype: Tuple[int, ...]
-    """
-    return PROD_ADMIN_IDS if _production else TEST_ADMIN_IDS
-
-
-def server_sommelier_role_id():
-    """
-    Wrapper that returns the sommelier role ID
-
-    :returns: Sommelier role id
-    :rtype: int
-    """
-    return PROD_SOMMELIER_ID if _production else TEST_SOMMELIER_ID
-
-
-def server_connoisseur_role_id():
-    """
-    Wrapper that returns the sommelier role ID
-
-    :returns: Sommelier role id
-    :rtype: int
-    """
-    return PROD_CONNOISSEUR_ID if _production else TEST_CONNOISSEUR_ID
-
-
-def server_wine_carrier_role_id():
-    """
-    Wrapper that returns the wine carrier owner role ID
-
-    :returns: Wine co role id
-    :rtype: int
-    """
-    return PROD_WINE_CARRIER_ID if _production else TEST_WINE_CARRIER_ID
-
-
-def server_pilot_role_id() -> int:
-    return PROD_PILOT_ID if _production else TEST_PILOT_ID
-
-
-def server_hitchhiker_role_id():
-    """
-    Wrapper that returns the wine hitchhiker owner role ID
-
-    :returns: Wine hitchhiker role id
-    :rtype: int
-    """
-    return PROD_HITCHHIKER_ID if _production else TEST_HITCHHIKER_ID
-
-
-def bot_guild_id():
-    """
-    Returns the bots guild ID
-
-    :returns: The guild ID value
-    :rtype: int
-    """
-    return PROD_DISCORD_GUILD if _production else TEST_DISCORD_GUILD
-
-
-def get_custom_assassin_id():
-    """
-    Returns the custom emoji ID for assassin
-
-    :returns: The object ID field
-    :rtype: str
-    """
-    return PROD_ASSASSIN_ID if _production else TEST_ASSASSIN_ID
-
-
-def get_discord_booze_unload_channel():
-    """
-    Returns the channel ID for booze cruise unloads in discord.
-
-    :returns: The ID value
-    :rtype: int
-    """
-    return PROD_BOOZE_UNLOAD_ID if _production else TEST_BOOZE_UNLOAD_ID
-
-
-def get_db_dumps_path():
-    """
-    Returns the path for the database dumps file
-
-    :returns: A string representation of the path
-    :rtype: str
-    """
-    return CARRIERS_DB_DUMPS_PATH
-
-
-def get_bot_control_channel():
-    """
-    Returns the channel ID for the bot control channel.
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_BOOZE_BOT_CHANNEL if _production else TEST_BOOZE_BOT_CHANNEL
-
-
-def get_wine_carrier_channel():
-    """
-    Returns the channel ID for the wine carrier chat channel.
-
-    :return: The channel IDs
-    :rtype: int
-    """
-    return PROD_WINE_CARRIER_CHANNEL if _production else TEST_WINE_CARRIER_CHANNEL
-
-
-def get_wine_status_channel() -> int:
-    """
-    Returns the channel ID for the wine status channel.
-    """
-    return PROD_WINE_STATUS_CHANNEL if _production else TEST_WINE_STATUS_CHANNEL
-
-
-def server_mod_role_id():
-    """
-    Returns the moderator role ID for the server
-
-    :return: The role ID
-    :rtype: int
-    """
-    return PROD_MOD_ID if _production else TEST_MOD_ID
-
-
-def rackhams_holiday_channel():
-    """
-    Returns the channel ID for notification of the holiday.
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_HOLIDAY_ANNOUNCE_CHANNEL_ID if _production else TEST_HOLIDAY_ANNOUNCE_CHANNEL_ID
-
-
-def get_primary_booze_discussions_channel():
-    """
-    Returns the booze cruise main chat channel.
-
-    :returns: The channel ID
-    :rtype: int
-    """
-    return PROD_BOOZE_CRUISE_CHAT_CHANNEL if _production else TEST_BOOZE_CRUISE_CHAT_CHANNEL
-
-
-def get_fc_complete_id():
-    """
-    Returns the ID of the fc_complete emoji
-
-    :return: The emoji ID
-    :rtype: int
-    """
-    return PROD_FC_COMPLETE_ID if _production else TEST_FC_COMPLETE_ID
-
-
-def get_steve_says_channel():
-    """
-    Returns the channel ID for steve-says commands
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_STEVE_SAYS_CHANNEL if _production else TEST_STEVE_SAYS_CHANNEL
-
-
-def get_public_channel_list():
-    """
-    Gets the list of public BC channels
-
-    :return: The channel IDs
-    :rtype: list, int
-    """
-    return PROD_BC_PUBLIC_CHANNEL_IDS if _production else TEST_BC_PUBLIC_CHANNEL_IDS
-
-
-def bot_spam_channel():
-    """
-    Gets the bot spam channel
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_BOT_SPAM_CHANNEL if _production else TEST_BOT_SPAM_CHANNEL
-
-
-def wine_carrier_command_channel():
-    """
-    Gets the rackhams space traffic control channel
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_WINE_CARRIER_COMMAND_CHANNEL if _production else TEST_WINE_CARRIER_COMMAND_CHANNEL
-
-
-def get_departure_announcement_channel():
-    """
-    Gets the departure announcement channel
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_DEPARTURE_ANNOUNCEMENT_CHANNEL if _production else TEST_DEPARTURE_ANNOUNCEMENT_CHANNEL
-
-
-def get_thoon_emoji_id():
-    """
-    Gets the ID of the Thoon emoji
-
-    :return: The emoji ID
-    :rtype: int
-    """
-    return PROD_THOON_EMOJI_ID if _production else TEST_THOON_EMOJI_ID
-
-
-def get_feedback_channel_id():
-    """
-    Gets the ID of the feedback channel
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_FEEDBACK_CHANNEL_ID if _production else TEST_FEEDBACK_CHANNEL_ID
-
-
-def get_pilot_role_id():
-    """
-    Gets the ID of the pilot role
-
-    :return: The role ID
-    :rtype: int
-    """
-    return PROD_PILOT_ID if _production else TEST_PILOT_ID
-
-
-def get_booze_guide_channel_id():
-    """
-    Gets the ID of the booze_cruise guide channel
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_BOOZE_GUIDE_CHANNEL_ID if _production else TEST_BOOZE_GUIDE_CHANNEL_ID
-
-
-def get_wine_carrier_guide_channel_id():
-    """
-    Gets the ID of the wine carrier guide channel
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_WINE_CARRIER_GUIDE_CHANNEL_ID if _production else TEST_WINE_CARRIER_GUIDE_CHANNEL_ID
-
-
-def get_ptn_booze_cruise_role_id():
-    """
-    Gets the ID of the PTN Booze Cruise role
-
-    :return: The role ID
-    :rtype: int
-    """
-    return PROD_PTN_BOOZE_CRUISE_ROLE_ID if _production else TEST_PTN_BOOZE_CRUISE_ROLE_ID
-
-
-def get_booze_cruise_signups_channel():
-    """
-    Gets the ID of the Booze Cruise signups channel
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_BOOZE_CRUISE_SIGNUPS_CHANNEL if _production else TEST_BOOZE_CRUISE_SIGNUPS_CHANNEL
-
-
-def get_wco_announcements_channel():
-    """
-    Gets the ID of the WCO announcements channel
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_WCO_ANNOUNCEMENTS_CHANNEL if _production else TEST_WCO_ANNOUNCEMENTS_CHANNEL
-
-
-def get_wine_cellar_deliveries_channel():
-    """
-    Gets the ID of the wine cellar deliveries channel
-
-    :return: The channel ID
-    :rtype: int
-    """
-    return PROD_WINE_CELLAR_DELIVERIES_ID if _production else TEST_WINE_CELLAR_DELIVERIES_ID
-
-
-def ptn_role_icon_emoji_id():
-    """
-    Gets the ID of the PTN logo emoji
-
-    :return: The emoji ID
-    :rtype: int
-    """
-    return PROD_PTN_ROLE_ICON_EMOJI_ID if _production else TEST_PTN_ROLE_ICON_EMOJI_ID
-
-
 _WCO_WELCOME_BLURB = (
-    f"Welcome to the <@&{server_wine_carrier_role_id()}> backrooms! If you are a returning cruiser, it's great to have you back! "
-    f"Please have a read of <#{get_wine_carrier_guide_channel_id()}>, <#{get_wco_announcements_channel()}>, and the pins of this channel. "
+    f"Welcome to the <@&{ROLE_WINE_CARRIER}> backrooms! If you are a returning cruiser, it's great to have you back! "
+    f"Please have a read of <#{CHANNEL_BC_WINE_CARRIER_GUIDE}>, <#{CHANNEL_BC_WCO_ANNOUNCEMENTS}>, and the pins of this channel. "
     f"As a reminder, everything you read here is **strictly confidential** and should remain in this chat.\n\n"
     "In the pins you'll find a link to a [spreadsheet](https://docs.google.com/spreadsheets/d/1UscA2YRTLckjAg2FSsUhEv5FYICvf70LMGnnaBHWUfA/edit) "
     "where you need to add your carrier.\n\n"
@@ -680,26 +266,26 @@ _WCO_WELCOME_BLURB = (
 _BC_PREP_BLURB = (
     "# **PTN Booze Cruise Status**\n\n"
     "**The channels are open, and we are preparing for the next Booze Cruise! "
-    f"If you want to receive notifications as the Cruise progresses use the button in <#{get_booze_cruise_signups_channel()}> "
-    f"to take the <@&{get_ptn_booze_cruise_role_id()}> role, which will be pinged when the Holiday begins "
+    f"If you want to receive notifications as the Cruise progresses use the button in <#{CHANNEL_BC_BOOZE_CRUISE_SIGNUPS}> "
+    f"to take the <@&{ROLE_BOOZE_CRUISE}> role, which will be pinged when the Holiday begins "
     f"and for other similarly-important events.**"
 )
 
 _BC_START_BLURB = (
     "# **PTN Booze Cruise Status**\n\n"
-    f"**The Booze Cruise has begun! Head to <#{get_discord_booze_unload_channel()}> to see which carrier is currently unloading, "
-    f"or visit <#{get_primary_booze_discussions_channel()}> to chat with your fellow cruisers! If you're in N1, N2, or N3 "
-    f"and wish to catch a ride up, head to <#{get_booze_cruise_signups_channel()}> and take the <@&{server_hitchhiker_role_id()}> role, "
-    f"then watch <#{get_departure_announcement_channel()}> for departures to or from the peak!\n\n"
-    f"If you want to receive other notifications related to the Booze Cruise use the button in <#{get_booze_cruise_signups_channel()}> "
-    f"to take the <@&{get_ptn_booze_cruise_role_id()}> role, which will be pinged for important events related to the Booze Cruise.**"
+    f"**The Booze Cruise has begun! Head to <#{CHANNEL_BC_WINE_CELLAR_UNLOADING}> to see which carrier is currently unloading, "
+    f"or visit <#{CHANNEL_BC_BOOZE_CRUISE_CHAT}> to chat with your fellow cruisers! If you're in N1, N2, or N3 "
+    f"and wish to catch a ride up, head to <#{CHANNEL_BC_BOOZE_CRUISE_SIGNUPS}> and take the <@&{ROLE_HITCHHIKER}> role, "
+    f"then watch <#{CHANNEL_BC_DEPARTURE_ANNOUNCEMENT}> for departures to or from the peak!\n\n"
+    f"If you want to receive other notifications related to the Booze Cruise use the button in <#{CHANNEL_BC_BOOZE_CRUISE_SIGNUPS}> "
+    f"to take the <@&{ROLE_BOOZE_CRUISE}> role, which will be pinged for important events related to the Booze Cruise.**"
 )
 
 _BC_END_BLURB = (
     "# **PTN Booze Cruise Status**\n\n"
     "**The Booze Cruise has ended, and we're waiting for the next one! If you want to receive a notification when we "
-    f"open the channels to begin prepping for the next Cruise use the button in <#{get_booze_cruise_signups_channel()}> "
-    f"to take the <@&{get_ptn_booze_cruise_role_id()}> role, which will be pinged when we open the channels "
+    f"open the channels to begin prepping for the next Cruise use the button in <#{CHANNEL_BC_BOOZE_CRUISE_SIGNUPS}> "
+    f"to take the <@&{ROLE_BOOZE_CRUISE}> role, which will be pinged when we open the channels "
     f"and for other similarly-important events.**"
 )
 

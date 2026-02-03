@@ -59,9 +59,14 @@ All commands are in hierarchical format, so the higher roles can run everything 
 -   `/booze_duration_remaining` -Returns how long the public holiday has left.
 
 # Tech Notes
+## Local devbox setup
+1. [Install uv](https://github.com/astral-sh/uv#installation)
+2. (Optionally) Install python: `uv python install`
+3. Create a virtual environment: `uv venv`
+4. Activate the virtual environment: `source .venv/bin/activate`
+5. Install dependencies: `uv sync`
 
 Run all tests with
-
 ```bash
 python -m unittest discover
 ```

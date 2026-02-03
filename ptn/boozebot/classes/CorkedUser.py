@@ -1,8 +1,18 @@
-from ptn.boozebot.modules.helpers import get_member
+from datetime import datetime
+from typing import override
+from discord import Member
+from ptn_utils.logger.logger import get_logger
+
+from ptn.boozebot.constants import bot
+
+logger = get_logger("boozebot.classes.corkeduser")
 
 
 class CorkedUser:
-    def __init__(self, info_dict=None):
+    user_id: int | None
+    timestamp: datetime | None
+
+    def __init__(self, info_dict: dict[str, int | datetime] = None) -> None:
         """
         Class represents a corked user object as returned from the database.
 
@@ -15,18 +25,24 @@ class CorkedUser:
         else:
             info_dict = dict()
 
+        logger.debug(f"Initializing CorkedUser with info_dict: {info_dict}")
+
         self.user_id = info_dict.get("user_id", None)
         self.timestamp = info_dict.get("timestamp", None)
 
-    async def get_member(self):
+        logger.debug(f"CorkedUser initialized: user_id={self.user_id}, timestamp={self.timestamp}")
+
+    async def get_member(self) -> Member | None:
         """
         Returns the discord.Member object for the corked user.
 
         :rtype: discord.Member | None
         """
-        return await get_member(self.user_id)
+        logger.debug(f"Fetching member for corked user ID: {self.user_id}. Database timestamp: {self.timestamp}")
+        return await bot.get_or_fetch.member(self.user_id)
 
-    def __str__(self):
+    @override
+    def __str__(self) -> str:
         """
         Overloads str to return a readable object
 

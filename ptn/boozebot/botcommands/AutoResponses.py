@@ -1,20 +1,27 @@
-# libraries
 import random
 import re
+from typing import cast, override
 
-# discord.py
 import discord
-from discord import app_commands
+from discord import app_commands, Message, User
 from discord.ext import commands
-from ptn.boozebot.classes.AutoResponse import AutoResponse
-# local constants
-from ptn.boozebot.constants import (
-    get_primary_booze_discussions_channel, get_steve_says_channel, get_wine_carrier_channel,
-    get_wine_cellar_deliveries_channel, ping_response_messages, server_council_role_ids, server_mod_role_id,
-    server_sommelier_role_id
+from discord.ext.commands import Bot
+from discord.ui import TextInput
+from discord.ui.view import BaseView
+from ptn_utils.global_constants import (
+    CHANNEL_BC_BOOZE_CRUISE_CHAT,
+    CHANNEL_BC_STEVE_SAYS,
+    CHANNEL_BC_WINE_CARRIER,
+    CHANNEL_BC_WINE_CELLAR_DELIVERIES,
+    ROLE_SOMM,
+    any_council_role,
+    any_moderation_role,
 )
-# local modules
-from ptn.boozebot.database.database import pirate_steve_conn, pirate_steve_db, pirate_steve_db_lock
+from ptn_utils.logger.logger import get_logger
+
+from ptn.boozebot.classes.AutoResponse import AutoResponse
+from ptn.boozebot.constants import ping_response_messages
+from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
 """
@@ -26,39 +33,52 @@ commands
 
 """
 
+logger = get_logger("boozebot.commands.autoresponses")
+
 
 class AutoResponses(commands.Cog):
+    auto_responses: list[AutoResponse]
+    text_commands: list[str]
+    bot: Bot
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
         self.text_commands = ["ping", "exit", "update", "version", "sync"]
 
-        pirate_steve_db.execute(
-            """
-            SELECT * FROM auto_responses
-        """
-        )
-        self.auto_responses = [AutoResponse(row) for row in pirate_steve_db.fetchall()]
+        self.auto_responses = []
+
+    @override
+    async def cog_load(self):
+        self.auto_responses = await database.get_auto_responses()
+        logger.debug(f"Loaded {len(self.auto_responses)} auto responses from database.")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-
         if message.channel.id not in [
-            get_primary_booze_discussions_channel(),
-            get_wine_carrier_channel(),
-            get_wine_cellar_deliveries_channel(),
+            CHANNEL_BC_BOOZE_CRUISE_CHAT,
+            CHANNEL_BC_WINE_CARRIER,
+            CHANNEL_BC_WINE_CELLAR_DELIVERIES,
         ]:
+            logger.trace(f"Ignoring message in channel {message.channel.id} (not a monitored channel).")
             return
 
         if message.is_system():
+            logger.trace("Ignoring system message.")
             return
 
         if message.author == self.bot.user:
+            logger.trace("Ignoring message from bot itself.")
             return
 
+        logger.trace(
+            f"Checking {len(self.auto_responses)} auto responses for message from {message.author} in {message.channel.name}"
+        )
         for auto_response in self.auto_responses:
             if auto_response.matches(message):
-                print(f"Auto response triggered: {auto_response.name} by {message.author} in {message.channel.name}")
+                logger.info(
+                    f"Auto response triggered: {auto_response.name} by {message.author} in {message.channel.name}"
+                )
                 await message.channel.send(
                     auto_response.response,
                     reference=message,
@@ -66,17 +86,20 @@ class AutoResponses(commands.Cog):
                 return
 
         if not self.bot.user.mentioned_in(message):
+            logger.trace("Bot not mentioned in message, ignoring.")
             return
 
         if message.reference:
+            logger.trace("Ignoring mention in reply message.")
             return
 
         msg_split = message.content.split()
 
         if len(msg_split) >= 2 and msg_split[1].lower() in self.text_commands:
+            logger.trace(f"Ignoring mention with text command: {msg_split[1].lower()}")
             return
 
-        print(f"{message.author} mentioned PirateSteve.")
+        logger.info(f"{message.author} ({message.author.id}) mentioned PirateSteve.")
 
         await message.channel.send(
             random.choice(ping_response_messages).format(message_author_id=message.author.id),
@@ -90,8 +113,8 @@ class AutoResponses(commands.Cog):
         is_regex="Is the trigger a regex pattern?",
         response="Response message to send when the trigger is matched",
     )
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel(get_steve_says_channel())
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     async def create_auto_response(
         self,
         interaction: discord.Interaction,
@@ -112,28 +135,24 @@ class AutoResponses(commands.Cog):
 
         await interaction.response.defer()
 
+        logger.info(
+            f"{interaction.user} ({interaction.user.id}) called {interaction.command.name} with name: {name} trigger: {trigger} is_regex: {is_regex}"
+        )
+
         if is_regex:
             try:
                 re.compile(trigger)
+                logger.debug(f"Regex pattern '{trigger}' validated successfully.")
             except re.error as e:
                 await interaction.edit_original_response(content=f"Invalid regex pattern: {trigger}. Error: {e}")
                 return
 
-        async with pirate_steve_db_lock:
-            # Check if the name already exists
-            pirate_steve_db.execute("SELECT * FROM auto_responses WHERE name = ?", (name,))
-            if pirate_steve_db.fetchone():
-                await interaction.edit_original_response(
-                    content=f"An auto response with the name '{name}' already exists.",
-                )
-                return
+        if await database.get_auto_response_by_name(name):
+            logger.warning(f"Auto response creation failed: name '{name}' already exists.")
+            await interaction.edit_original_response(content=f"An auto response with the name '{name}' already exists.")
+            return
 
-            # Insert the new auto response
-            pirate_steve_db.execute(
-                "INSERT INTO auto_responses (name, trigger, is_regex, response) VALUES (?, ?, ?, ?)",
-                (name, trigger, is_regex, response),
-            )
-            pirate_steve_conn.commit()
+        await database.add_auto_response(name, trigger, response, is_regex)
 
         # Add the new auto response to the list
         self.auto_responses.append(
@@ -147,12 +166,13 @@ class AutoResponses(commands.Cog):
             )
         )
 
+        logger.info(f"Auto response '{name}' created successfully.")
         await interaction.edit_original_response(content=f"Auto response '{name}' created successfully.")
 
     @app_commands.command(name="booze_delete_auto_response", description="Delete an auto response")
     @app_commands.describe(name="Name of the auto response to delete")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel(get_steve_says_channel())
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     async def delete_auto_response(self, interaction: discord.Interaction, name: str):
         """
         Delete an auto response by name.
@@ -163,25 +183,25 @@ class AutoResponses(commands.Cog):
 
         await interaction.response.defer()
 
-        async with pirate_steve_db_lock:
-            # Check if the auto response exists
-            pirate_steve_db.execute("SELECT * FROM auto_responses WHERE name = ?", (name,))
-            if not pirate_steve_db.fetchone():
-                await interaction.edit_original_response(content=f"No auto response found with the name '{name}'.")
-                return
+        logger.info(f"{interaction.user} ({interaction.user.id}) called {interaction.command.name} with name: {name}")
 
-            # Delete the auto response
-            pirate_steve_db.execute("DELETE FROM auto_responses WHERE name = ?", (name,))
-            pirate_steve_conn.commit()
+        if not await database.get_auto_response_by_name(name):
+            logger.warning(f"Auto response deletion failed: name '{name}' does not exist.")
+            await interaction.edit_original_response(content=f"No auto response found with the name '{name}'.")
+            return
+
+        await database.delete_auto_response(name)
 
         # Remove the auto response from the list
         self.auto_responses = [ar for ar in self.auto_responses if ar.name != name]
 
+        logger.info(f"Auto response '{name}' deleted successfully.")
+
         await interaction.edit_original_response(content=f"Auto response '{name}' deleted successfully.")
 
     @app_commands.command(name="booze_list_auto_responses", description="List all auto responses")
-    @check_roles([*server_council_role_ids(), server_sommelier_role_id(), server_mod_role_id()])
-    @check_command_channel(get_steve_says_channel())
+    @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
+    @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     async def list_auto_responses(self, interaction: discord.Interaction):
         """
         List all auto responses.
@@ -191,10 +211,15 @@ class AutoResponses(commands.Cog):
 
         await interaction.response.defer()
 
+        logger.info(f"{interaction.user} ({interaction.user.id}) called {interaction.command.name}.")
+
         if not self.auto_responses:
             await interaction.edit_original_response(content="No auto responses found.")
             return
 
+        logger.debug(
+            f"Creating list view with {len(self.auto_responses)} auto responses, {ListAutoResponseView(self.auto_responses, self).total_pages} pages."
+        )
         view = ListAutoResponseView(self.auto_responses, self)
         embed = view.create_embed()
 
@@ -202,12 +227,23 @@ class AutoResponses(commands.Cog):
 
         # Used to allow the message to be edited on timeout
         view.message = message
+        view.user = interaction.user
+        view.user = cast(discord.User, interaction.user)
 
 
 class ListAutoResponseView(discord.ui.View):
     """
     View for displaying paginated list of auto responses with edit buttons.
     """
+
+    user: User | None
+    message: Message | None
+    total_pages: int
+    page_size: int
+    current_page: int
+    cog: AutoResponses
+    auto_responses: list[AutoResponse]
+
     def __init__(self, auto_responses: list[AutoResponse], cog: AutoResponses):
         super().__init__(timeout=180)
         self.auto_responses = auto_responses.copy()
@@ -216,7 +252,10 @@ class ListAutoResponseView(discord.ui.View):
         self.page_size = 5
         self.total_pages = (len(auto_responses) - 1) // self.page_size + 1
         self.update_buttons()
+        self.message = None
+        self.user = None
 
+    @override
     async def on_timeout(self):
         """
         Handle view timeout by disabling all buttons.
@@ -224,12 +263,14 @@ class ListAutoResponseView(discord.ui.View):
         for item in self.children:
             item.disabled = True
 
+        logger.info(f"Auto response list view from {self.user} has timed out.")
+
         embed = discord.Embed(title="Auto Responses", description="This menu has expired.")
 
         try:
             await self.message.edit(embed=embed, view=None)
         except discord.DiscordException:
-            print("Failed to edit auto response list on timeout.")
+            logger.exception("Failed to edit message on view timeout.", exc_info=True)
 
     def create_embed(self) -> discord.Embed:
         """
@@ -247,7 +288,7 @@ class ListAutoResponseView(discord.ui.View):
         for i in range(start_idx, end_idx):
             auto_response = self.auto_responses[i]
             trigger_display = (
-                f"Regex: `{auto_response.trigger}`" if auto_response.is_regex else f"`{auto_response.trigger}`"
+                f"Regex: `{auto_response.trigger.pattern}`" if auto_response.is_regex else f"`{auto_response.trigger}`"
             )
             embed.add_field(
                 name=f"**{auto_response.name}**",
@@ -291,8 +332,14 @@ class ListAutoResponseView(discord.ui.View):
         """
         Create callback function for edit buttons.
         """
+
         async def edit_callback(interaction: discord.Interaction):
             auto_response = self.auto_responses[index]
+
+            logger.info(
+                f"{interaction.user} ({interaction.user.id}) clicked edit button for auto response: {auto_response.name}"
+            )
+
             modal = EditAutoResponseModal(auto_response, self)
             await interaction.response.send_modal(modal)
 
@@ -302,6 +349,9 @@ class ListAutoResponseView(discord.ui.View):
         """
         Navigate to previous page of auto responses.
         """
+
+        logger.debug(f"{interaction.user} ({interaction.user.id}) clicked previous page button.")
+
         if self.current_page > 0:
             self.current_page -= 1
             self.update_buttons()
@@ -312,6 +362,9 @@ class ListAutoResponseView(discord.ui.View):
         """
         Navigate to next page of auto responses.
         """
+
+        logger.debug(f"{interaction.user} ({interaction.user.id}) clicked next page button.")
+
         if self.current_page < self.total_pages - 1:
             self.current_page += 1
             self.update_buttons()
@@ -322,13 +375,16 @@ class ListAutoResponseView(discord.ui.View):
         """
         Refetch the auto responses from the database and update the view, also update the main auto_responses list to match the db for any edits.
         """
-        pirate_steve_db.execute("SELECT * FROM auto_responses")
-        self.auto_responses = [AutoResponse(row) for row in pirate_steve_db.fetchall()]
+        logger.debug("Refreshing auto response list view from database.")
+        self.auto_responses = await database.get_auto_responses()
         self.cog.auto_responses = self.auto_responses
         self.total_pages = (len(self.auto_responses) - 1) // self.page_size + 1 if self.auto_responses else 1
+        logger.debug(f"Refreshed view with {len(self.auto_responses)} auto responses, {self.total_pages} total pages.")
 
         if self.current_page >= self.total_pages:
+            old_page = self.current_page
             self.current_page = max(0, self.total_pages - 1)
+            logger.debug(f"Adjusted current page from {old_page} to {self.current_page} due to page count change.")
 
         self.update_buttons()
 
@@ -337,12 +393,20 @@ class EditAutoResponseModal(discord.ui.Modal):
     """
     Modal for editing auto response trigger and response text.
     """
+
+    response_input: TextInput[BaseView]
+    trigger_input: TextInput[BaseView]
+    view: ListAutoResponseView
+    auto_response: AutoResponse
+
     def __init__(self, auto_response: AutoResponse, view: ListAutoResponseView):
         super().__init__(title=f"Edit Auto Response: {auto_response.name}")
         self.auto_response = auto_response
         self.view = view
+        
+        trigger = auto_response.trigger.pattern if auto_response.is_regex else auto_response.trigger
 
-        self.trigger_input = discord.ui.TextInput(label="Trigger", default=auto_response.trigger, max_length=500)
+        self.trigger_input = discord.ui.TextInput(label="Trigger", default=trigger, max_length=500)
         self.add_item(self.trigger_input)
 
         self.response_input = discord.ui.TextInput(
@@ -350,38 +414,50 @@ class EditAutoResponseModal(discord.ui.Modal):
         )
         self.add_item(self.response_input)
 
+    @override
     async def on_submit(self, interaction: discord.Interaction):
         """
         Handle modal submission and update auto response in database.
         """
         await interaction.response.defer()
 
+        logger.info(
+            f"{interaction.user} ({interaction.user.id}) submitted edit modal for auto response: {self.auto_response.name}. New trigger: {self.trigger_input.value} New response: {self.response_input.value}"
+        )
+
         new_trigger = self.trigger_input.value.strip()
         new_response = self.response_input.value.strip()
 
         if not new_trigger:
+            logger.warning(f"Auto response update failed: empty trigger for auto response '{self.auto_response.name}'.")
             await interaction.followup.send("Trigger cannot be empty.")
             return
 
         if not new_response:
+            logger.warning(
+                f"Auto response update failed: empty response for auto response '{self.auto_response.name}'."
+            )
             await interaction.followup.send("Response cannot be empty.")
             return
 
         if self.auto_response.is_regex:
             try:
                 re.compile(new_trigger)
+                logger.debug(
+                    f"Regex pattern '{new_trigger}' validated successfully for auto response '{self.auto_response.name}'."
+                )
             except re.error as e:
+                logger.warning(
+                    f"Auto response update failed: invalid regex pattern for auto response '{self.auto_response.name}'. Error: {e}"
+                )
                 await interaction.followup.send(f"Invalid regex pattern: {new_trigger}. Error: {e}")
                 return
 
-        async with pirate_steve_db_lock:
-            pirate_steve_db.execute(
-                "UPDATE auto_responses SET trigger = ?, response = ? WHERE name = ?",
-                (new_trigger, new_response, self.auto_response.name),
-            )
-            pirate_steve_conn.commit()
+        await database.update_auto_response(self.auto_response.name, new_trigger, new_response)
 
         await self.view.refresh_view()
         embed = self.view.create_embed()
         await interaction.edit_original_response(embed=embed, view=self.view)
+
+        logger.info(f"Auto response '{self.auto_response.name}' updated successfully.")
         await interaction.followup.send(f"Auto response '{self.auto_response.name}' updated successfully.")

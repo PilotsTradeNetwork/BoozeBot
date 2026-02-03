@@ -1,1 +1,3 @@
-__version__ = '2.1.1a'
+from importlib import metadata
+
+__version__ = metadata.version("ptn.boozebot")
