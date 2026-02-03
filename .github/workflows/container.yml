@@ -3,7 +3,7 @@ name: Docker Image CI
 on:
   push:
     tags:
-      - '*'
+      - 'v*'
 
 env:
   IMAGE_NAME: boozebot
@@ -23,10 +23,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Get tag name
+      - name: Get tag name and check if semantic version
         id: prep
         run: |
-          echo "BUILD_VER=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "BUILD_VER=${TAG}" >> $GITHUB_OUTPUT
+          if echo "${TAG}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "IS_SEMVER=true" >> $GITHUB_OUTPUT
+          else
+            echo "IS_SEMVER=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -39,4 +45,4 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.prep.outputs.BUILD_VER }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ steps.prep.outputs.IS_SEMVER == 'true' && format('{0}/{1}:latest', secrets.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
