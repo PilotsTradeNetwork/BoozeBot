@@ -147,7 +147,7 @@ class PublicHoliday(commands.Cog):
                     logger.info("Holiday was not ongoing - no need to turn it off")
                     return False, "Holiday was not ongoing, no need to turn it off"
             else:
-                logger.info("Holiday has not yet expired, no need to turn it off. Due at: {end_time}")
+                logger.info(f"Holiday has not yet expired, no need to turn it off. Due at: {end_time}")
                 return False, "Holiday has not yet expired, no need to turn it off"
 
     @tasks.loop(minutes=10)

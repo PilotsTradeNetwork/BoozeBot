@@ -3,6 +3,8 @@ Constants used throughout BoozeBot.
 
 """
 
+import datetime
+
 # libraries
 import os
 import re
@@ -55,6 +57,9 @@ if not BOOZESHEETS_API_BASE_URL:
 if not BOOZESHEETS_API_KEY:
     logger.critical("BOOZESHEETS_API_KEY is not set")
     exit(1)
+
+# Stale Data checking from EDSM/EBGS
+STALE_DATA_THRESHOLD = datetime.timedelta(days=2)
 
 # define bot object
 intents = discord.Intents.none()
