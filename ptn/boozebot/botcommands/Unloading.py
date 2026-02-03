@@ -473,9 +473,10 @@ class Unloading(commands.Cog):
         
         if not carrier_data.body:
             logger.info(f"No body found for: {carrier_id}.")
-            return await interaction.edit_original_response(
+            await interaction.edit_original_response(
                 content=f"Sorry, you must first set a body for your carrier {carrier_id} in the Wine Carrier Sheet before unloading."
             )
+            return
 
         wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
 
