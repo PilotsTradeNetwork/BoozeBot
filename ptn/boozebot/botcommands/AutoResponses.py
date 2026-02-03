@@ -288,7 +288,7 @@ class ListAutoResponseView(discord.ui.View):
         for i in range(start_idx, end_idx):
             auto_response = self.auto_responses[i]
             trigger_display = (
-                f"Regex: `{auto_response.trigger}`" if auto_response.is_regex else f"`{auto_response.trigger}`"
+                f"Regex: `{auto_response.trigger.pattern}`" if auto_response.is_regex else f"`{auto_response.trigger}`"
             )
             embed.add_field(
                 name=f"**{auto_response.name}**",
@@ -403,8 +403,10 @@ class EditAutoResponseModal(discord.ui.Modal):
         super().__init__(title=f"Edit Auto Response: {auto_response.name}")
         self.auto_response = auto_response
         self.view = view
+        
+        trigger = auto_response.trigger.pattern if auto_response.is_regex else auto_response.trigger
 
-        self.trigger_input = discord.ui.TextInput(label="Trigger", default=auto_response.trigger, max_length=500)
+        self.trigger_input = discord.ui.TextInput(label="Trigger", default=trigger, max_length=500)
         self.add_item(self.trigger_input)
 
         self.response_input = discord.ui.TextInput(
