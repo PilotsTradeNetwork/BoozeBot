@@ -1,9 +1,9 @@
 import random
 import re
-from typing import cast, override
+from typing import override
 
 import discord
-from discord import app_commands, Message, User
+from discord import app_commands
 from discord.ext import commands
 from discord.ext.commands import Bot
 from discord.ui import TextInput
@@ -23,6 +23,7 @@ from ptn.boozebot.classes.AutoResponse import AutoResponse
 from ptn.boozebot.constants import ping_response_messages
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.pagination import PaginationView
 
 """
 LISTENERS
@@ -217,176 +218,28 @@ class AutoResponses(commands.Cog):
             await interaction.edit_original_response(content="No auto responses found.")
             return
 
-        logger.debug(
-            f"Creating list view with {len(self.auto_responses)} auto responses, {ListAutoResponseView(self.auto_responses, self).total_pages} pages."
-        )
-        view = ListAutoResponseView(self.auto_responses, self)
-        embed = view.create_embed()
+        logger.debug(f"Creating embed for {len(self.auto_responses)} auto responses to send to {interaction.user}.")
+        content = [
+            (ar.name, f"Trigger: {ar.trigger.pattern if ar.is_regex else ar.trigger}") for ar in self.auto_responses
+        ]
 
-        message = await interaction.edit_original_response(embed=embed, view=view)
+        view = PaginationView("Auto Responses", content, buttons_text="Edit", buttons_callback=None)
 
-        # Used to allow the message to be edited on timeout
-        view.message = message
-        view.user = interaction.user
-        view.user = cast(discord.User, interaction.user)
-
-
-class ListAutoResponseView(discord.ui.View):
-    """
-    View for displaying paginated list of auto responses with edit buttons.
-    """
-
-    user: User | None
-    message: Message | None
-    total_pages: int
-    page_size: int
-    current_page: int
-    cog: AutoResponses
-    auto_responses: list[AutoResponse]
-
-    def __init__(self, auto_responses: list[AutoResponse], cog: AutoResponses):
-        super().__init__(timeout=180)
-        self.auto_responses = auto_responses.copy()
-        self.cog = cog
-        self.current_page = 0
-        self.page_size = 5
-        self.total_pages = (len(auto_responses) - 1) // self.page_size + 1
-        self.update_buttons()
-        self.message = None
-        self.user = None
-
-    @override
-    async def on_timeout(self):
-        """
-        Handle view timeout by disabling all buttons.
-        """
-        for item in self.children:
-            item.disabled = True
-
-        logger.info(f"Auto response list view from {self.user} has timed out.")
-
-        embed = discord.Embed(title="Auto Responses", description="This menu has expired.")
-
-        try:
-            await self.message.edit(embed=embed, view=None)
-        except discord.DiscordException:
-            logger.exception("Failed to edit message on view timeout.", exc_info=True)
-
-    def create_embed(self) -> discord.Embed:
-        """
-        Create an embed displaying the current page of auto responses.
-        """
-        embed = discord.Embed(
-            title="Auto Responses",
-            color=discord.Color.blue(),
-            description=f"Page {self.current_page + 1}/{self.total_pages}",
-        )
-
-        start_idx = self.current_page * self.page_size
-        end_idx = min(start_idx + self.page_size, len(self.auto_responses))
-
-        for i in range(start_idx, end_idx):
-            auto_response = self.auto_responses[i]
-            trigger_display = (
-                f"Regex: `{auto_response.trigger.pattern}`" if auto_response.is_regex else f"`{auto_response.trigger}`"
-            )
-            embed.add_field(
-                name=f"**{auto_response.name}**",
-                value=f"**Trigger:** {trigger_display}\n**Response:** {auto_response.response[:100]}{'...' if len(auto_response.response) > 100 else ''}",
-                inline=False,
-            )
-
-        return embed
-
-    def update_buttons(self):
-        """
-        Update view buttons based on current page and available auto responses.
-        """
-        self.clear_items()
-
-        start_idx = self.current_page * self.page_size
-        end_idx = min(start_idx + self.page_size, len(self.auto_responses))
-
-        for i in range(start_idx, end_idx):
-            auto_response = self.auto_responses[i]
-            button = discord.ui.Button(
-                label=f"Edit {auto_response.name}", style=discord.ButtonStyle.secondary, custom_id=f"edit_{i}"
-            )
-            button.callback = self.create_edit_callback(i)
-            self.add_item(button)
-
-        if self.total_pages > 1:
-            previous_button = discord.ui.Button(
-                label="Previous", style=discord.ButtonStyle.primary, disabled=self.current_page == 0
-            )
-            previous_button.callback = self.previous_page
-            self.add_item(previous_button)
-
-            next_button = discord.ui.Button(
-                label="Next", style=discord.ButtonStyle.primary, disabled=self.current_page >= self.total_pages - 1
-            )
-            next_button.callback = self.next_page
-            self.add_item(next_button)
-
-    def create_edit_callback(self, index: int):
-        """
-        Create callback function for edit buttons.
-        """
-
-        async def edit_callback(interaction: discord.Interaction):
+        async def edit_callback(interaction: discord.Interaction, title: str, index: int):
             auto_response = self.auto_responses[index]
 
             logger.info(
                 f"{interaction.user} ({interaction.user.id}) clicked edit button for auto response: {auto_response.name}"
             )
 
-            modal = EditAutoResponseModal(auto_response, self)
+            modal = EditAutoResponseModal(auto_response, index, view)
             await interaction.response.send_modal(modal)
 
-        return edit_callback
+        view.buttons_callback = edit_callback
+        await view.refresh_page()
 
-    async def previous_page(self, interaction: discord.Interaction):
-        """
-        Navigate to previous page of auto responses.
-        """
-
-        logger.debug(f"{interaction.user} ({interaction.user.id}) clicked previous page button.")
-
-        if self.current_page > 0:
-            self.current_page -= 1
-            self.update_buttons()
-            embed = self.create_embed()
-            await interaction.response.edit_message(embed=embed, view=self)
-
-    async def next_page(self, interaction: discord.Interaction):
-        """
-        Navigate to next page of auto responses.
-        """
-
-        logger.debug(f"{interaction.user} ({interaction.user.id}) clicked next page button.")
-
-        if self.current_page < self.total_pages - 1:
-            self.current_page += 1
-            self.update_buttons()
-            embed = self.create_embed()
-            await interaction.response.edit_message(embed=embed, view=self)
-
-    async def refresh_view(self):
-        """
-        Refetch the auto responses from the database and update the view, also update the main auto_responses list to match the db for any edits.
-        """
-        logger.debug("Refreshing auto response list view from database.")
-        self.auto_responses = await database.get_auto_responses()
-        self.cog.auto_responses = self.auto_responses
-        self.total_pages = (len(self.auto_responses) - 1) // self.page_size + 1 if self.auto_responses else 1
-        logger.debug(f"Refreshed view with {len(self.auto_responses)} auto responses, {self.total_pages} total pages.")
-
-        if self.current_page >= self.total_pages:
-            old_page = self.current_page
-            self.current_page = max(0, self.total_pages - 1)
-            logger.debug(f"Adjusted current page from {old_page} to {self.current_page} due to page count change.")
-
-        self.update_buttons()
+        message = await interaction.followup.send(view=view)
+        view.message = message
 
 
 class EditAutoResponseModal(discord.ui.Modal):
@@ -396,14 +249,14 @@ class EditAutoResponseModal(discord.ui.Modal):
 
     response_input: TextInput[BaseView]
     trigger_input: TextInput[BaseView]
-    view: ListAutoResponseView
     auto_response: AutoResponse
 
-    def __init__(self, auto_response: AutoResponse, view: ListAutoResponseView):
+    def __init__(self, auto_response: AutoResponse, auto_response_index: int, view: PaginationView):
         super().__init__(title=f"Edit Auto Response: {auto_response.name}")
         self.auto_response = auto_response
-        self.view = view
-        
+        self.view: PaginationView = view
+        self.auto_response_index: int = auto_response_index
+
         trigger = auto_response.trigger.pattern if auto_response.is_regex else auto_response.trigger
 
         self.trigger_input = discord.ui.TextInput(label="Trigger", default=trigger, max_length=500)
@@ -453,11 +306,12 @@ class EditAutoResponseModal(discord.ui.Modal):
                 await interaction.followup.send(f"Invalid regex pattern: {new_trigger}. Error: {e}")
                 return
 
+        self.auto_response.trigger = new_trigger if not self.auto_response.is_regex else re.compile(new_trigger)
+        self.auto_response.response = new_response
         await database.update_auto_response(self.auto_response.name, new_trigger, new_response)
 
-        await self.view.refresh_view()
-        embed = self.view.create_embed()
-        await interaction.edit_original_response(embed=embed, view=self.view)
+        self.view.content[self.auto_response_index] = (self.auto_response.name, f"Trigger: {new_trigger}")
+        await self.view.refresh_page()
 
         logger.info(f"Auto response '{self.auto_response.name}' updated successfully.")
-        await interaction.followup.send(f"Auto response '{self.auto_response.name}' updated successfully.")
+        await interaction.followup.send(f"Auto response '{self.auto_response.name}' updated successfully.", ephemeral=True)
