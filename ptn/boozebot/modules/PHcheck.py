@@ -29,10 +29,10 @@ async def get_state_from_edsm() -> bool:
 
     logger.debug(f"EDSM API response: {result}")
 
-    faction = result.get("factions", [{}]).pop()
+    faction = (result.get("factions") or [{}]).pop()
     active_states = {x["state"] for x in faction.get("activeStates", [])}
     logger.debug(f"Active States: {active_states}")
-    last_update = datetime.fromtimestamp(faction.get("lastUpdate"), tz=UTC)
+    last_update = datetime.fromtimestamp(faction.get("lastUpdate") or 0, tz=UTC)
     logger.debug(f"Last update: {last_update}")
     if datetime.now(UTC) - last_update > STALE_DATA_THRESHOLD:
         raise StaleDataException(f"Stale data detected from EDSM. Last Updated: {last_update}")
