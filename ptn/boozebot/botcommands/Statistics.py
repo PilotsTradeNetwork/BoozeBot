@@ -24,6 +24,7 @@ from ptn_utils.global_constants import (
     any_moderation_role,
 )
 from ptn_utils.logger.logger import get_logger
+from ptn_utils.pagination import PaginationView
 
 from ptn.boozebot.classes.Cruise import Cruise
 from ptn.boozebot.constants import (
@@ -32,7 +33,6 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles, track_last_run
-from ptn.boozebot.modules.pagination import PaginationView
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 
