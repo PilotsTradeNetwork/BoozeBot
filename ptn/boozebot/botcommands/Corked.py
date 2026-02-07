@@ -18,7 +18,7 @@ from ptn_utils.global_constants import (
     any_moderation_role,
 )
 from ptn_utils.logger.logger import get_logger
-from ptn_utils.pagination import PaginationView
+from ptn_utils.pagination.pagination import PaginationView
 
 from ptn.boozebot.constants import bot
 from ptn.boozebot.database.database import database
