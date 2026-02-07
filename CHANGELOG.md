@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.0.1
+-    \#743 Update PHcheck.py (axleantilles)
+
 ## 3.0.0
 -    \#673 Update to Python 3.13 (axleantilles)
 -    \#672 Fix 0 wine crash (IndorilReborn)
