@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Literal, Any
 
 import discord
-from discord import Embed, app_commands
+from discord import CustomActivity, Embed, Status, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
@@ -470,18 +470,20 @@ class Statistics(commands.Cog):
             logger.debug("Updating bot activity status")
             total_wine = cruise.stats.total_wine
 
-            state_text = (
-                f"Total Wine Tracked: {total_wine:,}"
-                if await bc_channel_status()
-                else "Arrr, the wine be drained, ye thirsty scallywags!"
+            if await bc_channel_status():
+                state_text = f"Total Wine Tracked: {total_wine:,}"
+                status = Status.online
+            else:
+                state_text = "Arrr, the wine be drained!"
+                status = Status.idle
+            
+            activity = CustomActivity(
+                name=state_text,                
             )
 
-            await self.bot.change_presence(
-                activity=discord.Activity(
-                    type=discord.ActivityType.watching,
-                    name="the Sidewinders landing at Rackhams Peak.",
-                    state=state_text,
-                )
+            await self.bot.change_presence(               
+                activity=activity,
+                status=status,
             )
             logger.debug("Bot activity status updated successfully")
             logger.info("Periodic stat update task completed successfully")
