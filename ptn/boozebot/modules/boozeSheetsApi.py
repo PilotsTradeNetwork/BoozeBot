@@ -330,6 +330,25 @@ class BoozeSheetsApi:
 
         return carriers
 
+    async def get_unloading_carriers(self)-> list[BoozeCarrier]:
+        """
+                Retrieves a list of carriers that are currently unloading.
+
+                :return: A list of carrier information dictionaries.
+                """
+
+        logger.debug("Getting info for all unloading carriers")
+        endpoint = "/carriers"
+        data = {"wine_status": ["Unloading"]}
+
+        logger.debug(f"Sending GET request to {endpoint} with data={data}")
+        carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
+        logger.debug(f"All carriers info retrieved: {carriers_info}")
+
+        carriers = [BoozeCarrier(info) for info in carriers_info]
+
+        return carriers
+
     async def get_cruises_list(self) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Retrieves a list of all cruises from the BoozeSheets API.
