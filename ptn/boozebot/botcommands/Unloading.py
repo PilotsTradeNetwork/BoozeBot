@@ -100,7 +100,7 @@ class Unloading(commands.Cog):
             # Check if the FC complete reaction count meets the threshold
             for message_reaction in message.reactions:
                 logger.debug(f"Checking reaction: {message_reaction.emoji} with count {message_reaction.count}")
-                if message_reaction.emoji.id == EMOJI_CARRIER_DONE and message_reaction.count >= 2:
+                if message_reaction.emoji.id == EMOJI_CARRIER_DONE and message_reaction.count >= 5:
                     # Find carrier data for this message from the database
                     logger.debug(
                         f"FC complete reaction count for message {message.id} has reached threshold. Notifying poster."
