@@ -182,7 +182,7 @@ class Corked(commands.Cog):
         logger.debug(f"Prepared corked user data for pagination: {corked_user_data}")
 
         logger.info("Creating pagination for corked users.")
-        
+
         view = PaginationView("Corked Users", corked_user_data)
         message = await interaction.edit_original_response(view=view)
         view.message = message

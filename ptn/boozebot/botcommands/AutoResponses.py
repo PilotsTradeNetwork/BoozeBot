@@ -314,4 +314,6 @@ class EditAutoResponseModal(discord.ui.Modal):
         await self.view.refresh_page()
 
         logger.info(f"Auto response '{self.auto_response.name}' updated successfully.")
-        await interaction.followup.send(f"Auto response '{self.auto_response.name}' updated successfully.", ephemeral=True)
+        await interaction.followup.send(
+            f"Auto response '{self.auto_response.name}' updated successfully.", ephemeral=True
+        )

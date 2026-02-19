@@ -1,7 +1,7 @@
 # Checking for a public holiday at Rackham's (HIP 58832)
 # Returns True or False based on whether or not Rackham's is in public holiday
 # Rackham Capital Investments is the faction controlling Rackham's Peak
-from datetime import datetime,timedelta,UTC
+from datetime import datetime, timedelta, UTC
 from json import JSONDecodeError
 
 import httpx

@@ -317,7 +317,7 @@ class Unloading(commands.Cog):
             msg = f"You do not own the carrier with ID: {carrier_id}."
             logger.info(msg)
             return await interaction.edit_original_response(content=msg)
-        
+
         if await booze_sheets_api.get_current_cruise_state() != "active":
             msg = "Sorry, unloads can only be started during an active booze cruise."
             logger.info(msg)
@@ -458,7 +458,7 @@ class Unloading(commands.Cog):
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
-        
+
         if await booze_sheets_api.get_current_cruise_state() != "active":
             msg = "Sorry, unloads can only be started during an active booze cruise."
             logger.info(msg)
@@ -470,7 +470,7 @@ class Unloading(commands.Cog):
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
-        
+
         if not carrier_data.body:
             logger.info(f"No body found for: {carrier_id}.")
             await interaction.edit_original_response(
@@ -610,17 +610,19 @@ class Unloading(commands.Cog):
         try:
             message = await wine_alert_channel.fetch_message(message_id)
         except discord.NotFound:
-            logger.warning(f"Unload notification message ID {message_id} for carrier {carrier_id} not found in channel.")
+            logger.warning(
+                f"Unload notification message ID {message_id} for carrier {carrier_id} not found in channel."
+            )
             message = None
 
         # Now delete it in the database
         logger.debug(f"Removing unload notification from database for carrier: {carrier_id}.")
         completed_trip = await booze_sheets_api.complete_carrier_unload(carrier_data.db_id)
-        
+
         if message:
             await message.delete()
             logger.info(f"Deleted unload notification message from Discord for carrier: {carrier_id}.")
-        
+
         await database.delete_carrier_message(carrier_id, "unload")
         logger.info(f"Removed unload notification from database for carrier: {carrier_id}.")
 

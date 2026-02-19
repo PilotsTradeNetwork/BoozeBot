@@ -476,12 +476,12 @@ class Statistics(commands.Cog):
             else:
                 state_text = "Arrr, the wine be drained!"
                 status = Status.idle
-            
+
             activity = CustomActivity(
-                name=state_text,                
+                name=state_text,
             )
 
-            await self.bot.change_presence(               
+            await self.bot.change_presence(
                 activity=activity,
                 status=status,
             )
@@ -544,9 +544,9 @@ class Statistics(commands.Cog):
         logger.info(f"Found {len(carrier_data)} carriers with wine remaining")
         for carrier in carrier_data:
             logger.debug(f"Carrier with wine remaining: {carrier}")
-        
+
         view = PaginationView("Carriers with wine remaining", carrier_data)
-        
+
         message = await interaction.edit_original_response(view=view)
         view.message = message
 
