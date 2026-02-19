@@ -24,6 +24,7 @@ from ptn_utils.global_constants import (
     any_moderation_role,
 )
 from ptn_utils.logger.logger import get_logger
+from ptn_utils.pagination.pagination import PaginationView
 
 from ptn.boozebot.classes.Cruise import Cruise
 from ptn.boozebot.constants import (
@@ -32,7 +33,6 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles, track_last_run
-from ptn.boozebot.modules.pagination import createPagination
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 
@@ -476,12 +476,12 @@ class Statistics(commands.Cog):
             else:
                 state_text = "Arrr, the wine be drained!"
                 status = Status.idle
-            
+
             activity = CustomActivity(
-                name=state_text,                
+                name=state_text,
             )
 
-            await self.bot.change_presence(               
+            await self.bot.change_presence(
                 activity=activity,
                 status=status,
             )
@@ -545,12 +545,10 @@ class Statistics(commands.Cog):
         for carrier in carrier_data:
             logger.debug(f"Carrier with wine remaining: {carrier}")
 
-        # Create the pagination
-        await createPagination(
-            interaction,
-            "Carriers with wine remaining",
-            carrier_data,
-        )
+        view = PaginationView("Carriers with wine remaining", carrier_data)
+
+        message = await interaction.edit_original_response(view=view)
+        view.message = message
 
     @app_commands.command(
         name="find_wine_carrier_by_id",

@@ -43,13 +43,12 @@ def _should_retry_exception(exception: Exception) -> bool:
         return exception.response.status_code in (429, 500, 502, 503, 504)
     return False
 
+
 class dynamic_attempts(stop_base):
-    """ Stop strategy that adjusts max attempts based on a condition. """
+    """Stop strategy that adjusts max attempts based on a condition."""
 
     def __init__(
-        self, condition: Callable[[RetryCallState], bool],
-        attempts_if_true: int = 3,
-        attempts_if_false: int = 1
+        self, condition: Callable[[RetryCallState], bool], attempts_if_true: int = 3, attempts_if_false: int = 1
     ) -> None:
         super().__init__()
         self.condition: Callable[[RetryCallState], bool] = condition
@@ -64,6 +63,7 @@ class dynamic_attempts(stop_base):
         else:
             max_attempts = self.attempts_if_false
         return retry_state.attempt_number >= max_attempts
+
 
 def _on_api_failure(retry_state: RetryCallState):
     """
@@ -352,7 +352,7 @@ class BoozeSheetsApi:
         logger.debug(f"Cruises list retrieved: {cruises}")
 
         return cruises
-    
+
     async def get_current_cruise_state(self) -> str:
         """
         Retrieves the current cruise state from the BoozeSheets API.

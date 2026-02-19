@@ -18,11 +18,11 @@ from ptn_utils.global_constants import (
     any_moderation_role,
 )
 from ptn_utils.logger.logger import get_logger
+from ptn_utils.pagination.pagination import PaginationView
 
 from ptn.boozebot.constants import bot
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
-from ptn.boozebot.modules.pagination import createPagination
 from ptn.boozebot.modules.Views import ConfirmView
 
 """
@@ -182,7 +182,10 @@ class Corked(commands.Cog):
         logger.debug(f"Prepared corked user data for pagination: {corked_user_data}")
 
         logger.info("Creating pagination for corked users.")
-        await createPagination(interaction, "Corked Users", corked_user_data)
+
+        view = PaginationView("Corked Users", corked_user_data)
+        message = await interaction.edit_original_response(view=view)
+        view.message = message
 
     @app_commands.command(
         name="booze_admin_rebuild_corked_perms", description="Rebuild corked permissions for all corked users"
