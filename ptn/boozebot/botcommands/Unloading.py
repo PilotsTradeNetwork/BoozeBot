@@ -3,6 +3,7 @@ Cog for unloading related commands
 
 """
 
+from asyncio import Lock
 from datetime import datetime, timedelta, timezone
 
 import discord
@@ -46,9 +47,11 @@ logger = get_logger("boozebot.commands.unloading")
 # initialise the Cog and attach our global error handler
 class Unloading(commands.Cog):
     bot: Bot
+    lock: Lock
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.lock = Lock()
 
     """
     This class is a collection functionality for tracking a booze cruise unload operations
@@ -110,34 +113,34 @@ class Unloading(commands.Cog):
                             f"Could not find carrier ID for unload message {message.id}. Cannot notify poster."
                         )
                         return
+                    async with self.lock:
+                        if await database.get_unload_notification_sent(carrier_id):
+                            logger.info(
+                                f"Unload notification for carrier {carrier_id} has already been sent. Skipping notification."
+                            )
+                            return
 
-                    if await database.get_unload_notification_sent(carrier_id):
-                        logger.info(
-                            f"Unload notification for carrier {carrier_id} has already been sent. Skipping notification."
+                        logger.debug(f"Fetching carrier data for ID: {carrier_id}")
+
+                        carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
+
+                        logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
+
+                        wine_carrier_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+                        await wine_carrier_channel.send(
+                            f"<@{carrier_data.owner.discord_id}> "
+                            + f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
+                            + f"has been marked completed. Please check, then run the following command to close it "
+                            + "if it is correct.\n"
+                            + f"```/wine_unload_complete carrier_id:{carrier_data.carrier_identifier}```"
                         )
-                        return
 
-                    logger.debug(f"Fetching carrier data for ID: {carrier_id}")
+                        logger.debug("Updating database to set to NULL to avoid multiple notifications.")
+                        await database.set_unload_notification_sent(carrier_data.carrier_identifier, True)
 
-                    carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
-
-                    logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
-
-                    wine_carrier_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
-                    await wine_carrier_channel.send(
-                        f"<@{carrier_data.owner.discord_id}> "
-                        + f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
-                        + f"has been marked completed. Please check, then run the following command to close it "
-                        + "if it is correct.\n"
-                        + f"```/wine_unload_complete carrier_id:{carrier_data.carrier_identifier}```"
-                    )
-
-                    logger.debug("Updating database to set to NULL to avoid multiple notifications.")
-                    await database.set_unload_notification_sent(carrier_data.carrier_identifier, True)
-
-                    logger.info(
-                        f"Notified poster {carrier_data.owner.username} for carrier {carrier_data.carrier_identifier}"
-                    )
+                        logger.info(
+                            f"Notified poster {carrier_data.owner.username} for carrier {carrier_data.carrier_identifier}"
+                        )
                 break
 
         except Exception as e:
