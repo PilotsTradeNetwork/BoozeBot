@@ -165,6 +165,17 @@ class Unloading(commands.Cog):
 
         logger.info("Running last unload time loop.")
 
+        try:
+            carriers = await booze_sheets_api.get_all_carriers_info()
+            unloading = [carrier.wine_status == "Unloading" for carrier in carriers]
+
+            if any(unloading):
+                logger.info("An unload is currently open, skipping reminder check.")
+                return
+        except Exception as e:
+            logger.error(e)
+            logger.exception(e)
+
         if self.last_unload_time is None:
             logger.info("Last unload time is not set, skipping reminder check.")
             return
