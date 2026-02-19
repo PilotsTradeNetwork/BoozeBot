@@ -3,8 +3,11 @@ Cog for all the commands related to
 
 """
 
+import os
+from os.path import exists
+from pathlib import Path
 import discord
-from discord import PermissionOverwrite, app_commands
+from discord import PermissionOverwrite, app_commands, Embed
 from discord.ext import commands
 from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
@@ -14,6 +17,9 @@ from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
     CHANNEL_BC_WINE_CARRIER_GUIDE,
     CHANNEL_BC_WINE_STATUS,
+    DATA_DIR,
+    EMBED_COLOUR_EVIL,
+    EMBED_COLOUR_EXPIRED,
     ROLE_SOMM,
     any_council_role,
     any_moderation_role,
@@ -23,6 +29,7 @@ from ptn_utils.pagination.pagination import PaginationView
 
 from ptn.boozebot.constants import bot
 from ptn.boozebot.database.database import database
+from ptn.boozebot.classes.CorkedUser import CorkedUser
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.Views import ConfirmView
 
@@ -188,6 +195,29 @@ class Corked(commands.Cog):
         message = await interaction.edit_original_response(view=view)
         view.message = message
 
+    async def _booze_rebuild_corked_perms(self, corked_users: list[CorkedUser]) -> list[tuple[int, str]]:
+        failed_users = []
+
+        for corked_user in corked_users:
+            user = await bot.get_or_fetch.member(corked_user.user_id)
+            if user is None:
+                logger.warning(f"Could not find member with ID {corked_user.user_id}, skipping.")
+                failed_users.append((corked_user.user_id, "User not found"))
+                continue
+            overwrite = PermissionOverwrite()
+            overwrite.view_channel = False
+            channel_id = -1
+            try:
+                for channel_id in self.CORK_CHANNELS:
+                    logger.debug(f"Setting permissions for corked user {user} in channel ID {channel_id}.")
+                    channel = await bot.get_or_fetch.channel(channel_id)
+                    await channel.set_permissions(user, overwrite=overwrite, reason="Rebuilding corked permissions")
+            except discord.DiscordException as e:
+                logger.exception(f"Error setting permissions for user {user} in channel ID {channel_id}: {e}")
+                failed_users.append((corked_user.user_id, str(e)))
+
+        return failed_users
+
     @app_commands.command(
         name="booze_admin_rebuild_corked_perms", description="Rebuild corked permissions for all corked users"
     )
@@ -237,25 +267,7 @@ class Corked(commands.Cog):
             content="Rebuilding corked permissions. This may take a while.", embed=None, view=None
         )
 
-        failed_users = []
-
-        for corked_user in corked_users:
-            user = await bot.get_or_fetch.member(corked_user.user_id)
-            if user is None:
-                logger.warning(f"Could not find member with ID {corked_user.user_id}, skipping.")
-                failed_users.append((corked_user.user_id, "User not found"))
-                continue
-            overwrite = PermissionOverwrite()
-            overwrite.view_channel = False
-            channel_id = -1
-            try:
-                for channel_id in self.CORK_CHANNELS:
-                    logger.debug(f"Setting permissions for corked user {user} in channel ID {channel_id}.")
-                    channel = await bot.get_or_fetch.channel(channel_id)
-                    await channel.set_permissions(user, overwrite=overwrite, reason="Rebuilding corked permissions")
-            except discord.DiscordException as e:
-                logger.exception(f"Error setting permissions for user {user} in channel ID {channel_id}: {e}")
-                failed_users.append((corked_user.user_id, str(e)))
+        failed_users = await self._booze_rebuild_corked_perms(corked_users)
 
         if failed_users:
             logger.info(f"Rebuilding corked permissions completed with {len(failed_users)} failures.")
@@ -274,3 +286,40 @@ class Corked(commands.Cog):
                 embed=None,
                 view=None,
             )
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        try:
+            logger.debug(f"Member joined: {member.display_name} ({member.name}/{member.id})")
+            if await database.is_user_corked(member.id):
+                logger.info(f"Found Corked user joining the server: {member.display_name} ({member.name}/{member.id})")
+                steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
+                corked_users = await database.get_corked_users()
+                description = f"YARRRRRR mateys, Pirate Steve spies a bilge rat sneaking into the server! {member.mention} ({member.name}). Rebuilding corked permissions."
+                get_corked_img = (
+                    discord.File(os.path.join(DATA_DIR, "resources", "getrecorked.png"))
+                    if exists(os.path.join(DATA_DIR, "resources", "getrecorked.png"))
+                    else None
+                )
+                embed = Embed(title="Corked User Joining", color=EMBED_COLOUR_EVIL, description=description)
+                await steve_says.send(content=f"<@&{ROLE_SOMM}>")
+                await steve_says.send(embed=embed, file=get_corked_img)
+                await self._booze_rebuild_corked_perms(corked_users)
+        except Exception as e:
+            logger.error(e)
+            logger.exception(e)
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member):
+        try:
+            logger.debug(f"Member left: {member.display_name} ({member.name}/{member.id})")
+            if await database.is_user_corked(member.id):
+                logger.info(f"Found Corked user leaving the server{member.display_name} ({member.name}/{member.id})")
+                steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
+                description = f"YARRRRRR mateys, Pirate Steve spies a bilge rat skulking out the airlock! {member.mention} ({member.name}). Good riddance, and don't let the door hit you!"
+                embed = Embed(title="Corked User Leaving", color=EMBED_COLOUR_EXPIRED, description=description)
+                await steve_says.send(content=f"<@&{ROLE_SOMM}>", silent=True)
+                await steve_says.send(embed=embed)
+        except Exception as e:
+            logger.error(e)
+            logger.exception(e)
