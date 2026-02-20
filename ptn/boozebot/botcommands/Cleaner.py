@@ -261,9 +261,7 @@ class Cleaner(commands.Cog):
             wine_carrier_role = await bot.get_or_fetch.role(ROLE_WINE_CARRIER)
             hitch_role = await bot.get_or_fetch.role(ROLE_HITCHHIKER)
             ptnrpphtms_role = await bot.get_or_fetch.role(ROLE_PTNRPPHTMS)
-
-            logger.info(f"wine carriers: {wine_carrier_role.members}")
-
+            
             await interaction.edit_original_response(
                 content="Removing roles, This may take a minute...", embed=None, view=None
             )
