@@ -8,9 +8,11 @@ from os.path import exists
 from pathlib import Path
 import discord
 from discord import PermissionOverwrite, app_commands, Embed
+from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
+    CHANNEL_BC_BOOZE_CRUISE_CHAT,
     CHANNEL_BC_BOOZE_CRUISE_SIGNUPS,
     CHANNEL_BC_BOOZE_GUIDE,
     CHANNEL_BC_PUBLIC,
@@ -60,7 +62,6 @@ class Corked(commands.Cog):
     """
     This class handles corking and uncorking users
     """
-
     @app_commands.command(name="booze_admin_cork", description="Cork a user from the booze cruise channels")
     @app_commands.describe(user="The user to cork")
     @check_roles([*any_council_role, *any_moderation_role])
@@ -198,23 +199,31 @@ class Corked(commands.Cog):
     async def _booze_rebuild_corked_perms(self, corked_users: list[CorkedUser]) -> list[tuple[int, str]]:
         failed_users = []
 
+        # ASSUMPTION: presence of overwrites in BC chat is an acceptable indicator for whether a user is still corked
+        channel_chat = await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
+        assert isinstance(channel_chat, GuildChannel)
+        active_corks = [key.id for key in channel_chat.overwrites if not isinstance(key, discord.Role)]
         for corked_user in corked_users:
-            user = await bot.get_or_fetch.member(corked_user.user_id)
-            if user is None:
-                logger.warning(f"Could not find member with ID {corked_user.user_id}, skipping.")
-                failed_users.append((corked_user.user_id, "User not found"))
-                continue
-            overwrite = PermissionOverwrite()
-            overwrite.view_channel = False
-            channel_id = -1
-            try:
-                for channel_id in self.CORK_CHANNELS:
-                    logger.debug(f"Setting permissions for corked user {user} in channel ID {channel_id}.")
-                    channel = await bot.get_or_fetch.channel(channel_id)
-                    await channel.set_permissions(user, overwrite=overwrite, reason="Rebuilding corked permissions")
-            except discord.DiscordException as e:
-                logger.exception(f"Error setting permissions for user {user} in channel ID {channel_id}: {e}")
-                failed_users.append((corked_user.user_id, str(e)))
+            if int(corked_user.user_id) not in active_corks:
+                logger.error(f"corked_user id: {corked_user.user_id}, active corks: {active_corks}, in active corks: {corked_user.user_id in active_corks}")
+                user = await bot.get_or_fetch.member(corked_user.user_id)
+                if user is None:
+                    logger.warning(f"Could not find member with ID {corked_user.user_id}, skipping.")
+                    failed_users.append((corked_user.user_id, "User not found"))
+                    continue
+                overwrite = PermissionOverwrite()
+                overwrite.view_channel = False
+                channel_id = -1
+                try:
+                    for channel_id in self.CORK_CHANNELS:
+                        logger.debug(f"Setting permissions for corked user {user} in channel ID {channel_id}.")
+                        channel = await bot.get_or_fetch.channel(channel_id)
+                        await channel.set_permissions(user, overwrite=overwrite, reason="Rebuilding corked permissions")
+                except discord.DiscordException as e:
+                    logger.exception(f"Error setting permissions for user {user} in channel ID {channel_id}: {e}")
+                    failed_users.append((corked_user.user_id, str(e)))
+            else:
+                logger.debug(f"Skipping user {corked_user.user_id} as their cork appears to remain intact.")
 
         return failed_users
 
@@ -323,3 +332,9 @@ class Corked(commands.Cog):
         except Exception as e:
             logger.error(e)
             logger.exception(e)
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        logger.info("Rebuilding corked permissions on startup.")
+        corked_users = await database.get_corked_users()
+        await self._booze_rebuild_corked_perms(corked_users)
