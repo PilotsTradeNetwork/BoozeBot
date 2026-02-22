@@ -15,7 +15,7 @@ from tenacity import (
 )
 from tenacity.stop import stop_base
 
-from discord import Embed
+from discord import Embed, User
 from ptn_utils.global_constants import CHANNEL_BOTSPAM
 from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
@@ -589,6 +589,25 @@ class BoozeSheetsApi:
         logger.debug(f"Sending PATCH request to {endpoint} with data={data}")
         await self._request("PATCH", endpoint, data, PayloadType.BODY)
         logger.debug(f"Cruise state updated to {state}")
+        
+    async def set_refresh_discord_data(self, user: User):
+        """
+        Set the refresh_discord_data flag for a user in BoozeSheets.
+
+        :param user: The Discord user to set the flag for.
+        """
+
+        logger.debug(f"Setting refresh_discord_data for user_id={user.id}")
+        endpoint = "/users/force-refresh"
+        
+        data = {"discord_id": str(user.id)}
+
+        logger.debug(f"Sending POST request to {endpoint} with data={data}")
+        try:
+            await self._request("POST", endpoint, data, PayloadType.QUERY)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to set refresh_discord_data for user_id={user.id}: {e}")
+        logger.debug(f"refresh_discord_data set for user_id={user.id}")
 
     """
     Websocket stuff

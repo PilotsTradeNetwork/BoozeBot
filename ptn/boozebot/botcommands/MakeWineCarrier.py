@@ -73,6 +73,19 @@ class MakeWineCarrier(commands.Cog):
             self.booze_tracker_signup_check.start()
 
     @commands.Cog.listener()
+    async def on_member_update(self, before: Member, after: Member):
+        """Listen for name, nickname and pfp changes to trigger booze sheets API data refresh for wine carriers."""
+        if ROLE_WINE_CARRIER in {role.id for role in after.roles} and (
+            before.name != after.name
+            or before.display_name != after.display_name
+            or before.display_avatar.url != after.display_avatar.url
+        ):
+            logger.info(
+                f"Detected name/nickname/avatar change for wine carrier {after}. Triggering refresh of booze sheets API data."
+            )
+            await booze_sheets_api.set_refresh_discord_data(after)
+
+    @commands.Cog.listener()
     async def on_dynamic_button_makewinecarrier(self, interaction: Interaction, button: DynamicButton):
         """Handle dynamic button click for making a wine carrier."""
         logger.info(f"Make Wine Carrier button clicked by {interaction.user.name} for user {button.user_id}")
@@ -228,6 +241,9 @@ class MakeWineCarrier(commands.Cog):
                     await user.remove_roles(wc_role)
                     logger.info(f"Removed Wine Carrier role from {user}")
 
+                    await booze_sheets_api.set_refresh_discord_data(user)
+                    logger.info(f"Triggered refresh of Discord data for {user} in booze sheets API")
+
                     response = f"{user.mention} ({user.name}) no longer has the {wc_role.name} role."
                     await interaction.edit_original_response(content=response)
                     bot_spam = await bot.get_or_fetch.channel(CHANNEL_BOTSPAM)
@@ -257,10 +273,6 @@ class MakeWineCarrier(commands.Cog):
             wc_role = await bot.get_or_fetch.role(ROLE_WINE_CARRIER)
             logger.debug(f"Wine Carrier role name is {wc_role.name}")
 
-            # Refetch the user from the interaction inside the lock
-            user = await bot.get_or_fetch.member(user.id)
-            logger.debug(f"Refetched user: {user}")
-
             async def respond(content: str | None = None, embed: discord.Embed | None = None):
                 if interaction.message:
                     return await interaction.followup.send(content=content, embed=embed, ephemeral=True)
@@ -286,6 +298,10 @@ class MakeWineCarrier(commands.Cog):
                 try:
                     await user.add_roles(wc_role)
                     logger.info(f"Added Wine Carrier role to {user}")
+
+                    await booze_sheets_api.set_refresh_discord_data(user)
+                    logger.info(f"Triggered refresh of Discord data for {user} in booze sheets API")
+
                     response = f"{user.display_name} now has the {wc_role.name} role."
 
                     logger.debug("Opening welcome message file")
@@ -342,7 +358,7 @@ class MakeWineCarrier(commands.Cog):
                     await interaction.edit_original_response(
                         content=f"Failed removing role {ptnrpphtms_role.name} from {user}: {e}"
                     )
-            else:                
+            else:
                 try:
                     await user.add_roles(ptnrpphtms_role)
                     await interaction.edit_original_response(
