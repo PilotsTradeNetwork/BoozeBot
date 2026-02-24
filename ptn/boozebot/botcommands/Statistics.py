@@ -3,9 +3,9 @@ Cog for all the commands that interact with the database
 
 """
 
-import math
 from datetime import datetime, timedelta
-from typing import Literal, Any
+import math
+from typing import Any, Literal
 
 import discord
 from discord import CustomActivity, Embed, Status, app_commands
@@ -26,15 +26,17 @@ from ptn_utils.global_constants import (
 from ptn_utils.logger.logger import get_logger
 from ptn_utils.pagination.pagination import PaginationView
 
-from ptn.boozebot.classes.Cruise import Cruise
-from ptn.boozebot.constants import (
-    RACKHAMS_PEAK_POP,
-    bot,
-)
-from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles, track_last_run
-from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
+from ptn.boozebot.classes.Cruise import Cruise
+from ptn.boozebot.constants import RACKHAMS_PEAK_POP, bot
+from ptn.boozebot.database.database import database
+from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
+from ptn.boozebot.modules.helpers import (
+    bc_channel_status,
+    check_command_channel,
+    check_roles,
+    track_last_run,
+)
 
 """
 Statistics COMMANDS
@@ -533,7 +535,7 @@ class Statistics(commands.Cog):
 
         # Else we have wine left
 
-        carrier_data = [
+        carrier_list_data = [
             (
                 f"{carrier.carrier_name} ({carrier.carrier_identifier})",
                 f"{carrier.wine_total} tonnes",
@@ -545,7 +547,31 @@ class Statistics(commands.Cog):
         for carrier in carrier_data:
             logger.debug(f"Carrier with wine remaining: {carrier}")
 
-        view = PaginationView("Carriers with wine remaining", carrier_data)
+        async def buttons_callback(interaction: discord.Interaction, title: str, index: int):
+            carrier = carrier_data[index]
+
+            total_unloads = carrier.trip_id if carrier.unload_closed else carrier.trip_id - 1
+
+            carrier_embed = discord.Embed(
+                title=f"{title} Details",
+                description=f"CarrierName: **{carrier.carrier_name}**\n"
+                + f"ID: **{carrier.carrier_identifier}**\n"
+                + f"Location: **{carrier.location_string}\n**"
+                + f"Trip wine total: **{carrier.wine_total}**\n"
+                + f"Number of trips to the peak: **{carrier.trip_id}**\n"
+                + f"Total unloads: **{total_unloads}**\n"
+                + f"Operated by: {carrier.owner.mention}\n"
+                + f"Is staff: {'Yes' if carrier.is_staff else 'No'}",
+            )
+
+            await interaction.response.send_message(embed=carrier_embed, ephemeral=True)
+
+        view = PaginationView(
+            title="Carriers with wine remaining",
+            content=carrier_list_data,
+            buttons_text="More info",
+            buttons_callback=buttons_callback,
+        )
 
         message = await interaction.edit_original_response(view=view)
         view.message = message

@@ -3,6 +3,7 @@ from typing import Any, override
 
 import discord
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.modules.helpers import sane_default_datetime, sane_default_duration
 
 logger = get_logger("boozebot.classes.boozecarrier")
@@ -14,6 +15,7 @@ class CarrierOwner:
     is_role: bool
     mention: str | None
     username: str | None
+    scopes: list[str]
 
     def __init__(self, info_dict: dict[str, Any]):
         """
@@ -40,6 +42,8 @@ class CarrierOwner:
             self.discord_id = 0
             self.is_role = False
             self.mention = None
+
+        self.scopes = info_dict.get("scopes", [])
 
         logger.debug(
             f"CarrierOwner initialized: username={self.username}, discord_id={self.discord_id}, "
@@ -156,6 +160,35 @@ class BoozeCarrier:
             + f"availability_start={self.availability_start}, availability_end={self.availability_end}, "
             + f"unload_opened={self.unload_opened}, unload_closed={self.unload_closed}, unload_duration={self.unload_duration}"
         )
+
+    @property
+    def location_string(self) -> str:
+        """
+        Returns a formatted string of the carrier's current location.
+
+        :returns: A string representing the carrier's current location.
+        :rtype: str
+        """
+
+        if self.system and self.body:
+            return f"{self.system} - {self.body}"
+        elif self.system:
+            return self.system
+        else:
+            return "Unknown"
+
+    @property
+    def is_staff(self):
+        """
+        Checks if the carrier is a staff carrier.
+
+        :returns: True if the carrier is a staff carrier, False otherwise.
+        :rtype: bool
+        """
+
+        if set(self.owner.scopes) & {"Sommelier", "Connoisseur"}:
+            return True
+        return False
 
     def to_dictionary(self):
         """
