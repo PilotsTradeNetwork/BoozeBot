@@ -186,7 +186,7 @@ class BoozeCarrier:
         :rtype: bool
         """
 
-        if set(self.owner.scopes) & {"Sommelier", "Connoisseur"}:
+        if set(self.owner.scopes) & {"Sommelier", "Connoisseur", "Old Grape"}:
             return True
         return False
 
