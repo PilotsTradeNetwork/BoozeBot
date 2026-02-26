@@ -3,8 +3,6 @@ Cog for all the commands related to
 
 """
 
-import os
-from os.path import exists
 from pathlib import Path
 import discord
 from discord import PermissionOverwrite, app_commands, Embed
@@ -79,10 +77,14 @@ class Corked(commands.Cog):
         corked_users = await database.get_corked_users()
         failed_users = await self._booze_rebuild_corked_perms(corked_users)
         if failed_users:
-            embed = _build_failed_cork_embed(failed_users)
-            steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
-            assert isinstance(steve_says, GuildChannel)
-            await steve_says.send(embed=embed)
+            try:
+                embed = _build_failed_cork_embed(failed_users)
+                steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
+                assert isinstance(steve_says, GuildChannel)
+                await steve_says.send(embed=embed)
+            except Exception as e:
+                logger.error(e)
+                logger.exception(e)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
