@@ -49,7 +49,6 @@ def _build_failed_cork_embed(failed_users: list[tuple[int,str]]) -> Embed:
         failed_user_messages = [f"- <@{user_id}>: {reason}" for user_id, reason in failed_users]
         embed = Embed(title="Rebuilding corked permissions completed with some failures:", description="\n".join(failed_user_messages), color=EMBED_COLOUR_EVIL)
     except Exception as e:
-        logger.error(e)
         logger.exception(e)
         return Embed(title="Failed at Failed Recorks:", description=str(e), color=EMBED_COLOUR_EVIL)
     return embed
@@ -83,7 +82,7 @@ class Corked(commands.Cog):
                 assert isinstance(steve_says, GuildChannel)
                 await steve_says.send(embed=embed)
             except Exception as e:
-                logger.error(e)
+
                 logger.exception(e)
 
     @commands.Cog.listener()
@@ -108,7 +107,7 @@ class Corked(commands.Cog):
                     await steve_says.send(embed=embed)
 
         except Exception as e:
-            logger.error(e)
+
             logger.exception(e)
 
     @commands.Cog.listener()
@@ -123,7 +122,7 @@ class Corked(commands.Cog):
                 await steve_says.send(content=f"<@&{ROLE_SOMM}>", silent=True)
                 await steve_says.send(embed=embed)
         except Exception as e:
-            logger.error(e)
+
             logger.exception(e)
 
     @app_commands.command(name="booze_admin_cork", description="Cork a user from the booze cruise channels")
