@@ -72,18 +72,17 @@ class Corked(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        logger.info("Rebuilding corked permissions on startup.")
-        corked_users = await database.get_corked_users()
-        failed_users = await self._booze_rebuild_corked_perms(corked_users)
-        if failed_users:
-            try:
+        try:
+            logger.info("Rebuilding corked permissions on startup.")
+            corked_users = await database.get_corked_users()
+            failed_users = await self._booze_rebuild_corked_perms(corked_users)
+            if failed_users:
                 embed = _build_failed_cork_embed(failed_users)
                 steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
                 assert isinstance(steve_says, GuildChannel)
                 await steve_says.send(embed=embed)
-            except Exception as e:
-
-                logger.exception(e)
+        except Exception as e:
+            logger.exception(e)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -107,7 +106,6 @@ class Corked(commands.Cog):
                     await steve_says.send(embed=embed)
 
         except Exception as e:
-
             logger.exception(e)
 
     @commands.Cog.listener()
@@ -122,7 +120,6 @@ class Corked(commands.Cog):
                 await steve_says.send(content=f"<@&{ROLE_SOMM}>", silent=True)
                 await steve_says.send(embed=embed)
         except Exception as e:
-
             logger.exception(e)
 
     @app_commands.command(name="booze_admin_cork", description="Cork a user from the booze cruise channels")
