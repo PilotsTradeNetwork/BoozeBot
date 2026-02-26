@@ -14,6 +14,7 @@ from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
     CHANNEL_BC_WINE_CARRIER_GUIDE,
     CHANNEL_BC_WINE_STATUS,
+    ROLE_SOMM,
     any_council_role,
     any_moderation_role,
 )
@@ -149,7 +150,7 @@ class Corked(commands.Cog):
         )
 
     @app_commands.command(name="booze_admin_list_corked", description="List all corked users")
-    @check_roles([*any_council_role, *any_moderation_role])
+    @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def booze_list_corked(self, interaction: discord.Interaction):
         """
