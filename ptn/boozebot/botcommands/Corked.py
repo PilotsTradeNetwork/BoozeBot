@@ -53,7 +53,7 @@ def _build_failed_cork_embed(failed_users: list[tuple[int,str]]) -> Embed:
     except Exception as e:
         logger.error(e)
         logger.exception(e)
-        return Embed(title="Failed at Failed Recorks:", description=e, color=EMBED_COLOUR_EVIL)
+        return Embed(title="Failed at Failed Recorks:", description=str(e), color=EMBED_COLOUR_EVIL)
     return embed
 
 class Corked(commands.Cog):
@@ -93,11 +93,8 @@ class Corked(commands.Cog):
                 steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
                 corked_users = await database.get_corked_users()
                 description = f"YARRRRRR mateys, Pirate Steve spies a bilge rat sneaking into the server! {member.mention} ({member.name}). Rebuilding corked permissions."
-                get_corked_img = (
-                    discord.File(os.path.join(DATA_DIR, "resources", "getrecorked.png"))
-                    if exists(os.path.join(DATA_DIR, "resources", "getrecorked.png"))
-                    else None
-                )
+                get_recorked_img_path = Path(DATA_DIR, "resources", "getrecorked.png")
+                get_corked_img = discord.File(get_recorked_img_path) if get_recorked_img_path.is_file() else None
                 embed = Embed(title="Corked User Joining", color=EMBED_COLOUR_EVIL, description=description)
                 await steve_says.send(content=f"<@&{ROLE_SOMM}>")
                 await steve_says.send(embed=embed, file=get_corked_img)
@@ -117,7 +114,7 @@ class Corked(commands.Cog):
         try:
             logger.debug(f"Member left: {member.display_name} ({member.name}/{member.id})")
             if await database.is_user_corked(member.id):
-                logger.info(f"Found Corked user leaving the server{member.display_name} ({member.name}/{member.id})")
+                logger.info(f"Found Corked user leaving the server: {member.display_name} ({member.name}/{member.id})")
                 steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
                 description = f"YARRRRRR mateys, Pirate Steve spies a bilge rat skulking out the airlock! {member.mention} ({member.name}). Good riddance, and don't let the door hit you!"
                 embed = Embed(title="Corked User Leaving", color=EMBED_COLOUR_EXPIRED, description=description)
@@ -270,7 +267,7 @@ class Corked(commands.Cog):
         active_corks = [key.id for key in channel_chat.overwrites if not isinstance(key, discord.Role)]
         for corked_user in corked_users:
             if int(corked_user.user_id) not in active_corks:
-                logger.error(f"corked_user id: {corked_user.user_id}, active corks: {active_corks}, in active corks: {corked_user.user_id in active_corks}")
+                logger.info(f"corked_user id: {corked_user.user_id}, active corks: {active_corks}, in active corks: {corked_user.user_id in active_corks}")
                 user = await bot.get_or_fetch.member(corked_user.user_id)
                 if user is None:
                     logger.warning(f"Could not find member with ID {corked_user.user_id}, skipping.")
@@ -347,6 +344,7 @@ class Corked(commands.Cog):
             logger.info(f"Rebuilding corked permissions completed with {len(failed_users)} failures.")
             embed = _build_failed_cork_embed(failed_users)
             await interaction.edit_original_response(
+                content=None,
                 embed=embed,
                 view=None,
             )
@@ -354,6 +352,7 @@ class Corked(commands.Cog):
         else:
             logger.info("Rebuilding corked permissions completed successfully for all users.")
             await interaction.edit_original_response(
+                content=None,
                 embed=Embed(description="Rebuilding corked permissions completed successfully for all corked users.", color=EMBED_COLOUR_OK),
                 view=None,
             )
