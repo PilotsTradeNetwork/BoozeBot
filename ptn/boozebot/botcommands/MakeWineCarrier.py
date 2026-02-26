@@ -323,7 +323,7 @@ class MakeWineCarrier(commands.Cog):
         name="booze_admin_toggle_ptnrpphtms", description="Admin command to toggle the ptnrpphtms role for a user."
     )
     @describe(user="The user to toggle the role for.")
-    @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM, ROLE_CONN])
+    @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])
     @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     async def booze_admin_toggle_ptnrpphtms(self, interaction: Interaction, user: Member):
         await interaction.response.defer()
