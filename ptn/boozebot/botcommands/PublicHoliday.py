@@ -27,7 +27,6 @@ from ptn_utils.global_constants import (
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.botcommands.Cleaner import Cleaner
-from ptn.boozebot.classes import Cruise
 from ptn.boozebot.constants import (
     bot,
     holiday_ended_gif,

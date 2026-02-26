@@ -1,14 +1,13 @@
 # Checking for a public holiday at Rackham's (HIP 58832)
 # Returns True or False based on whether or not Rackham's is in public holiday
 # Rackham Capital Investments is the faction controlling Rackham's Peak
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, UTC
 from json import JSONDecodeError
 
 import httpx
 from ptn_utils.classes.booze_classes import CruiseSystemState
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.classes import Cruise
 from ptn.boozebot.constants import STALE_DATA_THRESHOLD
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 

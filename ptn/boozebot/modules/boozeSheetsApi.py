@@ -1,10 +1,10 @@
 from asyncio import Lock
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 import httpx
 import asyncio
 import json
-from typing import Any, Callable, Literal, override
+from typing import Any, Callable, override
 import websockets
 from discord.ext.commands import Bot
 from httpx import AsyncClient
@@ -722,7 +722,7 @@ class BoozeSheetsApi:
                     break
 
                 try:
-                    self._last_ws_message_time = datetime.now(tz=timezone.utc)
+                    self._last_ws_message_time = datetime.now(tz=UTC)
                     await self._handle_websocket_message(message)
                 except Exception as e:
                     logger.error(f"Error handling websocket message: {e}", exc_info=True)
