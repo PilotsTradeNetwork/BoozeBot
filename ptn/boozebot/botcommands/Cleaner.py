@@ -257,17 +257,11 @@ class Cleaner(commands.Cog):
 
         if confirm.value:
             logger.info(f"User {interaction.user.name} accepted the request to clear booze roles.")
-            wine_role_id = ROLE_WINE_CARRIER
-            wine_carrier_role = await bot.get_or_fetch.role(wine_role_id)
 
-            hitch_role_id = ROLE_HITCHHIKER
-            hitch_role = await bot.get_or_fetch.role(hitch_role_id)
-
+            wine_carrier_role = await bot.get_or_fetch.role(ROLE_WINE_CARRIER)
+            hitch_role = await bot.get_or_fetch.role(ROLE_HITCHHIKER)
             ptnrpphtms_role = await bot.get_or_fetch.role(ROLE_PTNRPPHTMS)
-
-            wine_count = 0
-            hitch_count = 0
-            ptnrpphtms_count = 0
+            
             await interaction.edit_original_response(
                 content="Removing roles, This may take a minute...", embed=None, view=None
             )
