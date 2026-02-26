@@ -64,7 +64,7 @@ reportUnknownMemberType=false
 reportUnknownParameterType=false
 
 [tool.uv.sources]
-ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev = "1.0.0" }
+ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev = "1.1.0" }
 
 [dependency-groups]
 dev = [

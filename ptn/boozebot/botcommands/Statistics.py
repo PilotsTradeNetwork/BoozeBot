@@ -12,6 +12,7 @@ from discord import CustomActivity, Embed, Status, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
+from ptn_utils.classes.booze_classes import CruiseSystemState
 from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
     CHANNEL_BC_WINE_CARRIER,
@@ -922,7 +923,9 @@ class Statistics(commands.Cog):
         logger.debug(
             f"User {interaction.user.name} ({interaction.user.id}) wanted to know the remaining time of the holiday."
         )
-        holiday_ongoing, start_time = await database.get_holiday_status()
+        holiday_ongoing = await booze_sheets_api.get_current_cruise_state() == CruiseSystemState.ACTIVE
+        current_cruise = await booze_sheets_api.get_cruise_with_stats(0)
+        start_time = current_cruise.start
         if not holiday_ongoing:
             duration_remaining = "Pirate Steve has not detected the holiday state yet, or it is already over."
         else:
