@@ -259,6 +259,7 @@ class CarrierStats:
     total_trips: int
     total_cruises: int
     total_wine: int
+    total_credits: int
     owner: CarrierOwner
     name: str | None
     db_id: int
@@ -278,6 +279,7 @@ class CarrierStats:
         self.total_wine = int(info_dict.get("totalWine", 0))
         self.total_cruises = int(info_dict.get("totalCruises", 0))
         self.total_trips = int(info_dict.get("totalTrips", 0))
+        self.total_credits = int(info_dict.get("totalCredits", 0))
         self.first_unload_date = sane_default_datetime(info_dict.get("firstUnloadDate", None))
         self.last_unload_date = sane_default_datetime(info_dict.get("lastUnloadDate", None))
         logger.debug(

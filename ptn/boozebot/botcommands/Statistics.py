@@ -1023,22 +1023,36 @@ class Statistics(commands.Cog):
             await interaction.edit_original_response(
                 content=f"Sorry, we could not find a carrier with the id: {carrier_id}."
             )
-            return
+            return       
+        
+        formatted_first_unload_date = f"<t:{int(carrier_stats.first_unload_date.timestamp())}:d>" if carrier_stats.first_unload_date else "N/A"
+        formatted_last_unload_date = f"<t:{int(carrier_stats.last_unload_date.timestamp())}:d>" if carrier_stats.last_unload_date else "N/A"
+
+        average_wine_per_trip = carrier_stats.total_wine / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
+        average_credits_per_trip = carrier_stats.total_credits / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
 
         logger.debug(
             f"Carrier stats for {carrier_id} - Name: {carrier_stats.name}, "
             + f"Total Wine: {carrier_stats.total_wine}, "
             + f"Total Trips: {carrier_stats.total_trips}, "
             + f"Total Cruises: {carrier_stats.total_cruises}, "
-            + f"Owner: {carrier_stats.owner}."
+            + f"Owner: {carrier_stats.owner}, "
+            + f"Average Wine per Trip: {average_wine_per_trip:.2f}, "
+            + f"Average Credits per Trip: {average_credits_per_trip:.2f},"
+            + f"First Unload Date: {formatted_first_unload_date}, "
+            + f"Last Unload Date: {formatted_last_unload_date}."
         )
 
         stat_embed = discord.Embed(
             title=f"Stats for {carrier_stats.name} ({carrier_id})",
-            description=f"Total Wine: {carrier_stats.total_wine} tonnes\n"
+            description=f"Total Wine: {format_large_number(carrier_stats.total_wine)} tonnes\n"
             + f"Total Runs: {carrier_stats.total_trips}\n"
             + f"Total Cruises: {carrier_stats.total_cruises}\n"
-            + f"Owner: {carrier_stats.owner.mention}",
+            + f"Owner: {carrier_stats.owner.mention}\n"
+            + f"Average Wine per Trip: {format_large_number(average_wine_per_trip)} tonnes\n"
+            + f"Average Credits per Trip: {format_large_number(average_credits_per_trip)} credits\n"
+            + f"First Unload Date: {formatted_first_unload_date}\n"
+            + f"Last Unload Date: {formatted_last_unload_date}"
         )
 
         logger.info(f"Sending stats embed for carrier {carrier_id}.")
