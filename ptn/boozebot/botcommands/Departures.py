@@ -3,8 +3,8 @@ Cog for departure related commands
 
 """
 
-import time
 from datetime import datetime, timedelta, timezone
+import time
 from typing import Literal
 
 import discord
@@ -29,10 +29,15 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import CARRIER_ID_RE, N_SYSTEMS, bot
 from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run, is_staff
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
+from ptn.boozebot.modules.helpers import (
+    check_command_channel,
+    check_roles,
+    is_staff,
+    track_last_run,
+)
 
 """
 DEPARTURE COMMANDS
@@ -322,7 +327,15 @@ class Departures(commands.Cog):
             await steve_says_channel.send(f"{base_error} {msg}")
             return
 
-        if await database.get_departure_message_for_carrier(carrier_id):
+        if existing_message_id := await database.get_departure_message_for_carrier(carrier_id)
+            try:
+                departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
+                existing_message_id = (await departure_channel.fetch_message(existing_message_id)).id
+            except discord.NotFound:
+                existing_message_id = None
+                await database.delete_carrier_message(carrier_id, "departure")
+
+        if existing_message_id:
             msg = f"A departure message is already posted for carrier ID: {carrier_id}. Please remove it before posting a new one."
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
@@ -659,8 +672,7 @@ class Departures(commands.Cog):
 
         # Check for existing departure message
         logger.debug("Checking for existing official departure message.")
-        existing_departure_message = await database.get_departure_message_for_carrier(carrier_id)
-        if existing_departure_message:
+        if existing_departure_message := await database.get_departure_message_for_carrier(carrier_id):
             try:
                 existing_departure_message = await departure_channel.fetch_message(existing_departure_message)
             except discord.NotFound:
