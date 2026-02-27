@@ -327,7 +327,7 @@ class Departures(commands.Cog):
             await steve_says_channel.send(f"{base_error} {msg}")
             return
 
-        if existing_message_id := await database.get_departure_message_for_carrier(carrier_id)
+        if existing_message_id := await database.get_departure_message_for_carrier(carrier_id):
             try:
                 departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
                 existing_message_id = (await departure_channel.fetch_message(existing_message_id)).id
