@@ -101,7 +101,6 @@ class Corked(commands.Cog):
                 failed_users = await self._booze_rebuild_corked_perms(corked_users)
                 if failed_users:
                     embed = _build_failed_cork_embed(failed_users)
-                    steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
                     assert isinstance(steve_says, GuildChannel)
                     await steve_says.send(embed=embed)
 
