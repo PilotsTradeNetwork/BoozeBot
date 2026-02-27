@@ -5,7 +5,7 @@ from datetime import datetime, UTC
 from json import JSONDecodeError
 
 import httpx
-from ptn_utils.classes.booze_classes import CruiseSystemState
+from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import STALE_DATA_THRESHOLD

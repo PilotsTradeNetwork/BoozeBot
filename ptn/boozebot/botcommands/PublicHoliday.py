@@ -11,7 +11,7 @@ from discord import NotFound, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
-from ptn_utils.classes.booze_classes import CruiseSystemState
+from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
     CHANNEL_BC_HOLIDAY_ANNOUNCE,

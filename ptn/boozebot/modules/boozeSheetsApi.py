@@ -17,7 +17,7 @@ from tenacity.stop import stop_base
 
 from discord import Embed, User
 from ptn_utils.global_constants import CHANNEL_BOTSPAM
-from ptn_utils.classes.booze_classes import CruiseSystemState
+from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
 from ptn.boozebot.classes.Cruise import Cruise, CruiseStats

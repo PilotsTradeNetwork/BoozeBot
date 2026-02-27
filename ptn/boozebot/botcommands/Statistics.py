@@ -12,7 +12,7 @@ from discord import CustomActivity, Embed, Status, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
-from ptn_utils.classes.booze_classes import CruiseSystemState
+from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
     CHANNEL_BC_WINE_CARRIER,
