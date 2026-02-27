@@ -392,47 +392,32 @@ class BoozeSheetsApi:
 
         return state_data.get("state", "channels_closed")
 
-    async def get_cruise_with_stats(self, cruise_id: int, include_not_unloaded: bool | None = None) -> Cruise | None:
+    async def get_cruise_with_stats(self, cruise_id: int, include_not_unloaded: bool | None = None, exclude_staff: bool | None = None) -> Cruise | None:
         """
         Retrieves stats for a specific cruise.
 
-        :param cruise_id: The ID of the cruise to retrieve stats for.
+        :param cruise_id: The ID of the cruise to retrieve stats for. Supports relative  (0: current, -1: previous, etc.) or absolute (positive int) indexing
         :param include_not_unloaded: Whether to include carriers that have not yet unloaded.
+        :param exclude_staff: Whether to exclude staff carriers.
         :return: The cruise stats.
         """
 
-        logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}")
-        all_cruises_endpoint = "/cruises"
+        logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}, exclude_staff={exclude_staff}")
 
-        logger.debug(f"Sending GET request to {all_cruises_endpoint}")
-        all_cruises = await self._request("GET", all_cruises_endpoint)
-        logger.debug(f"All cruises retrieved: {all_cruises}")
+        stats_endpoint = f"/cruises/{cruise_id}"
 
-        if not all_cruises:
-            logger.warning("No cruises available to retrieve stats for")
-            return None
-
-        sorted_cruises = sorted(
-            all_cruises, key=lambda x: datetime.fromisoformat(x.get("cruiseStart", "")), reverse=True
-        )
-
-        if cruise_id > len(sorted_cruises):
-            logger.warning(f"Cruise ID {cruise_id} is out of range. Total cruises: {len(sorted_cruises)}")
-            raise ValueError("Cruise ID is out of range.")
-        actual_cruise_id = sorted_cruises[cruise_id].get("cruiseId", None)
-
-        stats_endpoint = f"/cruises/{actual_cruise_id}"
-        if include_not_unloaded is not None:
-            data = {"include_not_unloaded": include_not_unloaded}
-        else:
-            data = {}
+        data = {}
+        if include_not_unloaded:
+            data["include_not_unloaded"] = include_not_unloaded
+        if exclude_staff:
+            data["exclude_staff"] = exclude_staff
 
         logger.debug(f"Sending GET request to {stats_endpoint} with data={data}")
         try:
             cruise_data = await self._request("GET", stats_endpoint, data, PayloadType.QUERY)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                logger.warning(f"Cruise stats not found for cruise_id={actual_cruise_id}")
+                logger.warning(f"Cruise stats not found for cruise_id={cruise_id}")
                 return None
             else:
                 raise
