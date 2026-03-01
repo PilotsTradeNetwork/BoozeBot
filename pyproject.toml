@@ -16,14 +16,14 @@ license = { text = "MIT" }
 keywords = ["PTN"]
 requires-python = "~=3.13.0"
 dependencies = [
-    "discord-py~=2.5",
+    "discord-py~=2.7",
     "discord-ext-prometheus~=0.2.1",
     "isodate~=0.7.2",
     "loguru~=0.7.3",
-    "python-dotenv~=1.2.1",
+    "python-dotenv~=1.2.2",
     "requests~=2.32.5",
     "httpx~=0.28.1",
-    "tenacity~=9.1.2",
+    "tenacity~=9.1.4",
     "ptn-utils",
     "websockets"
 ]
@@ -68,7 +68,7 @@ ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev
 
 [dependency-groups]
 dev = [
-    "basedpyright~=1.37.1",
-    "ipython~=9.9.0",
-    "ruff~=0.14.3",
+    "basedpyright~=1.38.2",
+    "ipython~=9.10.0",
+    "ruff~=0.15.4",
 ]
