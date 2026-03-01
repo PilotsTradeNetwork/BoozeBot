@@ -68,7 +68,7 @@ ptn-utils = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git", rev
 
 [dependency-groups]
 dev = [
-    "basedpyright~=1.37.1",
-    "ipython~=9.9.0",
-    "ruff~=0.14.3",
+    "basedpyright~=1.38.2",
+    "ipython~=9.10.0",
+    "ruff~=0.15.4",
 ]
