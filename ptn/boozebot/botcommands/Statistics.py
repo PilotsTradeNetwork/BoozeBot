@@ -672,7 +672,7 @@ class Statistics(commands.Cog):
         )
         target_date = None
 
-        cruise = await booze_sheets_api.get_cruise_with_stats(cruise_select, include_not_unloaded_bool)
+        cruise = await booze_sheets_api.get_cruise_with_stats(-cruise_select, include_not_unloaded_bool)
 
         if cruise_select != 0:
             target_date = cruise.start.strftime("%Y-%m-%d")
@@ -877,7 +877,7 @@ class Statistics(commands.Cog):
         else:
             include_not_unloaded_bool = None
 
-        cruise = await booze_sheets_api.get_cruise_with_stats(cruise_select, include_not_unloaded_bool)
+        cruise = await booze_sheets_api.get_cruise_with_stats(-cruise_select, include_not_unloaded_bool)
 
         if cruise_select != 0:
             target_date = cruise.start.strftime("%Y-%m-%d")
@@ -890,6 +890,9 @@ class Statistics(commands.Cog):
         name="booze_carrier_summary",
         description="Returns a summary of booze carriers. Restricted to Admin, Sommeliers, and Connoisseurs.",
     )
+    @describe(
+        exclude_staff="Whether to exclude staff carriers.",
+        )
     @check_roles(
         [
             *any_council_role,
@@ -898,7 +901,7 @@ class Statistics(commands.Cog):
             ROLE_CONN,
         ]
     )
-    async def booze_carrier_summary(self, interaction: discord.Interaction):
+    async def booze_carrier_summary(self, interaction: discord.Interaction, exclude_staff: bool = False):
         """
         Returns an embed of the current booze carrier summary.
 
@@ -909,7 +912,7 @@ class Statistics(commands.Cog):
         await interaction.response.defer()
         logger.info(f"User {interaction.user.name} ({interaction.user.id}) requested a carrier summary")
 
-        cruise = await booze_sheets_api.get_cruise_with_stats(0)
+        cruise = await booze_sheets_api.get_cruise_with_stats(0, exclude_staff=exclude_staff)
 
         total_carriers = cruise.stats.total_carriers
         remaining_carriers = cruise.stats.carriers_remaining
@@ -1023,8 +1026,8 @@ class Statistics(commands.Cog):
             await interaction.edit_original_response(
                 content=f"Sorry, we could not find a carrier with the id: {carrier_id}."
             )
-            return       
-        
+            return
+
         formatted_first_unload_date = f"<t:{int(carrier_stats.first_unload_date.timestamp())}:d>" if carrier_stats.first_unload_date else "N/A"
         formatted_last_unload_date = f"<t:{int(carrier_stats.last_unload_date.timestamp())}:d>" if carrier_stats.last_unload_date else "N/A"
 
