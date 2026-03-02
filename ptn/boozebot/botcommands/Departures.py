@@ -3,8 +3,8 @@ Cog for departure related commands
 
 """
 
-import time
 from datetime import datetime, timedelta, timezone
+import time
 from typing import Literal
 
 import discord
@@ -29,10 +29,15 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import CARRIER_ID_RE, N_SYSTEMS, bot
 from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run, is_staff
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
+from ptn.boozebot.modules.helpers import (
+    check_command_channel,
+    check_roles,
+    is_staff,
+    track_last_run,
+)
 
 """
 DEPARTURE COMMANDS
@@ -256,8 +261,8 @@ class Departures(commands.Cog):
         carrier_id: str,
         departure_location: str,
         arrival_location: str,
-        departing_at: str = None,
-        departing_in: str = None,
+        departing_at: str | None = None,
+        departing_in: str | None = None,
     ):
         """
         Handles the wine carrier departure operation.
@@ -282,6 +287,15 @@ class Departures(commands.Cog):
         # Convert carrier ID to uppercase
         carrier_id = carrier_id.upper().strip()
 
+        command_string = f"/wine_carrier_departure carrier_id:{carrier_id} departure_location:{departure_location} arrival_location:{arrival_location}"
+
+        if departing_at is not None:
+            command_string += f" departing_at:{departing_at}"
+        if departing_in is not None:
+            command_string += f" departing_in:{departing_in}"
+
+        base_error = f"Error for {interaction.user.mention} ({interaction.user.name}) during `{command_string}`"
+
         steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
         # Validate the carrier ID format
         if not CARRIER_ID_RE.fullmatch(carrier_id):
@@ -291,9 +305,7 @@ class Departures(commands.Cog):
             )
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
-            await steve_says_channel.send(
-                f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
-            )
+            await steve_says_channel.send(f"{base_error} {msg}")
             return
 
         logger.debug(f"Fetching carrier data for carrier ID: {carrier_id}")
@@ -305,27 +317,29 @@ class Departures(commands.Cog):
             msg = f'could not find a carrier for the data: "{carrier_id}".'
             logger.info(msg)
             await interaction.edit_original_response(content=f"Sorry, we {msg}")
-            await steve_says_channel.send(
-                f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
-            )
+            await steve_says_channel.send(f"{base_error} {msg}")
             return
 
         if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
             msg = f"You do not own the carrier with ID: {carrier_id}."
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
-            await steve_says_channel.send(
-                f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
-            )
+            await steve_says_channel.send(f"{base_error} {msg}")
             return
 
-        if await database.get_departure_message_for_carrier(carrier_id):
+        if existing_message_id := await database.get_departure_message_for_carrier(carrier_id):
+            try:
+                departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
+                existing_message_id = (await departure_channel.fetch_message(existing_message_id)).id
+            except discord.NotFound:
+                existing_message_id = None
+                await database.delete_carrier_message(carrier_id, "departure")
+
+        if existing_message_id:
             msg = f"A departure message is already posted for carrier ID: {carrier_id}. Please remove it before posting a new one."
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
-            await steve_says_channel.send(
-                f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
-            )
+            await steve_says_channel.send(f"{base_error} {msg}")
             return
 
         carrier_name = carrier_data.carrier_name
@@ -360,9 +374,7 @@ class Departures(commands.Cog):
                 await interaction.edit_original_response(
                     content=f"{msg}. You can use <https://hammertime.cyou> to generate them."
                 )
-                await steve_says_channel.send(
-                    f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
-                )
+                await steve_says_channel.send(f"{base_error} {msg}")
                 return
 
             # Validate the timestamp range
@@ -373,9 +385,7 @@ class Departures(commands.Cog):
                 msg = f"Departure time must be within 2 weeks of now: {departing_at}"
                 logger.info(msg)
                 await interaction.edit_original_response(content=msg)
-                await steve_says_channel.send(
-                    f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
-                )
+                await steve_says_channel.send(f"{base_error} {msg}")
                 return
 
         # Handle departure time if provided as a duration in minutes
@@ -388,9 +398,7 @@ class Departures(commands.Cog):
                 await interaction.edit_original_response(
                     content=f"{msg}. It should be the number of minutes until your carrier departs."
                 )
-                await steve_says_channel.send(
-                    f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
-                )
+                await steve_says_channel.send(f"{base_error} {msg}")
                 return
 
             departure_timestamp = int(departure_timestamp * 60 + int(time.time()))
@@ -438,9 +446,7 @@ class Departures(commands.Cog):
             msg = "Departure and arrival are the same system."
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
-            await steve_says_channel.send(
-                f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
-            )
+            await steve_says_channel.send(f"{base_error} {msg}")
             return
         elif departure_system_index < arrival_system_index:
             logger.info("Departure system is above arrival system.")
@@ -464,9 +470,7 @@ class Departures(commands.Cog):
         if msg:
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
-            await steve_says_channel.send(
-                f"Error for {interaction.user.name} during `/wine_carrier_departure` command: {msg}"
-            )
+            await steve_says_channel.send(f"{base_error} {msg}")
             return
 
         # Construct the departure message text
@@ -668,8 +672,7 @@ class Departures(commands.Cog):
 
         # Check for existing departure message
         logger.debug("Checking for existing official departure message.")
-        existing_departure_message = await database.get_departure_message_for_carrier(carrier_id)
-        if existing_departure_message:
+        if existing_departure_message := await database.get_departure_message_for_carrier(carrier_id):
             try:
                 existing_departure_message = await departure_channel.fetch_message(existing_departure_message)
             except discord.NotFound:

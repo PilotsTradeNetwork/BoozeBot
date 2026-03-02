@@ -83,7 +83,7 @@ class GetFetchBot(commands.Bot):
 bot = GetFetchBot(
     command_prefix=commands.when_mentioned_or("b/"),
     intents=intents,
-    chunk_guilds_at_startup=False,
+    chunk_guilds_at_startup=True,
     allowed_mentions=discord.AllowedMentions(roles=False, users=False, everyone=False) if not _production else None,
 )
 

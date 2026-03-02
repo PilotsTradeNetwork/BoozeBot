@@ -19,6 +19,7 @@ from ptn_utils.global_constants import (
     ROLE_BOOZE_CRUISE,
     ROLE_HITCHHIKER,
     ROLE_PILOT,
+    ROLE_PTNRPPHTMS,
     ROLE_SOMM,
     ROLE_WINE_CARRIER,
     any_council_role,
@@ -45,6 +46,21 @@ CLEANER COMMANDS
 """
 
 logger = get_logger("boozebot.commands.cleaner")
+
+
+async def _mass_remove_role(interaction: discord.Interaction, role: discord.Role) -> int:
+    removed_count = 0
+    logger.info(f"Removing {role} from all members.")
+    for member in role.members:
+        logger.debug(f"Removing {role} from member: {member.name}")
+        try:
+            await member.remove_roles(role)
+            removed_count += 1
+            logger.debug(f"Removed {role} from member: {member.name}")
+        except Exception as e:
+            logger.exception(f"Unable to remove {role} from {member}: {e}")
+            await interaction.channel.send(f"Unable to remove {role} from {member}")
+    return removed_count
 
 
 class Cleaner(commands.Cog):
@@ -241,45 +257,28 @@ class Cleaner(commands.Cog):
 
         if confirm.value:
             logger.info(f"User {interaction.user.name} accepted the request to clear booze roles.")
-            wine_role_id = ROLE_WINE_CARRIER
-            wine_carrier_role = await bot.get_or_fetch.role(wine_role_id)
 
-            hitch_role_id = ROLE_HITCHHIKER
-            hitch_role = await bot.get_or_fetch.role(hitch_role_id)
-
-            wine_count = 0
-            hitch_count = 0
+            wine_carrier_role = await bot.get_or_fetch.role(ROLE_WINE_CARRIER)
+            hitch_role = await bot.get_or_fetch.role(ROLE_HITCHHIKER)
+            ptnrpphtms_role = await bot.get_or_fetch.role(ROLE_PTNRPPHTMS)
+            
             await interaction.edit_original_response(
                 content="Removing roles, This may take a minute...", embed=None, view=None
             )
             logger.debug("Beginning role removal process.")
 
             try:
-                for member in wine_carrier_role.members:
-                    logger.debug(f"Removing {wine_carrier_role} from member: {member.name}")
-                    try:
-                        await member.remove_roles(wine_carrier_role)
-                        wine_count += 1
-                        logger.debug(f"Removed {wine_carrier_role} from member: {member.name}")
-                    except Exception as e:
-                        logger.exception(f"Unable to remove {wine_carrier_role} from {member}: {e}")
-                        await interaction.channel.send(f"Unable to remove {wine_carrier_role} from {member}")
-                for member in hitch_role.members:
-                    logger.debug(f"Removing {hitch_role} from member: {member.name}")
-                    try:
-                        await member.remove_roles(hitch_role)
-                        hitch_count += 1
-                        logger.debug(f"Removed {hitch_role} from member: {member.name}")
-                    except Exception as e:
-                        logger.exception(f"Unable to remove {hitch_role} from {member}: {e}")
-                        await interaction.channel.send(f"Unable to remove {hitch_role} from {member}")
+                wine_count = await _mass_remove_role(interaction, wine_carrier_role)
+                hitch_count = await _mass_remove_role(interaction, hitch_role)
+                ptnrpphtms_count = await _mass_remove_role(interaction, ptnrpphtms_role)
 
                 logger.info(
-                    f"Role removal process completed successfully. Removed {hitch_count} Hitchhiker roles and {wine_count} Wine Carrier roles."
+                    f"Role removal process completed successfully. Removed {hitch_count} Hitchhiker roles, {wine_count} Wine Carrier roles, and {ptnrpphtms_count} PTNRPPHTMS roles."
                 )
                 await interaction.edit_original_response(
                     content=f"Successfully removed {hitch_count} users from the Hitchhiker role.\n"
-                    + f"Successfully removed {wine_count} users from the Wine Carrier role.",
+                    + f"Successfully removed {wine_count} users from the Wine Carrier role.\n"
+                    + f"Successfully removed {ptnrpphtms_count} users from the PTNRPPHTMS role.",
                     embed=None,
                     view=None,
                 )

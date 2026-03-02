@@ -3,15 +3,16 @@ Cog for all the commands that interact with the database
 
 """
 
-import math
 from datetime import datetime, timedelta
-from typing import Literal, Any
+import math
+from typing import Any, Literal
 
 import discord
-from discord import Embed, app_commands
+from discord import CustomActivity, Embed, Status, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
+from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
     CHANNEL_BC_WINE_CARRIER,
@@ -24,17 +25,19 @@ from ptn_utils.global_constants import (
     any_moderation_role,
 )
 from ptn_utils.logger.logger import get_logger
+from ptn_utils.pagination.pagination import PaginationView
 
-from ptn.boozebot.classes.Cruise import Cruise
-from ptn.boozebot.constants import (
-    RACKHAMS_PEAK_POP,
-    bot,
-)
-from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.helpers import bc_channel_status, check_command_channel, check_roles, track_last_run
-from ptn.boozebot.modules.pagination import createPagination
-from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
+from ptn.boozebot.classes.Cruise import Cruise
+from ptn.boozebot.constants import RACKHAMS_PEAK_POP, bot
+from ptn.boozebot.database.database import database
+from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
+from ptn.boozebot.modules.helpers import (
+    bc_channel_status,
+    check_command_channel,
+    check_roles,
+    track_last_run,
+)
 
 """
 Statistics COMMANDS
@@ -470,18 +473,20 @@ class Statistics(commands.Cog):
             logger.debug("Updating bot activity status")
             total_wine = cruise.stats.total_wine
 
-            state_text = (
-                f"Total Wine Tracked: {total_wine:,}"
-                if await bc_channel_status()
-                else "Arrr, the wine be drained, ye thirsty scallywags!"
+            if await bc_channel_status():
+                state_text = f"Total Wine Tracked: {total_wine:,}"
+                status = Status.online
+            else:
+                state_text = "Arrr, the wine be drained!"
+                status = Status.idle
+
+            activity = CustomActivity(
+                name=state_text,
             )
 
             await self.bot.change_presence(
-                activity=discord.Activity(
-                    type=discord.ActivityType.watching,
-                    name="the Sidewinders landing at Rackhams Peak.",
-                    state=state_text,
-                )
+                activity=activity,
+                status=status,
             )
             logger.debug("Bot activity status updated successfully")
             logger.info("Periodic stat update task completed successfully")
@@ -531,7 +536,7 @@ class Statistics(commands.Cog):
 
         # Else we have wine left
 
-        carrier_data = [
+        carrier_list_data = [
             (
                 f"{carrier.carrier_name} ({carrier.carrier_identifier})",
                 f"{carrier.wine_total} tonnes",
@@ -543,12 +548,34 @@ class Statistics(commands.Cog):
         for carrier in carrier_data:
             logger.debug(f"Carrier with wine remaining: {carrier}")
 
-        # Create the pagination
-        await createPagination(
-            interaction,
-            "Carriers with wine remaining",
-            carrier_data,
+        async def buttons_callback(interaction: discord.Interaction, title: str, index: int):
+            carrier = carrier_data[index]
+
+            total_unloads = carrier.trip_id if carrier.unload_closed else carrier.trip_id - 1
+
+            carrier_embed = discord.Embed(
+                title=f"{title} Details",
+                description=f"CarrierName: **{carrier.carrier_name}**\n"
+                + f"ID: **{carrier.carrier_identifier}**\n"
+                + f"Location: **{carrier.location_string}\n**"
+                + f"Trip wine total: **{carrier.wine_total}**\n"
+                + f"Number of trips to the peak: **{carrier.trip_id}**\n"
+                + f"Total unloads: **{total_unloads}**\n"
+                + f"Operated by: {carrier.owner.mention}\n"
+                + f"Is staff: {'Yes' if carrier.is_staff else 'No'}",
+            )
+
+            await interaction.response.send_message(embed=carrier_embed, ephemeral=True)
+
+        view = PaginationView(
+            title="Carriers with wine remaining",
+            content=carrier_list_data,
+            buttons_text="More info",
+            buttons_callback=buttons_callback,
         )
+
+        message = await interaction.edit_original_response(view=view)
+        view.message = message
 
     @app_commands.command(
         name="find_wine_carrier_by_id",
@@ -646,7 +673,7 @@ class Statistics(commands.Cog):
         )
         target_date = None
 
-        cruise = await booze_sheets_api.get_cruise_with_stats(cruise_select, include_not_unloaded_bool)
+        cruise = await booze_sheets_api.get_cruise_with_stats(-cruise_select, include_not_unloaded_bool)
 
         if cruise_select != 0:
             target_date = cruise.start.strftime("%Y-%m-%d")
@@ -851,7 +878,7 @@ class Statistics(commands.Cog):
         else:
             include_not_unloaded_bool = None
 
-        cruise = await booze_sheets_api.get_cruise_with_stats(cruise_select, include_not_unloaded_bool)
+        cruise = await booze_sheets_api.get_cruise_with_stats(-cruise_select, include_not_unloaded_bool)
 
         if cruise_select != 0:
             target_date = cruise.start.strftime("%Y-%m-%d")
@@ -864,6 +891,9 @@ class Statistics(commands.Cog):
         name="booze_carrier_summary",
         description="Returns a summary of booze carriers. Restricted to Admin, Sommeliers, and Connoisseurs.",
     )
+    @describe(
+        exclude_staff="Whether to exclude staff carriers.",
+        )
     @check_roles(
         [
             *any_council_role,
@@ -872,7 +902,7 @@ class Statistics(commands.Cog):
             ROLE_CONN,
         ]
     )
-    async def booze_carrier_summary(self, interaction: discord.Interaction):
+    async def booze_carrier_summary(self, interaction: discord.Interaction, exclude_staff: bool = False):
         """
         Returns an embed of the current booze carrier summary.
 
@@ -883,7 +913,7 @@ class Statistics(commands.Cog):
         await interaction.response.defer()
         logger.info(f"User {interaction.user.name} ({interaction.user.id}) requested a carrier summary")
 
-        cruise = await booze_sheets_api.get_cruise_with_stats(0)
+        cruise = await booze_sheets_api.get_cruise_with_stats(0, exclude_staff=exclude_staff)
 
         total_carriers = cruise.stats.total_carriers
         remaining_carriers = cruise.stats.carriers_remaining
@@ -893,7 +923,9 @@ class Statistics(commands.Cog):
         logger.debug(
             f"User {interaction.user.name} ({interaction.user.id}) wanted to know the remaining time of the holiday."
         )
-        holiday_ongoing, start_time = await database.get_holiday_status()
+        holiday_ongoing = await booze_sheets_api.get_current_cruise_state() == CruiseSystemState.ACTIVE
+        current_cruise = await booze_sheets_api.get_cruise_with_stats(0)
+        start_time = current_cruise.start
         if not holiday_ongoing:
             duration_remaining = "Pirate Steve has not detected the holiday state yet, or it is already over."
         else:
@@ -999,20 +1031,34 @@ class Statistics(commands.Cog):
             )
             return
 
+        formatted_first_unload_date = f"<t:{int(carrier_stats.first_unload_date.timestamp())}:d>" if carrier_stats.first_unload_date else "N/A"
+        formatted_last_unload_date = f"<t:{int(carrier_stats.last_unload_date.timestamp())}:d>" if carrier_stats.last_unload_date else "N/A"
+
+        average_wine_per_trip = carrier_stats.total_wine / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
+        average_credits_per_trip = carrier_stats.total_credits / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
+
         logger.debug(
             f"Carrier stats for {carrier_id} - Name: {carrier_stats.name}, "
             + f"Total Wine: {carrier_stats.total_wine}, "
             + f"Total Trips: {carrier_stats.total_trips}, "
             + f"Total Cruises: {carrier_stats.total_cruises}, "
-            + f"Owner: {carrier_stats.owner}."
+            + f"Owner: {carrier_stats.owner}, "
+            + f"Average Wine per Trip: {average_wine_per_trip:.2f}, "
+            + f"Average Credits per Trip: {average_credits_per_trip:.2f},"
+            + f"First Unload Date: {formatted_first_unload_date}, "
+            + f"Last Unload Date: {formatted_last_unload_date}."
         )
 
         stat_embed = discord.Embed(
             title=f"Stats for {carrier_stats.name} ({carrier_id})",
-            description=f"Total Wine: {carrier_stats.total_wine} tonnes\n"
+            description=f"Total Wine: {format_large_number(carrier_stats.total_wine)} tonnes\n"
             + f"Total Runs: {carrier_stats.total_trips}\n"
             + f"Total Cruises: {carrier_stats.total_cruises}\n"
-            + f"Owner: {carrier_stats.owner.mention}",
+            + f"Owner: {carrier_stats.owner.mention}\n"
+            + f"Average Wine per Trip: {format_large_number(average_wine_per_trip)} tonnes\n"
+            + f"Average Credits per Trip: {format_large_number(average_credits_per_trip)} credits\n"
+            + f"First Unload Date: {formatted_first_unload_date}\n"
+            + f"Last Unload Date: {formatted_last_unload_date}"
         )
 
         logger.info(f"Sending stats embed for carrier {carrier_id}.")

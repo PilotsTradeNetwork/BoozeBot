@@ -1,10 +1,10 @@
 from asyncio import Lock
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 import httpx
 import asyncio
 import json
-from typing import Any, Callable, Literal, override
+from typing import Any, Callable, override
 import websockets
 from discord.ext.commands import Bot
 from httpx import AsyncClient
@@ -15,8 +15,9 @@ from tenacity import (
 )
 from tenacity.stop import stop_base
 
-from discord import Embed
+from discord import Embed, User
 from ptn_utils.global_constants import CHANNEL_BOTSPAM
+from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
 from ptn.boozebot.classes.Cruise import Cruise, CruiseStats
@@ -43,13 +44,12 @@ def _should_retry_exception(exception: Exception) -> bool:
         return exception.response.status_code in (429, 500, 502, 503, 504)
     return False
 
+
 class dynamic_attempts(stop_base):
-    """ Stop strategy that adjusts max attempts based on a condition. """
+    """Stop strategy that adjusts max attempts based on a condition."""
 
     def __init__(
-        self, condition: Callable[[RetryCallState], bool],
-        attempts_if_true: int = 3,
-        attempts_if_false: int = 1
+        self, condition: Callable[[RetryCallState], bool], attempts_if_true: int = 3, attempts_if_false: int = 1
     ) -> None:
         super().__init__()
         self.condition: Callable[[RetryCallState], bool] = condition
@@ -64,6 +64,7 @@ class dynamic_attempts(stop_base):
         else:
             max_attempts = self.attempts_if_false
         return retry_state.attempt_number >= max_attempts
+
 
 def _on_api_failure(retry_state: RetryCallState):
     """
@@ -181,7 +182,7 @@ class BoozeSheetsApi:
         :return: The response from the API as a dictionary.
         """
 
-        logger.debug(f"Sending {method} request to BoozeSheets API: endpoint={endpoint}, data={data}")
+        logger.debug(f"Sending {method} request to BoozeSheets API: endpoint={endpoint}, data={data}, PayloadType: {payload_type}")
 
         async with self.client_lock:
             match payload_type:
@@ -330,6 +331,25 @@ class BoozeSheetsApi:
 
         return carriers
 
+    async def get_unloading_carriers(self)-> list[BoozeCarrier]:
+        """
+                Retrieves a list of carriers that are currently unloading.
+
+                :return: A list of carrier information dictionaries.
+                """
+
+        logger.debug("Getting info for all unloading carriers")
+        endpoint = "/carriers"
+        data = {"wine_status": ["Unloading"]}
+
+        logger.debug(f"Sending GET request to {endpoint} with data={data}")
+        carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
+        logger.debug(f"All carriers info retrieved: {carriers_info}")
+
+        carriers = [BoozeCarrier(info) for info in carriers_info]
+
+        return carriers
+
     async def get_cruises_list(self) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Retrieves a list of all cruises from the BoozeSheets API.
@@ -352,12 +372,12 @@ class BoozeSheetsApi:
         logger.debug(f"Cruises list retrieved: {cruises}")
 
         return cruises
-    
-    async def get_current_cruise_state(self) -> str:
+
+    async def get_current_cruise_state(self) -> CruiseSystemState:
         """
         Retrieves the current cruise state from the BoozeSheets API.
 
-        :return: The current cruise state as a string.
+        :return: The current cruise state.
         """
 
         logger.debug("Getting current cruise state")
@@ -365,55 +385,40 @@ class BoozeSheetsApi:
 
         logger.debug(f"Sending GET request to {endpoint}")
         try:
-            state_data = await self._request("GET", endpoint)
+            state_data: dict[str, CruiseSystemState] = await self._request("GET", endpoint)
         except httpx.HTTPStatusError as e:
             logger.error(f"Failed to get current cruise state: {e}")
-            return "channels_closed"
-        logger.debug(f"Current cruise state retrieved: {state_data}")
+            return CruiseSystemState.CHANNELS_CLOSED
+        logger.debug(f"Current cruise state from backend: {state_data}")
 
-        return state_data.get("state", "channels_closed")
+        return state_data.get("state", CruiseSystemState.CHANNELS_CLOSED)
 
-    async def get_cruise_with_stats(self, cruise_id: int, include_not_unloaded: bool | None = None) -> Cruise | None:
+    async def get_cruise_with_stats(self, cruise_id: int, include_not_unloaded: bool | None = None, exclude_staff: bool | None = None) -> Cruise | None:
         """
         Retrieves stats for a specific cruise.
 
-        :param cruise_id: The ID of the cruise to retrieve stats for.
+        :param cruise_id: The ID of the cruise to retrieve stats for. Supports relative  (0: current, -1: previous, etc.) or absolute (positive int) indexing
         :param include_not_unloaded: Whether to include carriers that have not yet unloaded.
+        :param exclude_staff: Whether to exclude staff carriers.
         :return: The cruise stats.
         """
 
-        logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}")
-        all_cruises_endpoint = "/cruises"
+        logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}, exclude_staff={exclude_staff}")
 
-        logger.debug(f"Sending GET request to {all_cruises_endpoint}")
-        all_cruises = await self._request("GET", all_cruises_endpoint)
-        logger.debug(f"All cruises retrieved: {all_cruises}")
+        stats_endpoint = f"/cruises/{cruise_id}"
 
-        if not all_cruises:
-            logger.warning("No cruises available to retrieve stats for")
-            return None
-
-        sorted_cruises = sorted(
-            all_cruises, key=lambda x: datetime.fromisoformat(x.get("cruiseStart", "")), reverse=True
-        )
-
-        if cruise_id > len(sorted_cruises):
-            logger.warning(f"Cruise ID {cruise_id} is out of range. Total cruises: {len(sorted_cruises)}")
-            raise ValueError("Cruise ID is out of range.")
-        actual_cruise_id = sorted_cruises[cruise_id].get("cruiseId", None)
-
-        stats_endpoint = f"/cruises/{actual_cruise_id}"
-        if include_not_unloaded is not None:
-            data = {"include_not_unloaded": include_not_unloaded}
-        else:
-            data = {}
+        data = {}
+        if include_not_unloaded:
+            data["include_not_unloaded"] = include_not_unloaded
+        if exclude_staff:
+            data["exclude_staff"] = exclude_staff
 
         logger.debug(f"Sending GET request to {stats_endpoint} with data={data}")
         try:
             cruise_data = await self._request("GET", stats_endpoint, data, PayloadType.QUERY)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                logger.warning(f"Cruise stats not found for cruise_id={actual_cruise_id}")
+                logger.warning(f"Cruise stats not found for cruise_id={cruise_id}")
                 return None
             else:
                 raise
@@ -556,7 +561,7 @@ class BoozeSheetsApi:
 
         return CruiseStats(stats_data)
 
-    async def update_cruise_state(self, state: Literal["prep", "active", "ended", "channels_closed"]):
+    async def update_cruise_state(self, state: CruiseSystemState):
         """
         Update the current cruise state in BoozeSheets.
 
@@ -567,9 +572,67 @@ class BoozeSheetsApi:
         endpoint = "/cruises/state"
         data = {"state": state}
 
-        logger.debug(f"Sending PATCH request to {endpoint} with data={data}")
+
         await self._request("PATCH", endpoint, data, PayloadType.BODY)
         logger.debug(f"Cruise state updated to {state}")
+        
+    async def set_refresh_discord_data(self, user: User):
+        """
+        Set the refresh_discord_data flag for a user in BoozeSheets.
+
+        :param user: The Discord user to set the flag for.
+        """
+
+        logger.debug(f"Setting refresh_discord_data for user_id={user.id}")
+        endpoint = "/users/force-refresh"
+        
+        data = {"discord_id": str(user.id)}
+
+        logger.debug(f"Sending POST request to {endpoint} with data={data}")
+        try:
+            await self._request("POST", endpoint, data, PayloadType.QUERY)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to set refresh_discord_data for user_id={user.id}: {e}")
+        logger.debug(f"refresh_discord_data set for user_id={user.id}")
+
+    async def update_cruise_start(self, cruise_start: datetime):
+        """
+        Update the current cruise start time in BoozeSheets. Called when PHCheck first succeeds.
+
+        :param cruise_start: The new cruise start timestamp (tz-aware, UTC).
+        """
+
+        endpoint = "/cruises"
+        data = {"cruise_start": cruise_start.isoformat().replace("Z", "+00:00")}
+
+        state = await self.get_current_cruise_state()
+        logger.debug(f"Current cruise state is {state}")
+        if state in [CruiseSystemState.PREP, CruiseSystemState.ACTIVE]:
+            logger.info(f"Updating current cruise start to {cruise_start}")
+            await self._request("PATCH", endpoint, data, PayloadType.BODY)
+        else:
+            logger.error("Automatic cruise_start update called outside of prep or active.")
+            raise RuntimeError("Cannot automatically set cruise_start outside of prep or active.")
+
+    async def close_cruise(self, cruise_end: datetime):
+        """
+        Update the current cruise end time in BoozeSheets. Called when PHCheck first fails.
+
+        :param cruise_end: The new cruise start timestamp (tz-aware, UTC).
+        """
+
+        endpoint = "/cruises"
+        data = {"cruise_end": cruise_end.isoformat().replace("Z", "+00:00")}
+
+        state = await self.get_current_cruise_state()
+        logger.debug(f"Current cruise state is {state}")
+        if state == CruiseSystemState.ACTIVE:
+            logger.info(f"Updating current cruise end to {cruise_end}")
+            await self._request("PATCH", endpoint, data, PayloadType.BODY)
+            await self.update_cruise_state(CruiseSystemState.ENDED)
+        else:
+            logger.error("Automatic cruise end update called outside of active.")
+            raise RuntimeError("Cannot automatically close cruise outside of active.")
 
     """
     Websocket stuff
@@ -659,7 +722,7 @@ class BoozeSheetsApi:
                     break
 
                 try:
-                    self._last_ws_message_time = datetime.now(tz=timezone.utc)
+                    self._last_ws_message_time = datetime.now(tz=UTC)
                     await self._handle_websocket_message(message)
                 except Exception as e:
                     logger.error(f"Error handling websocket message: {e}", exc_info=True)
