@@ -1,14 +1,15 @@
 # Checking for a public holiday at Rackham's (HIP 58832)
 # Returns True or False based on whether or not Rackham's is in public holiday
 # Rackham Capital Investments is the faction controlling Rackham's Peak
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, UTC
 from json import JSONDecodeError
 
 import httpx
+from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import STALE_DATA_THRESHOLD
-from ptn.boozebot.database.database import database
+from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 
 logger = get_logger("boozebot.modules.phcheck")
 
@@ -17,7 +18,7 @@ class StaleDataException(Exception):
     pass
 
 
-async def get_state_from_edsm() -> bool:
+async def get_state_from_edsm() -> tuple[bool, datetime]:
     logger.debug("Getting state from EDSM API.")
     edsm_params = {
         "systemName": "HIP 58832",
@@ -39,19 +40,21 @@ async def get_state_from_edsm() -> bool:
 
     if "Public Holiday" in active_states:
         logger.debug("Public Holiday state found in EDSM response.")
-        return True
+        return True, last_update
 
     logger.debug("No Public Holiday state found in EDSM response.")
-    return False
+    return False, last_update
 
 
-async def api_ph_check() -> bool:
+async def api_ph_check() -> tuple[bool, datetime]:
     logger.info("Checking PH state from external APIs.")
+    updated_at = datetime.now(tz=UTC)
     try:
         logger.debug("Attempting to get the state from EDSM.")
-        if await get_state_from_edsm():
+        state, updated_at = await get_state_from_edsm()
+        if state:
             logger.info("PH state detected from EDSM.")
-            return True
+            return True, updated_at
     except Exception as e:
         logger.error("Problem while getting the state from EDSM.")
         if isinstance(e, httpx.HTTPError) or isinstance(e, JSONDecodeError):
@@ -63,20 +66,22 @@ async def api_ph_check() -> bool:
 
     # Return false if there are no public holiday hits
     logger.info("No PH state detected from external API.")
-    return False
+    return False, updated_at
 
 
 async def ph_check() -> bool:
     logger.info("Checking PH state from the database.")
     try:
-        holiday_ongoing, _timestamp = await database.get_holiday_status()
-        logger.debug(f"Fetched holiday state from database: {holiday_ongoing}")
+        holiday_ongoing = await booze_sheets_api.get_current_cruise_state() == CruiseSystemState.ACTIVE
+
+        logger.debug(f"Fetched holiday state from backend: {holiday_ongoing}")
+
         if not holiday_ongoing:
-            logger.info("PH is not ongoing according to the database.")
+            logger.info("PH is not ongoing according to the backend.")
             return False
         else:
-            logger.info("PH is ongoing according to the database.")
+            logger.info("PH is ongoing according to the backend.")
             return True
     except Exception as e:
-        logger.exception(f"Error while checking PH state from the database: {e}")
+        logger.exception(f"Error while checking PH state from the backend: {e}")
         return False

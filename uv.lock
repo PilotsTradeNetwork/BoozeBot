@@ -564,7 +564,7 @@ requires-dist = [
     { name = "httpx", specifier = "~=0.28.1" },
     { name = "isodate", specifier = "~=0.7.2" },
     { name = "loguru", specifier = "~=0.7.3" },
-    { name = "ptn-utils", git = "https://github.com/PilotsTradeNetwork/PTN-Library.git?rev=1.0.0" },
+    { name = "ptn-utils", git = "https://github.com/PilotsTradeNetwork/PTN-Library.git?rev=1.1.0" },
     { name = "python-dotenv", specifier = "~=1.2.2" },
     { name = "requests", specifier = "~=2.32.5" },
     { name = "tenacity", specifier = "~=9.1.4" },
@@ -580,8 +580,8 @@ dev = [
 
 [[package]]
 name = "ptn-utils"
-version = "1.0.0"
-source = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git?rev=1.0.0#553834c1d8fe446082c5a0526da05d0f65139051" }
+version = "1.1.0"
+source = { git = "https://github.com/PilotsTradeNetwork/PTN-Library.git?rev=1.1.0#d27f7f418bd1810ac8d75ffe933aa836d655fc6b" }
 dependencies = [
     { name = "discord-py" },
     { name = "loguru" },

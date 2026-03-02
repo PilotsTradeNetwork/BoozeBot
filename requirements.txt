@@ -6,7 +6,7 @@ aiosignal==1.4.0
 anyio==4.12.1
 attrs==25.4.0
 audioop-lts==0.2.2
-certifi==2026.2.25
+certifi==2026.1.4
 charset-normalizer==3.4.4
 colorama==0.4.6 ; sys_platform == 'win32'
 discord-ext-prometheus==0.2.1
@@ -21,7 +21,7 @@ loguru==0.7.3
 multidict==6.7.1
 prometheus-client==0.24.1
 propcache==0.4.1
-ptn-utils @ git+https://github.com/PilotsTradeNetwork/PTN-Library.git@553834c1d8fe446082c5a0526da05d0f65139051
+ptn-utils @ git+https://github.com/PilotsTradeNetwork/PTN-Library.git@d27f7f418bd1810ac8d75ffe933aa836d655fc6b
 python-dotenv==1.2.2
 requests==2.32.5
 tenacity==9.1.4
