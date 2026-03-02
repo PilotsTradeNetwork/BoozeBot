@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.1.0
+-    \#738 Tag latest on release (IndorilReborn)
+-    \#744 New Pagination (Conshmea)
+-    \#747 Full command in departure errors (Conshmea)
+-    \#748 Make presence look better on new discord UI (Conshmea)
+-    \#765 update ptn_utils (IndorilReborn)
+-    \#766 add listeners for join/leave (axleantilles)
+-    \#767 Update Cleaner.py (axleantilles)
+-    \#768 race condition triggered by fc_complete spam (axleantilles)
+-    \#769 check for active unloads (axleantilles)
+-    \#771 reenable chunking at startup (axleantilles)
+-    \#773 discord data refresh (Conshmea)
+-    \#774 More stats in carrier stats (Conshmea)
+-    \#775 fix departure fail on last deleted (Conshmea)
+-    \#776 Toggle ptnrpphtms commands (Conshmea)
+-    \#777 More info in remaining list (Conshmea)
+-    \#778 add somm to allowed roles for booze_admin_list_corked (axleantilles)
+-    \#779 use boozeSheets instead of db for PH state storage (axleantilles)
+-    \#781 digest exclude_staff and new numbering option (axleantilles)
+-    \#784 change dependabot package-ecosystem to uv (axleantilles)
+-    \#785 Bump the python-packages group with 7 updates (dependabot)
+
 ## 3.0.1
 -    \#743 Update PHcheck.py (axleantilles)
 
