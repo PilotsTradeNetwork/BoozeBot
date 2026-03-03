@@ -1,7 +1,7 @@
 # Checking for a public holiday at Rackham's (HIP 58832)
 # Returns True or False based on whether or not Rackham's is in public holiday
 # Rackham Capital Investments is the faction controlling Rackham's Peak
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from json import JSONDecodeError
 
 import httpx
@@ -49,8 +49,8 @@ async def get_state_from_edsm() -> tuple[bool, datetime]:
 async def api_ph_check() -> tuple[bool, datetime]:
     logger.info("Checking PH state from external APIs.")
     updated_at = datetime.now(tz=UTC)
+    logger.debug("Attempting to get the state from EDSM.")
     try:
-        logger.debug("Attempting to get the state from EDSM.")
         state, updated_at = await get_state_from_edsm()
         if state:
             logger.info("PH state detected from EDSM.")
@@ -59,11 +59,7 @@ async def api_ph_check() -> tuple[bool, datetime]:
         logger.error("Problem while getting the state from EDSM.")
         if isinstance(e, httpx.HTTPError) or isinstance(e, JSONDecodeError):
             logger.error(f"HTTP Exception for {e.request.url} - {e}")
-        elif isinstance(e, StaleDataException):
-            logger.error(e)
-        else:
-            raise
-
+        raise
     # Return false if there are no public holiday hits
     logger.info("No PH state detected from external API.")
     return False, updated_at
