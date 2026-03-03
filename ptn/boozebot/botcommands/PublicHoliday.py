@@ -34,9 +34,9 @@ from ptn.boozebot.constants import (
     holiday_query_started_gifs,
     holiday_start_gif,
 )
+from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.PHcheck import api_ph_check, ph_check
-from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 
 """
 PUBLIC HOLIDAY TASK LOOP
@@ -75,7 +75,9 @@ class PublicHoliday(commands.Cog):
             logger.debug("Public holiday state checker loop already running.")
 
     @staticmethod
-    async def _set_public_holiday_state(state: bool, timestamp: datetime, force_update: bool = False) -> tuple[bool, str]:
+    async def _set_public_holiday_state(
+        state: bool, timestamp: datetime, force_update: bool = False
+    ) -> tuple[bool, str]:
         logger.info(f"Setting public holiday state to: {state}, force update: {force_update}")
         if state:
             logger.info("PH detected, triggering the notifications.")
@@ -160,8 +162,7 @@ class PublicHoliday(commands.Cog):
         try:
             state, updated_at = await api_ph_check()
             logger.info(f"Rackham's holiday API check returned: {state}, last updated: {updated_at}")
-            await self._set_public_holiday_state(state,updated_at)
-
+            await self._set_public_holiday_state(state, updated_at)
         except Exception as e:
             logger.exception(f"Error in the public holiday loop: {e}")
 
