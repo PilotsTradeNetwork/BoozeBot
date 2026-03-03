@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.1.1
+-    \#788 fix: always raise EDSM PH check error (IndorilReborn)
+
 ## 3.1.0
 -    \#738 Tag latest on release (IndorilReborn)
 -    \#744 New Pagination (Conshmea)
