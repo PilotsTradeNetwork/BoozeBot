@@ -101,11 +101,7 @@ class Database:
 
             # Create the table if it does not exist
 
-            self.db.execute(
-                f"""
-                SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = '{table_name}'
-            """
-            )
+            self.db.execute(f"""SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = '{table_name}'""")  # noqa: S608
             table_exists = bool(self.db.fetchone()[0])
             logger.trace(f"Table {table_name} exists: {table_exists}")
 
@@ -186,7 +182,7 @@ class Database:
         for table_name, records in default_values.items():
             logger.trace(f"Checking for default values in table: {table_name}")
 
-            self.db.execute(f"SELECT COUNT(*) FROM {table_name}")
+            self.db.execute(f"SELECT COUNT(*) FROM {table_name}")  # noqa: S608
             record_count = self.db.fetchone()[0]
             logger.trace(f"Table {table_name} has {record_count} existing record(s).")
 
@@ -198,9 +194,7 @@ class Database:
                     values = tuple(record.values())
                     logger.trace(f"Inserting record {idx}/{len(records)} into {table_name}: {record}")
                     self.db.execute(
-                        f"""
-                        INSERT INTO {table_name} ({columns}) VALUES ({placeholders})
-                    """,
+                        f"""INSERT INTO {table_name} ({columns}) VALUES ({placeholders})""",  # noqa: S608
                         values,
                     )
                 self.conn.commit()
@@ -219,7 +213,7 @@ class Database:
         logger.debug(f"Fetching unload message for carrier ID: {carrier_id}")
 
         async with self.lock:
-            self.db.execute("SELECT unload_id FROM carrier_messages WHERE carrier_id = (?)", (f"{carrier_id}",))
+            self.db.execute("SELECT unload_id FROM carrier_messages WHERE carrier_id = (?)", (carrier_id,))
 
             unload_id = self.db.fetchone()
         if not unload_id:
@@ -260,9 +254,9 @@ class Database:
 
         async with self.lock:
             self.db.execute(
-                "INSERT INTO carrier_messages (carrier_id, unload_id) VALUES (?, ?) "
-                + "ON CONFLICT(carrier_id) DO UPDATE SET unload_id = ?",
-                (f"{carrier_id}", message_id, message_id),
+                """INSERT INTO carrier_messages (carrier_id, unload_id) VALUES (?, ?)
+                ON CONFLICT(carrier_id) DO UPDATE SET unload_id = ?""",
+                (carrier_id, message_id, message_id),
             )
             self.conn.commit()
         logger.debug(f"Successfully set unload message ID {message_id} for carrier ID: {carrier_id}")
@@ -278,7 +272,7 @@ class Database:
 
         async with self.lock:
             self.db.execute(
-                "SELECT unload_notification_sent FROM carrier_messages WHERE carrier_id = (?)", (f"{carrier_id}",)
+                "SELECT unload_notification_sent FROM carrier_messages WHERE carrier_id = (?)", (carrier_id,)
             )
 
             result = self.db.fetchone()
@@ -300,9 +294,9 @@ class Database:
 
         async with self.lock:
             self.db.execute(
-                "INSERT INTO carrier_messages (carrier_id, unload_notification_sent) VALUES (?, ?) "
-                + "ON CONFLICT(carrier_id) DO UPDATE SET unload_notification_sent = ?",
-                (f"{carrier_id}", notification_sent, notification_sent),
+                """INSERT INTO carrier_messages (carrier_id, unload_notification_sent) VALUES (?, ?)
+                ON CONFLICT(carrier_id) DO UPDATE SET unload_notification_sent = ?""",
+                (carrier_id, notification_sent, notification_sent),
             )
             self.conn.commit()
         logger.debug(
@@ -319,7 +313,7 @@ class Database:
         logger.debug(f"Fetching departure message for carrier ID: {carrier_id}")
 
         async with self.lock:
-            self.db.execute("SELECT departure_id FROM carrier_messages WHERE carrier_id = (?)", (f"{carrier_id}",))
+            self.db.execute("SELECT departure_id FROM carrier_messages WHERE carrier_id = (?)", (carrier_id,))
 
             departure_id = self.db.fetchone()
         if not departure_id:
@@ -360,9 +354,9 @@ class Database:
 
         async with self.lock:
             self.db.execute(
-                "INSERT INTO carrier_messages (carrier_id, departure_id) VALUES (?, ?) "
-                + "ON CONFLICT(carrier_id) DO UPDATE SET departure_id = ?",
-                (f"{carrier_id}", message_id, message_id),
+                """INSERT INTO carrier_messages (carrier_id, departure_id) VALUES (?, ?)
+                ON CONFLICT(carrier_id) DO UPDATE SET departure_id = ?""",
+                (carrier_id, message_id, message_id),
             )
             self.conn.commit()
         logger.debug(f"Successfully set departure message ID {message_id} for carrier ID: {carrier_id}")
@@ -378,7 +372,7 @@ class Database:
 
         async with self.lock:
             self.db.execute(
-                "SELECT departure_notification_sent FROM carrier_messages WHERE carrier_id = (?)", (f"{carrier_id}",)
+                "SELECT departure_notification_sent FROM carrier_messages WHERE carrier_id = (?)", (carrier_id,)
             )
 
             result = self.db.fetchone()
@@ -400,9 +394,9 @@ class Database:
 
         async with self.lock:
             self.db.execute(
-                "INSERT INTO carrier_messages (carrier_id, departure_notification_sent) VALUES (?, ?) "
-                + "ON CONFLICT(carrier_id) DO UPDATE SET departure_notification_sent = ?",
-                (f"{carrier_id}", notification_sent, notification_sent),
+                """INSERT INTO carrier_messages (carrier_id, departure_notification_sent) VALUES (?, ?)
+                ON CONFLICT(carrier_id) DO UPDATE SET departure_notification_sent = ?""",
+                (carrier_id, notification_sent, notification_sent),
             )
             self.conn.commit()
         logger.debug(
@@ -428,11 +422,11 @@ class Database:
             fields = "departure_id = NULL, departure_notification_sent = NULL"
 
         async with self.lock:
-            self.db.execute(f"UPDATE carrier_messages SET {fields} WHERE carrier_id = ?", (f"{carrier_id}",))
+            self.db.execute(f"UPDATE carrier_messages SET {fields} WHERE carrier_id = ?", (carrier_id,))  # noqa: S608
             # Clean up the row if both unload and departure are NULL
             self.db.execute(
                 "DELETE FROM carrier_messages WHERE carrier_id = ? AND unload_id IS NULL AND departure_id IS NULL",
-                (f"{carrier_id}",),
+                (carrier_id,),
             )
             self.conn.commit()
         logger.debug(f"Successfully deleted {message_type} message entry for carrier ID: {carrier_id}")
@@ -468,10 +462,7 @@ class Database:
             self.db.execute("SELECT * FROM auto_responses")
             rows = self.db.fetchall()
 
-        auto_responses = []
-        for row in rows:
-            auto_responses.append(AutoResponse(row))
-
+        auto_responses = [AutoResponse(row) for row in rows]
         logger.debug(f"Retrieved {len(auto_responses)} auto response(s) from database")
         return auto_responses
 

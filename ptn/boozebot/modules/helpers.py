@@ -38,7 +38,7 @@ async def checkroles_actual(interaction: discord.Interaction, permitted_role_ids
         permitted_roles = [await bot.get_or_fetch.role(role) for role in permitted_role_ids]
         logger.debug(f"Author roles: {[role.name for role in author_roles]}")
         logger.debug(f"Permitted roles: {[role.name for role in permitted_roles if role]}")
-        permission = True if any(x in permitted_roles for x in author_roles) else False
+        permission = any(x in permitted_roles for x in author_roles)
         logger.debug(f"Permission granted: {permission}")
         return permission, permitted_roles
     except Exception as e:
@@ -84,18 +84,16 @@ def check_command_channel(permitted_channel: int | list[int]):
         """
         logger.debug(f"check_command_channel called for channel {ctx.channel.name} ({ctx.channel.id})")
         if isinstance(permitted_channel, list):
-            permitted_channels = [await bot.get_or_fetch.channel(id) for id in permitted_channel]
+            permitted_channels = [await bot.get_or_fetch.channel(chan_id) for chan_id in permitted_channel]
         else:
             permitted_channels = [await bot.get_or_fetch.channel(permitted_channel)]
 
-        channel_list = []
-        for channel in permitted_channels:
-            channel_list.append(f"<#{channel.id}>")
+        channel_list = [f"<#{channel.id}>" for channel in permitted_channels]
         formatted_channel_list = " • ".join(channel_list)
 
         logger.debug(f"Permitted channels: {[ch.name for ch in permitted_channels if ch]}")
 
-        permission = True if any(channel == ctx.channel for channel in permitted_channels) else False
+        permission = any(channel == ctx.channel for channel in permitted_channels)
         if not permission:
             # problem, wrong channel, no progress
             logger.warning(
@@ -210,7 +208,7 @@ def is_staff(user: discord.Member) -> bool:
 
 def sane_default_datetime(possibly_none: str | None) -> datetime | None:
     return (
-        datetime.fromisoformat(possibly_none.replace("Z", "+00:00")).astimezone(UTC)
+        datetime.fromisoformat(possibly_none).astimezone(UTC)
         if possibly_none is not None
         else None
     )

@@ -5,11 +5,10 @@ Cog for granting and removing the wine carrier role
 
 import random
 from asyncio import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import discord
 from discord import DiscordException, Embed, Interaction, Member, app_commands
-from discord.abc import GuildChannel
 from discord.app_commands import ContextMenu, describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
@@ -42,6 +41,9 @@ from ptn.boozebot.modules.helpers import (
     track_last_run,
 )
 from ptn.boozebot.modules.Views import DynamicButton
+
+if TYPE_CHECKING:
+    from discord.abc import GuildChannel
 
 """
 MAKE WINE CARRIER COMMANDS
@@ -158,8 +160,7 @@ class MakeWineCarrier(commands.Cog):
 
         logger.debug(f"Alerting new signup for user {owner_id} with status {status} and notes {notes}")
 
-        steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
-        assert isinstance(steve_says, GuildChannel)
+        steve_says = cast("GuildChannel", await bot.get_or_fetch_channel(CHANNEL_BC_STEVE_SAYS))
 
         owner = await bot.get_or_fetch.member(owner_id)
         if not owner:

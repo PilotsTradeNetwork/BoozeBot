@@ -20,12 +20,7 @@ class CorkedUser:
         :param sqlite3.Row info_dict: A single row from the sqlite query.
         """
 
-        if info_dict:
-            # Convert the sqlite3.Row object to a dictionary
-            info_dict = dict(info_dict)
-        else:
-            info_dict = dict()
-
+        info_dict = dict(info_dict) if info_dict else {}
         logger.debug(f"Initializing CorkedUser with info_dict: {info_dict}")
 
         self.user_id = info_dict.get("user_id")

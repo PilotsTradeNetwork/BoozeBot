@@ -186,9 +186,7 @@ class BoozeCarrier:
         :rtype: bool
         """
 
-        if set(self.owner.scopes) & {"Sommelier", "Connoisseur", "Old Grape"}:
-            return True
-        return False
+        return bool(set(self.owner.scopes) & {"Sommelier", "Connoisseur", "Old Grape"})
 
     def to_dictionary(self):
         """
@@ -200,11 +198,7 @@ class BoozeCarrier:
 
         logger.debug(f"Converting BoozeCarrier '{self.carrier_name}' to dictionary.")
 
-        response = {}
-        for key, value in vars(self).items():
-            if value is not None:
-                response[key] = value
-
+        response = {key: value for key, value in vars(self).items() if value is not None}
         logger.debug(f"BoozeCarrier dictionary representation: {response}")
 
         return response
@@ -228,7 +222,7 @@ class BoozeCarrier:
 
         logger.debug(f"Checking boolean state of BoozeCarrier '{self.carrier_name}'.")
 
-        state = any([value for _key, value in vars(self).items()])
+        state = any(value for _key, value in vars(self).items())
 
         logger.debug(f"BoozeCarrier '{self.carrier_name}' boolean state: {state}")
 

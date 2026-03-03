@@ -610,29 +610,29 @@ class Departures(commands.Cog):
 
         logger.debug(f"Departure location: {departure_location}, Arrival location: {arrival_location}")
 
-        async def validate_timestamp(input: str) -> int | None:
-            if not input:
+        async def validate_timestamp(user_input: str) -> int | None:
+            if not user_input:
                 msg = "You must provide a departure timestamp when using the 'Custom' departure time type."
                 logger.info(msg)
                 await interaction.edit_original_response(content=msg)
                 return None
 
             try:
-                if input.startswith("<t:") and input.endswith(">"):
-                    input = input.rstrip(">").split(":")[1]
-                timestamp = int(input)
+                if user_input.startswith("<t:") and user_input.endswith(">"):
+                    user_input = user_input.rstrip(">").split(":")[1]
+                timestamp = int(user_input)
                 if timestamp < datetime.now(UTC).timestamp():
-                    msg = f"Departure timestamp must be in the future: {input}"
+                    msg = f"Departure timestamp must be in the future: {user_input}"
                     logger.info(msg)
                     await interaction.edit_original_response(content=msg)
                     return None
                 elif timestamp > (datetime.now(UTC) + timedelta(days=7)).timestamp():
-                    msg = f"Departure timestamp must be within 1 week of now: {input}"
+                    msg = f"Departure timestamp must be within 1 week of now: {user_input}"
                     logger.info(msg)
                     await interaction.edit_original_response(content=msg)
                     return None
             except ValueError:
-                msg = f"Departure timestamp was not a valid integer: {input}"
+                msg = f"Departure timestamp was not a valid integer: {user_input}"
                 logger.info(msg)
                 await interaction.edit_original_response(content=msg)
                 return None

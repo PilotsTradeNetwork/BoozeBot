@@ -1,7 +1,7 @@
 import asyncio
 import json
-from asyncio import Lock
 from collections.abc import Callable
+from contextlib import suppress
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, override
@@ -61,10 +61,7 @@ class dynamic_attempts(stop_base):
     @override
     def __call__(self, retry_state: "RetryCallState") -> bool:
         exception = retry_state.outcome.exception() if retry_state.outcome else None
-        if exception and self.condition(exception):
-            max_attempts = self.attempts_if_true
-        else:
-            max_attempts = self.attempts_if_false
+        max_attempts = self.attempts_if_true if exception and self.condition(exception) else self.attempts_if_false
         return retry_state.attempt_number >= max_attempts
 
 
@@ -138,7 +135,7 @@ class BoozeSheetsApi:
     ws_task: asyncio.Task[None] | None
     ws_client: AsyncClient | None
     bot: Bot
-    client_lock: Lock
+    client_lock: asyncio.Lock
     client: AsyncClient
     base_url: str
 
@@ -443,10 +440,7 @@ class BoozeSheetsApi:
 
         logger.debug("Getting biggest cruise stats")
         endpoint = "/cruises/biggest_cruise"
-        if include_not_unloaded is not None:
-            data = {"include_not_unloaded": include_not_unloaded}
-        else:
-            data = {}
+        data = {"include_not_unloaded": include_not_unloaded} if include_not_unloaded is not None else {}
 
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         try:
@@ -673,10 +667,8 @@ class BoozeSheetsApi:
         self._ws_running = False
         if self.ws_task:
             self.ws_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self.ws_task
-            except asyncio.CancelledError:
-                pass
             self.ws_task = None
 
         if self.ws_client:

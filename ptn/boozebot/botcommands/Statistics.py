@@ -659,13 +659,7 @@ class Statistics(commands.Cog):
 
         await interaction.response.defer()
 
-        if include_not_unloaded:
-            if include_not_unloaded == "All Carriers":
-                include_not_unloaded_bool = True
-            else:
-                include_not_unloaded_bool = False
-        else:
-            include_not_unloaded_bool = None
+        include_not_unloaded_bool = include_not_unloaded == "All Carriers" if include_not_unloaded else None
 
         cruise_name = "this" if cruise_select == 0 else f"-{cruise_select}"
         logger.info(
@@ -870,14 +864,7 @@ class Statistics(commands.Cog):
         )
         target_date = None
 
-        if include_not_unloaded:
-            if include_not_unloaded == "All Carriers":
-                include_not_unloaded_bool = True
-            else:
-                include_not_unloaded_bool = False
-        else:
-            include_not_unloaded_bool = None
-
+        include_not_unloaded_bool = include_not_unloaded == "All Carriers" if include_not_unloaded else None
         cruise = await booze_sheets_api.get_cruise_with_stats(-cruise_select, include_not_unloaded_bool)
 
         if cruise_select != 0:
@@ -976,13 +963,7 @@ class Statistics(commands.Cog):
         )
         await interaction.response.defer()
 
-        if include_not_unloaded:
-            if include_not_unloaded == "All Carriers":
-                include_not_unloaded_bool = True
-            else:
-                include_not_unloaded_bool = False
-        else:
-            include_not_unloaded_bool = None
+        include_not_unloaded_bool = include_not_unloaded == "All Carriers" if include_not_unloaded else None
 
         cruise = await booze_sheets_api.get_biggest_cruise_with_stats(include_not_unloaded_bool)
 

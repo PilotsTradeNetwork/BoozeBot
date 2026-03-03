@@ -4,10 +4,10 @@ Cog for all the commands related to
 """
 
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import discord
 from discord import Embed, PermissionOverwrite, app_commands
-from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
@@ -34,6 +34,9 @@ from ptn.boozebot.constants import bot
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.Views import ConfirmView
+
+if TYPE_CHECKING:
+    from discord.abc import GuildChannel
 
 """
 CLEANER COMMANDS
@@ -85,8 +88,7 @@ class Corked(commands.Cog):
             failed_users = await self._booze_rebuild_corked_perms(corked_users)
             if failed_users:
                 embed = _build_failed_cork_embed(failed_users)
-                steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
-                assert isinstance(steve_says, GuildChannel)
+                steve_says = cast("GuildChannel", await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS))
                 await steve_says.send(embed=embed)
         except Exception as e:
             logger.exception(e)
@@ -97,7 +99,7 @@ class Corked(commands.Cog):
             logger.debug(f"Member joined: {member.display_name} ({member.name}/{member.id})")
             if await database.is_user_corked(member.id):
                 logger.info(f"Found Corked user joining the server: {member.display_name} ({member.name}/{member.id})")
-                steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
+                steve_says = cast("GuildChannel", await bot.get_or_fetch_channel(CHANNEL_BC_STEVE_SAYS))
                 corked_users = await database.get_corked_users()
                 description = f"YARRRRRR mateys, Pirate Steve spies a bilge rat sneaking into the server! {member.mention} ({member.name}). Rebuilding corked permissions."
                 get_recorked_img_path = Path(DATA_DIR, "resources", "getrecorked.png")
@@ -108,7 +110,6 @@ class Corked(commands.Cog):
                 failed_users = await self._booze_rebuild_corked_perms(corked_users)
                 if failed_users:
                     embed = _build_failed_cork_embed(failed_users)
-                    assert isinstance(steve_says, GuildChannel)
                     await steve_says.send(embed=embed)
 
         except Exception as e:
@@ -266,8 +267,7 @@ class Corked(commands.Cog):
         failed_users = []
 
         # ASSUMPTION: presence of overwrites in BC chat is an acceptable indicator for whether a user is still corked
-        channel_chat = await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
-        assert isinstance(channel_chat, GuildChannel)
+        channel_chat = cast("GuildChannel", await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT))
         active_corks = [key.id for key in channel_chat.overwrites if not isinstance(key, discord.Role)]
         for corked_user in corked_users:
             if int(corked_user.user_id) not in active_corks:
