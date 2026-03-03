@@ -16,7 +16,7 @@ dirname = os.path.dirname(__file__)
 
 
 def load_response(filename):
-    with open(f"{dirname}/{filename}.json", mode="r") as data:
+    with open(f"{dirname}/{filename}.json") as data:
         return data.read()
 
 

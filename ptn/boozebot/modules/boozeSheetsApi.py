@@ -1,13 +1,19 @@
-from asyncio import Lock
-from datetime import UTC, datetime
-from enum import Enum
-import httpx
 import asyncio
 import json
-from typing import Any, Callable, override
+from asyncio import Lock
+from collections.abc import Callable
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any, override
+
+import httpx
 import websockets
+from discord import Embed, User
 from discord.ext.commands import Bot
 from httpx import AsyncClient
+from ptn_utils.enums.booze_enums import CruiseSystemState
+from ptn_utils.global_constants import CHANNEL_BOTSPAM
+from ptn_utils.logger.logger import get_logger
 from tenacity import (
     RetryCallState,
     retry,
@@ -15,13 +21,9 @@ from tenacity import (
 )
 from tenacity.stop import stop_base
 
-from discord import Embed, User
-from ptn_utils.global_constants import CHANNEL_BOTSPAM
-from ptn_utils.enums.booze_enums import CruiseSystemState
-from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
 from ptn.boozebot.classes.Cruise import Cruise, CruiseStats
-from ptn_utils.logger.logger import get_logger
+from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 
 
 class PayloadType(Enum):
@@ -715,7 +717,7 @@ class BoozeSheetsApi:
         """
         ws_url = f"{self.base_url.replace('http', 'ws')}ws/?api_key={BOOZESHEETS_API_KEY}"
 
-        logger.info(f"Connecting to BoozeSheets websocket: {ws_url.split('?')[0]}")
+        logger.info(f"Connecting to BoozeSheets websocket: {ws_url.split('?', maxsplit=1)[0]}")
 
         async with websockets.connect(uri=ws_url) as websocket:
             logger.info("Connected to BoozeSheets websocket")

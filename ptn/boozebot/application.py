@@ -14,16 +14,15 @@ from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.botcommands.Corked import Corked
-from ptn.boozebot.botcommands.Statistics import Statistics
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.DiscordBotCommands import DiscordBotCommands
 from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
 from ptn.boozebot.botcommands.MimicSteve import MimicSteve
 from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
+from ptn.boozebot.botcommands.Statistics import Statistics
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
-
 from ptn.boozebot.modules.Views import DynamicButton
 
 logger = get_logger("boozebot.application")

@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import override
+
 from discord import Member
 from ptn_utils.logger.logger import get_logger
 
@@ -27,8 +28,8 @@ class CorkedUser:
 
         logger.debug(f"Initializing CorkedUser with info_dict: {info_dict}")
 
-        self.user_id = info_dict.get("user_id", None)
-        self.timestamp = info_dict.get("timestamp", None)
+        self.user_id = info_dict.get("user_id")
+        self.timestamp = info_dict.get("timestamp")
 
         logger.debug(f"CorkedUser initialized: user_id={self.user_id}, timestamp={self.timestamp}")
 

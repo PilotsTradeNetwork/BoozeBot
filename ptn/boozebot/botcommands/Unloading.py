@@ -4,7 +4,7 @@ Cog for unloading related commands
 """
 
 from asyncio import Lock
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import discord
 from discord import app_commands
@@ -28,10 +28,10 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import CARRIER_ID_RE, bot
 from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run, is_staff
+from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, is_staff, track_last_run
 from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.Settings import settings
-from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 
 """
 UNLOADING COMMANDS
@@ -132,7 +132,7 @@ class Unloading(commands.Cog):
                         await wine_carrier_channel.send(
                             f"<@{carrier_data.owner.discord_id}> "
                             + f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
-                            + f"has been marked completed. Please check, then run the following command to close it "
+                            + "has been marked completed. Please check, then run the following command to close it "
                             + "if it is correct.\n"
                             + f"```/wine_unload_complete carrier_id:{carrier_data.carrier_identifier}```"
                         )
@@ -187,7 +187,7 @@ class Unloading(commands.Cog):
             logger.info("PH is not currently active, skipping reminder check.")
             return
 
-        if datetime.now(tz=timezone.utc) - self.last_unload_time >= timedelta(minutes=20):
+        if datetime.now(tz=UTC) - self.last_unload_time >= timedelta(minutes=20):
             logger.info("Last unload time was more than 20 minutes ago, sending reminder message.")
             try:
                 rstc_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
@@ -226,7 +226,7 @@ class Unloading(commands.Cog):
         embed.add_field(
             name="If you are INTENDING TO BUY, please react with: :airplane_arriving:.\n"
             + f"Once you are DOCKED react with: <:Assassin:{str(EMOJI_ASSASSIN)}>\n"
-            + f"Once you PURCHASE WINE, react with: :wine_glass:",
+            + "Once you PURCHASE WINE, react with: :wine_glass:",
             value="Market will be opened once we have aligned the number of commanders.",
             inline=True,
         )
@@ -511,7 +511,7 @@ class Unloading(commands.Cog):
         )
         await interaction.edit_original_response(content="**Sending to Discord...**")
 
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
         open_time = current_time + timedelta(minutes=settings.get_setting("timed_unload_hold_duration"))
         open_time = open_time + timedelta(seconds=60 - open_time.second)
         open_time_str = open_time.strftime("%H:%M:%S")
@@ -640,7 +640,7 @@ class Unloading(commands.Cog):
         await database.delete_carrier_message(carrier_id, "unload")
         logger.info(f"Removed unload notification from database for carrier: {carrier_id}.")
 
-        self.last_unload_time = datetime.now(timezone.utc)
+        self.last_unload_time = datetime.now(UTC)
         unload_duration = completed_trip.unload_duration
 
         logger.debug(f"Calculated unload duration: {unload_duration} seconds")

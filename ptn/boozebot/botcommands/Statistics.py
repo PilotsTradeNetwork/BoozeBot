@@ -3,8 +3,8 @@ Cog for all the commands that interact with the database
 
 """
 
-from datetime import datetime, timedelta
 import math
+from datetime import datetime, timedelta
 from typing import Any, Literal
 
 import discord

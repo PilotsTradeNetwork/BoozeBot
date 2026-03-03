@@ -1,5 +1,5 @@
 import re
-from typing import Any, override
+from typing import override
 
 import discord.colour
 from discord import ButtonStyle, Embed, Interaction, ui

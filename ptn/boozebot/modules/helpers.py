@@ -4,19 +4,19 @@ A module for helper functions called by other modules.
 Depends on: constants, ErrorHandler, database
 """
 
-from datetime import datetime, timezone
 import functools
-import isodate
+from datetime import UTC, datetime
 
 import discord
+import isodate
 from discord import app_commands
 from discord.ext import commands
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
     EMBED_COLOUR_ERROR,
+    ROLE_CONN,
     ROLE_PILOT,
     ROLE_SOMM,
-    ROLE_CONN,
     any_council_role,
     any_moderation_role,
 )
@@ -178,7 +178,7 @@ def track_last_run():
             logger.debug(f"Executing wrapped coroutine {coro.__name__}")
             result = await coro(self, *args, **kwargs)
             loop = getattr(self, coro.__name__)
-            loop.last_run_time = datetime.now(timezone.utc)
+            loop.last_run_time = datetime.now(UTC)
             logger.debug(f"Updated last_run_time for {coro.__name__} to {loop.last_run_time}")
             return result
 
@@ -210,7 +210,7 @@ def is_staff(user: discord.Member) -> bool:
 
 def sane_default_datetime(possibly_none: str | None) -> datetime | None:
     return (
-        datetime.fromisoformat(possibly_none.replace("Z", "+00:00")).astimezone(timezone.utc)
+        datetime.fromisoformat(possibly_none.replace("Z", "+00:00")).astimezone(UTC)
         if possibly_none is not None
         else None
     )

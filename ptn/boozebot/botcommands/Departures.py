@@ -3,8 +3,8 @@ Cog for departure related commands
 
 """
 
-from datetime import datetime, timedelta, timezone
 import time
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 import discord
@@ -29,8 +29,6 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import CARRIER_ID_RE, N_SYSTEMS, bot
 from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.Settings import settings
-from ptn.boozebot.modules.Views import ConfirmView
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import (
     check_command_channel,
@@ -38,6 +36,8 @@ from ptn.boozebot.modules.helpers import (
     is_staff,
     track_last_run,
 )
+from ptn.boozebot.modules.Settings import settings
+from ptn.boozebot.modules.Views import ConfirmView
 
 """
 DEPARTURE COMMANDS
@@ -88,7 +88,7 @@ class Departures(commands.Cog):
                         if reaction.emoji == "✅":
                             logger.debug(f"Message ID: {message.id} has ✅ reaction, checking users.")
 
-                            logger.debug(f"Fetching carrier id for departure message from database.")
+                            logger.debug("Fetching carrier id for departure message from database.")
                             carrier_id = await database.get_carrier_for_departure_message(message.id)
                             if not carrier_id:
                                 logger.warning(
@@ -415,12 +415,12 @@ class Departures(commands.Cog):
         thoon_systems = [0, 1]
 
         try:
-            departure_system_index = int(departure_location.split(" ")[0][1:])
+            departure_system_index = int(departure_location.split(" ", maxsplit=1)[0][1:])
         except ValueError:
             departure_system_index = 16
 
         try:
-            arrival_system_index = int(arrival_location.split(" ")[0][1:])
+            arrival_system_index = int(arrival_location.split(" ", maxsplit=1)[0][1:])
         except ValueError:
             arrival_system_index = 16
 
@@ -621,12 +621,12 @@ class Departures(commands.Cog):
                 if input.startswith("<t:") and input.endswith(">"):
                     input = input.rstrip(">").split(":")[1]
                 timestamp = int(input)
-                if timestamp < datetime.now(timezone.utc).timestamp():
+                if timestamp < datetime.now(UTC).timestamp():
                     msg = f"Departure timestamp must be in the future: {input}"
                     logger.info(msg)
                     await interaction.edit_original_response(content=msg)
                     return None
-                elif timestamp > (datetime.now(timezone.utc) + timedelta(days=7)).timestamp():
+                elif timestamp > (datetime.now(UTC) + timedelta(days=7)).timestamp():
                     msg = f"Departure timestamp must be within 1 week of now: {input}"
                     logger.info(msg)
                     await interaction.edit_original_response(content=msg)

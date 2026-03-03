@@ -7,9 +7,9 @@ from typing import Literal
 from warnings import deprecated
 
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.classes.AutoResponse import AutoResponse
 from ptn.boozebot.classes.CorkedUser import CorkedUser
-
 from ptn.boozebot.constants import CARRIERS_DB_DUMPS_PATH, CARRIERS_DB_PATH
 
 logger = get_logger("boozebot.database")
@@ -167,7 +167,7 @@ class Database:
                             logger.error(
                                 f"Column {column_name} in table {table_name} has type {column_type} but expected {schema[column_name]}"
                             )
-                            raise EnvironmentError("Column type mismatch detected. Please check the database schema.")
+                            raise OSError("Column type mismatch detected. Please check the database schema.")
                         else:
                             logger.trace(f"Column {column_name} in table {table_name} has correct type: {column_type}")
 

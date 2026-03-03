@@ -3,8 +3,8 @@ Cog for granting and removing the wine carrier role
 
 """
 
-from asyncio import Lock
 import random
+from asyncio import Lock
 from typing import Any
 
 import discord
@@ -35,13 +35,13 @@ from ptn.boozebot.constants import (
     too_slow_gifs,
 )
 from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.Views import DynamicButton
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import (
     check_command_channel,
     check_roles,
     track_last_run,
 )
+from ptn.boozebot.modules.Views import DynamicButton
 
 """
 MAKE WINE CARRIER COMMANDS
@@ -305,7 +305,7 @@ class MakeWineCarrier(commands.Cog):
                     response = f"{user.display_name} now has the {wc_role.name} role."
 
                     logger.debug("Opening welcome message file")
-                    with open(WELCOME_MESSAGE_FILE_PATH, "r", encoding="utf-8") as file:
+                    with open(WELCOME_MESSAGE_FILE_PATH, encoding="utf-8") as file:
                         wine_welcome_message = file.read()
 
                     logger.debug(f"Welcome message file read successfully. \n {wine_welcome_message}")

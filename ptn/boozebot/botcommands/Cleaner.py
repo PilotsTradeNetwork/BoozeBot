@@ -3,8 +3,7 @@ Cog for all the commands related to
 
 """
 
-from asyncio import TimeoutError
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import discord
 from discord import app_commands
@@ -28,10 +27,10 @@ from ptn_utils.global_constants import (
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import BC_STATUS, BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
-from ptn.boozebot.modules.Views import ConfirmView
-from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles
+from ptn.boozebot.modules.Settings import settings
+from ptn.boozebot.modules.Views import ConfirmView
 
 """
 CLEANER COMMANDS
@@ -122,7 +121,7 @@ class Cleaner(commands.Cog):
             settings.set_setting("departure_announcement_status", "Disabled")
             settings.set_setting("timed_unloads_allowed", False)
             pilot_role = await bot.get_or_fetch.role(ROLE_PILOT)
-            channels = {channel_id: pilot_role for channel_id in ids_list}
+            channels = dict.fromkeys(ids_list, pilot_role)
             channels[CHANNEL_BC_WINE_CARRIER_GUIDE] = await bot.get_or_fetch.role(ROLE_BOOZE_CRUISE)
 
             logger.info("Updating status embed to 'bc_prep'.")
@@ -411,7 +410,7 @@ class Cleaner(commands.Cog):
             logger.warning(f"Blurb file for status '{status}' not found. Initializing blurb files.")
             cls.init_blurbs()
         blurb_message = BLURBS[status]["file_path"].read_text()
-        blurb_message += f"\n\n-# Updated: <t:{int(datetime.now(timezone.utc).timestamp())}:F>"
+        blurb_message += f"\n\n-# Updated: <t:{int(datetime.now(UTC).timestamp())}:F>"
         embed_colour = BLURBS[status]["embed_colour"]
         await channel.send(embed=discord.Embed(description=blurb_message, colour=embed_colour))
         logger.debug(f"Sent new status embed for status: {status}")

@@ -26,9 +26,9 @@ class CarrierOwner:
 
         logger.debug(f"Initializing CarrierOwner with info_json: {info_dict}")
 
-        self.username = info_dict.get("username", None)
-        self.display_name = info_dict.get("displayName", None)
-        discord_id = info_dict.get("discordId", None)
+        self.username = info_dict.get("username")
+        self.display_name = info_dict.get("displayName")
+        discord_id = info_dict.get("discordId")
         if discord_id:
             if discord_id.startswith("&"):
                 self.discord_id = int(discord_id[1:])
@@ -73,9 +73,9 @@ class SignupInfo:
         :param info_dict: The dictionary containing the signup information.
         """
 
-        self.status = info_dict.get("status", None)
+        self.status = info_dict.get("status")
         self.color = info_dict.get("color", "000000")
-        self.notes = info_dict.get("notes", None)
+        self.notes = info_dict.get("notes")
         self.first_time = info_dict.get("firstTime", True)
 
 
@@ -142,13 +142,13 @@ class BoozeCarrier:
         self.cruise_id = int(info_dict.get("cruiseId", 0))
         self.trip_id = int(info_dict.get("tripId", 0))
         self.wine_total = int(info_dict.get("wineTotal", 0))
-        self.wine_status = info_dict.get("wineStatus", None)
-        self.status = info_dict.get("status", None)
-        self.availability_start = sane_default_datetime(info_dict.get("availabilityStart", None))
-        self.availability_end = sane_default_datetime(info_dict.get("availabilityEnd", None))
-        self.unload_opened = sane_default_datetime(info_dict.get("unloadOpened", None))
-        self.unload_closed = sane_default_datetime(info_dict.get("unloadClosed", None))
-        self.unload_duration = sane_default_duration(info_dict.get("unloadDur", None))
+        self.wine_status = info_dict.get("wineStatus")
+        self.status = info_dict.get("status")
+        self.availability_start = sane_default_datetime(info_dict.get("availabilityStart"))
+        self.availability_end = sane_default_datetime(info_dict.get("availabilityEnd"))
+        self.unload_opened = sane_default_datetime(info_dict.get("unloadOpened"))
+        self.unload_closed = sane_default_datetime(info_dict.get("unloadClosed"))
+        self.unload_duration = sane_default_duration(info_dict.get("unloadDur"))
 
         logger.debug(
             f"BoozeCarrier initialized: carrier_name={self.carrier_name}, carrier_identifier={self.carrier_identifier}, "
@@ -274,14 +274,14 @@ class CarrierStats:
         logger.debug(f"Initializing CarrierStats with info_json: {info_dict}")
 
         self.db_id = int(info_dict.get("fcId", 0))
-        self.name = info_dict.get("fcName", None)
+        self.name = info_dict.get("fcName")
         self.owner = CarrierOwner(info_dict.get("owner", {}))
         self.total_wine = int(info_dict.get("totalWine", 0))
         self.total_cruises = int(info_dict.get("totalCruises", 0))
         self.total_trips = int(info_dict.get("totalTrips", 0))
         self.total_credits = int(info_dict.get("totalCredits", 0))
-        self.first_unload_date = sane_default_datetime(info_dict.get("firstUnloadDate", None))
-        self.last_unload_date = sane_default_datetime(info_dict.get("lastUnloadDate", None))
+        self.first_unload_date = sane_default_datetime(info_dict.get("firstUnloadDate"))
+        self.last_unload_date = sane_default_datetime(info_dict.get("lastUnloadDate"))
         logger.debug(
             f"CarrierStats initialized: carrier_name={self.name}, owner_username={self.owner.username}, owner_discord_id={self.owner.discord_id}, "
             + f"total_wine={self.total_wine}, total_cruises={self.total_cruises}, total_trips={self.total_trips}, "

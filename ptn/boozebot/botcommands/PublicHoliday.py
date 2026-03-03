@@ -4,7 +4,7 @@ Cog for PH check commands and loop
 """
 
 import random
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import discord
 from discord import NotFound, app_commands
@@ -92,7 +92,7 @@ class PublicHoliday(commands.Cog):
                 logger.info("Holiday was not ongoing, started now - flag it accordingly")
                 await holiday_announce_channel.send(holiday_start_gif)
                 await holiday_announce_channel.send(
-                    f"Pirate Steve thinks the folks at Rackhams are partying again. "
+                    "Pirate Steve thinks the folks at Rackhams are partying again. "
                     + f"<@&{ROLE_COUNCIL}>, <@&{ROLE_SOMM}> please take note."
                 )
                 logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
@@ -122,7 +122,7 @@ class PublicHoliday(commands.Cog):
 
             end_time = start_time + timedelta(hours=48)
 
-            current_time_utc = datetime.now(tz=timezone.utc)
+            current_time_utc = datetime.now(tz=UTC)
 
             logger.debug(f"Current time UTC: {current_time_utc}, holiday end time: {end_time}")
 

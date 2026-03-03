@@ -1,11 +1,10 @@
 import random
 
-from httpx import HTTPStatusError, TimeoutException, ConnectError, NetworkError
-
 # import local constants
-from discord import Interaction, InteractionResponded, app_commands, Embed
+from discord import Embed, Interaction, InteractionResponded, app_commands
 from discord.app_commands import AppCommandError
 from discord.ext import commands
+from httpx import ConnectError, HTTPStatusError, NetworkError, TimeoutException
 from ptn_utils.global_constants import EMBED_COLOUR_ERROR
 from ptn_utils.logger.logger import get_logger
 
@@ -26,8 +25,6 @@ class CommandChannelError(app_commands.CheckFailure):
         self.formatted_channel_list = formatted_channel_list
         super().__init__(permitted_channel, formatted_channel_list, "Channel check error raised")
 
-    pass
-
 
 class CommandRoleError(app_commands.CheckFailure):
     """Role check error"""
@@ -39,8 +36,6 @@ class CommandRoleError(app_commands.CheckFailure):
         self.permitted_roles = permitted_roles
         self.formatted_role_list = formatted_role_list
         super().__init__(permitted_roles, formatted_role_list, "Role check error raised")
-
-    pass
 
 
 class AsyncioTimeoutError(Exception):
@@ -54,19 +49,13 @@ class AsyncioTimeoutError(Exception):
         self.message = message
         self.is_private = is_private
 
-    pass
-
 
 class SilentError(Exception):
     """An error that does not notify the user"""
 
-    pass
-
 
 class GenericError(Exception):
     """A generic error that notifies the user with the Exception text"""
-
-    pass
 
 
 class CustomError(Exception):
@@ -89,7 +78,6 @@ async def on_text_command_error(ctx: commands.Context[commands.Bot], error: Exce
         await ctx.send(f"**Bad argument!** {error}")
     elif isinstance(error, commands.CommandNotFound):
         logger.debug("Command not found error raised")
-        pass  # Dont care
     elif isinstance(error, commands.MissingRequiredArgument):
         logger.debug("Missing required argument error raised, reporting to user")
         await ctx.send(
