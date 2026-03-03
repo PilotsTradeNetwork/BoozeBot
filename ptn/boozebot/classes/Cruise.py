@@ -64,9 +64,7 @@ class Cruise:
         logger.debug(f"Initializing Cruise with info_json: {info_dict}")
 
         self.id = int(info_dict.get("cruiseId", 0))
-        self.start = sane_default_datetime(info_dict.get("cruiseStart")) or datetime.min.replace(
-            tzinfo=UTC
-        )
+        self.start = sane_default_datetime(info_dict.get("cruiseStart")) or datetime.min.replace(tzinfo=UTC)
         self.end = sane_default_datetime(info_dict.get("cruiseEnd")) or datetime.max.replace(tzinfo=UTC)
 
         self.faction_state = info_dict.get("factionState")
