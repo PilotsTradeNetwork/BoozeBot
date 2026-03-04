@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import discord
-from discord import Embed, PermissionOverwrite, app_commands
+from discord import DiscordException, Embed, PermissionOverwrite, app_commands
 from discord.ext import commands
 from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
@@ -272,11 +272,13 @@ class Corked(commands.Cog):
         active_corks = [key.id for key in channel_chat.overwrites if not isinstance(key, discord.Role)]
         for corked_user in corked_users:
             if int(corked_user.user_id) not in active_corks:
+
                 logger.info(
                     f"corked_user id: {corked_user.user_id}, active corks: {active_corks}, in active corks: {corked_user.user_id in active_corks}"
                 )
-                user = await bot.get_or_fetch.member(corked_user.user_id)
-                if user is None:
+                try:
+                    user = await bot.get_or_fetch.member(corked_user.user_id)
+                except DiscordException:
                     logger.warning(f"Could not find member with ID {corked_user.user_id}, skipping.")
                     failed_users.append((corked_user.user_id, "User not found"))
                     continue
