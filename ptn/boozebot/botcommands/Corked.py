@@ -5,7 +5,7 @@ Cog for all the commands related to
 
 from pathlib import Path
 import discord
-from discord import PermissionOverwrite, app_commands, Embed
+from discord import DiscordException, PermissionOverwrite, app_commands, Embed
 from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.ext.commands import Bot
@@ -265,8 +265,9 @@ class Corked(commands.Cog):
         for corked_user in corked_users:
             if int(corked_user.user_id) not in active_corks:
                 logger.info(f"corked_user id: {corked_user.user_id}, active corks: {active_corks}, in active corks: {corked_user.user_id in active_corks}")
-                user = await bot.get_or_fetch.member(corked_user.user_id)
-                if user is None:
+                try:
+                    user = await bot.get_or_fetch.member(corked_user.user_id)
+                except DiscordException:
                     logger.warning(f"Could not find member with ID {corked_user.user_id}, skipping.")
                     failed_users.append((corked_user.user_id, "User not found"))
                     continue
