@@ -75,9 +75,8 @@ async def ph_check() -> bool:
         if not holiday_ongoing:
             logger.info("PH is not ongoing according to the backend.")
             return False
-        else:
-            logger.info("PH is ongoing according to the backend.")
-            return True
+        logger.info("PH is ongoing according to the backend.")
+        return True
     except Exception as e:
         logger.exception(f"Error while checking PH state from the backend: {e}")
         return False

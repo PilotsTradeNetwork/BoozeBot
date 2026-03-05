@@ -220,13 +220,10 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Carrier not found for carrier_id={carrier_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Carrier info retrieved: {carrier_info}")
 
-        carrier = BoozeCarrier(carrier_info)
-
-        return carrier
+        return BoozeCarrier(carrier_info)
 
     async def get_all_carriers_info(self) -> list[BoozeCarrier]:
         """
@@ -245,13 +242,10 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning("No carriers found")
                 return []
-            else:
-                raise
+            raise
         logger.debug(f"All carriers info retrieved: {carriers_info}")
 
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def update_carrier_info(self, carrier_id: str, update_data: dict[str, Any]) -> BoozeCarrier:
         """
@@ -268,10 +262,7 @@ class BoozeSheetsApi:
         updated_carrier_info = await self._request("PATCH", endpoint, update_data, PayloadType.BODY)
 
         logger.debug(f"Carrier info updated: {updated_carrier_info}")
-
-        updated_carrier = BoozeCarrier(updated_carrier_info)
-
-        return updated_carrier
+        return BoozeCarrier(updated_carrier_info)
 
     async def start_carrier_unload(self, carrier_id: str, delay: int | None = None) -> BoozeCarrier:
         """
@@ -328,9 +319,7 @@ class BoozeSheetsApi:
         carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"All carriers info retrieved: {carriers_info}")
 
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def get_unloading_carriers(self) -> list[BoozeCarrier]:
         """
@@ -347,9 +336,7 @@ class BoozeSheetsApi:
         carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"All carriers info retrieved: {carriers_info}")
 
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def get_cruises_list(self) -> dict[str, Any] | list[dict[str, Any]]:
         """
@@ -368,10 +355,8 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning("No cruises found")
                 return []
-            else:
-                raise
+            raise
         logger.debug(f"Cruises list retrieved: {cruises}")
-
         return cruises
 
     async def get_current_cruise_state(self) -> CruiseSystemState:
@@ -425,8 +410,7 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Cruise stats not found for cruise_id={cruise_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Cruise stats retrieved: {cruise_data}")
 
         return Cruise(cruise_data)
@@ -449,8 +433,7 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning("Biggest cruise stats not found")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Biggest cruise stats retrieved: {cruise_data}")
 
         return Cruise(cruise_data)
@@ -474,8 +457,7 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Trip not found for carrier_id={carrier_id}, trip_id={trip_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Trip data retrieved: {trip_data}")
 
         return BoozeCarrier(trip_data)
@@ -498,8 +480,7 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Carrier stats not found for carrier_id={carrier_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Carrier stats retrieved: {stats_data}")
 
         return CarrierStats(stats_data)
@@ -518,13 +499,7 @@ class BoozeSheetsApi:
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"Unpinged signups info retrieved: {carriers_info}")
-
-        if not carriers_info:
-            return []
-
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def set_user_pinged(self, user_id: int) -> None:
         """

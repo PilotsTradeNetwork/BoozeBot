@@ -66,12 +66,11 @@ def format_large_number(number: int | float) -> str:
     """
     if number < 10**6:
         return f"{number:,.0f}"
-    elif number < 10**9:
+    if number < 10**9:
         return f"{number / 10**6:.2f} Million"
-    elif number < 10**12:
+    if number < 10**12:
         return f"{number / 10**9:.2f} Billion"
-    else:
-        return f"{number / 10**12:.2f} Trillion"
+    return f"{number / 10**12:.2f} Trillion"
 
 
 def format_duration(seconds: int | float) -> str:
@@ -83,10 +82,9 @@ def format_duration(seconds: int | float) -> str:
     """
     if seconds < 60:
         return f"{seconds:.0f} seconds"
-    elif seconds < 60 * 60:
+    if seconds < 60 * 60:
         return f"{seconds / 60:.2f} minutes"
-    else:
-        return f"{seconds / 3600:.2f} hours"
+    return f"{seconds / 3600:.2f} hours"
 
 
 IncludeNotUnloadedChoices = Literal["All Carriers", "Only Unloaded"]

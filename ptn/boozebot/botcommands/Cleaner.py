@@ -320,7 +320,7 @@ class Cleaner(commands.Cog):
             + f"or wait {response_timeout} seconds to cancel."
         )
 
-        def check(response: discord.Message):
+        def check(response: discord.Message) -> bool:
             valid = response.author == interaction.user and response.channel == interaction.channel
             if not valid:
                 logger.debug(f"Ignored message from {response.author.name} in channel {response.channel.name}.")
@@ -335,7 +335,8 @@ class Cleaner(commands.Cog):
             logger.info(
                 f"User {interaction.user.name} did not provide a new {blurb} message within the timeout period."
             )
-            return await interaction.edit_original_response(content="No valid response detected.")
+            await interaction.edit_original_response(content="No valid response detected.")
+            return
 
         if message:
             logger.info(f"Received new {blurb} message from user {interaction.user.name}.")

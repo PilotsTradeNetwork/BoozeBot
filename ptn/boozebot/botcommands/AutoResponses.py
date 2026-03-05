@@ -225,7 +225,7 @@ class AutoResponses(commands.Cog):
 
         view = PaginationView("Auto Responses", content, buttons_text="Edit", buttons_callback=None)
 
-        async def edit_callback(interaction: discord.Interaction, title: str, index: int):
+        async def edit_callback(interaction: discord.Interaction, _title: str, index: int):
             auto_response = self.auto_responses[index]
 
             logger.info(

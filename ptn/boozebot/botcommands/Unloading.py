@@ -314,54 +314,33 @@ class Unloading(commands.Cog):
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
             )
             logger.info(msg)
-            return await interaction.edit_original_response(content=msg)
+            await interaction.edit_original_response(content=msg)
+            return
 
         logger.debug(f"Fetching carrier data for ID: {carrier_id}")
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
 
         logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
 
+        error_msg = ""
         if not carrier_data:
-            logger.info(f"No carrier found for: {carrier_id}.")
-            return await interaction.edit_original_response(
-                content=f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
-            )
-
-        if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
-            msg = f"You do not own the carrier with ID: {carrier_id}."
-            logger.info(msg)
-            return await interaction.edit_original_response(content=msg)
-
-        if await booze_sheets_api.get_current_cruise_state() != "active":
-            msg = "Sorry, unloads can only be started during an active booze cruise."
-            logger.info(msg)
-            await interaction.edit_original_response(content=msg)
-            return
-
-        if carrier_data.system != "N0":
-            msg = f"Carrier {carrier_data.carrier_identifier} is not in N0 (HIP 58832); cannot unload wine."
-            logger.info(msg)
-            return await interaction.edit_original_response(content=msg)
-
-        if not carrier_data.body:
-            logger.info(f"No body found for: {carrier_id}.")
-            return await interaction.edit_original_response(
-                content=f"Sorry, you must first set a body for your carrier {carrier_id} in the Wine Carrier Sheet before unloading."
-            )
-
-        wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
-
-        if carrier_data.unload_closed:
-            msg = f"Carrier {carrier_data.carrier_identifier} has already completed all of its unloads."
-            logger.info(msg)
-            return await interaction.followup.send(msg)
-
+            error_msg = f"Carrier {carrier_id} was not found."
+        elif not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
+            error_msg = f"Carrier {carrier_id} is not owned by you."
+        elif await booze_sheets_api.get_current_cruise_state() != "active":
+            error_msg = "Unloads can only be started during an active booze cruise."
+        elif carrier_data.system != "N0":
+            error_msg = f"Carrier {carrier_id} is not in N0 (HIP 58832); cannot unload wine."
+        elif not carrier_data.body:
+            error_msg = f"Carrier {carrier_id} must have a body set in the Wine Carrier Sheet before unloading."
+        elif carrier_data.unload_closed:
+            error_msg = f"Carrier {carrier_id} has already completed all of its unloads."
         if carrier_data.unload_opened:
-            logger.info(f"Carrier {carrier_data.carrier_identifier} is already unloading wine.")
-            return await interaction.followup.send(
-                f"Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is "
-                + f"already unloading wine. Check the notification in <#{wine_alert_channel.id}>."
-            )
+            error_msg = f"Carrier {carrier_id} is already unloading wine."
+        if error_msg:
+            logger.info(error_msg)
+            await interaction.followup.send(error_msg)
+            return
 
         logger.debug(f"Preparing to send unload notification to Discord for carrier {carrier_data.carrier_identifier}.")
         await interaction.edit_original_response(content="**Sending to Discord...**")
@@ -379,6 +358,7 @@ class Unloading(commands.Cog):
             text="Please react with this emoji once completed.",
             icon_url=f"https://cdn.discordapp.com/emojis/{EMOJI_CARRIER_DONE}.png?v=1",
         )
+        wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
 
         self.last_unload_time = None
@@ -453,7 +433,8 @@ class Unloading(commands.Cog):
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
             )
             logger.info(msg)
-            return await interaction.followup.send(msg)
+            await interaction.followup.send(msg)
+            return
 
         logger.debug(f"Fetching carrier data for ID: {carrier_id}")
 
@@ -461,50 +442,25 @@ class Unloading(commands.Cog):
 
         logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
 
+        error_msg = ""
         if not carrier_data:
-            logger.info(f"We failed to find the carrier: {carrier_id} in the database.")
-            return await interaction.followup.send(
-                f"Sorry, during unload we could not find a carrier for the data: {carrier_id}."
-            )
-
-        if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
-            msg = f"You do not own the carrier with ID: {carrier_id}."
-            logger.info(msg)
-            await interaction.edit_original_response(content=msg)
-            return
-
-        if await booze_sheets_api.get_current_cruise_state() != "active":
-            msg = "Sorry, unloads can only be started during an active booze cruise."
-            logger.info(msg)
-            await interaction.edit_original_response(content=msg)
-            return
-
-        if carrier_data.system != "N0":
-            msg = f"Carrier {carrier_data.carrier_identifier} is not in N0 (HIP 58832); cannot unload wine."
-            logger.info(msg)
-            await interaction.edit_original_response(content=msg)
-            return
-
-        if not carrier_data.body:
-            logger.info(f"No body found for: {carrier_id}.")
-            await interaction.edit_original_response(
-                content=f"Sorry, you must first set a body for your carrier {carrier_id} in the Wine Carrier Sheet before unloading."
-            )
-            return
-
-        wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
-
-        if carrier_data.unload_closed:
-            msg = f"Carrier {carrier_data.carrier_identifier} has already completed all of its unloads."
-            logger.info(msg)
-            return await interaction.followup.send(msg)
-
+            error_msg = f"Carrier {carrier_id} was not found."
+        elif not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
+            error_msg = f"Carrier {carrier_id} is not owned by you."
+        elif await booze_sheets_api.get_current_cruise_state() != "active":
+            error_msg = "Unloads can only be started during an active booze cruise."
+        elif carrier_data.system != "N0":
+            error_msg = f"Carrier {carrier_id} is not in N0 (HIP 58832); cannot unload wine."
+        elif not carrier_data.body:
+            error_msg = f"Carrier {carrier_id} must have a body set in the Wine Carrier Sheet before unloading."
+        elif carrier_data.unload_closed:
+            error_msg = f"Carrier {carrier_id} has already completed all of its unloads."
         if carrier_data.unload_opened:
-            logger.info(f"Carrier {carrier_data.carrier_identifier} is already unloading wine.")
-            return await interaction.followup.send(
-                f"Carrier: {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) is "
-                + f"already unloading wine. Check the notification in <#{wine_alert_channel.id}>."
-            )
+            error_msg = f"Carrier {carrier_id} is already unloading wine."
+        if error_msg:
+            logger.info(error_msg)
+            await interaction.followup.send(error_msg)
+            return
 
         logger.debug(
             f"Preparing to send timed unload notification to Discord for carrier {carrier_data.carrier_identifier}."
@@ -528,6 +484,7 @@ class Unloading(commands.Cog):
             text="Please react with this emoji once completed.",
             icon_url=f"https://cdn.discordapp.com/emojis/{EMOJI_CARRIER_DONE}.png?v=1",
         )
+        wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
         wine_unload_alert = await wine_alert_channel.send(embed=wine_load_embed)
 
         self.last_unload_time = None
@@ -553,7 +510,7 @@ class Unloading(commands.Cog):
         logger.info(
             f"Timed wine unload requested by {interaction.user.name} for {carrier_data.carrier_name} ({carrier_id}) processed successfully."
         )
-        return await interaction.followup.send(
+        await interaction.followup.send(
             f"Timed wine unload requested by {interaction.user.name} for **{carrier_data.carrier_name} ({carrier_id})**\n"
             + f"Open the market at {open_time_str} (In game time)."
         )
@@ -590,38 +547,30 @@ class Unloading(commands.Cog):
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
             )
             logger.info(msg)
-            return await interaction.edit_original_response(content=msg)
-
-        logger.debug(f"Fetching carrier data for ID: {carrier_id}")
-
-        carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
-
-        logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
-
-        if not carrier_data:
-            logger.info(f"We failed to find the carrier: {carrier_id} in the database.")
-            return await interaction.edit_original_response(
-                content=f"Sorry, could not find a carrier for the ID data in DB: {carrier_id}."
-            )
-
-        if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
-            msg = f"You do not own the carrier with ID: {carrier_id}."
-            logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
 
-        logger.debug(f"Fetching unload notification message for carrier: {carrier_id}.")
-        wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
-        message_id = await database.get_unload_message_for_carrier(carrier_id)
+        logger.debug(f"Fetching carrier data for ID: {carrier_id}")
+        carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
+        logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
 
-        if carrier_data.wine_status != "Unloading" or not message_id:
-            logger.info(f"No unload notification found in database for carrier: {carrier_id}.")
-            return await interaction.edit_original_response(
-                content=f"Sorry {interaction.user.name}, we have no carrier unload notification found in the database for "
-                + f"{carrier_id}."
-            )
+        error_msg = ""
+        message_id = 0  # so type-checker doesn't complain about unbound local variable
+        if not carrier_data:
+            error_msg = f"Carrier {carrier_id} not found in the database."
+        elif not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
+            error_msg = f"Carrier {carrier_id} is not owned by you."
+        elif carrier_data.wine_status != "Unloading" or not (
+            message_id := await database.get_unload_message_for_carrier(carrier_id)
+        ):
+            error_msg = f"No unload notification found in database for carrier: {carrier_id}."
+        if error_msg:
+            logger.info(error_msg)
+            await interaction.edit_original_response(content=error_msg)
+            return
 
         try:
+            wine_alert_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_UNLOADING)
             message = await wine_alert_channel.fetch_message(message_id)
         except discord.NotFound:
             logger.warning(

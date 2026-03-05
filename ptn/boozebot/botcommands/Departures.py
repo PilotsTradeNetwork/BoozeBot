@@ -448,7 +448,7 @@ class Departures(commands.Cog):
             await interaction.edit_original_response(content=msg)
             await steve_says_channel.send(f"{base_error} {msg}")
             return
-        elif departure_system_index < arrival_system_index:
+        if departure_system_index < arrival_system_index:
             logger.info("Departure system is above arrival system.")
             direction_arrow = "⬇️"
         elif departure_system_index > arrival_system_index:
@@ -626,7 +626,7 @@ class Departures(commands.Cog):
                     logger.info(msg)
                     await interaction.edit_original_response(content=msg)
                     return None
-                elif timestamp > (datetime.now(UTC) + timedelta(days=7)).timestamp():
+                if timestamp > (datetime.now(UTC) + timedelta(days=7)).timestamp():
                     msg = f"Departure timestamp must be within 1 week of now: {user_input}"
                     logger.info(msg)
                     await interaction.edit_original_response(content=msg)

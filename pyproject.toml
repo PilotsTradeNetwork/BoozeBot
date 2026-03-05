@@ -69,11 +69,11 @@ select = [
     "TC",  # flake8-type-checking
     "PERF", # perflint
     "FURB", # refurb
-    # "RET", # flake8-return  (87 errors, autofixable)
-    # "ARG", # flake8-arguments  (45 errors)
-    # "FIX", # flake8-fixme  (25 errors)
-    # "DTZ", # flake8-datetimez  (13 errors)
-    # "PTH", # flake8-use-pathlib  (61 errors)
+    "RET", # flake8-return
+    "ARG", # flake8-arguments
+    "FIX", # flake8-fixme
+    # "DTZ", # flake8-datetimez
+    "PTH", # flake8-use-pathlib
     # "BLE",  # flake8-blind-except (204 errors)
     # "FBT",  # flake8-boolean-trap (31 errors, needs refactoring)
     # "C90", # mccabe complexity (21 errors, needs heavy refactoring)

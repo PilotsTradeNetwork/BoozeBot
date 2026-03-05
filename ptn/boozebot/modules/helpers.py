@@ -136,9 +136,8 @@ def check_text_command_channel(permitted_channel: list[int]):
             )
             await ctx.channel.send(embed=embed)
             return False
-        else:
-            logger.info(f"Text command run in permitted channel: {ctx.channel.name}")
-            return True
+        logger.info(f"Text command run in permitted channel: {ctx.channel.name}")
+        return True
 
     return commands.check(check_text_channel)
 
@@ -157,9 +156,8 @@ async def bc_channel_status():
         if bc_chat_channel.permissions_for(pilot_role).view_channel:
             logger.info("Booze Cruise channel is open to pilots.")
             return True
-        else:
-            logger.info("Booze Cruise channel is closed to pilots.")
-            return False
+        logger.info("Booze Cruise channel is closed to pilots.")
+        return False
 
     except Exception as e:
         logger.exception(f"Error checking booze cruise channel status: {e}")

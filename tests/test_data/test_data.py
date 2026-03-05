@@ -1,5 +1,5 @@
 import json
-import os
+from pathlib import Path
 
 
 class MockResponse:
@@ -12,11 +12,11 @@ class MockResponse:
         return self.json_data
 
 
-dirname = os.path.dirname(__file__)
+dirname = Path(__file__).parent
 
 
 def load_response(filename):
-    with open(f"{dirname}/{filename}.json") as data:
+    with (dirname / f"{filename}.json").open() as data:
         return data.read()
 
 
@@ -26,6 +26,7 @@ def mocked_requests_holiday_response(*args, **kwargs):
         and kwargs["params"]["name"] == "Rackham Capital Investments"
     ):
         return MockResponse(load_response("peak_faction_holiday_response"), 200)
+    return None
 
 
 def mocked_requests_no_holiday_response(*args, **kwargs):
@@ -34,3 +35,4 @@ def mocked_requests_no_holiday_response(*args, **kwargs):
         and kwargs["params"]["name"] == "Rackham Capital Investments"
     ):
         return MockResponse(load_response("peak_faction_no_holiday_response"), 200)
+    return None

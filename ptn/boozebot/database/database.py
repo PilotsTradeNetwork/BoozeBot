@@ -50,7 +50,7 @@ class Database:
         logger.info(f"Dumping database to SQL file: {CARRIERS_DB_DUMPS_PATH}")
 
         line_count = 0
-        with open(CARRIERS_DB_DUMPS_PATH, "w", encoding="utf-8") as f:
+        with CARRIERS_DB_DUMPS_PATH.open("w", encoding="utf-8") as f:
             for line in self.conn.iterdump():
                 f.write(line)
                 line_count += 1
@@ -114,63 +114,61 @@ class Database:
                 logger.info(f"Table {table_name} created successfully.")
                 continue
 
-            else:
-                logger.debug(f"Table {table_name} exists. Checking for missing or incorrect columns.")
+            logger.debug(f"Table {table_name} exists. Checking for missing or incorrect columns.")
 
-                self.db.execute(f"""PRAGMA table_info ({table_name})""")
-                result = [dict(col) for col in self.db.fetchall()]
-                logger.trace(f"PRAGMA table_info result for {table_name}: {result}")
-                # Get full column information including all attributes
-                existing_columns = {}
-                for element in result:
-                    col_name = element["name"]
-                    col_type = element["type"]
-                    is_pk = element["pk"]
-                    not_null = element["notnull"]
-                    default_val = element["dflt_value"]
+            self.db.execute(f"""PRAGMA table_info ({table_name})""")
+            result = [dict(col) for col in self.db.fetchall()]
+            logger.trace(f"PRAGMA table_info result for {table_name}: {result}")
+            # Get full column information including all attributes
+            existing_columns = {}
+            for element in result:
+                col_name = element["name"]
+                col_type = element["type"]
+                is_pk = element["pk"]
+                not_null = element["notnull"]
+                default_val = element["dflt_value"]
 
-                    # Build full type specification
-                    full_type = col_type
-                    if is_pk:
-                        full_type += " PRIMARY KEY"
-                        if "AUTOINCREMENT" in schema.get(col_name, ""):
-                            full_type += " AUTOINCREMENT"
-                    if not_null and not is_pk:
-                        full_type += " NOT NULL"
-                    if default_val is not None:
-                        full_type += f" DEFAULT {default_val}"
-                    if "UNIQUE" in schema.get(col_name, ""):
-                        full_type += " UNIQUE"
+                # Build full type specification
+                full_type = col_type
+                if is_pk:
+                    full_type += " PRIMARY KEY"
+                    if "AUTOINCREMENT" in schema.get(col_name, ""):
+                        full_type += " AUTOINCREMENT"
+                if not_null and not is_pk:
+                    full_type += " NOT NULL"
+                if default_val is not None:
+                    full_type += f" DEFAULT {default_val}"
+                if "UNIQUE" in schema.get(col_name, ""):
+                    full_type += " UNIQUE"
 
-                    existing_columns[col_name] = full_type
+                existing_columns[col_name] = full_type
 
-                logger.trace(f"Existing columns in {table_name}: {existing_columns}")
+            logger.trace(f"Existing columns in {table_name}: {existing_columns}")
 
-                # Add any missing columns
-                columns_added = 0
-                for column_name, column_type in schema.items():
-                    if column_name not in existing_columns:
-                        logger.debug(f"Column {column_name} missing in table {table_name}. Adding column.")
-                        alter_statement = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
-                        self.db.execute(alter_statement)
-                        columns_added += 1
-                        logger.info(f"Added column {column_name} to table {table_name}.")
+            # Add any missing columns
+            columns_added = 0
+            for column_name, column_type in schema.items():
+                if column_name not in existing_columns:
+                    logger.debug(f"Column {column_name} missing in table {table_name}. Adding column.")
+                    alter_statement = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+                    self.db.execute(alter_statement)
+                    columns_added += 1
+                    logger.info(f"Added column {column_name} to table {table_name}.")
 
-                # Check for any incorrect column types
-                for column_name, column_type in existing_columns.items():
-                    if column_name in schema:
-                        if column_type != schema[column_name]:
-                            logger.error(
-                                f"Column {column_name} in table {table_name} has type {column_type} but expected {schema[column_name]}"
-                            )
-                            raise OSError("Column type mismatch detected. Please check the database schema.")
-                        else:
-                            logger.trace(f"Column {column_name} in table {table_name} has correct type: {column_type}")
+            # Check for any incorrect column types
+            for column_name, column_type in existing_columns.items():
+                if column_name in schema:
+                    if column_type != schema[column_name]:
+                        logger.error(
+                            f"Column {column_name} in table {table_name} has type {column_type} but expected {schema[column_name]}"
+                        )
+                        raise OSError("Column type mismatch detected. Please check the database schema.")
+                    logger.trace(f"Column {column_name} in table {table_name} has correct type: {column_type}")
 
-                if columns_added > 0:
-                    logger.trace(f"Added {columns_added} column(s) to table {table_name}.")
-                    self.conn.commit()
-                    logger.trace(f"Committed schema changes for table {table_name}.")
+            if columns_added > 0:
+                logger.trace(f"Added {columns_added} column(s) to table {table_name}.")
+                self.conn.commit()
+                logger.trace(f"Committed schema changes for table {table_name}.")
 
         logger.info("Database schema check and update completed successfully. Checking for default values.")
 

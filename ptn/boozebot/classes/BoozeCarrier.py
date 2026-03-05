@@ -172,10 +172,9 @@ class BoozeCarrier:
 
         if self.system and self.body:
             return f"{self.system} - {self.body}"
-        elif self.system:
+        if self.system:
             return self.system
-        else:
-            return "Unknown"
+        return "Unknown"
 
     @property
     def is_staff(self):

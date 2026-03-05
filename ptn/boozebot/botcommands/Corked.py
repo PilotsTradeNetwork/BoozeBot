@@ -332,7 +332,7 @@ class Corked(commands.Cog):
                 content="You aborted the request to rebuild the corked perms", embed=None, view=None
             )
             return
-        elif confirm.value is None:
+        if confirm.value is None:
             logger.info(f"User {interaction.user.name} did not respond in time to the confirmation view.")
             await interaction.edit_original_response(
                 content="**Waiting for user response - timed out**", embed=None, view=None
