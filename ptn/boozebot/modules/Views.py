@@ -1,5 +1,5 @@
 import re
-from typing import override
+from typing import Any, cast, override
 
 import discord.colour
 from discord import ButtonStyle, Embed, Interaction, ui
@@ -10,10 +10,15 @@ from ptn.boozebot.constants import INTERACTION_CHECK_GIF, bot
 logger = get_logger("boozebot.modules.views")
 
 
-class ConfirmView(ui.View):
+class OwnedView(ui.View):
     def __init__(self, author: discord.Member):
         super().__init__()
-        self.author = author
+        self.author: discord.Member = author
+
+
+class ConfirmView(OwnedView):
+    def __init__(self, author: discord.Member):
+        super().__init__(author=author)
         self.value: bool | None = None
 
     async def interaction_check(
@@ -37,7 +42,7 @@ class ConfirmView(ui.View):
         self.stop()
 
 
-async def interaction_check_owner(view: ui.View, interaction: Interaction):
+async def interaction_check_owner(view: OwnedView, interaction: Interaction):
     """only allow original command user to interact with buttons"""
 
     logger.debug(f"Checking interaction user ID {interaction.user.id} against view author ID {view.author.id}")
@@ -75,7 +80,8 @@ class DynamicButton(
 
     @override
     @classmethod
-    async def from_custom_id(cls, interaction: discord.Interaction, item: ui.Button[ui.View], match: re.Match[str], /):
+    async def from_custom_id(cls, interaction: discord.Interaction, item: ui.Item[Any], match: re.Match[str], /):
+        item = cast("ui.Button", item)
         logger.debug(f"Parsing DynamicButton from custom_id: {item.custom_id}")
         action = str(match["action"])
         user_id = int(match["user_id"])

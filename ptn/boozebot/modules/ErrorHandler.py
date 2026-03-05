@@ -1,14 +1,18 @@
 import random
+from typing import TYPE_CHECKING, cast
 
 # import local constants
 from discord import Embed, Interaction, InteractionResponded, app_commands
-from discord.app_commands import AppCommandError
+from discord.app_commands import AppCommandError, CommandInvokeError
 from discord.ext import commands
 from httpx import ConnectError, HTTPStatusError, NetworkError, TimeoutException
 from ptn_utils.global_constants import EMBED_COLOUR_ERROR
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import error_gifs
+
+if TYPE_CHECKING:
+    from discord import Guild, TextChannel
 
 logger = get_logger("boozebot.modules.errorhandler")
 
@@ -91,7 +95,8 @@ async def on_text_command_error(ctx: commands.Context[commands.Bot], error: Exce
     elif isinstance(error, commands.MissingAnyRole):
         logger.debug("Missing any role error raised, reporting to user")
         logger.debug(f"User missing roles: {error.missing_roles}")
-        roles = ", ".join([ctx.guild.get_role(role_id).name for role_id in error.missing_roles])
+        guild = cast("Guild", ctx.guild)
+        roles = ", ".join(role.name for role_id in error.missing_roles if (role := guild.get_role(int(role_id))))
         await ctx.send(f"**You must have one of the following roles to use this command:** {roles}")
     else:
         logger.debug("Other type error message raised, reporting to user")
@@ -103,8 +108,9 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
     """Global error handler for application commands"""
 
     try:
+        channel = cast("TextChannel", interaction.channel)
         logger.error(
-            f"Error from {interaction.command.name} in {interaction.channel.name} called by {interaction.user.display_name}: {error}"
+            f"Error from {interaction.command.name} in {channel.name} called by {interaction.user.display_name}: {error}"
         )
         if isinstance(error, CommandChannelError):
             logger.debug(
@@ -161,26 +167,25 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             except InteractionResponded:
                 await interaction.followup.send(embed=embed, ephemeral=True)
             logger.debug("Generic error message sent to user")
+        elif isinstance(error, CommandInvokeError):
+            if isinstance(error.original, HTTPStatusError):
+                logger.debug(f"HTTPStatusError raised with message: {error}, reporting to user without details")
+                status_code = error.original.response.status_code
+                embed = Embed(description=f"❌ An HTTP error occurred: {status_code}", color=EMBED_COLOUR_ERROR)
+                try:
+                    await interaction.response.send_message(embed=embed)
+                except InteractionResponded:
+                    await interaction.followup.send(embed=embed)
+                logger.debug("HTTPStatusError message sent to user")
 
-        elif isinstance(error.original, HTTPStatusError):
-            logger.debug(f"HTTPStatusError raised with message: {error}, reporting to user without details")
-            status_code = error.original.response.status_code
-            embed = Embed(description=f"❌ An HTTP error occurred: {status_code}", color=EMBED_COLOUR_ERROR)
-            try:
-                await interaction.response.send_message(embed=embed)
-            except InteractionResponded:
-                await interaction.followup.send(embed=embed)
-            logger.debug("HTTPStatusError message sent to user")
-
-        elif isinstance(error.original, (TimeoutException, ConnectError, NetworkError)):
-            logger.debug(f"Network-related error raised with message: {error}, reporting to user")
-            embed = Embed(description="❌ A network error occurred", color=EMBED_COLOUR_ERROR)
-            try:
-                await interaction.response.send_message(embed=embed)
-            except InteractionResponded:
-                await interaction.followup.send(embed=embed)
-            logger.debug("Network-related error message sent to user")
-
+            elif isinstance(error.original, (TimeoutException, ConnectError, NetworkError)):
+                logger.debug(f"Network-related error raised with message: {error}, reporting to user")
+                embed = Embed(description="❌ A network error occurred", color=EMBED_COLOUR_ERROR)
+                try:
+                    await interaction.response.send_message(embed=embed)
+                except InteractionResponded:
+                    await interaction.followup.send(embed=embed)
+                logger.debug("Network-related error message sent to user")
         else:
             logger.debug(f"Unhandled error type: {type(error)}, reporting to user")
             embed = Embed(description=f"❌ Unhandled Error: {error}", color=EMBED_COLOUR_ERROR)

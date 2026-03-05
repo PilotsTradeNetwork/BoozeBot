@@ -205,11 +205,7 @@ def is_staff(user: discord.Member) -> bool:
 
 
 def sane_default_datetime(possibly_none: str | None) -> datetime | None:
-    return (
-        datetime.fromisoformat(possibly_none).astimezone(UTC)
-        if possibly_none is not None
-        else None
-    )
+    return datetime.fromisoformat(possibly_none).astimezone(UTC) if possibly_none is not None else None
 
 
 def sane_default_duration(possibly_none: str | None) -> float | None:

@@ -57,8 +57,10 @@ async def api_ph_check() -> tuple[bool, datetime]:
             return True, updated_at
     except Exception as e:
         logger.error("Problem while getting the state from EDSM.")
-        if isinstance(e, (httpx.HTTPError, JSONDecodeError)):
+        if isinstance(e, httpx.HTTPError):
             logger.error(f"HTTP Exception for {e.request.url} - {e}")
+        elif isinstance(e, JSONDecodeError):
+            logger.error(f"JSON Decode Error - {e}")
         raise
     # Return false if there are no public holiday hits
     logger.info("No PH state detected from external API.")
