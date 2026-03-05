@@ -3,13 +3,12 @@ Cog for granting and removing the wine carrier role
 
 """
 
-from asyncio import Lock
 import random
-from typing import Any
+from asyncio import Lock
+from typing import TYPE_CHECKING, Any, cast
 
 import discord
 from discord import DiscordException, Embed, Interaction, Member, app_commands
-from discord.abc import GuildChannel
 from discord.app_commands import ContextMenu, describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
@@ -35,13 +34,16 @@ from ptn.boozebot.constants import (
     too_slow_gifs,
 )
 from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.Views import DynamicButton
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import (
     check_command_channel,
     check_roles,
     track_last_run,
 )
+from ptn.boozebot.modules.Views import DynamicButton
+
+if TYPE_CHECKING:
+    from discord.abc import GuildChannel
 
 """
 MAKE WINE CARRIER COMMANDS
@@ -158,8 +160,7 @@ class MakeWineCarrier(commands.Cog):
 
         logger.debug(f"Alerting new signup for user {owner_id} with status {status} and notes {notes}")
 
-        steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
-        assert isinstance(steve_says, GuildChannel)
+        steve_says = cast("GuildChannel", await bot.get_or_fetch_channel(CHANNEL_BC_STEVE_SAYS))
 
         owner = await bot.get_or_fetch.member(owner_id)
         if not owner:
@@ -276,8 +277,7 @@ class MakeWineCarrier(commands.Cog):
             async def respond(content: str | None = None, embed: discord.Embed | None = None):
                 if interaction.message:
                     return await interaction.followup.send(content=content, embed=embed, ephemeral=True)
-                else:
-                    return await interaction.edit_original_response(content=content, embed=embed)
+                return await interaction.edit_original_response(content=content, embed=embed)
 
             if await database.is_user_corked(user.id):
                 logger.info(f"User {user} is corked, cannot make Wine Carrier.")
@@ -292,48 +292,44 @@ class MakeWineCarrier(commands.Cog):
                 embed.set_image(url=random.choice(too_slow_gifs))
                 await respond(embed=embed)
                 return
-            else:
-                # toggle on
-                logger.info(f"Adding {wc_role.name} role to {user}")
-                try:
-                    await user.add_roles(wc_role)
-                    logger.info(f"Added Wine Carrier role to {user}")
+            # toggle on
+            logger.info(f"Adding {wc_role.name} role to {user}")
+            try:
+                await user.add_roles(wc_role)
+                logger.info(f"Added Wine Carrier role to {user}")
 
-                    await booze_sheets_api.set_refresh_discord_data(user)
-                    logger.info(f"Triggered refresh of Discord data for {user} in booze sheets API")
+                await booze_sheets_api.set_refresh_discord_data(user)
+                logger.info(f"Triggered refresh of Discord data for {user} in booze sheets API")
 
-                    response = f"{user.display_name} now has the {wc_role.name} role."
+                response = f"{user.display_name} now has the {wc_role.name} role."
 
-                    logger.debug("Opening welcome message file")
-                    with open(WELCOME_MESSAGE_FILE_PATH, "r", encoding="utf-8") as file:
-                        wine_welcome_message = file.read()
+                logger.debug("Opening welcome message file")
+                wine_welcome_message = WELCOME_MESSAGE_FILE_PATH.read_text("utf-8")
 
-                    logger.debug(f"Welcome message file read successfully. \n {wine_welcome_message}")
+                logger.debug(f"Welcome message file read successfully. \n {wine_welcome_message}")
 
-                    wine_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER)
-                    embed = Embed(description=wine_welcome_message)
-                    embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
-                    await wine_channel.send(f"<@{user.id}>", embed=embed)
-                    logger.debug("Welcome message sent successfully.")
+                wine_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER)
+                embed = Embed(description=wine_welcome_message)
+                embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
+                await wine_channel.send(f"<@{user.id}>", embed=embed)
+                logger.debug("Welcome message sent successfully.")
 
-                    msg = f"{user.mention} ({user.name}) has been given the {wc_role.name} role by {interaction.user.mention} ({interaction.user.name})."
-                    embed = Embed(description=msg)
-                    await channel.send(content=msg, silent=True)
-                    await respond(content=response)
+                msg = f"{user.mention} ({user.name}) has been given the {wc_role.name} role by {interaction.user.mention} ({interaction.user.name})."
+                embed = Embed(description=msg)
+                await channel.send(content=msg, silent=True)
+                await respond(content=response)
 
-                    if interaction.message:
-                        await interaction.message.add_reaction(await bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE))
-                        await interaction.message.edit(view=None)
+                if interaction.message:
+                    await interaction.message.add_reaction(await bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE))
+                    await interaction.message.edit(view=None)
 
-                    bot_spam = await bot.get_or_fetch.channel(CHANNEL_BOTSPAM)
-                    await bot_spam.send(embed=embed)
-                    logger.debug("Notified bot_spam and steve_says channels successfully.")
+                bot_spam = await bot.get_or_fetch.channel(CHANNEL_BOTSPAM)
+                await bot_spam.send(embed=embed)
+                logger.debug("Notified bot_spam and steve_says channels successfully.")
 
-                except DiscordException as e:
-                    logger.exception(f"Failed adding role {wc_role.name} to {user}: {e}")
-                    await interaction.edit_original_response(
-                        content=f"Failed adding role {wc_role.name} to {user}: {e}"
-                    )
+            except DiscordException as e:
+                logger.exception(f"Failed adding role {wc_role.name} to {user}: {e}")
+                await interaction.edit_original_response(content=f"Failed adding role {wc_role.name} to {user}: {e}")
 
     @app_commands.command(
         name="booze_admin_toggle_ptnrpphtms", description="Admin command to toggle the ptnrpphtms role for a user."

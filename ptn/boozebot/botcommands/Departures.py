@@ -3,8 +3,8 @@ Cog for departure related commands
 
 """
 
-from datetime import datetime, timedelta, timezone
 import time
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 import discord
@@ -29,8 +29,6 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import CARRIER_ID_RE, N_SYSTEMS, bot
 from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.Settings import settings
-from ptn.boozebot.modules.Views import ConfirmView
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import (
     check_command_channel,
@@ -38,6 +36,8 @@ from ptn.boozebot.modules.helpers import (
     is_staff,
     track_last_run,
 )
+from ptn.boozebot.modules.Settings import settings
+from ptn.boozebot.modules.Views import ConfirmView
 
 """
 DEPARTURE COMMANDS
@@ -58,9 +58,9 @@ class Departures(commands.Cog):
     This class is a collection functionality for posting departure messages for carriers.
     """
 
-    system_choices: list[Choice[str]] = [
+    system_choices: tuple[Choice[str]] = (
         Choice(name=f"{system_id} ({system_name})", value=system_id) for system_id, system_name in N_SYSTEMS.items()
-    ]
+    )
 
     # On ready check for any completed departure messages and remove them.
     @commands.Cog.listener()
@@ -88,7 +88,7 @@ class Departures(commands.Cog):
                         if reaction.emoji == "✅":
                             logger.debug(f"Message ID: {message.id} has ✅ reaction, checking users.")
 
-                            logger.debug(f"Fetching carrier id for departure message from database.")
+                            logger.debug("Fetching carrier id for departure message from database.")
                             carrier_id = await database.get_carrier_for_departure_message(message.id)
                             if not carrier_id:
                                 logger.warning(
@@ -415,12 +415,12 @@ class Departures(commands.Cog):
         thoon_systems = [0, 1]
 
         try:
-            departure_system_index = int(departure_location.split(" ")[0][1:])
+            departure_system_index = int(departure_location.split(" ", maxsplit=1)[0][1:])
         except ValueError:
             departure_system_index = 16
 
         try:
-            arrival_system_index = int(arrival_location.split(" ")[0][1:])
+            arrival_system_index = int(arrival_location.split(" ", maxsplit=1)[0][1:])
         except ValueError:
             arrival_system_index = 16
 
@@ -448,7 +448,7 @@ class Departures(commands.Cog):
             await interaction.edit_original_response(content=msg)
             await steve_says_channel.send(f"{base_error} {msg}")
             return
-        elif departure_system_index < arrival_system_index:
+        if departure_system_index < arrival_system_index:
             logger.info("Departure system is above arrival system.")
             direction_arrow = "⬇️"
         elif departure_system_index > arrival_system_index:
@@ -456,7 +456,7 @@ class Departures(commands.Cog):
             direction_arrow = "⬆️"
             if is_hitchhiking_trip:
                 logger.info("Departure needs hitchhiker ping.")
-                hitchhiker_ping_text = f"| <@&{str(ROLE_HITCHHIKER)}>"
+                hitchhiker_ping_text = f"| <@&{ROLE_HITCHHIKER!s}>"
         else:
             logger.info("Failed to determine direction arrow.")
             direction_arrow = ""
@@ -610,29 +610,29 @@ class Departures(commands.Cog):
 
         logger.debug(f"Departure location: {departure_location}, Arrival location: {arrival_location}")
 
-        async def validate_timestamp(input: str) -> int | None:
-            if not input:
+        async def validate_timestamp(user_input: str) -> int | None:
+            if not user_input:
                 msg = "You must provide a departure timestamp when using the 'Custom' departure time type."
                 logger.info(msg)
                 await interaction.edit_original_response(content=msg)
                 return None
 
             try:
-                if input.startswith("<t:") and input.endswith(">"):
-                    input = input.rstrip(">").split(":")[1]
-                timestamp = int(input)
-                if timestamp < datetime.now(timezone.utc).timestamp():
-                    msg = f"Departure timestamp must be in the future: {input}"
+                if user_input.startswith("<t:") and user_input.endswith(">"):
+                    user_input = user_input.rstrip(">").split(":")[1]
+                timestamp = int(user_input)
+                if timestamp < datetime.now(UTC).timestamp():
+                    msg = f"Departure timestamp must be in the future: {user_input}"
                     logger.info(msg)
                     await interaction.edit_original_response(content=msg)
                     return None
-                elif timestamp > (datetime.now(timezone.utc) + timedelta(days=7)).timestamp():
-                    msg = f"Departure timestamp must be within 1 week of now: {input}"
+                if timestamp > (datetime.now(UTC) + timedelta(days=7)).timestamp():
+                    msg = f"Departure timestamp must be within 1 week of now: {user_input}"
                     logger.info(msg)
                     await interaction.edit_original_response(content=msg)
                     return None
             except ValueError:
-                msg = f"Departure timestamp was not a valid integer: {input}"
+                msg = f"Departure timestamp was not a valid integer: {user_input}"
                 logger.info(msg)
                 await interaction.edit_original_response(content=msg)
                 return None
@@ -655,7 +655,7 @@ class Departures(commands.Cog):
             logger.debug(f"Validated timestamp: {timestamp}")
             if timestamp is None:
                 return
-            departure_time_text = f"Departs any time after <t:{timestamp}:f> (<t:{timestamp}:R>) or immediately if the public holiday is announced at Rackham’s Peak."
+            departure_time_text = f"Departs any time after <t:{timestamp}:f> (<t:{timestamp}:R>) or immediately if the public holiday is announced at Rackham's Peak."
         elif departure_time_type == "Thoon":
             departure_time_text = f"Departs {await bot.get_or_fetch.emoji(EMOJI_THOON)}"
 

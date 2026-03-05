@@ -4,19 +4,19 @@ A module for helper functions called by other modules.
 Depends on: constants, ErrorHandler, database
 """
 
-from datetime import datetime, timezone
 import functools
-import isodate
+from datetime import UTC, datetime
 
 import discord
+import isodate
 from discord import app_commands
 from discord.ext import commands
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
     EMBED_COLOUR_ERROR,
+    ROLE_CONN,
     ROLE_PILOT,
     ROLE_SOMM,
-    ROLE_CONN,
     any_council_role,
     any_moderation_role,
 )
@@ -38,7 +38,7 @@ async def checkroles_actual(interaction: discord.Interaction, permitted_role_ids
         permitted_roles = [await bot.get_or_fetch.role(role) for role in permitted_role_ids]
         logger.debug(f"Author roles: {[role.name for role in author_roles]}")
         logger.debug(f"Permitted roles: {[role.name for role in permitted_roles if role]}")
-        permission = True if any(x in permitted_roles for x in author_roles) else False
+        permission = any(x in permitted_roles for x in author_roles)
         logger.debug(f"Permission granted: {permission}")
         return permission, permitted_roles
     except Exception as e:
@@ -84,18 +84,16 @@ def check_command_channel(permitted_channel: int | list[int]):
         """
         logger.debug(f"check_command_channel called for channel {ctx.channel.name} ({ctx.channel.id})")
         if isinstance(permitted_channel, list):
-            permitted_channels = [await bot.get_or_fetch.channel(id) for id in permitted_channel]
+            permitted_channels = [await bot.get_or_fetch.channel(chan_id) for chan_id in permitted_channel]
         else:
             permitted_channels = [await bot.get_or_fetch.channel(permitted_channel)]
 
-        channel_list = []
-        for channel in permitted_channels:
-            channel_list.append(f"<#{channel.id}>")
+        channel_list = [f"<#{channel.id}>" for channel in permitted_channels]
         formatted_channel_list = " • ".join(channel_list)
 
         logger.debug(f"Permitted channels: {[ch.name for ch in permitted_channels if ch]}")
 
-        permission = True if any(channel == ctx.channel for channel in permitted_channels) else False
+        permission = any(channel == ctx.channel for channel in permitted_channels)
         if not permission:
             # problem, wrong channel, no progress
             logger.warning(
@@ -138,9 +136,8 @@ def check_text_command_channel(permitted_channel: list[int]):
             )
             await ctx.channel.send(embed=embed)
             return False
-        else:
-            logger.info(f"Text command run in permitted channel: {ctx.channel.name}")
-            return True
+        logger.info(f"Text command run in permitted channel: {ctx.channel.name}")
+        return True
 
     return commands.check(check_text_channel)
 
@@ -159,9 +156,8 @@ async def bc_channel_status():
         if bc_chat_channel.permissions_for(pilot_role).view_channel:
             logger.info("Booze Cruise channel is open to pilots.")
             return True
-        else:
-            logger.info("Booze Cruise channel is closed to pilots.")
-            return False
+        logger.info("Booze Cruise channel is closed to pilots.")
+        return False
 
     except Exception as e:
         logger.exception(f"Error checking booze cruise channel status: {e}")
@@ -178,7 +174,7 @@ def track_last_run():
             logger.debug(f"Executing wrapped coroutine {coro.__name__}")
             result = await coro(self, *args, **kwargs)
             loop = getattr(self, coro.__name__)
-            loop.last_run_time = datetime.now(timezone.utc)
+            loop.last_run_time = datetime.now(UTC)
             logger.debug(f"Updated last_run_time for {coro.__name__} to {loop.last_run_time}")
             return result
 
@@ -209,11 +205,7 @@ def is_staff(user: discord.Member) -> bool:
 
 
 def sane_default_datetime(possibly_none: str | None) -> datetime | None:
-    return (
-        datetime.fromisoformat(possibly_none.replace("Z", "+00:00")).astimezone(timezone.utc)
-        if possibly_none is not None
-        else None
-    )
+    return datetime.fromisoformat(possibly_none).astimezone(UTC) if possibly_none is not None else None
 
 
 def sane_default_duration(possibly_none: str | None) -> float | None:

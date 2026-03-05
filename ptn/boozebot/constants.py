@@ -8,6 +8,7 @@ import datetime
 # libraries
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
@@ -34,28 +35,29 @@ from ptn_utils.logger.logger import get_logger
 logger = get_logger("boozebot.constants")
 
 # database paths
-DB_PATH = os.path.join(DATA_DIR, "database")
-DB_DUMPS_PATH = os.path.join(DATA_DIR, "database")
-CARRIERS_DB_PATH = os.path.join(DATA_DIR, "database", "booze.db")
-CARRIERS_DB_DUMPS_PATH = os.path.join(DATA_DIR, "sql", "booze.sql")
-SETTINGS_PATH = os.path.join(DATA_DIR, "settings")
-SETTINGS_FILE_PATH = Path(SETTINGS_PATH, "settings.json")
-WELCOME_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "welcome_message.txt")
-BC_PREP_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_prep_message.txt")
-BC_START_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_start_message.txt")
-BC_END_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_end_message.txt")
+DATA_DIR_PATH = Path(DATA_DIR)
+DB_PATH = DATA_DIR_PATH / "database"
+DB_DUMPS_PATH = DATA_DIR_PATH / "database"
+CARRIERS_DB_PATH = DATA_DIR_PATH / "database" / "booze.db"
+CARRIERS_DB_DUMPS_PATH = DATA_DIR_PATH / "sql" / "booze.sql"
+SETTINGS_PATH = DATA_DIR_PATH / "settings"
+SETTINGS_FILE_PATH = SETTINGS_PATH / "settings.json"
+WELCOME_MESSAGE_FILE_PATH = SETTINGS_PATH / "welcome_message.txt"
+BC_PREP_MESSAGE_FILE_PATH = SETTINGS_PATH / "bc_prep_message.txt"
+BC_START_MESSAGE_FILE_PATH = SETTINGS_PATH / "bc_start_message.txt"
+BC_END_MESSAGE_FILE_PATH = SETTINGS_PATH / "bc_end_message.txt"
 
-load_dotenv(os.path.join(DATA_DIR, ".env"))
+load_dotenv(DATA_DIR_PATH / ".env")
 BOOZESHEETS_API_BASE_URL = os.getenv("BOOZESHEETS_API_BASE_URL", None)
 BOOZESHEETS_API_KEY = os.getenv("BOOZESHEETS_API_KEY", None)
 
 if not BOOZESHEETS_API_BASE_URL:
     logger.critical("BOOZESHEETS_API_BASE_URL is not set")
-    exit(1)
+    sys.exit(1)
 
 if not BOOZESHEETS_API_KEY:
     logger.critical("BOOZESHEETS_API_KEY is not set")
-    exit(1)
+    sys.exit(1)
 
 # Stale Data checking from EDSM/EBGS
 STALE_DATA_THRESHOLD = datetime.timedelta(days=2)
@@ -234,24 +236,24 @@ N_SYSTEMS = {
 }
 
 # Check the folder exists
-if not os.path.exists(os.path.dirname(CARRIERS_DB_PATH)):
-    logger.info(f"Folder {os.path.dirname(CARRIERS_DB_PATH)} does not exist, making it now.")
-    os.makedirs(os.path.dirname(CARRIERS_DB_PATH))
+if not CARRIERS_DB_PATH.parent.is_dir():
+    logger.info(f"Folder {CARRIERS_DB_PATH.parent} does not exist, making it now.")
+    CARRIERS_DB_PATH.parent.mkdir(parents=True)
 
 # check the dumps folder exists
-if not os.path.exists(os.path.dirname(CARRIERS_DB_DUMPS_PATH)):
-    logger.info(f"Folder {os.path.dirname(CARRIERS_DB_DUMPS_PATH)} does not exist, making it now.")
-    os.makedirs(os.path.dirname(CARRIERS_DB_DUMPS_PATH))
+if not CARRIERS_DB_DUMPS_PATH.parent.is_dir():
+    logger.info(f"Folder {CARRIERS_DB_DUMPS_PATH.parent} does not exist, making it now.")
+    CARRIERS_DB_DUMPS_PATH.parent.mkdir(parents=True)
 
 # check the settings folder exists
-if not os.path.exists(SETTINGS_PATH):
+if not SETTINGS_PATH.is_dir():
     logger.info(f"Folder {SETTINGS_PATH} does not exist, making it now.")
-    os.makedirs(SETTINGS_PATH)
+    SETTINGS_PATH.mkdir(parents=True)
 
 # Move the old db to the new location if the new location doesn't exist and the old one does
-old_db_path = os.path.join(DATA_DIR, "database", "booze_carriers.db")
-if os.path.exists(old_db_path) and not os.path.exists(CARRIERS_DB_PATH):
-    os.rename(old_db_path, CARRIERS_DB_PATH)
+old_db_path = DATA_DIR_PATH / "database" / "booze_carriers.db"
+if old_db_path.is_file() and not CARRIERS_DB_PATH.is_file():
+    old_db_path.rename(CARRIERS_DB_PATH)
 
 _WCO_WELCOME_BLURB = (
     f"Welcome to the <@&{ROLE_WINE_CARRIER}> backrooms! If you are a returning cruiser, it's great to have you back! "

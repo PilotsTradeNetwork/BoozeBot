@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import override
+from typing import TypedDict, override
+
 from discord import Member
 from ptn_utils.logger.logger import get_logger
 
@@ -8,27 +9,25 @@ from ptn.boozebot.constants import bot
 logger = get_logger("boozebot.classes.corkeduser")
 
 
-class CorkedUser:
-    user_id: int | None
-    timestamp: datetime | None
+class _InfoDict(TypedDict):
+    user_id: int
+    timestamp: datetime
 
-    def __init__(self, info_dict: dict[str, int | datetime] = None) -> None:
+
+class CorkedUser:
+    user_id: int
+    timestamp: datetime
+
+    def __init__(self, info_dict: _InfoDict) -> None:
         """
         Class represents a corked user object as returned from the database.
 
         :param sqlite3.Row info_dict: A single row from the sqlite query.
         """
-
-        if info_dict:
-            # Convert the sqlite3.Row object to a dictionary
-            info_dict = dict(info_dict)
-        else:
-            info_dict = dict()
-
         logger.debug(f"Initializing CorkedUser with info_dict: {info_dict}")
 
-        self.user_id = info_dict.get("user_id", None)
-        self.timestamp = info_dict.get("timestamp", None)
+        self.user_id = info_dict["user_id"]
+        self.timestamp = info_dict["timestamp"]
 
         logger.debug(f"CorkedUser initialized: user_id={self.user_id}, timestamp={self.timestamp}")
 

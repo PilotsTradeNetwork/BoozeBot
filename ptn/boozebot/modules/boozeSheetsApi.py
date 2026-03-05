@@ -1,13 +1,19 @@
-from asyncio import Lock
-from datetime import UTC, datetime
-from enum import Enum
-import httpx
 import asyncio
 import json
-from typing import Any, Callable, override
+from collections.abc import Callable
+from contextlib import suppress
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any, override
+
+import httpx
 import websockets
+from discord import Embed, User
 from discord.ext.commands import Bot
 from httpx import AsyncClient
+from ptn_utils.enums.booze_enums import CruiseSystemState
+from ptn_utils.global_constants import CHANNEL_BOTSPAM
+from ptn_utils.logger.logger import get_logger
 from tenacity import (
     RetryCallState,
     retry,
@@ -15,13 +21,9 @@ from tenacity import (
 )
 from tenacity.stop import stop_base
 
-from discord import Embed, User
-from ptn_utils.global_constants import CHANNEL_BOTSPAM
-from ptn_utils.enums.booze_enums import CruiseSystemState
-from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
 from ptn.boozebot.classes.Cruise import Cruise, CruiseStats
-from ptn_utils.logger.logger import get_logger
+from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 
 
 class PayloadType(Enum):
@@ -30,6 +32,8 @@ class PayloadType(Enum):
 
 
 logger = get_logger("boozebot.modules.boozeSheetsApi")
+
+_background_tasks: set[asyncio.Task[None]] = set()
 
 
 def _should_retry_exception(exception: Exception) -> bool:
@@ -59,10 +63,7 @@ class dynamic_attempts(stop_base):
     @override
     def __call__(self, retry_state: "RetryCallState") -> bool:
         exception = retry_state.outcome.exception() if retry_state.outcome else None
-        if exception and self.condition(exception):
-            max_attempts = self.attempts_if_true
-        else:
-            max_attempts = self.attempts_if_false
+        max_attempts = self.attempts_if_true if exception and self.condition(exception) else self.attempts_if_false
         return retry_state.attempt_number >= max_attempts
 
 
@@ -88,7 +89,9 @@ def _on_api_failure(retry_state: RetryCallState):
         + f"method={method}, endpoint={endpoint}, data={data}, error={error_msg}"
     )
 
-    asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
+    task = asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 async def _send_failure_to_discord(
@@ -136,7 +139,7 @@ class BoozeSheetsApi:
     ws_task: asyncio.Task[None] | None
     ws_client: AsyncClient | None
     bot: Bot
-    client_lock: Lock
+    client_lock: asyncio.Lock
     client: AsyncClient
     base_url: str
 
@@ -221,13 +224,10 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Carrier not found for carrier_id={carrier_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Carrier info retrieved: {carrier_info}")
 
-        carrier = BoozeCarrier(carrier_info)
-
-        return carrier
+        return BoozeCarrier(carrier_info)
 
     async def get_all_carriers_info(self) -> list[BoozeCarrier]:
         """
@@ -246,13 +246,10 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning("No carriers found")
                 return []
-            else:
-                raise
+            raise
         logger.debug(f"All carriers info retrieved: {carriers_info}")
 
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def update_carrier_info(self, carrier_id: str, update_data: dict[str, Any]) -> BoozeCarrier:
         """
@@ -269,10 +266,7 @@ class BoozeSheetsApi:
         updated_carrier_info = await self._request("PATCH", endpoint, update_data, PayloadType.BODY)
 
         logger.debug(f"Carrier info updated: {updated_carrier_info}")
-
-        updated_carrier = BoozeCarrier(updated_carrier_info)
-
-        return updated_carrier
+        return BoozeCarrier(updated_carrier_info)
 
     async def start_carrier_unload(self, carrier_id: str, delay: int | None = None) -> BoozeCarrier:
         """
@@ -329,9 +323,7 @@ class BoozeSheetsApi:
         carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"All carriers info retrieved: {carriers_info}")
 
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def get_unloading_carriers(self) -> list[BoozeCarrier]:
         """
@@ -348,9 +340,7 @@ class BoozeSheetsApi:
         carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"All carriers info retrieved: {carriers_info}")
 
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def get_cruises_list(self) -> dict[str, Any] | list[dict[str, Any]]:
         """
@@ -369,10 +359,8 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning("No cruises found")
                 return []
-            else:
-                raise
+            raise
         logger.debug(f"Cruises list retrieved: {cruises}")
-
         return cruises
 
     async def get_current_cruise_state(self) -> CruiseSystemState:
@@ -426,8 +414,7 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Cruise stats not found for cruise_id={cruise_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Cruise stats retrieved: {cruise_data}")
 
         return Cruise(cruise_data)
@@ -441,10 +428,7 @@ class BoozeSheetsApi:
 
         logger.debug("Getting biggest cruise stats")
         endpoint = "/cruises/biggest_cruise"
-        if include_not_unloaded is not None:
-            data = {"include_not_unloaded": include_not_unloaded}
-        else:
-            data = {}
+        data = {"include_not_unloaded": include_not_unloaded} if include_not_unloaded is not None else {}
 
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         try:
@@ -453,8 +437,7 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning("Biggest cruise stats not found")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Biggest cruise stats retrieved: {cruise_data}")
 
         return Cruise(cruise_data)
@@ -478,8 +461,7 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Trip not found for carrier_id={carrier_id}, trip_id={trip_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Trip data retrieved: {trip_data}")
 
         return BoozeCarrier(trip_data)
@@ -502,8 +484,7 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Carrier stats not found for carrier_id={carrier_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Carrier stats retrieved: {stats_data}")
 
         return CarrierStats(stats_data)
@@ -522,13 +503,7 @@ class BoozeSheetsApi:
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"Unpinged signups info retrieved: {carriers_info}")
-
-        if not carriers_info:
-            return []
-
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def set_user_pinged(self, user_id: int) -> None:
         """
@@ -671,10 +646,8 @@ class BoozeSheetsApi:
         self._ws_running = False
         if self.ws_task:
             self.ws_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self.ws_task
-            except asyncio.CancelledError:
-                pass
             self.ws_task = None
 
         if self.ws_client:
@@ -715,7 +688,7 @@ class BoozeSheetsApi:
         """
         ws_url = f"{self.base_url.replace('http', 'ws')}ws/?api_key={BOOZESHEETS_API_KEY}"
 
-        logger.info(f"Connecting to BoozeSheets websocket: {ws_url.split('?')[0]}")
+        logger.info(f"Connecting to BoozeSheets websocket: {ws_url.split('?', maxsplit=1)[0]}")
 
         async with websockets.connect(uri=ws_url) as websocket:
             logger.info("Connected to BoozeSheets websocket")

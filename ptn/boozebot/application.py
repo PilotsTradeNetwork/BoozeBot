@@ -14,16 +14,15 @@ from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.botcommands.Corked import Corked
-from ptn.boozebot.botcommands.Statistics import Statistics
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.DiscordBotCommands import DiscordBotCommands
 from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
 from ptn.boozebot.botcommands.MimicSteve import MimicSteve
 from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
+from ptn.boozebot.botcommands.Statistics import Statistics
 from ptn.boozebot.botcommands.Unloading import Unloading
 from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.ErrorHandler import on_app_command_error, on_text_command_error
-
 from ptn.boozebot.modules.Views import DynamicButton
 
 logger = get_logger("boozebot.application")
@@ -70,7 +69,7 @@ async def boozebot():
 
         logger.info("Setting up error handlers.")
         # Start error handlers
-        bot.tree.on_error = on_app_command_error
+        bot.tree.on_error = on_app_command_error  # type: ignore[assignment]
         bot.add_listener(on_text_command_error, "on_command_error")
         logger.info("Error handlers setup complete.")
 
@@ -78,6 +77,8 @@ async def boozebot():
         bot.add_dynamic_items(DynamicButton)
         logger.info("Dynamic items added to the bot.")
 
+        if not TOKEN:
+            raise RuntimeError("No token provided.")
         try:
             logger.info("Logging in the bot...")
             await bot.login(TOKEN)

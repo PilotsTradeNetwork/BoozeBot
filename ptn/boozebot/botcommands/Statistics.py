@@ -3,8 +3,8 @@ Cog for all the commands that interact with the database
 
 """
 
-from datetime import datetime, timedelta
 import math
+from datetime import datetime, timedelta
 from typing import Any, Literal
 
 import discord
@@ -66,12 +66,11 @@ def format_large_number(number: int | float) -> str:
     """
     if number < 10**6:
         return f"{number:,.0f}"
-    elif number < 10**9:
+    if number < 10**9:
         return f"{number / 10**6:.2f} Million"
-    elif number < 10**12:
+    if number < 10**12:
         return f"{number / 10**9:.2f} Billion"
-    else:
-        return f"{number / 10**12:.2f} Trillion"
+    return f"{number / 10**12:.2f} Trillion"
 
 
 def format_duration(seconds: int | float) -> str:
@@ -83,10 +82,9 @@ def format_duration(seconds: int | float) -> str:
     """
     if seconds < 60:
         return f"{seconds:.0f} seconds"
-    elif seconds < 60 * 60:
+    if seconds < 60 * 60:
         return f"{seconds / 60:.2f} minutes"
-    else:
-        return f"{seconds / 3600:.2f} hours"
+    return f"{seconds / 3600:.2f} hours"
 
 
 IncludeNotUnloadedChoices = Literal["All Carriers", "Only Unloaded"]
@@ -137,7 +135,7 @@ class Statistics(commands.Cog):
     async def build_stat_embed(
         self,
         cruise: Cruise,
-        target_date: str = None,
+        target_date: str | None = None,
         include_timestamp: bool = False,
     ) -> discord.Embed:
         # Get faction state from the first carrier, assuming all carriers have the same state
@@ -221,7 +219,7 @@ class Statistics(commands.Cog):
     async def build_extended_stat_embed(
         self,
         cruise: Cruise,
-        target_date: str = None,
+        target_date: str | None = None,
         stat: StatChoices = "All",
     ) -> discord.Embed:
         # Get faction state from the first carrier, assuming all carriers have the same state
@@ -659,13 +657,7 @@ class Statistics(commands.Cog):
 
         await interaction.response.defer()
 
-        if include_not_unloaded:
-            if include_not_unloaded == "All Carriers":
-                include_not_unloaded_bool = True
-            else:
-                include_not_unloaded_bool = False
-        else:
-            include_not_unloaded_bool = None
+        include_not_unloaded_bool = include_not_unloaded == "All Carriers" if include_not_unloaded else None
 
         cruise_name = "this" if cruise_select == 0 else f"-{cruise_select}"
         logger.info(
@@ -870,14 +862,7 @@ class Statistics(commands.Cog):
         )
         target_date = None
 
-        if include_not_unloaded:
-            if include_not_unloaded == "All Carriers":
-                include_not_unloaded_bool = True
-            else:
-                include_not_unloaded_bool = False
-        else:
-            include_not_unloaded_bool = None
-
+        include_not_unloaded_bool = include_not_unloaded == "All Carriers" if include_not_unloaded else None
         cruise = await booze_sheets_api.get_cruise_with_stats(-cruise_select, include_not_unloaded_bool)
 
         if cruise_select != 0:
@@ -976,13 +961,7 @@ class Statistics(commands.Cog):
         )
         await interaction.response.defer()
 
-        if include_not_unloaded:
-            if include_not_unloaded == "All Carriers":
-                include_not_unloaded_bool = True
-            else:
-                include_not_unloaded_bool = False
-        else:
-            include_not_unloaded_bool = None
+        include_not_unloaded_bool = include_not_unloaded == "All Carriers" if include_not_unloaded else None
 
         cruise = await booze_sheets_api.get_biggest_cruise_with_stats(include_not_unloaded_bool)
 
