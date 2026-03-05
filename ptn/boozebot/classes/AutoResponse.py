@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Any
 
-from discord import Message
+from discord import Member, Message
 from ptn_utils.global_constants import ROLE_CONN, ROLE_SOMM, any_council_role, any_moderation_role
 from ptn_utils.logger.logger import get_logger
 
@@ -34,10 +34,10 @@ class AutoResponse:
 
         self.channel_cooldowns: dict[int, datetime] = {}
 
-        self.name = info_dict.get("name", "")
-        self.is_regex = bool(info_dict.get("is_regex", False))
-        self.response = info_dict.get("response", "")
-        self.trigger = info_dict.get("trigger", "").lower()
+        self.name = info_dict["name"] or ""
+        self.is_regex = bool(info_dict["is_regex"] or False)
+        self.response = info_dict["response"] or ""
+        self.trigger = (info_dict["trigger"] or "").lower()
 
         if self.is_regex:
             logger.debug(f"Compiling regex trigger for auto response '{self.name}': {self.trigger}")
@@ -102,6 +102,12 @@ class AutoResponse:
         """
 
         logger.debug(f"Checking trigger match for AutoResponse '{self.name}' in message content.")
+        if not isinstance(message.author, Member):
+            logger.debug(
+                f"Message author {message.author.name} ({message.author.id}) is not a member; "
+                + f"skipping AutoResponse '{self.name}' trigger match."
+            )
+            return False
 
         is_staff = {role.id for role in message.author.roles} & {
             *any_council_role,

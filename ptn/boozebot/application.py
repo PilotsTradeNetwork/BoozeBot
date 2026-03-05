@@ -69,7 +69,7 @@ async def boozebot():
 
         logger.info("Setting up error handlers.")
         # Start error handlers
-        bot.tree.on_error = on_app_command_error
+        bot.tree.on_error = on_app_command_error  # type: ignore[assignment]
         bot.add_listener(on_text_command_error, "on_command_error")
         logger.info("Error handlers setup complete.")
 
@@ -77,6 +77,8 @@ async def boozebot():
         bot.add_dynamic_items(DynamicButton)
         logger.info("Dynamic items added to the bot.")
 
+        if not TOKEN:
+            raise RuntimeError("No token provided.")
         try:
             logger.info("Logging in the bot...")
             await bot.login(TOKEN)

@@ -133,8 +133,8 @@ class BoozeCarrier:
         self.owner = CarrierOwner(fc_data.get("owner", {}))
 
         # Notable info
-        if "notable" in info_dict and info_dict.get("notable"):
-            self.signup_info = SignupInfo(info_dict.get("notable"))
+        if notable_info := info_dict.get("notable"):
+            self.signup_info = SignupInfo(notable_info)
         else:
             self.signup_info = None
 
