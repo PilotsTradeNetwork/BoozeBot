@@ -41,7 +41,7 @@ All commands are in hierarchical format, so the higher roles can run everything 
 
 ### Wine Carriers:
 
--   `/wine_carrier_unload <XXX-XXX: str> <planet: str> <market_type: str> <unload_channel: str [optional]>` - Sets an  
+-   `/wine_carrier_unload <XXX-XXX: str> <planet: str> <market_type: str> <unload_channel: str [optional]>` - Sets an
     unload notification for the carrier. Notification will be posted into a discord channel if TimedMarket and unload
     channel provided.
 -   `/wine_unloading_complete <XXX-XXX: str>` - Marks the carrier unload as completed and deletes the carrier notification.
@@ -65,8 +65,15 @@ All commands are in hierarchical format, so the higher roles can run everything 
 3. Create a virtual environment: `uv venv`
 4. Activate the virtual environment: `source .venv/bin/activate`
 5. Install dependencies: `uv sync`
+6. Install uv tools: `uv tool install prek && uv tool install ty`
+7. Install the pre-commit hook: `prek install`
 
 Run all tests with
 ```bash
 python -m unittest discover
+```
+
+Run pre-commit checks on all files with
+```bash
+prek run --all-files
 ```
