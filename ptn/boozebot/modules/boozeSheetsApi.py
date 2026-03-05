@@ -182,7 +182,9 @@ class BoozeSheetsApi:
         :return: The response from the API as a dictionary.
         """
 
-        logger.debug(f"Sending {method} request to BoozeSheets API: endpoint={endpoint}, data={data}, PayloadType: {payload_type}")
+        logger.debug(
+            f"Sending {method} request to BoozeSheets API: endpoint={endpoint}, data={data}, PayloadType: {payload_type}"
+        )
 
         async with self.client_lock:
             match payload_type:
@@ -331,12 +333,12 @@ class BoozeSheetsApi:
 
         return carriers
 
-    async def get_unloading_carriers(self)-> list[BoozeCarrier]:
+    async def get_unloading_carriers(self) -> list[BoozeCarrier]:
         """
-                Retrieves a list of carriers that are currently unloading.
+        Retrieves a list of carriers that are currently unloading.
 
-                :return: A list of carrier information dictionaries.
-                """
+        :return: A list of carrier information dictionaries.
+        """
 
         logger.debug("Getting info for all unloading carriers")
         endpoint = "/carriers"
@@ -393,7 +395,9 @@ class BoozeSheetsApi:
 
         return state_data.get("state", CruiseSystemState.CHANNELS_CLOSED)
 
-    async def get_cruise_with_stats(self, cruise_id: int, include_not_unloaded: bool | None = None, exclude_staff: bool | None = None) -> Cruise | None:
+    async def get_cruise_with_stats(
+        self, cruise_id: int, include_not_unloaded: bool | None = None, exclude_staff: bool | None = None
+    ) -> Cruise | None:
         """
         Retrieves stats for a specific cruise.
 
@@ -403,7 +407,9 @@ class BoozeSheetsApi:
         :return: The cruise stats.
         """
 
-        logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}, exclude_staff={exclude_staff}")
+        logger.debug(
+            f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}, exclude_staff={exclude_staff}"
+        )
 
         stats_endpoint = f"/cruises/{cruise_id}"
 
@@ -572,10 +578,9 @@ class BoozeSheetsApi:
         endpoint = "/cruises/state"
         data = {"state": state}
 
-
         await self._request("PATCH", endpoint, data, PayloadType.BODY)
         logger.debug(f"Cruise state updated to {state}")
-        
+
     async def set_refresh_discord_data(self, user: User):
         """
         Set the refresh_discord_data flag for a user in BoozeSheets.
@@ -585,7 +590,7 @@ class BoozeSheetsApi:
 
         logger.debug(f"Setting refresh_discord_data for user_id={user.id}")
         endpoint = "/users/force-refresh"
-        
+
         data = {"discord_id": str(user.id)}
 
         logger.debug(f"Sending POST request to {endpoint} with data={data}")

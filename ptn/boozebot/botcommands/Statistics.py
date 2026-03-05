@@ -893,7 +893,7 @@ class Statistics(commands.Cog):
     )
     @describe(
         exclude_staff="Whether to exclude staff carriers.",
-        )
+    )
     @check_roles(
         [
             *any_council_role,
@@ -1031,11 +1031,19 @@ class Statistics(commands.Cog):
             )
             return
 
-        formatted_first_unload_date = f"<t:{int(carrier_stats.first_unload_date.timestamp())}:d>" if carrier_stats.first_unload_date else "N/A"
-        formatted_last_unload_date = f"<t:{int(carrier_stats.last_unload_date.timestamp())}:d>" if carrier_stats.last_unload_date else "N/A"
+        formatted_first_unload_date = (
+            f"<t:{int(carrier_stats.first_unload_date.timestamp())}:d>" if carrier_stats.first_unload_date else "N/A"
+        )
+        formatted_last_unload_date = (
+            f"<t:{int(carrier_stats.last_unload_date.timestamp())}:d>" if carrier_stats.last_unload_date else "N/A"
+        )
 
-        average_wine_per_trip = carrier_stats.total_wine / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
-        average_credits_per_trip = carrier_stats.total_credits / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
+        average_wine_per_trip = (
+            carrier_stats.total_wine / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
+        )
+        average_credits_per_trip = (
+            carrier_stats.total_credits / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
+        )
 
         logger.debug(
             f"Carrier stats for {carrier_id} - Name: {carrier_stats.name}, "
@@ -1058,7 +1066,7 @@ class Statistics(commands.Cog):
             + f"Average Wine per Trip: {format_large_number(average_wine_per_trip)} tonnes\n"
             + f"Average Credits per Trip: {format_large_number(average_credits_per_trip)} credits\n"
             + f"First Unload Date: {formatted_first_unload_date}\n"
-            + f"Last Unload Date: {formatted_last_unload_date}"
+            + f"Last Unload Date: {formatted_last_unload_date}",
         )
 
         logger.info(f"Sending stats embed for carrier {carrier_id}.")

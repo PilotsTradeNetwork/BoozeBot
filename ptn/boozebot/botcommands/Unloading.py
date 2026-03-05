@@ -124,7 +124,9 @@ class Unloading(commands.Cog):
 
                         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
 
-                        logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
+                        logger.debug(
+                            f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}"
+                        )
 
                         wine_carrier_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
                         await wine_carrier_channel.send(

@@ -528,7 +528,9 @@ class Database:
             self.conn.commit()
         logger.debug(f"Successfully updated auto response: {name}")
 
-    @deprecated("This function is deprecated and will be removed in a future release. Use boozeSheetsApi.get_current_cruise_state() instead.")
+    @deprecated(
+        "This function is deprecated and will be removed in a future release. Use boozeSheetsApi.get_current_cruise_state() instead."
+    )
     async def get_holiday_status(self) -> tuple[bool, datetime]:
         """
         Retrieves the current holiday status from the database.
@@ -551,7 +553,9 @@ class Database:
         logger.debug(f"Holiday status retrieved: ongoing={holiday_ongoing}, timestamp={timestamp}")
         return holiday_ongoing, timestamp
 
-    @deprecated("This function is deprecated and will be removed in a future release. Use boozeSheetsApi.close_cruise(), boozeSheetsApi.update_cruise_start(), and/or boozeSheetsApi.update_cruise_state() instead.")
+    @deprecated(
+        "This function is deprecated and will be removed in a future release. Use boozeSheetsApi.close_cruise(), boozeSheetsApi.update_cruise_start(), and/or boozeSheetsApi.update_cruise_state() instead."
+    )
     async def set_holiday_status(self, ongoing: bool, timestamp: datetime | None = None) -> None:
         """
         Sets the current holiday status in the database.

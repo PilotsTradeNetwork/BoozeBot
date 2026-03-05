@@ -44,14 +44,20 @@ CLEANER COMMANDS
 
 logger = get_logger("boozebot.commands.corked")
 
-def _build_failed_cork_embed(failed_users: list[tuple[int,str]]) -> Embed:
+
+def _build_failed_cork_embed(failed_users: list[tuple[int, str]]) -> Embed:
     try:
         failed_user_messages = [f"- <@{user_id}>: {reason}" for user_id, reason in failed_users]
-        embed = Embed(title="Rebuilding corked permissions completed with some failures:", description="\n".join(failed_user_messages), color=EMBED_COLOUR_EVIL)
+        embed = Embed(
+            title="Rebuilding corked permissions completed with some failures:",
+            description="\n".join(failed_user_messages),
+            color=EMBED_COLOUR_EVIL,
+        )
     except Exception as e:
         logger.exception(e)
         return Embed(title="Failed at Failed Recorks:", description=str(e), color=EMBED_COLOUR_EVIL)
     return embed
+
 
 class Corked(commands.Cog):
     bot: Bot
@@ -264,7 +270,9 @@ class Corked(commands.Cog):
         active_corks = [key.id for key in channel_chat.overwrites if not isinstance(key, discord.Role)]
         for corked_user in corked_users:
             if int(corked_user.user_id) not in active_corks:
-                logger.info(f"corked_user id: {corked_user.user_id}, active corks: {active_corks}, in active corks: {corked_user.user_id in active_corks}")
+                logger.info(
+                    f"corked_user id: {corked_user.user_id}, active corks: {active_corks}, in active corks: {corked_user.user_id in active_corks}"
+                )
                 user = await bot.get_or_fetch.member(corked_user.user_id)
                 if user is None:
                     logger.warning(f"Could not find member with ID {corked_user.user_id}, skipping.")
@@ -350,6 +358,9 @@ class Corked(commands.Cog):
             logger.info("Rebuilding corked permissions completed successfully for all users.")
             await interaction.edit_original_response(
                 content=None,
-                embed=Embed(description="Rebuilding corked permissions completed successfully for all corked users.", color=EMBED_COLOUR_OK),
+                embed=Embed(
+                    description="Rebuilding corked permissions completed successfully for all corked users.",
+                    color=EMBED_COLOUR_OK,
+                ),
                 view=None,
             )
