@@ -225,7 +225,7 @@ class Unloading(commands.Cog):
         embed = discord.Embed(title="Avast Ye!")
         embed.add_field(
             name="If you are INTENDING TO BUY, please react with: :airplane_arriving:.\n"
-            + f"Once you are DOCKED react with: <:Assassin:{str(EMOJI_ASSASSIN)}>\n"
+            + f"Once you are DOCKED react with: <:Assassin:{EMOJI_ASSASSIN!s}>\n"
             + "Once you PURCHASE WINE, react with: :wine_glass:",
             value="Market will be opened once we have aligned the number of commanders.",
             inline=True,
@@ -236,7 +236,7 @@ class Unloading(commands.Cog):
         # Retrieve the message object
         message = await interaction.original_response()
         await message.add_reaction("🛬")
-        await message.add_reaction(f"<:Assassin:{str(EMOJI_ASSASSIN)}>")
+        await message.add_reaction(f"<:Assassin:{EMOJI_ASSASSIN!s}>")
         await message.add_reaction("🍷")
 
     @app_commands.command(

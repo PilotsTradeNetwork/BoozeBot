@@ -58,9 +58,9 @@ class Departures(commands.Cog):
     This class is a collection functionality for posting departure messages for carriers.
     """
 
-    system_choices: list[Choice[str]] = [
+    system_choices: tuple[Choice[str]] = (
         Choice(name=f"{system_id} ({system_name})", value=system_id) for system_id, system_name in N_SYSTEMS.items()
-    ]
+    )
 
     # On ready check for any completed departure messages and remove them.
     @commands.Cog.listener()
@@ -456,7 +456,7 @@ class Departures(commands.Cog):
             direction_arrow = "⬆️"
             if is_hitchhiking_trip:
                 logger.info("Departure needs hitchhiker ping.")
-                hitchhiker_ping_text = f"| <@&{str(ROLE_HITCHHIKER)}>"
+                hitchhiker_ping_text = f"| <@&{ROLE_HITCHHIKER!s}>"
         else:
             logger.info("Failed to determine direction arrow.")
             direction_arrow = ""
@@ -655,7 +655,7 @@ class Departures(commands.Cog):
             logger.debug(f"Validated timestamp: {timestamp}")
             if timestamp is None:
                 return
-            departure_time_text = f"Departs any time after <t:{timestamp}:f> (<t:{timestamp}:R>) or immediately if the public holiday is announced at Rackham’s Peak."
+            departure_time_text = f"Departs any time after <t:{timestamp}:f> (<t:{timestamp}:R>) or immediately if the public holiday is announced at Rackham's Peak."
         elif departure_time_type == "Thoon":
             departure_time_text = f"Departs {await bot.get_or_fetch.emoji(EMOJI_THOON)}"
 

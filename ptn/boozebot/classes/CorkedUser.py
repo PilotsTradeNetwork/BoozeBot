@@ -13,7 +13,7 @@ class CorkedUser:
     user_id: int | None
     timestamp: datetime | None
 
-    def __init__(self, info_dict: dict[str, int | datetime] = None) -> None:
+    def __init__(self, info_dict: dict[str, int | datetime] | None = None) -> None:
         """
         Class represents a corked user object as returned from the database.
 

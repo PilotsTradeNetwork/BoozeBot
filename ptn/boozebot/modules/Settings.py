@@ -1,5 +1,5 @@
 import json
-from typing import Any, Literal, TypedDict, overload
+from typing import Any, ClassVar, Literal, TypedDict, overload
 
 from ptn_utils.logger.logger import get_logger
 
@@ -17,7 +17,7 @@ class SettingsDict(TypedDict):
 
 
 class Settings:
-    default_settings: SettingsDict = {
+    default_settings: ClassVar[SettingsDict] = {
         "departure_announcement_status": "Disabled",
         "timed_unloads_allowed": False,
         "timed_unload_hold_duration": 5,

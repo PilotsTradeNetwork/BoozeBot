@@ -8,6 +8,7 @@ import datetime
 # libraries
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
@@ -52,11 +53,11 @@ BOOZESHEETS_API_KEY = os.getenv("BOOZESHEETS_API_KEY", None)
 
 if not BOOZESHEETS_API_BASE_URL:
     logger.critical("BOOZESHEETS_API_BASE_URL is not set")
-    exit(1)
+    sys.exit(1)
 
 if not BOOZESHEETS_API_KEY:
     logger.critical("BOOZESHEETS_API_KEY is not set")
-    exit(1)
+    sys.exit(1)
 
 # Stale Data checking from EDSM/EBGS
 STALE_DATA_THRESHOLD = datetime.timedelta(days=2)

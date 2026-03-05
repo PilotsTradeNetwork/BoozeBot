@@ -53,7 +53,7 @@ select = [
     "PL",  # pylint-convention
     "I",   # isort
     # "N",   # pep8-naming  (31 errors)
-    # "RUF", # ruff (54 errors)
+    "RUF", # ruff
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
     "A",   # flake8-builtins
@@ -75,7 +75,6 @@ select = [
     # "DTZ", # flake8-datetimez
     "PTH", # flake8-use-pathlib
     # "BLE",  # flake8-blind-except (204 errors)
-    # "FBT",  # flake8-boolean-trap (31 errors, needs refactoring)
     # "C90", # mccabe complexity (21 errors, needs heavy refactoring)
 ]
 ignore = [

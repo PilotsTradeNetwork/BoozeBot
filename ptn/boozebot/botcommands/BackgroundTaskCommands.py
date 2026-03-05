@@ -16,13 +16,13 @@ logger = get_logger("boozebot.commands.background")
 class BackgroundTaskCommands(commands.Cog):
     websocket_started: bool
     bot: Bot
-    task_choices: list[Choice[str]] = [
+    task_choices: tuple[Choice[str]] = (
         Choice(name="periodic_stat_update", value="periodic_stat_update"),
         Choice(name="check_departure_messages_loop", value="check_departure_messages_loop"),
         Choice(name="public_holiday_loop", value="public_holiday_loop"),
         Choice(name="last_unload_time_loop", value="last_unload_time_loop"),
         Choice(name="periodic_signup_poll", value="periodic_signup_poll"),
-    ]
+    )
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -54,7 +54,7 @@ class BackgroundTaskCommands(commands.Cog):
                 logger.debug(f"Starting task {task_name}")
                 task.start()
                 logger.info(f"Task {task_name} started successfully")
-                await interaction.response.send_message(f"Started task: {task_name}")  #
+                await interaction.response.send_message(f"Started task: {task_name}")
             else:
                 logger.info(f"Task {task_name} is already running")
                 await interaction.response.send_message(f"Task {task_name} is already running.")

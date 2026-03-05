@@ -69,12 +69,13 @@ class Corked(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    CORK_CHANNELS: list[int] = CHANNEL_BC_PUBLIC + [
+    CORK_CHANNELS: tuple[int] = (
+        *CHANNEL_BC_PUBLIC,
         CHANNEL_BC_BOOZE_CRUISE_SIGNUPS,
         CHANNEL_BC_WINE_STATUS,
         CHANNEL_BC_BOOZE_GUIDE,
         CHANNEL_BC_WINE_CARRIER_GUIDE,
-    ]
+    )
 
     """
     This class handles corking and uncorking users

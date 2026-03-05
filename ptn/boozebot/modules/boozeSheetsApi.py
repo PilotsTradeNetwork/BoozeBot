@@ -33,6 +33,8 @@ class PayloadType(Enum):
 
 logger = get_logger("boozebot.modules.boozeSheetsApi")
 
+_background_tasks: set[asyncio.Task[None]] = set()
+
 
 def _should_retry_exception(exception: Exception) -> bool:
     """
@@ -87,7 +89,9 @@ def _on_api_failure(retry_state: RetryCallState):
         + f"method={method}, endpoint={endpoint}, data={data}, error={error_msg}"
     )
 
-    asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
+    task = asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 async def _send_failure_to_discord(

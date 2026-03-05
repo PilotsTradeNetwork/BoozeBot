@@ -135,7 +135,7 @@ class Statistics(commands.Cog):
     async def build_stat_embed(
         self,
         cruise: Cruise,
-        target_date: str = None,
+        target_date: str | None = None,
         include_timestamp: bool = False,
     ) -> discord.Embed:
         # Get faction state from the first carrier, assuming all carriers have the same state
@@ -219,7 +219,7 @@ class Statistics(commands.Cog):
     async def build_extended_stat_embed(
         self,
         cruise: Cruise,
-        target_date: str = None,
+        target_date: str | None = None,
         stat: StatChoices = "All",
     ) -> discord.Embed:
         # Get faction state from the first carrier, assuming all carriers have the same state
