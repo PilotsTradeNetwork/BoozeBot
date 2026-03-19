@@ -1,13 +1,19 @@
 import re
-import sqlite3
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TypedDict
 
 from discord import Member, Message
 from ptn_utils.global_constants import ROLE_CONN, ROLE_SOMM, any_council_role, any_moderation_role
 from ptn_utils.logger.logger import get_logger
 
 logger = get_logger("boozebot.classes.autoresponse")
+
+
+class _InfoDict(TypedDict):
+    name: str
+    trigger: str
+    response: str
+    is_regex: bool
 
 
 class AutoResponse:
@@ -26,29 +32,25 @@ class AutoResponse:
     is_regex: bool
     name: str
 
-    def __init__(self, info_dict: sqlite3.Row | dict[str, Any]):
-        if isinstance(info_dict, sqlite3.Row):
-            info_dict = dict(info_dict)
-
+    def __init__(self, info_dict: _InfoDict):
         logger.debug(f"Initializing AutoResponse with info_dict: {info_dict}")
 
         self.channel_cooldowns: dict[int, datetime] = {}
 
-        self.name = info_dict["name"] or ""
-        self.is_regex = bool(info_dict["is_regex"] or False)
-        self.response = info_dict["response"] or ""
-        self.trigger = (info_dict["trigger"] or "").lower()
+        self.name = info_dict["name"]
+        self.is_regex = info_dict["is_regex"]
+        self.response = info_dict["response"]
+        self.trigger = info_dict["trigger"].lower()
 
         if self.is_regex:
             logger.debug(f"Compiling regex trigger for auto response '{self.name}': {self.trigger}")
             try:
-                self.trigger = re.compile(info_dict.get("trigger", ""))
+                self.trigger = re.compile(info_dict["trigger"])
                 logger.debug(f"Compiled regex trigger for auto response '{self.name}': {self.trigger.pattern}")
             except re.error:
                 logger.error(
-                    f"Invalid regex pattern for auto response '{self.name}': {info_dict.get('trigger', '')}. Falling back to empty trigger."
+                    f"Invalid regex pattern for auto response '{self.name}': {info_dict['trigger']}. Falling back to simple trigger."
                 )
-                self.trigger = info_dict.get("trigger", "")
                 self.is_regex = False
 
         logger.debug(

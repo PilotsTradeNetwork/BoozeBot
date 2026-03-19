@@ -5,7 +5,7 @@ Cog for departure related commands
 
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import Final, Literal
 
 import discord
 from discord import app_commands
@@ -58,7 +58,7 @@ class Departures(commands.Cog):
     This class is a collection functionality for posting departure messages for carriers.
     """
 
-    system_choices: tuple[Choice[str]] = (
+    system_choices: Final[list[Choice[str]]] = (
         Choice(name=f"{system_id} ({system_name})", value=system_id) for system_id, system_name in N_SYSTEMS.items()
     )
 

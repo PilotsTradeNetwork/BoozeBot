@@ -1,3 +1,5 @@
+from typing import Final
+
 import discord
 from discord import app_commands
 from discord.app_commands import Choice, describe
@@ -16,13 +18,13 @@ logger = get_logger("boozebot.commands.background")
 class BackgroundTaskCommands(commands.Cog):
     websocket_started: bool
     bot: Bot
-    task_choices: tuple[Choice[str]] = (
+    task_choices: Final[list[Choice[str]]] = [
         Choice(name="periodic_stat_update", value="periodic_stat_update"),
         Choice(name="check_departure_messages_loop", value="check_departure_messages_loop"),
         Choice(name="public_holiday_loop", value="public_holiday_loop"),
         Choice(name="last_unload_time_loop", value="last_unload_time_loop"),
         Choice(name="periodic_signup_poll", value="periodic_signup_poll"),
-    )
+    ]
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot

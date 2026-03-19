@@ -81,7 +81,7 @@ class DynamicButton(
     @override
     @classmethod
     async def from_custom_id(cls, interaction: discord.Interaction, item: ui.Item[Any], match: re.Match[str], /):
-        item = cast("ui.Button", item)
+        item = cast("ui.Button[ui.View]", item)
         logger.debug(f"Parsing DynamicButton from custom_id: {item.custom_id}")
         action = str(match["action"])
         user_id = int(match["user_id"])
