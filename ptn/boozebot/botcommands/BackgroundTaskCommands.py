@@ -1,3 +1,5 @@
+from typing import Final
+
 import discord
 from discord import app_commands
 from discord.app_commands import Choice, describe
@@ -7,8 +9,8 @@ from ptn_utils.global_constants import CHANNEL_BC_STEVE_SAYS, ROLE_SOMM, any_cou
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import bot
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
 logger = get_logger("boozebot.commands.background")
 
@@ -16,7 +18,7 @@ logger = get_logger("boozebot.commands.background")
 class BackgroundTaskCommands(commands.Cog):
     websocket_started: bool
     bot: Bot
-    task_choices: list[Choice[str]] = [
+    task_choices: Final[list[Choice[str]]] = [
         Choice(name="periodic_stat_update", value="periodic_stat_update"),
         Choice(name="check_departure_messages_loop", value="check_departure_messages_loop"),
         Choice(name="public_holiday_loop", value="public_holiday_loop"),
@@ -54,7 +56,7 @@ class BackgroundTaskCommands(commands.Cog):
                 logger.debug(f"Starting task {task_name}")
                 task.start()
                 logger.info(f"Task {task_name} started successfully")
-                await interaction.response.send_message(f"Started task: {task_name}")  #
+                await interaction.response.send_message(f"Started task: {task_name}")
             else:
                 logger.info(f"Task {task_name} is already running")
                 await interaction.response.send_message(f"Task {task_name} is already running.")

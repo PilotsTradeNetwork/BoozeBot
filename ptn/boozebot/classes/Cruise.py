@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from ptn_utils.logger.logger import get_logger
+
 from ptn.boozebot.modules.helpers import sane_default_datetime, sane_default_float
 
 logger = get_logger("boozebot.classes.cruise")
@@ -35,9 +36,9 @@ class CruiseStats:
         self.total_owners = int(info_dict.get("totalCarrierOwners", 0))
         self.wine_remaining = int(info_dict.get("wineRemaining", 0))
         self.total_profit = int(info_dict.get("totalProfit", 0))
-        self.avg_unload_dur = sane_default_float(info_dict.get("avgUnloadDur", None))
-        self.min_unload_dur = sane_default_float(info_dict.get("minUnloadDur", None))
-        self.max_unload_dur = sane_default_float(info_dict.get("maxUnloadDur", None))
+        self.avg_unload_dur = sane_default_float(info_dict.get("avgUnloadDur"))
+        self.min_unload_dur = sane_default_float(info_dict.get("minUnloadDur"))
+        self.max_unload_dur = sane_default_float(info_dict.get("maxUnloadDur"))
 
         logger.debug(
             f"CruiseStats initialized: total_wine={self.total_wine}, total_trips={self.total_trips}, "
@@ -63,12 +64,10 @@ class Cruise:
         logger.debug(f"Initializing Cruise with info_json: {info_dict}")
 
         self.id = int(info_dict.get("cruiseId", 0))
-        self.start = sane_default_datetime(info_dict.get("cruiseStart", None)) or datetime.min.replace(
-            tzinfo=timezone.utc
-        )
-        self.end = sane_default_datetime(info_dict.get("cruiseEnd", None)) or datetime.max.replace(tzinfo=timezone.utc)
+        self.start = sane_default_datetime(info_dict.get("cruiseStart")) or datetime.min.replace(tzinfo=UTC)
+        self.end = sane_default_datetime(info_dict.get("cruiseEnd")) or datetime.max.replace(tzinfo=UTC)
 
-        self.faction_state = info_dict.get("factionState", None)
+        self.faction_state = info_dict.get("factionState")
         self.carrier_limit = int(info_dict.get("carrierLimit", 0))
         self.stats = CruiseStats(info_dict.get("stats", {}))
 

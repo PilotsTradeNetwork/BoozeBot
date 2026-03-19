@@ -97,7 +97,7 @@ class MimicSteve(commands.Cog):
     ):
         logger.info(
             f"User {interaction.user.name} is sending the message {message} as PirateSteve "
-            + f"in: {send_channel if send_channel else reply_message.channel}."
+            + f"in: {send_channel or reply_message.channel}."
         )
         steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
         try:
