@@ -130,7 +130,7 @@ class Unloading(commands.Cog):
 
                         wine_carrier_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
                         await wine_carrier_channel.send(
-                            f"<@{carrier_data.owner.discord_id}> "
+                            f"{carrier_data.owner.mention} "
                             + f"Your unload for {carrier_data.carrier_name} ({carrier_data.carrier_identifier}) "
                             + "has been marked completed. Please check, then run the following command to close it "
                             + "if it is correct.\n"
