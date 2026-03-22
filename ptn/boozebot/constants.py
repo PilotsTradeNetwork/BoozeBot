@@ -106,6 +106,20 @@ ping_response_messages = [
     "https://tenor.com/view/hello-sexy-hi-hello-mr-bean-gif-13830351",
     "https://tenor.com/view/hello-whale-there-hi-gif-5551502",
     "https://tenor.com/view/funny-animals-gif-13669907",
+    "https://tenor.com/view/penguin-pirate-edit-walk-silly-gif-5875569",
+    "https://tenor.com/view/pingu-blanket-penguin-bed-head-gif-23669642",
+    "https://tenor.com/view/gjirlfriend-gif-16348084597044947976",
+    "https://tenor.com/view/noot-noot-gif-15728845409223101138",
+    "https://tenor.com/view/pingu-work-out-treadmill-tired-gif-15084400638827902947",
+    "https://tenor.com/view/pingu-gif-18647407",
+    "https://tenor.com/view/spank-gif-9869354233087747673",
+    "https://tenor.com/view/pinguim-fofo-gif-10217631483581146007",
+    "https://tenor.com/view/penguin-of-madagascar-gif-21075436",
+    "https://tenor.com/view/alan-tudyk-garr-dodge-ball-pirate-gif-9492100",
+    "https://tenor.com/view/you-didnt-see-anything-see-anything-ghosting-funny-penguin-gif-7879961728026425948",
+    "https://tenor.com/view/penguin-gif-5264604870865972494",
+    "https://tenor.com/view/club-penguin-clean-fast-gif-652211122523426052",
+    "https://tenor.com/view/penguin-gif-13384547",
 ]
 
 holiday_start_gif = "https://tenor.com/view/jim-carrey-ace-ventura-driving-its-show-time-cool-gif-12905775"
@@ -160,7 +174,12 @@ holiday_query_not_started_gifs = [
     "https://tenor.com/view/library-books-what-time-is-it-you-are-late-waiting-gif-14235077",
     "https://tenor.com/view/dogs-no-wine-pets-boss-dog-youre-cut-off-gif-11385245",
     "https://tenor.com/view/nope-no-starwars-obiwan-gif-16946630",
+    "https://tenor.com/view/shaking-my-head-continent7-antarctica-world-penguin-day-shaking-it-off-gif-16376866493240626843",
+    "https://tenor.com/view/head-shaking-world-penguin-day-penguinpalooza-no-nope-gif-21626139",
+    "https://tenor.com/view/animals-cute-penguin-i-want-a-kiss-nope-gif-17336939",
+    "https://tenor.com/view/pingu-shrug-penguin-shakes-head-shaking-head-gif-15014373",
 ]
+
 holiday_query_started_gifs = [
     "https://tenor.com/view/the-lion-king-it-is-time-throwing-monkey-elephants-gif-17842868",
     "https://tenor.com/view/baby-scream-yeah-hockey-kid-angry-gif-11733200",
@@ -174,7 +193,6 @@ holiday_query_started_gifs = [
     "https://tenor.com/view/lord-of-the-rings-lotr-so-it-begins-begins-beginning-gif-5322326",
     "https://tenor.com/view/yes-dog-indeed-nod-gif-10818519",
     "https://tenor.com/view/ron-pearlman-the-goon-yes-yep-anchorman-gif-12449331",
-    "https://tenor.com/view/monkey-ape-dance-dancing-orangutan-gif-15714845",
     "https://tenor.com/view/clapping-applause-clap-yes-yeah-gif-16616022",
     "https://tenor.com/view/hell-yeah-snoop-dogg-dance-moves-gif-17527488",
     "https://tenor.com/view/baby-dancing-oh-yeah-hell-yeah-dance-gif-17100703",
@@ -198,6 +216,19 @@ holiday_query_started_gifs = [
     "https://tenor.com/view/money-donald-duck-cash-counting-gif-7263498",
     "https://tenor.com/view/penguin-cute-hurry-up-on-gif-14010967",
     "https://tenor.com/view/the-office-stanley-hudson-leslie-david-baker-run-away-run-gif-4424450",
+    "https://tenor.com/view/penguin-nodding-yes-happy-gif-5360179",
+    "https://tenor.com/view/penguin-nodding-gif-25345259",
+    "https://tenor.com/view/penguin-baby-nodding-yeah-yes-gif-17106698",
+    "https://tenor.com/view/thumbs-up-bt7274-titanfall-gif-14796563",
+    "https://tenor.com/view/kaboom-rico-yes-rico-kaboom-gif-24767016",
+]
+
+unload_opened_gifs = [
+    "https://tenor.com/view/finding-nemo-finding-nemo-ptn-pilots-trade-network-gif-27361285",
+    "https://pilotstradenetwork.com/wp-content/uploads/2026/03/yes_wine_2_big.gif",
+    "https://pilotstradenetwork.com/wp-content/uploads/2026/03/winecarriergif.gif",
+    "https://pilotstradenetwork.com/wp-content/uploads/2026/03/20250107_104040.gif",
+    "https://pilotstradenetwork.com/wp-content/uploads/2026/03/PTN_BC.gif",
 ]
 
 error_gifs = [
@@ -205,6 +236,7 @@ error_gifs = [
     "https://media.tenor.com/M1rOzWS3NsQAAAAC/nothingtosee-disperse.gif",  # naked gun
     "https://media.tenor.com/oSASxe-6GesAAAAC/spongebob-patrick.gif",  # spongebob
     "https://media.tenor.com/u-1jz7ttHhEAAAAC/angry-panda-rage.gif",  # panda smash
+    "https://tenor.com/view/oof-yikes-pingu-penguin-error-gif-17513670",
 ]
 
 too_slow_gifs = [
