@@ -21,6 +21,7 @@ class ConfirmView(OwnedView):
         super().__init__(author=author)
         self.value: bool | None = None
 
+    @override
     async def interaction_check(
         self, interaction: discord.Interaction
     ):  # only allow original command user to interact with buttons
@@ -62,7 +63,7 @@ class DynamicButton(
     ui.DynamicItem[ui.Button[ui.View]],
     template=r"steve:user:(?P<user_id>[0-9]+):message:(?P<message_id>[0-9]+):action:(?P<action>[a-z]+)",
 ):
-    def __init__(self, label, action: str, user_id: int, message_id: int) -> None:
+    def __init__(self, label: str, action: str, user_id: int, message_id: int) -> None:
         logger.debug(
             f"Creating DynamicButton: label={label}, action={action}, user_id={user_id}, message_id={message_id}"
         )

@@ -1,6 +1,6 @@
+# pyright: reportPrivateUsage=false
 """
 Constants used throughout BoozeBot.
-
 """
 
 import datetime
