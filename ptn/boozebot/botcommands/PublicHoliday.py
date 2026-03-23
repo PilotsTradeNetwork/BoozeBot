@@ -223,7 +223,7 @@ class PublicHoliday(commands.Cog):
         logger.info(f"User {interaction.user.name} requested to override the start time to: {timestamp}.")
 
         try:
-            timestamp = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
+            dt_timestamp = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
         except ValueError:
             logger.exception("Invalid timestamp format provided.")
             await interaction.response.send_message(
@@ -238,11 +238,11 @@ class PublicHoliday(commands.Cog):
         if holiday_ongoing:
             logger.info("Holiday is ongoing, updating the timestamp.")
 
-            await booze_sheets_api.update_cruise_start(timestamp)
+            await booze_sheets_api.update_cruise_start(dt_timestamp)
 
             logger.debug("Database updated with new timestamp.")
             await interaction.response.send_message(
-                f"Set the cruise start time to: {timestamp}. Check with /booze_duration_remaining."
+                f"Set the cruise start time to: {dt_timestamp}. Check with /booze_duration_remaining."
             )
 
         else:

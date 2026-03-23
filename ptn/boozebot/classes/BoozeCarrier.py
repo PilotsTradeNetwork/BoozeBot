@@ -10,11 +10,11 @@ logger = get_logger("boozebot.classes.boozecarrier")
 
 
 class CarrierOwner:
-    display_name: str | None
+    display_name: str
     discord_id: int
     is_role: bool
-    mention: str | None
-    username: str | None
+    mention: str
+    username: str
     scopes: list[str]
 
     def __init__(self, info_dict: dict[str, Any]):
@@ -29,19 +29,18 @@ class CarrierOwner:
         self.username = info_dict.get("username")
         self.display_name = info_dict.get("displayName")
         discord_id = info_dict.get("discordId")
-        if discord_id:
-            if discord_id.startswith("&"):
-                self.discord_id = int(discord_id[1:])
-                self.is_role = True
-                self.mention = f"<@&{self.discord_id}>"
-            else:
-                self.discord_id = int(discord_id)
-                self.is_role = False
-                self.mention = f"<@{self.discord_id}>"
+
+        if not discord_id or not self.username or not self.display_name:
+            raise ValueError("Missing required carrier owner information: 'discordId', 'username', and 'displayName' must be present in the API response.")
+
+        if discord_id.startswith("&"):
+            self.discord_id = int(discord_id[1:])
+            self.is_role = True
+            self.mention = f"<@&{self.discord_id}>"
         else:
-            self.discord_id = 0
+            self.discord_id = int(discord_id)
             self.is_role = False
-            self.mention = None
+            self.mention = f"<@{self.discord_id}>"
 
         self.scopes = info_dict.get("scopes", [])
 
@@ -91,8 +90,8 @@ class BoozeCarrier:
     cruise_id: int
     owner: CarrierOwner
     queue_timestamp: datetime | None
-    carrier_name: str | None
-    carrier_identifier: str | None
+    carrier_name: str
+    carrier_identifier: str
     system: str | None
     body: str | None
     staff_comment: str | None
@@ -129,6 +128,9 @@ class BoozeCarrier:
         self.queue_timestamp = sane_default_datetime(fc_data.get("queueTs", None))
         self.staff_comment = fc_data.get("staffComment", None)
 
+        if not self.carrier_name or not self.carrier_identifier:
+            raise ValueError("Missing required carrier information: 'fcName' and 'fcCallsign' must be present in the API response.")
+
         # Owner data
         self.owner = CarrierOwner(fc_data.get("owner", {}))
 
@@ -139,9 +141,17 @@ class BoozeCarrier:
             self.signup_info = None
 
         # Trip data
-        self.cruise_id = int(info_dict.get("cruiseId", 0))
-        self.trip_id = int(info_dict.get("tripId", 0))
-        self.wine_total = int(info_dict.get("wineTotal", 0))
+        cruise_id = info_dict.get("cruiseId")
+        trip_id = info_dict.get("tripId")
+        wine_total = info_dict.get("wineTotal")
+
+        if cruise_id is None or trip_id is None or wine_total is None:
+            raise ValueError("Missing required carrier information: 'cruiseId', 'tripId', and 'wineTotal' must be present in the API response.")
+
+        self.cruise_id = int(cruise_id)
+        self.trip_id = int(trip_id)
+        self.wine_total = int(wine_total)
+
         self.wine_status = info_dict.get("wineStatus")
         self.status = info_dict.get("status")
         self.availability_start = sane_default_datetime(info_dict.get("availabilityStart"))

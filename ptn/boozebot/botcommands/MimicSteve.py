@@ -1,4 +1,4 @@
-from typing import override
+from typing import cast, override
 
 import discord
 from discord import app_commands
@@ -81,7 +81,7 @@ class MimicSteve(commands.Cog):
 
         if not send_channel:
             logger.debug("No send_channel provided, using the interaction channel.")
-            send_channel = interaction.channel
+            send_channel = cast("discord.TextChannel", interaction.channel)
 
         logger.debug(f"Sending message as PirateSteve in channel: {send_channel}.")
 
@@ -102,7 +102,7 @@ class MimicSteve(commands.Cog):
         steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
         try:
             if reply_message:
-                send_channel = reply_message.channel
+                send_channel = cast("discord.TextChannel", reply_message.channel)
                 msg = await reply_message.reply(content=message)
                 logger.debug("Sent reply message as PirateSteve.")
             elif send_channel:

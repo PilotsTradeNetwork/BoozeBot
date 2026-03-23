@@ -233,7 +233,15 @@ class MakeWineCarrier(commands.Cog):
             logger.debug(f"Wine Carrier role name is {wc_role.name}")
 
             # Refetch the user from the interaction inside the lock
-            user = await bot.get_or_fetch.member(user.id)
+            refetched_user = await bot.get_or_fetch.member(user.id)
+            if not refetched_user:
+                logger.error(f"Could not refetch user with ID {user.id} to remove Wine Carrier role")
+                await interaction.edit_original_response(
+                    content=f"Could not find user with ID {user.id} to remove {wc_role.name} role."
+                )
+                return
+
+            user = refetched_user
 
             logger.debug(f"Refetched user: {user}")
 
