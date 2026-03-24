@@ -14,6 +14,7 @@ from discord import Interaction, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
+from discord.ext.subcommands import subcommand
 from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
@@ -40,14 +41,6 @@ from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import DynamicButton
 
-"""
-UNLOADING COMMANDS
-/wine_helper_market_open - wine carrier/conn/somm/mod/admin
-/wine_helper_market_closed - wine carrier/conn/somm/mod/admin
-/wine_unload  - wine carrier/conn/somm/mod/admin
-/wine_unload_complete  - wine carrier/wine conn/somm/mod/admin
-"""
-
 logger = get_logger("boozebot.commands.unloading")
 
 
@@ -72,6 +65,31 @@ class UnloadCompleteResult:
 
 # initialise the Cog and attach our global error handler
 class Unloading(commands.Cog):
+    """
+    LISTENERS
+    - on_ready
+        - Starts the last unload time loop
+    - on_raw_reaction_add
+        - Listens for reactions in the unloading channel to track FC complete reactions and notify the owner if there are 5.
+
+    TASKS
+    - last_unload_time_loop
+        - runs every 60 seconds, checks if the last unload time was more than 20 minutes ago and sends a reminder message to the RSTC channel.
+
+    COMMANDS
+
+    - /wine_carrier unload post (council/somm/conn/wine carrier)
+        - Posts a new unload notice for a carrier.
+    - /wine_carrier unload post_timed (council/somm/conn/wine carrier)
+        - Posts a new timed unload notice for a carrier.
+    - /wine_carrier unload complete (council/somm/conn/wine carrier)
+        - Removes any trade channel notification for unloading wine.
+    - /booze_admin unload toggle_timed (council/mod/somm)
+        - Toggle timed unloads on or off.
+    - /booze_admin unload set_timed_hold_duration (council/mod/somm)
+        - Set the hold duration for timed unloads in minutes.
+    """
+
     bot: Bot
     reaction_lock: Lock
     unload_lock: Lock
@@ -587,8 +605,9 @@ class Unloading(commands.Cog):
             logger.exception(f"Failed to process close unload command: {e}")
             await interaction.edit_original_response(content=f"An error occurred while trying to close the unload: {e}")
 
+    @subcommand("wine_carrier unload")
     @app_commands.command(
-        name="wine_helper_market_open", description="Creates a new unloading helper operation in this channel."
+        name="helper_market_open", description="Creates a new unloading helper operation in this channel."
     )
     @check_roles(
         [
@@ -621,8 +640,9 @@ class Unloading(commands.Cog):
         await message.add_reaction(f"<:Assassin:{EMOJI_ASSASSIN!s}>")
         await message.add_reaction("🍷")
 
+    @subcommand("wine_carrier unload")
     @app_commands.command(
-        name="wine_helper_market_closed",
+        name="helper_market_closed",
         description="Sends a message to indicate you have closed your market. Command sent in active channel.",
     )
     @check_roles(
@@ -653,8 +673,9 @@ class Unloading(commands.Cog):
     carrier unload commands
     """
 
+    @subcommand("wine_carrier unload")
     @app_commands.command(
-        name="wine_unload",
+        name="post",
         description="Posts a new unload notice for a carrier. Admin/Sommelier/WineCarrier role required.",
     )
     @describe(
@@ -740,8 +761,9 @@ class Unloading(commands.Cog):
             + "processed successfully."
         )
 
+    @subcommand("wine_carrier unload")
     @app_commands.command(
-        name="wine_timed_unload",
+        name="post_timed",
         description="Posts a new timed unload notice for a carrier. Admin/Sommelier/WineCarrier role required.",
     )
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
@@ -832,8 +854,9 @@ class Unloading(commands.Cog):
             + f"Open the market at {result.open_time_str} (In game time)."
         )
 
+    @subcommand("wine_carrier unload")
     @app_commands.command(
-        name="wine_unload_complete",
+        name="complete",
         description="Removes any trade channel notification for unloading wine. Somm/Conn/Wine Carrier role required.",
     )
     @describe(carrier_id="the XXX-XXX ID string for the carrier")
@@ -906,7 +929,8 @@ class Unloading(commands.Cog):
             content=f"<@&{ROLE_CONN}> {response}", allowed_mentions=allowed_mentions
         )
 
-    @app_commands.command(name="toggle_timed_unloads", description="Toggle the status of timed unloads.")
+    @subcommand("booze_admin unload")
+    @app_commands.command(name="toggle_timed", description="Toggle the status of timed unloads.")
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])
     async def toggle_timed_unloads(self, interaction: discord.Interaction):
         """
@@ -928,8 +952,9 @@ class Unloading(commands.Cog):
         logger.info(f"Timed unloads are now '{new_status}'.")
         await interaction.edit_original_response(content=f"Timed unloads are now '{new_status}'.")
 
+    @subcommand("booze_admin unload")
     @app_commands.command(
-        name="set_timed_unload_hold_duration", description="Set the hold duration for timed unloads in minutes."
+        name="set_timed_hold_duration", description="Set the hold duration for timed unloads in minutes."
     )
     @describe(duration_minutes="Duration in minutes to hold the timed unload market before it is opened.")
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])

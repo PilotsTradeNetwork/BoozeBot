@@ -12,6 +12,7 @@ from discord import DiscordException, Embed, Interaction, Member, app_commands
 from discord.app_commands import ContextMenu, describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
+from discord.ext.subcommands import subcommand
 from discord.ui import View
 from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
@@ -45,19 +46,39 @@ from ptn.boozebot.modules.Views import DynamicButton
 if TYPE_CHECKING:
     from discord.abc import GuildChannel
 
-"""
-MAKE WINE CARRIER COMMANDS
-
-Member context menu: make_wine_carrier - conn/somm/mod/admin
-/make_wine_carrier - conn/somm/mod/admin
-/remove_wine_carrier - somm/mod/admin
-"""
-
 logger = get_logger("boozebot.commands.makewinecarrier")
 
 
 # initialise the Cog
 class MakeWineCarrier(commands.Cog):
+    """
+    LISTENERS
+    - on_ready
+      - Starts the periodic signup check loop
+    - on_member_update
+        - Listens for name, nickname and pfp changes to trigger booze sheets API data refresh for wine carriers.
+    - on_dynamic_button_makewinecarrier
+        - Handle dynamic button click for making a wine carrier.
+    - on_boozesheets_signup
+        - Listen for new signups from the booze sheets API and alert in steve-says.
+
+    TASKS
+    - booze_tracker_signup_check
+        - Periodically check for new booze tracker signups and alert in steve-says.
+
+    COMMANDS
+    - /wine_staff roles make_wine_carrier (council/mod/somm/conn)
+        - Give user the Wine Carrier role.
+    - /booze_admin roles remove_wine_carrier (council/mod/somm)
+        - Removes the Wine Carrier role from a user.
+    - /booze_admin roles toggle_ptnrpphtms (council/mod/somm)
+        - Admin command to toggle the ptnrpphtms role for a user.
+
+    CONTEXT MENU
+    - Make Wine Carrier (council/mod/somm/conn)
+        - Give user the Wine Carrier role.
+    """
+
     ctx_menu: ContextMenu
     bot: Bot
     wine_carrier_toggle_lock: Lock
@@ -198,6 +219,7 @@ class MakeWineCarrier(commands.Cog):
         )
         await self._make_user_wine_carrier(interaction, user)
 
+    @subcommand("wine_staff roles")
     @app_commands.command(
         name="make_wine_carrier",
         description="Give user the Wine Carrier role. Admin/Sommelier/Connoisseur role required.",
@@ -206,11 +228,12 @@ class MakeWineCarrier(commands.Cog):
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM, ROLE_CONN])
     async def make_wine_carrier(self, interaction: Interaction, user: Member):
         logger.info(
-            f"make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to set the Wine Carrier role"
+            f"booze_make_wine_carrier called by {interaction.user.name} in {interaction.channel.name} for {user} to set the Wine Carrier role"
         )
 
         await self._make_user_wine_carrier(interaction, user)
 
+    @subcommand("booze_admin roles")
     @app_commands.command(
         name="remove_wine_carrier",
         description="Removes the Wine Carrier role from a user. Admin/Sommelier/Connoisseur role required.",
@@ -348,8 +371,9 @@ class MakeWineCarrier(commands.Cog):
                 logger.exception(f"Failed adding role {wc_role.name} to {user}: {e}")
                 await interaction.edit_original_response(content=f"Failed adding role {wc_role.name} to {user}: {e}")
 
+    @subcommand("booze_admin roles")
     @app_commands.command(
-        name="booze_admin_toggle_ptnrpphtms", description="Admin command to toggle the ptnrpphtms role for a user."
+        name="toggle_ptnrpphtms", description="Admin command to toggle the ptnrpphtms role for a user."
     )
     @describe(user="The user to toggle the role for.")
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])

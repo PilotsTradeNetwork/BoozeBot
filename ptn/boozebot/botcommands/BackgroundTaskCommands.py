@@ -5,6 +5,7 @@ from discord import app_commands
 from discord.app_commands import Choice, describe
 from discord.ext import commands
 from discord.ext.commands import Bot
+from discord.ext.subcommands import subcommand
 from ptn_utils.global_constants import CHANNEL_BC_STEVE_SAYS, ROLE_SOMM, any_council_role, any_moderation_role
 from ptn_utils.logger.logger import get_logger
 
@@ -16,6 +17,22 @@ logger = get_logger("boozebot.commands.background")
 
 
 class BackgroundTaskCommands(commands.Cog):
+    """
+    LISTENERS
+    - on_ready
+      - Starts the BoozeSheets websocket listener
+
+    COMMANDS
+    - /booze_admin task start (council/mod/somm)
+        - Starts a background task.
+    - /booze_admin task stop (council/mod/somm)
+        - Stops a background task.
+    - /booze_admin task status (council/mod/somm)
+        - Gets the status of a background task.
+    - /booze_admin task websocket_status (council/mod/somm)
+        - Gets the status of the BoozeSheets API websocket connection.
+    """
+
     websocket_started: bool
     bot: Bot
     task_choices: Final[list[Choice[str]]] = [
@@ -41,13 +58,14 @@ class BackgroundTaskCommands(commands.Cog):
             except Exception as e:
                 logger.exception(f"Failed to start websocket listener: {e}")
 
-    @app_commands.command(name="start_task", description="Starts a background task.")
+    @subcommand("booze_admin task")
+    @app_commands.command(name="start", description="Starts a background task.")
     @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
     @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     @describe(task_name="The name of the task to start.")
     @app_commands.choices(task_name=task_choices)
     async def start_task(self, interaction: discord.Interaction, task_name: str):
-        logger.info(f"start_task command called by {interaction.user} for task {task_name}")
+        logger.info(f"booze_admin_task start command called by {interaction.user} for task {task_name}")
 
         task = self.get_task(task_name)
         if task:
@@ -64,13 +82,14 @@ class BackgroundTaskCommands(commands.Cog):
             logger.error(f"Task {task_name} not found.")
             await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)
 
-    @app_commands.command(name="stop_task", description="Stops a background task.")
+    @subcommand("booze_admin task")
+    @app_commands.command(name="stop", description="Stops a background task.")
     @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
     @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     @describe(task_name="The name of the task to stop.")
     @app_commands.choices(task_name=task_choices)
     async def stop_task(self, interaction: discord.Interaction, task_name: str):
-        logger.info(f"stop_task command called by {interaction.user} for task {task_name}")
+        logger.info(f"booze_admin_task stop command called by {interaction.user} for task {task_name}")
 
         task = self.get_task(task_name)
         if task:
@@ -87,13 +106,14 @@ class BackgroundTaskCommands(commands.Cog):
             logger.error(f"Task {task_name} not found.")
             await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)
 
-    @app_commands.command(name="task_status", description="Gets the status of a background task.")
+    @subcommand("booze_admin task")
+    @app_commands.command(name="status", description="Gets the status of a background task.")
     @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
     @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     @describe(task_name="The name of the task to check.")
     @app_commands.choices(task_name=task_choices)
     async def task_status(self, interaction: discord.Interaction, task_name: str):
-        logger.info(f"task_status command called by {interaction.user} for task {task_name}")
+        logger.info(f"booze_admin_task status command called by {interaction.user} for task {task_name}")
 
         task = self.get_task(task_name)
 
@@ -134,13 +154,15 @@ class BackgroundTaskCommands(commands.Cog):
         logger.debug(f"Retrieving task {task_name} from available tasks: {list(tasks.keys())}")
         return tasks.get(task_name)
 
+    @subcommand("booze_admin task")
     @app_commands.command(
-        name="get_websocket_status", description="Gets the status of the BoozeSheets API websocket connection."
+        name="websocket_status",
+        description="Gets the status of the BoozeSheets API websocket connection.",
     )
     @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
     @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     async def get_websocket_status(self, interaction: discord.Interaction):
-        logger.info(f"/get_websocket_status command called by {interaction.user}")
+        logger.info(f"booze_admin_task websocket_status command called by {interaction.user}")
 
         ws_status, last_message_time = booze_sheets_api.get_websocket_status()
         logger.debug(f"BoozeSheets API websocket status: {ws_status}")

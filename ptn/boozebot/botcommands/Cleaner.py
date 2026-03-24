@@ -9,6 +9,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ext.commands import Bot
+from discord.ext.subcommands import subcommand
 from ptn_utils.global_constants import (
     CHANNEL_BC_PUBLIC,
     CHANNEL_BC_STEVE_SAYS,
@@ -32,18 +33,6 @@ from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView
 
-"""
-CLEANER COMMANDS
-
-/booze_channels_open - somm/mod/admin
-/booze_channels_close - somm/mod/admin
-/clear_booze_roles - somm/mod/admin
-/set_wine_carrier_welcome - somm/mod/admin
-
-/open_wine_carrier_feedback - somm/mod/admin
-/close_wine_carrier_feedback - somm/mod/admin
-"""
-
 logger = get_logger("boozebot.commands.cleaner")
 
 
@@ -63,6 +52,24 @@ async def _mass_remove_role(interaction: discord.Interaction, role: discord.Role
 
 
 class Cleaner(commands.Cog):
+    """
+    COMMANDS
+    - /booze_admin cleaner channels_open (council/mod/somm)
+        - Opens the Booze Cruise channels to the public.
+    - /booze_admin cleaner channels_close (council/mod/somm)
+        - Closes the Booze Cruise channels to the public.
+    - /booze_admin cleaner clear_roles (council/mod/somm)
+        - Removes all WC/Hitchhiker users.
+    - /booze_admin cleaner update_blurb_message (council/mod/somm)
+        - Update a blurb message (WCO welcome or status).
+    - /booze_admin cleaner update_bc_status (council/mod/somm)
+        - Updates the booze-cruise-status embed.
+    - /booze_admin cleaner open_carrier_feedback (council/mod/somm)
+        - Opens the Wine Carrier feedback channel.
+    - /booze_admin cleaner close_carrier_feedback (council/mod/somm)
+        - Closes the Wine Carrier feedback channel.
+    """
+
     bot: Bot
 
     def __init__(self, bot: commands.Bot):
@@ -89,7 +96,8 @@ class Cleaner(commands.Cog):
     This class handles role and channel cleanup after a cruise, as well as opening channels in preparation for a cruise.
     """
 
-    @app_commands.command(name="booze_channels_open", description="Opens the Booze Cruise channels to the public.")
+    @subcommand("booze_admin cleaner")
+    @app_commands.command(name="channels_open", description="Opens the Booze Cruise channels to the public.")
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def booze_channels_open(self, interaction: discord.Interaction):
@@ -159,7 +167,8 @@ class Cleaner(commands.Cog):
                 content="**Waiting for user response - timed out**", embed=None, view=None
             )
 
-    @app_commands.command(name="booze_channels_close", description="Closes the Booze Cruise channels to the public.")
+    @subcommand("booze_admin cleaner")
+    @app_commands.command(name="channels_close", description="Closes the Booze Cruise channels to the public.")
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def booze_channels_close(self, interaction: discord.Interaction):
@@ -227,8 +236,9 @@ class Cleaner(commands.Cog):
                 content="**Waiting for user response - timed out**", embed=None, view=None
             )
 
+    @subcommand("booze_admin cleaner")
     @app_commands.command(
-        name="clear_booze_roles",
+        name="clear_roles",
         description="Removes all WC/Hitchhiker users. Requires Admin/Mod/Sommelier - Use with caution.",
     )
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
@@ -295,8 +305,9 @@ class Cleaner(commands.Cog):
                 content="**Waiting for user response - timed out**", embed=None, view=None
             )
 
+    @subcommand("booze_admin cleaner")
     @app_commands.command(
-        name="booze_update_blurb_message", description="Update a blurb message (WCO welcome or announcement)."
+        name="update_blurb_message", description="Update a blurb message (WCO welcome or announcement)."
     )
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
@@ -353,7 +364,8 @@ class Cleaner(commands.Cog):
             await interaction.edit_original_response(content=f"New {blurb} message set:", embed=embed)
             await message.delete()
 
-    @app_commands.command(name="open_wine_carrier_feedback", description="Opens the Wine Carrier feedback channel.")
+    @subcommand("booze_admin cleaner")
+    @app_commands.command(name="open_carrier_feedback", description="Opens the Wine Carrier feedback channel.")
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def open_wine_carrier_feedback(self, interaction: discord.Interaction):
@@ -370,7 +382,8 @@ class Cleaner(commands.Cog):
         logger.info("Wine Carrier feedback channel opened successfully.")
         await interaction.response.send_message("Opened the Wine Carrier feedback channel.", embed=None)
 
-    @app_commands.command(name="close_wine_carrier_feedback", description="Closes the Wine Carrier feedback channel.")
+    @subcommand("booze_admin cleaner")
+    @app_commands.command(name="close_carrier_feedback", description="Closes the Wine Carrier feedback channel.")
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def close_wine_carrier_feedback(self, interaction: discord.Interaction):
@@ -387,7 +400,8 @@ class Cleaner(commands.Cog):
         logger.info("Wine Carrier feedback channel closed successfully.")
         await interaction.response.send_message("Closed the Wine Carrier feedback channel.", embed=None)
 
-    @app_commands.command(name="booze_update_bc_status_embed", description="Updates the booze-cruise-status embed.")
+    @subcommand("booze_admin cleaner")
+    @app_commands.command(name="update_bc_status", description="Updates the booze-cruise-status embed.")
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def update_bc_status_embed(self, interaction: discord.Interaction, status: BC_STATUS):

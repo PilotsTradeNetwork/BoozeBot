@@ -10,6 +10,7 @@ import discord
 from discord import DiscordException, Embed, PermissionOverwrite, app_commands
 from discord.ext import commands
 from discord.ext.commands import Bot
+from discord.ext.subcommands import subcommand
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
     CHANNEL_BC_BOOZE_CRUISE_SIGNUPS,
@@ -38,14 +39,6 @@ from ptn.boozebot.modules.Views import ConfirmView
 if TYPE_CHECKING:
     from discord.abc import GuildChannel
 
-"""
-CLEANER COMMANDS
-
-/booze_admin_cork - council/mod
-/booze_admin_uncork - council/mod
-/booze_admin_list_corked - council/mod
-"""
-
 logger = get_logger("boozebot.commands.corked")
 
 
@@ -64,6 +57,22 @@ def _build_failed_cork_embed(failed_users: list[tuple[int, str]]) -> Embed:
 
 
 class Corked(commands.Cog):
+    """
+    LISTENERS=-
+    - on_ready
+        - Rebuilds corked permissions for all corked users to ensure they are up to date.
+
+    COMMANDS
+    - /booze_admin roles cork (council/mod)
+        - Corks a user from the booze cruise channels.
+    - /booze_admin roles uncork (council/mod)
+        - Uncorks a user from the booze cruise channels.
+    - /booze_admin roles cork_list (council/mod/somm)
+        - Lists all corked users.
+    - /booze_admin roles rebuild_cork_permissions (council/mod)
+        - Rebuilds corked permissions for all corked users.
+    """
+
     bot: Bot
 
     def __init__(self, bot: commands.Bot):
@@ -130,7 +139,8 @@ class Corked(commands.Cog):
         except Exception as e:
             logger.exception(e)
 
-    @app_commands.command(name="booze_admin_cork", description="Cork a user from the booze cruise channels")
+    @subcommand("booze_admin roles")
+    @app_commands.command(name="cork", description="Cork a user from the booze cruise channels")
     @app_commands.describe(user="The user to cork")
     @check_roles([*any_council_role, *any_moderation_role])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
@@ -183,7 +193,8 @@ class Corked(commands.Cog):
             f"User {user.mention} ({user.name}) has been corked from the booze cruise channels."
         )
 
-    @app_commands.command(name="booze_admin_uncork", description="Uncork a user from the booze cruise channels")
+    @subcommand("booze_admin roles")
+    @app_commands.command(name="uncork", description="Uncork a user from the booze cruise channels")
     @app_commands.describe(user="The user to uncork")
     @check_roles([*any_council_role, *any_moderation_role])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
@@ -225,7 +236,8 @@ class Corked(commands.Cog):
             f"User {user.mention} ({user.name}) has been uncorked from the booze cruise channels."
         )
 
-    @app_commands.command(name="booze_admin_list_corked", description="List all corked users")
+    @subcommand("booze_admin roles")
+    @app_commands.command(name="cork_list", description="List all corked users")
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
     async def booze_list_corked(self, interaction: discord.Interaction):
@@ -297,8 +309,9 @@ class Corked(commands.Cog):
 
         return failed_users
 
+    @subcommand("booze_admin roles")
     @app_commands.command(
-        name="booze_admin_rebuild_corked_perms", description="Rebuild corked permissions for all corked users"
+        name="rebuild_cork_permissions", description="Rebuild corked permissions for all corked users"
     )
     @check_roles([*any_council_role, *any_moderation_role])
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])

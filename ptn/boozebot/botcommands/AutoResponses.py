@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ext.commands import Bot
+from discord.ext.subcommands import subcommand
 from discord.ui import TextInput
 from discord.ui.view import BaseView
 from ptn_utils.global_constants import (
@@ -25,19 +26,25 @@ from ptn.boozebot.constants import ping_response_messages
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
-"""
-LISTENERS
-on_message
-- If pinged in #booze-cruise-chat respond
-
-commands
-
-"""
-
 logger = get_logger("boozebot.commands.autoresponses")
 
 
 class AutoResponses(commands.Cog):
+    """
+    LISTENERS
+    - on_message
+      - If autoreponse trigger match, respond
+      - If pinged respond
+
+    COMMANDS
+    - /booze_admin auto_response create (council/mod/somm)
+        - Creates a new auto response with a trigger phrase and response message.
+    - /booze_admin auto_response delete (council/mod/somm)
+        - Deletes an auto response by name.
+    - /booze_admin auto_response list (council/mod/somm)
+        - Lists all the auto responses with buttons to edit them.
+    """
+
     auto_responses: list[AutoResponse]
     text_commands: list[str]
     bot: Bot
@@ -107,7 +114,8 @@ class AutoResponses(commands.Cog):
             reference=message,
         )
 
-    @app_commands.command(name="booze_create_auto_response", description="Create a new auto response")
+    @subcommand("booze_admin auto_response")
+    @app_commands.command(name="create", description="Create a new auto response")
     @app_commands.describe(
         name="Name of the auto response",
         trigger="Trigger phrase for the auto response",
@@ -170,7 +178,8 @@ class AutoResponses(commands.Cog):
         logger.info(f"Auto response '{name}' created successfully.")
         await interaction.edit_original_response(content=f"Auto response '{name}' created successfully.")
 
-    @app_commands.command(name="booze_delete_auto_response", description="Delete an auto response")
+    @subcommand("booze_admin auto_response")
+    @app_commands.command(name="delete", description="Delete an auto response")
     @app_commands.describe(name="Name of the auto response to delete")
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     @check_command_channel(CHANNEL_BC_STEVE_SAYS)
@@ -200,7 +209,8 @@ class AutoResponses(commands.Cog):
 
         await interaction.edit_original_response(content=f"Auto response '{name}' deleted successfully.")
 
-    @app_commands.command(name="booze_list_auto_responses", description="List all auto responses")
+    @subcommand("booze_admin auto_response")
+    @app_commands.command(name="list", description="List all auto responses")
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
     @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     async def list_auto_responses(self, interaction: discord.Interaction):

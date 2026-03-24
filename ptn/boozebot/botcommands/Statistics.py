@@ -12,6 +12,7 @@ from discord import CustomActivity, Embed, Status, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
+from discord.ext.subcommands import subcommand
 from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.global_constants import (
     CHANNEL_BC_STEVE_SAYS,
@@ -38,21 +39,6 @@ from ptn.boozebot.modules.helpers import (
     check_roles,
     track_last_run,
 )
-
-"""
-Statistics COMMANDS
-
-/find_carriers_with_wine - admin/mod/somm/conn/wine carrier
-/find_wine_carrier_by_id - admin/mod/somm/conn/wine carrier
-/booze_tally - admin/mod/somm/conn
-/booze_carrier_summary - admin/mod/somm/conn
-/booze_pin_message - admin/mod/somm
-/booze_unpin_all - admin/mod/somm
-/booze_unpin_message - admin/mod/somm
-/booze_tally_extra_stats - admin/mod/somm/conn
-/biggest_cruise_tally - admin/mod/somm/conn
-/booze_carrier_stats - admin/mod/somm/conn/wine carrier
-"""
 
 logger = get_logger("boozebot.commands.statistics")
 
@@ -127,6 +113,42 @@ StatChoices = Literal[
 
 
 class Statistics(commands.Cog):
+    """
+    LISTENERS
+    - on_ready
+        - Starts the periodic pinned-stat update loop.
+    - on_boozesheets_carrier_created
+        - Posts a new carrier signup announcement in Steve Says.
+
+    TASKS
+    - periodic_stat_update
+        - Refreshes pinned tally embeds and updates bot presence.
+
+    COMMANDS
+    - /wine_carrier find_full_carriers (council/mod/somm/conn/wine carrier)
+        - Shows carriers that still have wine remaining.
+    - /wine_carrier find_by_id (council/mod/somm/conn/wine carrier)
+        - Looks up trip and owner details for a carrier ID.
+    - /wine_staff stats tally (council/mod/somm/conn)
+        - Shows the standard tally for a selected cruise.
+    - /wine_staff stats carrier_summary (council/mod/somm/conn)
+        - Shows summary counts and holiday-time remaining estimate.
+    - /wine_staff stats tally_extra (council/mod/somm/conn)
+        - Shows extended stats for a selected cruise/stat category.
+    - /wine_staff stats biggest_cruise_tally (council/mod/somm/conn)
+        - Shows the largest cruise tally, with optional extended stats.
+    - /wine_staff stats all_time_tally (council/mod/somm/conn)
+        - Shows all-time booze cruise totals.
+    - /booze_admin pin create (council/mod/somm)
+        - Records and pins a tally message for automatic updates.
+    - /booze_admin pin remove_all (council/mod/somm)
+        - Unpins and clears all tracked tally messages.
+    - /booze_admin pin remove (council/mod/somm)
+        - Unpins and removes one tracked tally message.
+    - /wine_carrier all_time_stats (council/mod/somm/conn/wine carrier)
+        - Shows historical stats for a single carrier.
+    """
+
     bot: Bot
 
     def __init__(self, bot: commands.Bot):
@@ -496,8 +518,9 @@ class Statistics(commands.Cog):
 
     """
 
+    @subcommand("wine_carrier")
     @app_commands.command(
-        name="find_carriers_with_wine",
+        name="find_full_carriers",
         description="Returns the carriers in the database that are still flagged as having wine remaining.",
     )
     @check_roles(
@@ -575,8 +598,9 @@ class Statistics(commands.Cog):
         message = await interaction.edit_original_response(view=view)
         view.message = message
 
+    @subcommand("wine_carrier")
     @app_commands.command(
-        name="find_wine_carrier_by_id",
+        name="find_by_id",
         description="Returns the carriers in the database for the ID.",
     )
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
@@ -623,8 +647,9 @@ class Statistics(commands.Cog):
         )
         await interaction.edit_original_response(embed=carrier_embed)
 
+    @subcommand("wine_staff stats")
     @app_commands.command(
-        name="booze_tally",
+        name="tally",
         description="Returns a summary of the stats for the current booze cruise. Restricted to Somms and Connoisseurs.",
     )
     @describe(
@@ -693,8 +718,9 @@ class Statistics(commands.Cog):
             else:
                 logger.debug("No pinned messages to update")
 
+    @subcommand("booze_admin pin")
     @app_commands.command(
-        name="booze_pin_message",
+        name="create",
         description="Pins a steve tally embed for periodic updating. Restricted to Admin and Sommelier's.",
     )
     @describe(message_link="The message link to be pinned")
@@ -753,8 +779,9 @@ class Statistics(commands.Cog):
             content=f"Pirate steve recorded message {message_link} for pinned updating"
         )
 
+    @subcommand("booze_admin pin")
     @app_commands.command(
-        name="booze_unpin_all",
+        name="remove_all",
         description="Unpins all messages for booze stats and updates the DB. Restricted to Admin and Sommelier's.",
     )
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])
@@ -783,8 +810,9 @@ class Statistics(commands.Cog):
         else:
             await interaction.edit_original_response(content="Pirate Steve has no pinned messages to remove.")
 
+    @subcommand("booze_admin pin")
     @app_commands.command(
-        name="booze_unpin_message",
+        name="remove",
         description="Unpins a specific message and removes it from the DB. Restricted to Admin and Sommelier's.",
     )
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])
@@ -823,8 +851,9 @@ class Statistics(commands.Cog):
         logger.info(f"Removed pinned message {message_id} from the database.")
         await interaction.edit_original_response(content=f"Pirate Steve unpinned the message {message_link}.")
 
+    @subcommand("wine_staff stats")
     @app_commands.command(
-        name="booze_tally_extra_stats",
+        name="tally_extra",
         description="Returns an set of extra stats for the wine. Restricted to Admin, Sommeliers, and Connoisseurs.",
     )
     @describe(
@@ -872,8 +901,9 @@ class Statistics(commands.Cog):
         stat_embed = await self.build_extended_stat_embed(cruise, target_date, stat)
         await interaction.edit_original_response(embed=stat_embed)
 
+    @subcommand("wine_staff stats")
     @app_commands.command(
-        name="booze_carrier_summary",
+        name="carrier_summary",
         description="Returns a summary of booze carriers. Restricted to Admin, Sommeliers, and Connoisseurs.",
     )
     @describe(
@@ -930,6 +960,7 @@ class Statistics(commands.Cog):
         )
         await interaction.edit_original_response(embed=stat_embed)
 
+    @subcommand("wine_staff stats")
     @app_commands.command(
         name="biggest_cruise_tally", description="Returns the tally for the cruise with the most wine."
     )
@@ -974,7 +1005,8 @@ class Statistics(commands.Cog):
         # Edit the original interaction response with the stat embed
         await interaction.edit_original_response(embed=stat_embed)
 
-    @app_commands.command(name="booze_carrier_stats", description="Returns the stats for a specific carrier.")
+    @subcommand("wine_carrier")
+    @app_commands.command(name="all_time_stats", description="Returns the stats for a specific carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
     @check_roles(
         [
@@ -1052,8 +1084,9 @@ class Statistics(commands.Cog):
         logger.info(f"Sending stats embed for carrier {carrier_id}.")
         await interaction.edit_original_response(content=None, embed=stat_embed)
 
+    @subcommand("wine_staff stats")
     @app_commands.command(
-        name="booze_all_time_tally",
+        name="all_time_tally",
         description="Returns an all-time tally of the booze cruises. Restricted to Somms and Connoisseurs.",
     )
     @check_roles(

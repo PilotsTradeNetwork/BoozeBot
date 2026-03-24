@@ -13,6 +13,7 @@ from discord import app_commands, ui
 from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
+from discord.ext.subcommands import subcommand
 from ptn_utils.global_constants import (
     CHANNEL_BC_DEPARTURE_ANNOUNCEMENT,
     CHANNEL_BC_STEVE_SAYS,
@@ -41,11 +42,6 @@ from ptn.boozebot.modules.helpers import (
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView, DynamicButton
 
-"""
-DEPARTURE COMMANDS
-/wine_carrier_departure - wine carrier/somm/mod/admin
-"""
-
 logger = get_logger("boozebot.commands.departures")
 
 
@@ -69,6 +65,26 @@ class DepartureCloseResult:
 
 # initialise the Cog and attach our global error handler
 class Departures(commands.Cog):
+    """
+    LISTENERS
+    - on_ready
+        - Checks for any departure messages needing to be closed and starts the departure message checker loop.
+    - on_raw_reaction_add
+        - Checks if the reaction will close the departure message and if so removes it.
+
+    TASKS
+    - check_departure_messages_loop
+        - Checks if any departure messages have passed their departure time and if so reacts to them and pings the user in the WCO chat.
+
+    COMMANDS
+    - /wine_carrier departure post (council/mod/somm/conn/wine carrier)
+        - Posts a departure message for a carrier.
+    - /booze_admin departure set_allowed_departures (council/mod/somm)
+        - Sets what directions departures can be posted for.
+    - /booze_admin departure official (council/mod/somm)
+        - Posts an official departure message for a carrier.
+    """
+
     bot: Bot
     cxt_menu_close_command: app_commands.ContextMenu
 
@@ -437,7 +453,8 @@ class Departures(commands.Cog):
                     f"Failed to process departure message while checking for time passed. {message.id=}. Error: {e}"
                 )
 
-    @app_commands.command(name="wine_carrier_departure", description="Post a departure message for a wine carrier.")
+    @subcommand("wine_carrier departure")
+    @app_commands.command(name="post", description="Post a departure message for a wine carrier.")
     @describe(
         carrier_id="The XXX-XXX ID string for the carrier",
         arrival_location="The location the carrier is arriving at.",
@@ -641,6 +658,7 @@ class Departures(commands.Cog):
         )
         await interaction.edit_original_response(content=f"Departure message removed for carrier {carrier_id}.")
 
+    @subcommand("booze_admin departure")
     @app_commands.command(name="set_allowed_departures", description="Set the status of departure announcements.")
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])
     @describe(status="The status to set for departure announcements.")
@@ -688,7 +706,8 @@ class Departures(commands.Cog):
             if current.lower() in name.lower()
         ][:25]
 
-    @app_commands.command(name="official_carrier_departure", description="Post an official carrier departure message.")
+    @subcommand("booze_admin departure")
+    @app_commands.command(name="official", description="Post an official carrier departure message.")
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])
     @check_command_channel(CHANNEL_BC_STEVE_SAYS)
     @describe(

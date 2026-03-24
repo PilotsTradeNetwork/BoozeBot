@@ -10,7 +10,7 @@ import discord
 from discord import NotFound, app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
-from discord.ext.commands import Bot
+from discord.ext.subcommands import subcommand
 from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
@@ -38,27 +38,29 @@ from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
 from ptn.boozebot.modules.PHcheck import StaleDataException, api_ph_check, ph_check
 
-"""
-PUBLIC HOLIDAY TASK LOOP
-
-Checks every 15 minutes if the PH at rackhams peak is happening and pings somm and updates the db if it is.
-
-
-PUBLIC HOLIDAY COMMANDS
-
-/booze_started - conn/somm/mod/admin
-/booze_started_admin_override - somm/mod/admin
-/booze_duration_remaining - conn/somm/mod/admin
-"""
-
 logger = get_logger("boozebot.commands.publicholiday")
 
 
 class PublicHoliday(commands.Cog):
-    bot: Bot
+    """
+    LISTENERS
+    - on_ready
+        - Starts the PH checker loop
 
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
+    TASKS
+    - public_holiday_loop
+         - Checks if the PH at rackhams peak is happening and pings somm and updates the status on the backend.
+
+    COMMANDS
+    - /booze_admin ph started_override (council/mod/somm)
+        - Overrides the PH state to started or not started.
+    - /booze_admin ph started_timestamp_override (council/mod/somm)
+        - Overrides the PH start timestamp, used to calculate the remaining duration.
+    - /booze_duration_remaining (anyone)
+        - Returns a message with roughly how long the holiday has remaining, based on the start timestamp and the 48 hour duration.
+    - /wine_staff booze_started (council/mod/somm/conn)
+        - Returns a message with a gif for whether the holiday has started or not.
+    """
 
     """
     The public holiday state checker mechanism for booze bot.
@@ -164,7 +166,8 @@ class PublicHoliday(commands.Cog):
         except Exception as e:
             logger.exception(f"Error in the public holiday loop: {e}")
 
-    @app_commands.command(name="booze_started", description="Returns a GIF for whether the holiday has started.")
+    @subcommand("wine_staff ph")
+    @app_commands.command(name="started", description="Returns a GIF for whether the holiday has started.")
     @check_roles([ROLE_CONN, ROLE_SOMM, *any_moderation_role, *any_council_role])
     async def holiday_query(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -193,8 +196,9 @@ class PublicHoliday(commands.Cog):
                     "Pirate Steve could not parse the gif. Try again and tell Council to check the log."
                 )
 
+    @subcommand("booze_admin ph")
     @app_commands.command(
-        name="booze_started_admin_override",
+        name="started_override",
         description="Overrides the holiday admin flag.Used to set the holiday state before the polling API catches it.",
     )
     @check_roles([ROLE_SOMM, *any_moderation_role, *any_council_role])
@@ -214,8 +218,9 @@ class PublicHoliday(commands.Cog):
         logger.info(f"Admin override result: {message}")
         await interaction.response.send_message(f"{message}. Check with /booze_started.")
 
+    @subcommand("booze_admin ph")
     @app_commands.command(
-        name="booze_timestamp_admin_override",
+        name="started_timestamp_override",
         description="Overrides the holiday start time.Used to set the cruise start time used to get the duration",
     )
     @check_roles([ROLE_SOMM, *any_moderation_role, *any_council_role])

@@ -9,29 +9,28 @@ from ptn_utils.logger.logger import get_logger
 from ptn.boozebot._metadata import __version__
 from ptn.boozebot.constants import I_AM_STEVE_GIF, bot
 
-"""
-LISTENERS
-on_ready
-- Logs it and posts message to bot channel
-- Starts PH check loop
-- Starts stat update loop
-- Sets bot activity status
-
-on_disconnect
-- Logs the disconnect
-
-ADMIN COMMANDS
-b/ping - admin
-b/update - admin
-b/exit - admin
-b/version - admin
-b/sync - admin
-"""
-
 logger = get_logger("boozebot.commands.discord")
 
 
 class DiscordBotCommands(commands.Cog):
+    """
+    LISTENERS
+    - on_ready
+        - Logs it and posts message to bot channel
+    - on_disconnect
+        - Logs the disconnect
+
+    COMMANDS
+    - b/ping (council/somm)
+        - Pings the bot to check if it's responsive and shows the version.
+    - b/exit (council)
+        - Stops the bot process.
+    - b/sober_up (council)
+        - Alias for b/exit
+    - b/version (council)
+        - Sends a message with the current version of the bot
+    """
+
     bot: Bot
 
     def __init__(self, bot: commands.Bot):
@@ -39,7 +38,6 @@ class DiscordBotCommands(commands.Cog):
 
     """
     LISTENERS
-
     """
 
     @commands.Cog.listener()

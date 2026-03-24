@@ -5,6 +5,7 @@ from discord import app_commands
 from discord.app_commands import ContextMenu
 from discord.ext import commands
 from discord.ext.commands import Bot
+from discord.ext.subcommands import subcommand
 from discord.ui import TextInput
 from discord.ui.view import BaseView
 from ptn_utils.global_constants import CHANNEL_BC_STEVE_SAYS, ROLE_SOMM, any_council_role, any_moderation_role
@@ -13,15 +14,20 @@ from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.helpers import check_roles
 
-"""
-MIMIC STEVE COMMAND
-/steve_says - somm/mod/admin
-"""
-
 logger = get_logger("boozebot.commands.mimicsteve")
 
 
 class MimicSteve(commands.Cog):
+    """
+    COMMANDS
+    - /steve_says (council/mod/somm)
+        - Sends a message as PirateSteve in a specified channel or the channel the command was run in.
+
+    CONTEXT MENU
+    - Reply as Steve (council/mod/somm)
+        - Replies to a message as the bot from a modal input.
+    """
+
     ctx_menu: ContextMenu
     bot: Bot
 
@@ -56,6 +62,7 @@ class MimicSteve(commands.Cog):
     This class implements functionality for a user to send commands as PirateSteve
     """
 
+    @subcommand("booze_admin")
     @app_commands.command(name="steve_says", description="Send a message as PirateSteve.")
     @app_commands.describe(
         message="The message to send",
