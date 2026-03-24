@@ -985,12 +985,13 @@ class Statistics(commands.Cog):
             ROLE_WINE_CARRIER,
         ]
     )
-    async def carrier_stats(self, interaction: discord.Interaction, carrier_id: str):
+    async def carrier_stats(self, interaction: discord.Interaction, carrier_id: str, include_not_unloaded: bool | None):
         """
         Returns the stats for a specific carrier.
 
         :param discord.Interaction interaction: The discord interaction context.
         :param str carrier_id: he XXX-XXX carrier ID.
+        :param bool include_not_unloaded: If we should include trips that did not unload yet in the stats.
         :returns: None
         """
 
@@ -1001,7 +1002,7 @@ class Statistics(commands.Cog):
 
         logger.debug("Fetching historical data for carrier stats.")
 
-        carrier_stats = await booze_sheets_api.get_carrier_stats(carrier_id)
+        carrier_stats = await booze_sheets_api.get_carrier_stats(carrier_id, include_not_unloaded=include_not_unloaded)
 
         if not carrier_stats:
             logger.warning(f"Carrier with ID {carrier_id} not found in the database.")

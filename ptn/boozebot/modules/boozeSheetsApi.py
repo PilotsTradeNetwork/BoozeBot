@@ -466,7 +466,7 @@ class BoozeSheetsApi:
 
         return BoozeCarrier(trip_data)
 
-    async def get_carrier_stats(self, carrier_id: str) -> CarrierStats | None:
+    async def get_carrier_stats(self, carrier_id: str, include_not_unloaded: bool | None = None) -> CarrierStats | None:
         """
         Retrieves stats for a specific carrier.
 
@@ -477,9 +477,11 @@ class BoozeSheetsApi:
         logger.debug(f"Getting carrier stats for carrier_id={carrier_id}")
         endpoint = f"/carriers/by-callsign/{carrier_id}/stats"
 
+        data = {"include_not_unloaded": include_not_unloaded} if include_not_unloaded is not None else {}
+
         logger.debug(f"Sending GET request to {endpoint}")
         try:
-            stats_data = await self._request("GET", endpoint)
+            stats_data = await self._request("GET", endpoint, data, PayloadType.QUERY)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.warning(f"Carrier stats not found for carrier_id={carrier_id}")
