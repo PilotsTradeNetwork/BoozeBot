@@ -100,7 +100,7 @@ class Corked(commands.Cog):
             logger.debug(f"Member joined: {member.display_name} ({member.name}/{member.id})")
             if await database.is_user_corked(member.id):
                 logger.info(f"Found Corked user joining the server: {member.display_name} ({member.name}/{member.id})")
-                steve_says = cast("GuildChannel", await bot.get_or_fetch_channel(CHANNEL_BC_STEVE_SAYS))
+                steve_says = cast("GuildChannel", await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS))
                 corked_users = await database.get_corked_users()
                 description = f"YARRRRRR mateys, Pirate Steve spies a bilge rat sneaking into the server! {member.mention} ({member.name}). Rebuilding corked permissions."
                 get_recorked_img_path = Path(DATA_DIR, "resources", "getrecorked.png")

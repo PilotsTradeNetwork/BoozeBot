@@ -58,9 +58,9 @@ class Departures(commands.Cog):
     This class is a collection functionality for posting departure messages for carriers.
     """
 
-    system_choices: Final[list[Choice[str]]] = (
+    system_choices: Final[list[Choice[str]]] = [
         Choice(name=f"{system_id} ({system_name})", value=system_id) for system_id, system_name in N_SYSTEMS.items()
-    )
+    ]
 
     # On ready check for any completed departure messages and remove them.
     @commands.Cog.listener()

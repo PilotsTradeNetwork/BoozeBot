@@ -160,7 +160,7 @@ class MakeWineCarrier(commands.Cog):
 
         logger.debug(f"Alerting new signup for user {owner_id} with status {status} and notes {notes}")
 
-        steve_says = cast("GuildChannel", await bot.get_or_fetch_channel(CHANNEL_BC_STEVE_SAYS))
+        steve_says = cast("GuildChannel", await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS))
 
         owner = await bot.get_or_fetch.member(owner_id)
         if not owner:
