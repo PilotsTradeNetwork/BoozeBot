@@ -168,7 +168,9 @@ class MakeWineCarrier(commands.Cog):
             await steve_says.send(f"Could not find user with ID {owner_id} for new signup alert.")
             return
 
-        description = f"User <@{owner_id}> ({owner.name}) has signed up."
+        already_wco = bool({r.id for r in owner.roles} & {ROLE_WINE_CARRIER})
+
+        description = f"User <@{owner_id}> ({owner.name}) has signed up{f" but already has the <@&{ROLE_WINE_CARRIER}> role" if already_wco else ""}."
         if first_time:
             description += f"\nFirst time WCO, React with {await bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE)} and then DM them the onboarding message."
         if status:
@@ -178,7 +180,7 @@ class MakeWineCarrier(commands.Cog):
         embed = Embed(title="New Wine Carrier Owner Signup", color=color, description=description)
 
         view = None
-        if not first_time:
+        if not first_time and not already_wco:
             view = View(timeout=None)
             view.add_item(
                 DynamicButton(label="Make Wine Carrier", action="makewinecarrier", user_id=owner_id, message_id=0)
@@ -290,6 +292,11 @@ class MakeWineCarrier(commands.Cog):
                 logger.info(f"User {user} is already a {wc_role.name}, cannot add role again.")
                 embed = Embed(description=f"{user.mention} is already a {wc_role.name}")
                 embed.set_image(url=random.choice(too_slow_gifs))
+
+                if interaction.message: # This will only happen if someone gives the role manually before the button is used.
+                    await interaction.message.add_reaction(await bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE))
+                    await interaction.message.edit(view=None)
+
                 await respond(embed=embed)
                 return
             # toggle on
