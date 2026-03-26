@@ -1,6 +1,6 @@
+# pyright: reportPrivateUsage=false
 """
 The Python script that starts the bot.
-
 """
 
 import asyncio

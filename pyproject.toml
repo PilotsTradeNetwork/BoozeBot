@@ -96,7 +96,6 @@ reportAny=false
 reportExplicitAny=false
 reportMissingTypeStubs=false
 reportAttributeAccessIssue=false
-reportAssignmentType=false
 reportUnusedCallResult=false
 reportUnknownVariableType=false
 reportUnknownArgumentType=false

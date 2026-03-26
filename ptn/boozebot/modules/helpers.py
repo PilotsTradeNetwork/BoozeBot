@@ -5,12 +5,16 @@ Depends on: constants, ErrorHandler, database
 """
 
 import functools
+from collections.abc import Callable
 from datetime import UTC, datetime
+from types import CoroutineType
+from typing import Any
 
 import discord
 import isodate
 from discord import app_commands
 from discord.ext import commands
+from discord.ext.commands import Bot, Context
 from ptn_utils.global_constants import (
     CHANNEL_BC_BOOZE_CRUISE_CHAT,
     EMBED_COLOUR_ERROR,
@@ -78,7 +82,7 @@ def check_command_channel(permitted_channel: int | list[int]):
     Decorator used on an interaction to limit it to specified channels
     """
 
-    async def check_channel(ctx):
+    async def check_channel(ctx: Context[Bot]):
         """
         Check if the channel the command was run from matches any permitted channels for that command
         """
@@ -117,7 +121,7 @@ def check_text_command_channel(permitted_channel: list[int]):
     Decorator used on a text command to limit it to a specified channel
     """
 
-    async def check_text_channel(ctx):
+    async def check_text_channel(ctx: Context[Bot]):
         """
         Check if the channel the command was run in, matches the channel it can only be run from
         """
@@ -166,11 +170,11 @@ async def bc_channel_status():
 
 # Decorator to track the last run time of a task
 def track_last_run():
-    def decorator(coro):
+    def decorator(coro: Callable[..., CoroutineType[Any, Any, None]]):
         logger.debug(f"Applying track_last_run decorator to {coro.__name__}")
 
         @functools.wraps(coro)
-        async def wrapper(self, *args, **kwargs):
+        async def wrapper(self: Any, *args: Any, **kwargs: Any):
             logger.debug(f"Executing wrapped coroutine {coro.__name__}")
             result = await coro(self, *args, **kwargs)
             loop = getattr(self, coro.__name__)
