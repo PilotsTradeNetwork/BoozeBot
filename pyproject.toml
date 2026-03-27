@@ -21,7 +21,7 @@ dependencies = [
     "isodate~=0.7.2",
     "loguru~=0.7.3",
     "python-dotenv~=1.2.2",
-    "requests~=2.32.5",
+    "requests~=2.33.0",
     "httpx~=0.28.1",
     "tenacity~=9.1.4",
     "ptn-utils",
