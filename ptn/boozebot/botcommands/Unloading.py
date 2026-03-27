@@ -2,7 +2,7 @@
 Cog for unloading related commands
 
 """
-
+import random
 from asyncio import Lock
 from datetime import UTC, datetime, timedelta
 
@@ -26,7 +26,7 @@ from ptn_utils.global_constants import (
 )
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.constants import CARRIER_ID_RE, bot
+from ptn.boozebot.constants import CARRIER_ID_RE, bot, unload_opened_gifs
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, is_staff, track_last_run
@@ -379,6 +379,7 @@ class Unloading(commands.Cog):
         # Also post a note into the primary channel to go read the announcements.
         booze_cruise_chat = await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
         await booze_cruise_chat.send(f"A new wine unload is in progress. See <#{wine_unload_alert.channel.id}>")
+        await booze_cruise_chat.send(random.choice(unload_opened_gifs))
 
         logger.info(
             f"Wine unload requested by {interaction.user.name} for {carrier_data.carrier_name} ({carrier_id}) processed successfully."
@@ -506,6 +507,7 @@ class Unloading(commands.Cog):
         # Also post a note into the primary channel to go read the announcements.
         booze_cruise_chat = await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
         await booze_cruise_chat.send(f"A new wine unload will be opening soon. See <#{wine_unload_alert.channel.id}>")
+        await booze_cruise_chat.send(random.choice(unload_opened_gifs))
 
         logger.info(
             f"Timed wine unload requested by {interaction.user.name} for {carrier_data.carrier_name} ({carrier_id}) processed successfully."
