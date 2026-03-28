@@ -138,6 +138,7 @@ class BoozeSheetsApi:
     _ws_running: bool
     ws_task: asyncio.Task[None] | None
     ws_client: AsyncClient | None
+    _ws_connection: Any | None
     bot: Bot
     client_lock: asyncio.Lock
     client: AsyncClient
@@ -160,6 +161,7 @@ class BoozeSheetsApi:
         self._ws_running = False
         self._last_ws_message_time: datetime | None = None
         self._ws_connected = False
+        self._ws_connection = None
 
     @retry(
         stop=dynamic_attempts(_should_retry_exception, 3, 1),
@@ -268,21 +270,47 @@ class BoozeSheetsApi:
         logger.debug(f"Carrier info updated: {updated_carrier_info}")
         return BoozeCarrier(updated_carrier_info)
 
-    async def start_carrier_unload(self, carrier_id: str, delay: int | None = None) -> BoozeCarrier:
+    async def send_action_ack(self, action_id: str, success: bool = True, error: str | None = None) -> None:
+        """
+        Send an action acknowledgement back to the BoozeSheets API over the active WebSocket
+        connection so that a pending HTTP request (e.g. POST /carriers/{id}/departure) can be
+        resolved and returned to the web UI caller.
+
+        :param action_id: The UUID that was included in the original WS request payload.
+        :param success: Whether the action was completed successfully.
+        :param error: Optional error message when success is False.
+        """
+        if self._ws_connection is None:
+            logger.error(f"Cannot send action_ack for action_id={action_id}: no active WebSocket connection")
+            return
+
+        payload = json.dumps({"type": "action_ack", "actionId": action_id, "success": success, "error": error})
+        try:
+            await self._ws_connection.send(payload)
+            logger.debug(f"Sent action_ack: action_id={action_id}, success={success}")
+        except Exception as e:
+            logger.error(f"Failed to send action_ack for action_id={action_id}: {e}")
+
+    async def start_carrier_unload(
+        self, carrier_id: str, delay: int | None = None, action_id: str | None = None
+    ) -> BoozeCarrier:
         """
         Marks a carrier as having started unloading.
 
         :param carrier_id: The ID of the carrier to mark as unloading.
         :param delay: The delay in seconds before unloading starts.
+        :param action_id: Optional pending-action UUID to resolve a waiting HTTP caller.
         :return: The updated carrier information as a dictionary.
         """
 
-        logger.debug(f"Starting unload for carrier_id={carrier_id}, delay={delay}")
+        logger.debug(f"Starting unload for carrier_id={carrier_id}, delay={delay}, action_id={action_id}")
         endpoint = f"/carriers/{carrier_id}/unload"
 
         data: dict[str, str | int] = {"unloading": "true"}
         if delay is not None:
             data["delay"] = delay
+        if action_id is not None:
+            data["action_id"] = action_id
 
         logger.debug(f"Sending POST request to {endpoint} with data={data}")
         updated_carrier = await self._request("POST", endpoint, data, PayloadType.QUERY)
@@ -694,6 +722,7 @@ class BoozeSheetsApi:
 
         async with websockets.connect(uri=ws_url) as websocket:
             logger.info("Connected to BoozeSheets websocket")
+            self._ws_connection = websocket
 
             async for message in websocket:
                 logger.trace(f"Websocket message received: {message}")
@@ -706,6 +735,8 @@ class BoozeSheetsApi:
                     await self._handle_websocket_message(message)
                 except Exception as e:
                     logger.error(f"Error handling websocket message: {e}", exc_info=True)
+
+        self._ws_connection = None
 
     async def _handle_websocket_message(self, message: str):
         """
