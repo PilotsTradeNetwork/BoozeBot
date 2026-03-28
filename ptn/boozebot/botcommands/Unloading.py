@@ -1,12 +1,13 @@
+# pyright: reportPrivateUsage=false
 """
 Cog for unloading related commands
-
 """
 
 import random
 from asyncio import Lock
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any, Literal
 
 import discord
 from discord import Interaction, app_commands
@@ -24,6 +25,7 @@ from ptn_utils.global_constants import (
     ROLE_CONN,
     ROLE_SOMM,
     ROLE_WINE_CARRIER,
+    _production,
     any_council_role,
     any_moderation_role,
 )
@@ -52,13 +54,8 @@ logger = get_logger("boozebot.commands.unloading")
 class UnloadOperationError(Exception):
     """Raised when an unload operation cannot be started or completed."""
 
-    code: str
-    is_private: bool
-
-    def __init__(self, message: str, *, code: str = "UNLOAD_OPERATION_FAILED", is_private: bool = False):
+    def __init__(self, message: str):
         super().__init__(message)
-        self.code = code
-        self.is_private = is_private
 
 
 @dataclass(slots=True)
@@ -78,6 +75,7 @@ class Unloading(commands.Cog):
     bot: Bot
     reaction_lock: Lock
     unload_lock: Lock
+    REACTION_THRESHOLD: Literal[5, 1] = 5 if _production else 1
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -95,41 +93,36 @@ class Unloading(commands.Cog):
         """
         async with self.unload_lock:
             if not carrier_data:
-                raise UnloadOperationError("Carrier data was not provided.", code="MISSING_CARRIER_DATA")
+                raise UnloadOperationError("Carrier data was not provided.")
 
             carrier_id = carrier_data.carrier_identifier
 
             if requested_by and not carrier_data.is_owned_by(requested_by) and not is_staff(requested_by):
-                raise UnloadOperationError(f"Carrier {carrier_id} is not owned by you.", code="NOT_OWNER")
+                raise UnloadOperationError(f"Carrier {carrier_id} is not owned by you.")
 
             if await booze_sheets_api.get_current_cruise_state() != CruiseSystemState.ACTIVE:
                 raise UnloadOperationError(
                     "Unloads can only be started during an active booze cruise.",
-                    code="CRUISE_NOT_ACTIVE",
                 )
 
             if carrier_data.system != "N0":
                 raise UnloadOperationError(
                     f"Carrier {carrier_id} is not in N0 (HIP 58832); cannot unload wine.",
-                    code="INVALID_SYSTEM",
                 )
 
             if not carrier_data.body:
                 raise UnloadOperationError(
                     f"Carrier {carrier_id} must have a body set on the Booze Sheets Website before unloading.",
-                    code="MISSING_BODY",
                 )
 
             if carrier_data.unload_closed:
                 raise UnloadOperationError(
                     f"Carrier {carrier_id} has already completed all of its unloads.",
-                    code="UNLOAD_ALREADY_CLOSED",
                 )
 
             if carrier_data.unload_opened:
                 raise UnloadOperationError(
                     f"Carrier {carrier_id} is already unloading wine.",
-                    code="UNLOAD_ALREADY_OPEN",
                 )
 
             open_time_str = None
@@ -189,7 +182,6 @@ class Unloading(commands.Cog):
                 logger.exception(f"Failed to start unload for carrier {carrier_id}: {e}")
                 raise UnloadOperationError(
                     f"Failed to start unload for carrier {carrier_id}: {e}",
-                    code="UNLOAD_START_FAILED",
                 ) from e
 
             return UnloadStartResult(
@@ -209,24 +201,22 @@ class Unloading(commands.Cog):
 
         async with self.unload_lock:
             if not carrier_data:
-                raise UnloadOperationError("Carrier data was not provided.", code="MISSING_CARRIER_DATA")
+                raise UnloadOperationError("Carrier data was not provided.")
 
             carrier_id = carrier_data.carrier_identifier
 
             if requested_by and not carrier_data.is_owned_by(requested_by) and not is_staff(requested_by):
-                raise UnloadOperationError(f"Carrier {carrier_id} is not owned by you.", code="NOT_OWNER")
+                raise UnloadOperationError(f"Carrier {carrier_id} is not owned by you.")
 
             if carrier_data.wine_status != "Unloading":
                 raise UnloadOperationError(
                     f"Carrier {carrier_id} is not currently unloading.",
-                    code="UNLOAD_NOT_OPEN",
                 )
 
             message_id = await database.get_unload_message_for_carrier(carrier_id)
             if not message_id:
                 raise UnloadOperationError(
                     f"No unload notification found in database for carrier: {carrier_id}.",
-                    code="MISSING_UNLOAD_ALERT",
                 )
 
             try:
@@ -249,7 +239,6 @@ class Unloading(commands.Cog):
                 logger.exception(f"Failed to complete unload for carrier {carrier_id}: {e}")
                 raise UnloadOperationError(
                     f"Failed to complete unload for carrier {carrier_id}: {e}",
-                    code="UNLOAD_COMPLETE_FAILED",
                 ) from e
 
             return UnloadCompleteResult(unload_duration=completed_trip.unload_duration)
@@ -301,7 +290,10 @@ class Unloading(commands.Cog):
             # Check if the FC complete reaction count meets the threshold
             for message_reaction in message.reactions:
                 logger.debug(f"Checking reaction: {message_reaction.emoji} with count {message_reaction.count}")
-                if message_reaction.emoji.id == EMOJI_CARRIER_DONE and message_reaction.count >= 5:
+                if (
+                    message_reaction.emoji.id == EMOJI_CARRIER_DONE
+                    and message_reaction.count >= self.REACTION_THRESHOLD
+                ):
                     # Find carrier data for this message from the database
                     logger.debug(
                         f"FC complete reaction count for message {message.id} has reached threshold. Notifying poster."
@@ -414,10 +406,36 @@ class Unloading(commands.Cog):
         allowed_mentions.roles = [conn_role]
 
         logger.info(f"Wine unload for carrier {carrier_id} completed by {interaction.user.name}.")
-        await interaction.edit_original_response(content=response, allowed_mentions=allowed_mentions)
+        await interaction.followup.send(content=response, allowed_mentions=allowed_mentions, view=None)
         await interaction.edit_original_response(
             content=f"<@&{ROLE_CONN}> {response}", allowed_mentions=allowed_mentions
         )
+
+    @commands.Cog.listener()
+    async def on_boozesheets_unload_request(self, data: dict[str, Any]):
+        carrier_db_id = data.get("carrierId")
+        carrier_id = data.get("fcCallsign")
+        action_id = data.get("actionId")
+
+        logger.info(
+            f"Received unload_request for carrier_db_id={carrier_db_id}, carrier_id={carrier_id}, action_id={action_id}"
+        )
+
+        if not carrier_id:
+            logger.error(f"unload_request missing fcCallsign: {data}")
+            return
+
+        carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
+
+        try:
+            await self._unload(carrier_data, is_timed=False)
+        except UnloadOperationError as e:
+            logger.warning(f"Failed to start unload for carrier {carrier_id} from unload_request event: {e}")
+            await booze_sheets_api.send_action_ack(action_id, success=False, error=str(e))
+            return
+
+        logger.info(f"Successfully started unload for carrier {carrier_id} from unload_request event.")
+        await booze_sheets_api.send_action_ack(action_id, success=True)
 
     @tasks.loop(seconds=60.0)
     @track_last_run()
@@ -592,7 +610,7 @@ class Unloading(commands.Cog):
             _ = await self._unload(carrier_data, is_timed=False, requested_by=interaction.user)
         except UnloadOperationError as e:
             logger.info(str(e))
-            await interaction.followup.send(str(e), ephemeral=e.is_private)
+            await interaction.edit_original_response(content=str(e))
             return
 
         logger.info(
@@ -671,7 +689,7 @@ class Unloading(commands.Cog):
             result = await self._unload(carrier_data, is_timed=True, requested_by=interaction.user)
         except UnloadOperationError as e:
             logger.info(str(e))
-            await interaction.followup.send(str(e), ephemeral=e.is_private)
+            await interaction.edit_original_response(content=str(e))
             return
 
         logger.info(
