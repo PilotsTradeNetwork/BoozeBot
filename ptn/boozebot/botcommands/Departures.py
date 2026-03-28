@@ -6,7 +6,7 @@ Cog for departure related commands
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, override
 
 import discord
 from discord import app_commands, ui
@@ -70,9 +70,19 @@ class DepartureCloseResult:
 # initialise the Cog and attach our global error handler
 class Departures(commands.Cog):
     bot: Bot
+    cxt_menu_close_command: app_commands.ContextMenu
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.cxt_menu_close_command = app_commands.ContextMenu(
+            name="Close Departure", callback=self.ctx_menu_close_departure
+        )
+        logger.debug("Adding context menu command: Close Departure")
+        self.bot.tree.add_command(self.cxt_menu_close_command)
+
+    @override
+    async def cog_unload(self):
+        self.bot.tree.remove_command(self.cxt_menu_close_command.name, type=self.cxt_menu_close_command.type)
 
     async def _post_departure(
         self,
@@ -250,6 +260,55 @@ class Departures(commands.Cog):
             self.check_departure_messages_loop.start()
         else:
             logger.debug("Departure message checker already running.")
+
+    @check_roles(
+        [
+            *any_council_role,
+            *any_moderation_role,
+            ROLE_SOMM,
+            ROLE_CONN,
+            ROLE_WINE_CARRIER,
+        ]
+    )
+    async def ctx_menu_close_departure(self, interaction: discord.Interaction, message: discord.Message):
+        logger.info(
+            f"Received context menu close departure command from user {interaction.user.name} for message ID {message.id}"
+        )
+
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            carrier_id = await database.get_carrier_for_departure_message(message.id)
+
+            if not carrier_id:
+                error_msg = f"Could not find carrier ID for departure message {message.id}. Cannot close departure."
+                logger.warning(error_msg)
+                await interaction.edit_original_response(content=error_msg)
+                return
+
+            logger.debug(f"Fetching carrier data for ID: {carrier_id}")
+            carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
+            logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
+
+            if not carrier_data:
+                error_msg = f"Carrier {carrier_id} was not found. Cannot close departure."
+                logger.warning(error_msg)
+                await interaction.edit_original_response(content=error_msg)
+                return
+
+            await self._close_departure(carrier_data, requested_by=interaction.user)
+
+            response = f"Removed the departure notification for {carrier_data.carrier_name} ({carrier_id})."
+            logger.info(f"Departure for carrier {carrier_id} closed by {interaction.user.name}.")
+            await interaction.edit_original_response(content=response)
+        except DepartureOperationError as e:
+            logger.info(str(e))
+            await interaction.edit_original_response(content=str(e))
+        except Exception as e:
+            logger.exception(f"Failed to process close departure command: {e}")
+            await interaction.edit_original_response(
+                content=f"An error occurred while trying to close the departure: {e}"
+            )
 
     @commands.Cog.listener()
     async def on_boozesheets_departure_request(self, data: dict[str, Any]):

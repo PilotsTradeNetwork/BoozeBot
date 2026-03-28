@@ -7,7 +7,7 @@ import random
 from asyncio import Lock
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal
+from typing import Any, Literal, override
 
 import discord
 from discord import Interaction, app_commands
@@ -76,11 +76,23 @@ class Unloading(commands.Cog):
     reaction_lock: Lock
     unload_lock: Lock
     REACTION_THRESHOLD: Literal[5, 1] = 5 if _production else 1
+    ctx_menu_close_unload_command: app_commands.ContextMenu
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.reaction_lock = Lock()
         self.unload_lock = Lock()
+        self.ctx_menu_close_unload_command = app_commands.ContextMenu(
+            name="Close Unload", callback=self.ctx_menu_close_unload
+        )
+        logger.debug("Adding context menu command: Close Unload")
+        self.bot.tree.add_command(self.ctx_menu_close_unload_command)
+
+    @override
+    async def cog_unload(self):
+        self.bot.tree.remove_command(
+            self.ctx_menu_close_unload_command.name, type=self.ctx_menu_close_unload_command.type
+        )
 
     async def _unload(
         self,
@@ -406,9 +418,13 @@ class Unloading(commands.Cog):
         allowed_mentions.roles = [conn_role]
 
         logger.info(f"Wine unload for carrier {carrier_id} completed by {interaction.user.name}.")
-        await interaction.followup.send(content=response, allowed_mentions=allowed_mentions, view=None)
+        await interaction.followup.send(
+            content=f"{interaction.user.mention} {response}", allowed_mentions=allowed_mentions, view=None
+        )
         await interaction.edit_original_response(
-            content=f"<@&{ROLE_CONN}> {response}", allowed_mentions=allowed_mentions
+            content=f"<@&{ROLE_CONN}> {interaction.user.mention} {response}",
+            allowed_mentions=allowed_mentions,
+            view=None,
         )
 
     @commands.Cog.listener()
@@ -480,6 +496,76 @@ class Unloading(commands.Cog):
                 logger.exception(f"Failed to notify RSTC channel about the last unload time: {e}")
         else:
             logger.info("Last unload time loop completed without sending reminder.")
+
+    @check_roles(
+        [
+            *any_council_role,
+            *any_moderation_role,
+            ROLE_SOMM,
+            ROLE_CONN,
+            ROLE_WINE_CARRIER,
+        ]
+    )
+    async def ctx_menu_close_unload(self, interaction: Interaction, message: discord.Message):
+        logger.info(
+            f"Received context menu close unload command from user {interaction.user.name} for message ID {message.id}"
+        )
+
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            carrier_id = await database.get_carrier_for_unload_message(message.id)
+
+            if not carrier_id:
+                error_msg = f"Could not find carrier ID for unload message {message.id}. Cannot close unload."
+                logger.warning(error_msg)
+                await interaction.edit_original_response(content=error_msg)
+                return
+
+            logger.debug(f"Fetching carrier data for ID: {carrier_id}")
+
+            carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
+
+            logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")
+
+            if not carrier_data:
+                error_msg = f"Carrier {carrier_id} was not found. Cannot close unload."
+                logger.warning(error_msg)
+                await interaction.edit_original_response(content=error_msg)
+                return
+
+            result = await self._unload_complete(carrier_data, requested_by=interaction.user)
+
+            unload_duration = result.unload_duration
+
+            minutes, seconds = divmod(int(unload_duration), 60)
+            time_str = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
+
+            response = (
+                f"Removed the unload notification for {carrier_data.carrier_name} ({carrier_id}).\n"
+                f"-# Unload duration: {time_str}."
+            )
+
+            allowed_mentions = discord.AllowedMentions.none()
+            conn_role = await bot.get_or_fetch.role(ROLE_CONN)
+            allowed_mentions.roles = [conn_role]
+
+            logger.info(f"Unload for carrier {carrier_id} closed by {interaction.user.name}.")
+            rstc_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+            message = await rstc_channel.send(
+                content=f"{interaction.user.mention} {response}", allowed_mentions=allowed_mentions
+            )
+            await message.edit(
+                content=f"<@&{ROLE_CONN}> {interaction.user.mention} {response}", allowed_mentions=allowed_mentions
+            )
+
+            await interaction.edit_original_response(content=response)
+        except UnloadOperationError as e:
+            logger.info(str(e))
+            await interaction.edit_original_response(content=str(e))
+        except Exception as e:
+            logger.exception(f"Failed to process close unload command: {e}")
+            await interaction.edit_original_response(content=f"An error occurred while trying to close the unload: {e}")
 
     @app_commands.command(
         name="wine_helper_market_open", description="Creates a new unloading helper operation in this channel."
