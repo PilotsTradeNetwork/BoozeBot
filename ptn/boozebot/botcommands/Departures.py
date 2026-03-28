@@ -4,6 +4,7 @@ Cog for departure related commands
 """
 
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Final, Literal
 
@@ -27,6 +28,7 @@ from ptn_utils.global_constants import (
 )
 from ptn_utils.logger.logger import get_logger
 
+from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import CARRIER_ID_RE, N_SYSTEMS, bot
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
@@ -47,12 +49,206 @@ DEPARTURE COMMANDS
 logger = get_logger("boozebot.commands.departures")
 
 
+class DepartureOperationError(Exception):
+    """Raised when a departure operation cannot be posted or closed."""
+
+    code: str
+    is_private: bool
+
+    def __init__(self, message: str, *, code: str = "DEPARTURE_OPERATION_FAILED", is_private: bool = True):
+        super().__init__(message)
+        self.code = code
+        self.is_private = is_private
+
+
+@dataclass(slots=True)
+class DeparturePostResult:
+    message_id: int
+    jump_url: str
+
+
+@dataclass(slots=True)
+class DepartureCloseResult:
+    message_id: int
+
+
 # initialise the Cog and attach our global error handler
 class Departures(commands.Cog):
     bot: Bot
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    async def _post_departure(
+        self,
+        carrier_data: BoozeCarrier | None,
+        arrival_system: str,
+        departure_timestamp: datetime | None,
+        requested_by: discord.Member | None = None,
+    ) -> DeparturePostResult:
+        """Post a departure notice and persist the Discord message ID."""
+
+        if not carrier_data:
+            raise DepartureOperationError("Carrier data was not provided.", code="MISSING_CARRIER_DATA")
+
+        carrier_id = carrier_data.carrier_identifier
+
+        if requested_by and not carrier_data.is_owned_by(requested_by) and not is_staff(requested_by):
+            raise DepartureOperationError(f"You do not own the carrier with ID: {carrier_id}.", code="NOT_OWNER")
+
+        departure_system = carrier_data.system
+        if departure_system not in N_SYSTEMS:
+            raise DepartureOperationError(
+                f"Carrier {carrier_id} current location must be a system on the ladder to post a departure notice. Current location: '{departure_system}'.",
+                code="INVALID_DEPARTURE_SYSTEM",
+            )
+
+        if arrival_system not in N_SYSTEMS:
+            raise DepartureOperationError(
+                f"Arrival location '{arrival_system}' is invalid.",
+                code="INVALID_ARRIVAL_SYSTEM",
+            )
+
+        if departure_system == arrival_system:
+            raise DepartureOperationError(
+                "Departure and arrival are the same system.",
+                code="SAME_SYSTEM",
+            )
+
+        # Construct departure message text from structured input.
+        carrier_name = carrier_data.carrier_name.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
+        clean_carrier_id = carrier_id.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
+
+        def parse_system_index(system_id: str) -> int:
+            try:
+                return int(system_id[1:])
+            except ValueError:
+                return 16
+
+        departure_system_index = parse_system_index(departure_system)
+        arrival_system_index = parse_system_index(arrival_system)
+
+        if departure_system_index < arrival_system_index:
+            direction_arrow = "⬇️"
+        elif departure_system_index > arrival_system_index:
+            direction_arrow = "⬆️"
+        else:
+            direction_arrow = ""
+
+        if settings.get_setting("departure_announcement_status") == "Disabled":
+            raise DepartureOperationError(
+                "Departure announcements are currently disabled.",
+                code="DEPARTURES_DISABLED",
+            )
+
+        if settings.get_setting("departure_announcement_status") == "Upwards" and direction_arrow == "⬇️":
+            raise DepartureOperationError(
+                "Departure announcements are currently only enabled for jumps moving up towards N0",
+                code="UPWARDS_ONLY",
+            )
+
+        departing_thoon = False
+        if departure_timestamp:
+            departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
+            departing_thoon = datetime.fromtimestamp(departure_timestamp) < datetime.now() + timedelta(hours=2)
+        else:
+            departure_time_text = f" {await bot.get_or_fetch.emoji(EMOJI_THOON)} |"
+
+        hitchhiker_systems = [0, 1, 2, 3]
+        thoon_systems = [0, 1]
+        is_hitchhiking_trip = (
+            departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems
+        )
+        is_thoon_trip = departure_system_index in thoon_systems or arrival_system_index in thoon_systems
+
+        if is_thoon_trip and departing_thoon:
+            departure_time_text = f" {await bot.get_or_fetch.emoji(EMOJI_THOON)} |"
+
+        hitchhiker_ping_text = ""
+        if direction_arrow == "⬆️" and is_hitchhiking_trip:
+            hitchhiker_ping_text = f"| <@&{ROLE_HITCHHIKER!s}>"
+
+        departure_location_text = f"{departure_system} ({N_SYSTEMS[departure_system]})"
+        arrival_location_text = f"{arrival_system} ({N_SYSTEMS[arrival_system]})"
+
+        departure_message_text = (
+            f"**{direction_arrow} {departure_location_text} > {arrival_location_text}** |"
+            + f"{departure_time_text} **{carrier_name} ({clean_carrier_id})** | "
+            + f"<@{carrier_data.owner.discord_id}> {hitchhiker_ping_text}"
+        )
+
+        if existing_message_id := await database.get_departure_message_for_carrier(carrier_id):
+            try:
+                departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
+                existing_message_id = (await departure_channel.fetch_message(existing_message_id)).id
+            except discord.NotFound:
+                existing_message_id = None
+                await database.delete_carrier_message(carrier_id, "departure")
+
+        if existing_message_id:
+            raise DepartureOperationError(
+                f"A departure message is already posted for carrier ID: {carrier_id}. Please remove it before posting a new one.",
+                code="DEPARTURE_ALREADY_POSTED",
+            )
+
+        try:
+            departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
+            departure_message = await departure_channel.send(departure_message_text)
+            await departure_message.add_reaction("🛬")
+            await database.set_departure_message_for_carrier(carrier_id, departure_message.id)
+            await database.set_departure_notification_sent(carrier_id, False)
+        except Exception as e:
+            logger.exception(f"Failed to post departure message for carrier {carrier_id}: {e}")
+            raise DepartureOperationError(
+                f"Failed to post departure message for carrier {carrier_id}: {e}",
+                code="DEPARTURE_POST_FAILED",
+                is_private=False,
+            ) from e
+
+        return DeparturePostResult(message_id=departure_message.id, jump_url=departure_message.jump_url)
+
+    async def _close_departure(
+        self,
+        carrier_data: BoozeCarrier | None,
+        requested_by: discord.Member | None = None,
+    ) -> DepartureCloseResult:
+        """Close a departure notice by removing the Discord message and DB entry."""
+
+        if not carrier_data:
+            raise DepartureOperationError("Carrier data was not provided.", code="MISSING_CARRIER_DATA")
+
+        carrier_id = carrier_data.carrier_identifier
+
+        if requested_by and not carrier_data.is_owned_by(requested_by) and not is_staff(requested_by):
+            raise DepartureOperationError(f"You do not own the carrier with ID: {carrier_id}.", code="NOT_OWNER")
+
+        message_id = await database.get_departure_message_for_carrier(carrier_id)
+        if not message_id:
+            raise DepartureOperationError(
+                f"No departure notification found in database for carrier: {carrier_id}.",
+                code="MISSING_DEPARTURE_ALERT",
+            )
+
+        try:
+            try:
+                departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
+                departure_message = await departure_channel.fetch_message(message_id)
+                await departure_message.delete()
+            except discord.NotFound:
+                logger.warning(
+                    f"Departure notification message ID {message_id} for carrier {carrier_id} not found in channel."
+                )
+
+            await database.delete_carrier_message(carrier_id, "departure")
+        except Exception as e:
+            logger.exception(f"Failed to close departure message for carrier {carrier_id}: {e}")
+            raise DepartureOperationError(
+                f"Failed to close departure message for carrier {carrier_id}: {e}",
+                code="DEPARTURE_CLOSE_FAILED",
+                is_private=False,
+            ) from e
+
+        return DepartureCloseResult(message_id=message_id)
 
     """
     This class is a collection functionality for posting departure messages for carriers.
@@ -62,114 +258,13 @@ class Departures(commands.Cog):
         Choice(name=f"{system_id} ({system_name})", value=system_id) for system_id, system_name in N_SYSTEMS.items()
     ]
 
-    # On ready check for any completed departure messages and remove them.
     @commands.Cog.listener()
     async def on_ready(self):
-        try:
-            departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
-        except Exception as e:
-            logger.exception(f"Failed to get departure_channel: {e}")
-            return
-
-        logger.info("Checking for completed departure messages.")
-        try:
-            async for message in departure_channel.history(limit=100):
-                logger.debug(f"Processing message ID: {message.id} in departure channel.")
-                try:
-                    if message.pinned:
-                        logger.debug(f"Message ID: {message.id} is pinned, skipping.")
-                        continue
-
-                    if message.author.id != bot.user.id:
-                        logger.debug(f"Message ID: {message.id} not authored by bot, skipping.")
-                        continue
-
-                    for reaction in message.reactions:
-                        if reaction.emoji == "✅":
-                            logger.debug(f"Message ID: {message.id} has ✅ reaction, checking users.")
-
-                            logger.debug("Fetching carrier id for departure message from database.")
-                            carrier_id = await database.get_carrier_for_departure_message(message.id)
-                            if not carrier_id:
-                                logger.warning(
-                                    f"Could not find carrier id for departure message id: {message.id}, skipping."
-                                )
-                                continue
-                            logger.debug(f"Fetching carrier data for carrier id: {carrier_id}")
-                            carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
-                            if not carrier_data:
-                                logger.warning(f"Could not find carrier data for carrier id: {carrier_id}, skipping.")
-                                continue
-
-                            async for user in reaction.users():
-                                if carrier_data.is_owned_by(user):
-                                    logger.info(f"Removing departure message ID: {message.id} for user ID: {user.id}.")
-                                    await message.delete()
-                except Exception as e:
-                    logger.exception(
-                        f"Failed to process departure message while checking for closing. message: {message.id}. Error: {e}"
-                    )
-        except Exception as e:
-            logger.exception(f"Failed to get departure_channel history: {e}")
-
         logger.info("Starting the departure message checker")
         if not self.check_departure_messages_loop.is_running():
             self.check_departure_messages_loop.start()
         else:
             logger.debug("Departure message checker already running.")
-
-    # On reaction check if its in the departures channel and if it was from who posted the departure, if it is remove it.
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, reaction_event: discord.RawReactionActionEvent):
-        try:
-            user = reaction_event.member
-
-            if user.bot:
-                return
-
-            if reaction_event.channel_id != CHANNEL_BC_DEPARTURE_ANNOUNCEMENT:
-                return
-
-            channel = await bot.get_or_fetch.channel(reaction_event.channel_id)
-            message = await channel.fetch_message(reaction_event.message_id)
-
-            logger.debug(
-                f"Processing reaction {reaction_event.emoji} on message ID: {message.id} by user ID: {user.id}"
-            )
-
-            if message.pinned:
-                return
-
-            if message.author.id != bot.user.id:
-                return
-
-            if reaction_event.emoji.name != "✅":
-                return
-
-            logger.debug("Fetching carrier id for departure message from database.")
-            carrier_id = await database.get_carrier_for_departure_message(message.id)
-
-            if not carrier_id:
-                logger.warning(f"Could not find carrier id for departure message id: {message.id}, ignoring reaction.")
-                return
-
-            logger.debug(f"Fetching carrier data for carrier id: {carrier_id}")
-            carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
-
-            if not carrier_data:
-                logger.warning(f"Could not find carrier data for carrier id: {carrier_id}")
-                return
-
-            member = await bot.get_or_fetch.member(reaction_event.member.id)
-
-            if not carrier_data.is_owned_by(member):
-                return
-
-            await message.delete()
-            await database.delete_carrier_message(carrier_id, "departure")
-
-        except Exception as e:
-            logger.exception(f"Failed to process reaction: {reaction_event}. Error: {e}")
 
     @tasks.loop(minutes=5)
     @track_last_run()
@@ -228,7 +323,7 @@ class Departures(commands.Cog):
                         logger.info(f"Notifying user with id: {author_id} in WCO chat.")
                         await message.add_reaction("⏲️")
                         await wine_carrier_chat.send(
-                            f"<@{author_id}> your scheduled departure time of <t:{departure_time}:F> has passed. If your carrier has entered lockdown or completed its jump, please use the ✅ reaction under your notice to remove it. {message.jump_url}"
+                            f"<@{author_id}> your scheduled departure time of <t:{departure_time}:F> has passed. If your carrier has entered lockdown or completed its jump, please use the ✅ reaction under your notice to remove it. {message.jump_url}"  # TODO RRPLACE WITH BUTTON
                         )
 
             except Exception as e:
@@ -320,40 +415,7 @@ class Departures(commands.Cog):
             await steve_says_channel.send(f"{base_error} {msg}")
             return
 
-        if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
-            msg = f"You do not own the carrier with ID: {carrier_id}."
-            logger.info(msg)
-            await interaction.edit_original_response(content=msg)
-            await steve_says_channel.send(f"{base_error} {msg}")
-            return
-
-        if existing_message_id := await database.get_departure_message_for_carrier(carrier_id):
-            try:
-                departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
-                existing_message_id = (await departure_channel.fetch_message(existing_message_id)).id
-            except discord.NotFound:
-                existing_message_id = None
-                await database.delete_carrier_message(carrier_id, "departure")
-
-        if existing_message_id:
-            msg = f"A departure message is already posted for carrier ID: {carrier_id}. Please remove it before posting a new one."
-            logger.info(msg)
-            await interaction.edit_original_response(content=msg)
-            await steve_says_channel.send(f"{base_error} {msg}")
-            return
-
-        carrier_name = carrier_data.carrier_name
-        carrier_id = carrier_data.carrier_identifier
-
-        # Function to sanitize input by removing certain characters
-        def sanitize_input(text: str):
-            return text.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
-
-        # Sanitize the input data
-        carrier_name = sanitize_input(carrier_name)
-        carrier_id = sanitize_input(carrier_id)
-
-        departure_timestamp = None
+        departure_time = None
 
         thoon_inputs = [f"<:thoon:{EMOJI_THOON}>", "thoon"]
         # Handle thoon
@@ -364,34 +426,23 @@ class Departures(commands.Cog):
         # Handle departure time if provided as a timestamp
         elif departing_at:
             try:
-                departure_timestamp = departing_at
-                if departure_timestamp.startswith("<t:") and departure_timestamp.endswith(">"):
-                    departure_timestamp = departure_timestamp.rstrip(">").split(":")[1]
-                departure_timestamp = int(departure_timestamp)
+                departure_timestamp_str = departing_at
+                if departure_timestamp_str.startswith("<t:") and departure_timestamp_str.endswith(">"):
+                    departure_timestamp_str = departure_timestamp_str.rstrip(">").split(":")[1]
+                departure_time = datetime.fromtimestamp(int(departure_timestamp_str))
             except ValueError:
                 msg = f"Departure time was not a valid timestamp: {departing_at}"
                 logger.info(msg)
                 await interaction.edit_original_response(
-                    content=f"{msg}. You can use <https://hammertime.cyou> to generate them."
+                    content=f"{msg}. You can use <https://hammertime.cyou> (or @time on desktop) to generate them."
                 )
-                await steve_says_channel.send(f"{base_error} {msg}")
-                return
-
-            # Validate the timestamp range
-            now = int(time.time())
-            min_timestamp = now - 60 * 60 * 24 * 14  # 14 days ago
-            max_timestamp = now + 60 * 60 * 24 * 14  # 14 days in the future
-            if not (min_timestamp < departure_timestamp < max_timestamp):
-                msg = f"Departure time must be within 2 weeks of now: {departing_at}"
-                logger.info(msg)
-                await interaction.edit_original_response(content=msg)
                 await steve_says_channel.send(f"{base_error} {msg}")
                 return
 
         # Handle departure time if provided as a duration in minutes
         elif departing_in:
             try:
-                departure_timestamp = float(departing_in)
+                departing_in_minutes = int(departing_in)
             except ValueError:
                 msg = f"Departing in was not a valid number: {departing_in}"
                 logger.info(msg)
@@ -401,95 +452,87 @@ class Departures(commands.Cog):
                 await steve_says_channel.send(f"{base_error} {msg}")
                 return
 
-            departure_timestamp = int(departure_timestamp * 60 + int(time.time()))
-
-        departing_thoon = False
-        if departure_timestamp:
-            departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
-            departing_thoon = datetime.fromtimestamp(departure_timestamp) < datetime.now() + timedelta(hours=2)
-        else:
-            departure_time_text = f" {await bot.get_or_fetch.emoji(EMOJI_THOON)} |"
-
-        # Check if the departure needs a hitchhiker ping
-        hitchhiker_systems = [0, 1, 2, 3]
-        thoon_systems = [0, 1]
+            departure_time = datetime.now() + timedelta(minutes=departing_in_minutes)
 
         try:
-            departure_system_index = int(departure_location.split(" ", maxsplit=1)[0][1:])
-        except ValueError:
-            departure_system_index = 16
-
-        try:
-            arrival_system_index = int(arrival_location.split(" ", maxsplit=1)[0][1:])
-        except ValueError:
-            arrival_system_index = 16
-
-        departure_location = f"{departure_location} ({N_SYSTEMS[departure_location]})"
-        arrival_location = f"{arrival_location} ({N_SYSTEMS[arrival_location]})"
-
-        is_hitchhiking_trip = (
-            departure_system_index in hitchhiker_systems and arrival_system_index in hitchhiker_systems
-        )
-        is_thoon_trip = departure_system_index in thoon_systems or arrival_system_index in thoon_systems
-        if is_thoon_trip and departing_thoon:
-            departure_time_text = f" {await bot.get_or_fetch.emoji(EMOJI_THOON)} |"
-
-        logger.debug(
-            f"Departure system index: {departure_system_index}, Arrival system index: {arrival_system_index}, "
-            + f"is_hitchhiking_trip: {is_hitchhiking_trip}, is_thoon_trip: {is_thoon_trip}, "
-            + f"departing_thoon: {departing_thoon}"
-        )
-
-        hitchhiker_ping_text = ""
-        # Set the direction arrow text and determine if hitchhiker ping is needed
-        if departure_system_index == arrival_system_index:
-            msg = "Departure and arrival are the same system."
-            logger.info(msg)
-            await interaction.edit_original_response(content=msg)
-            await steve_says_channel.send(f"{base_error} {msg}")
-            return
-        if departure_system_index < arrival_system_index:
-            logger.info("Departure system is above arrival system.")
-            direction_arrow = "⬇️"
-        elif departure_system_index > arrival_system_index:
-            logger.info("Departure system is below arrival system.")
-            direction_arrow = "⬆️"
-            if is_hitchhiking_trip:
-                logger.info("Departure needs hitchhiker ping.")
-                hitchhiker_ping_text = f"| <@&{ROLE_HITCHHIKER!s}>"
-        else:
-            logger.info("Failed to determine direction arrow.")
-            direction_arrow = ""
-
-        # Check if departure announcements are enabled
-        msg = ""
-        if settings.get_setting("departure_announcement_status") == "Disabled":
-            msg = "Departure announcements are currently disabled."
-        elif settings.get_setting("departure_announcement_status") == "Upwards" and direction_arrow == "⬇️":
-            msg = "Departure announcements are currently only enabled for jumps moving up towards N0"
-        if msg:
+            post_result = await self._post_departure(
+                carrier_data,
+                arrival_location,
+                departure_time,
+                requested_by=interaction.user,
+            )
+        except DepartureOperationError as e:
+            msg = str(e)
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             await steve_says_channel.send(f"{base_error} {msg}")
             return
 
-        # Construct the departure message text
-        departure_message_text = f"**{direction_arrow} {departure_location} > {arrival_location}** |{departure_time_text} **{carrier_name} ({carrier_id})** | <@{carrier_data.owner.discord_id}> {hitchhiker_ping_text}"
-
-        # Send the departure message to the departure announcement channel
-        departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
-        departure_message = await departure_channel.send(departure_message_text)
-        await departure_message.add_reaction("🛬")
-        await departure_message.add_reaction("✅")
-
-        logger.debug(f"Setting departure message for carrier ID {carrier_id} in database.")
-        await database.set_departure_message_for_carrier(carrier_id, departure_message.id)
-        await database.set_departure_notification_sent(carrier_id, False)
-
-        logger.info(f"Departure message sent for carrier {carrier_name} ({carrier_id}).")
+        logger.info(
+            f"Departure message sent for carrier {carrier_data.carrier_name} ({carrier_data.carrier_identifier})."
+        )
 
         # Edit the original interaction response with the jump URL of the departure message
-        await interaction.edit_original_response(content=f"Departure message sent to {departure_message.jump_url}.")
+        await interaction.edit_original_response(content=f"Departure message sent to {post_result.jump_url}.")
+
+    @app_commands.command(
+        name="remove_wine_carrier_departure", description="Remove a departure message for a wine carrier."
+    )
+    @describe(carrier_id="The XXX-XXX ID string for the carrier")
+    @check_roles(
+        [
+            *any_council_role,
+            *any_moderation_role,
+            ROLE_SOMM,
+            ROLE_CONN,
+            ROLE_WINE_CARRIER,
+        ]
+    )
+    @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+    async def remove_wine_carrier_departure(
+        self,
+        interaction: discord.Interaction,
+        carrier_id: str,
+    ):
+        await interaction.response.defer(ephemeral=True)
+
+        carrier_id = carrier_id.upper().strip()
+
+        logger.info(
+            f"User {interaction.user.name} has requested to remove a wine carrier departure operation for carrier: {carrier_id}."
+        )
+
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
+            msg = (
+                f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
+            )
+            logger.info(msg)
+            await interaction.edit_original_response(content=msg)
+            return
+
+        logger.debug(f"Fetching carrier data for carrier ID: {carrier_id}")
+
+        carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
+
+        if not carrier_data:
+            msg = f'could not find a carrier for the data: "{carrier_id}".'
+            logger.info(msg)
+            await interaction.edit_original_response(content=f"Sorry, we {msg}")
+            return
+
+        try:
+            close_result = await self._close_departure(carrier_data, requested_by=interaction.user)
+        except DepartureOperationError as e:
+            msg = str(e)
+            logger.info(msg)
+            await interaction.edit_original_response(content=msg)
+            return
+
+        logger.info(
+            f"Departure message with ID {close_result.message_id} removed for carrier {carrier_data.carrier_name} ({carrier_data.carrier_identifier})."
+        )
+        await interaction.edit_original_response(content=f"Departure message removed for carrier {carrier_id}.")
 
     @app_commands.command(name="set_allowed_departures", description="Set the status of departure announcements.")
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM])
