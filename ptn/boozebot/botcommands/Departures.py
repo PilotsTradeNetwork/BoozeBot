@@ -455,6 +455,7 @@ class Departures(commands.Cog):
     )
     @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
     @app_commands.choices(arrival_location=system_choices)
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete())
     async def wine_carrier_departure(
         self,
         interaction: discord.Interaction,
@@ -596,6 +597,7 @@ class Departures(commands.Cog):
         ]
     )
     @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete())
     async def remove_wine_carrier_departure(
         self,
         interaction: discord.Interaction,
@@ -711,7 +713,9 @@ class Departures(commands.Cog):
             Choice(name="Thoon", value="Thoon"),
         ],
     )
-    @app_commands.autocomplete(departure_name=official_departure_name_autocomplete)
+    @app_commands.autocomplete(
+        carrier_id=booze_sheets_api.carrier_autocomplete(), departure_name=official_departure_name_autocomplete
+    )
     async def official_carrier_departure(
         self,
         interaction: discord.Interaction,

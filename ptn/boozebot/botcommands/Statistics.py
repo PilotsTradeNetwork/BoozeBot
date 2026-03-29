@@ -589,6 +589,7 @@ class Statistics(commands.Cog):
             ROLE_WINE_CARRIER,
         ]
     )
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(False))
     async def find_carrier_by_id(self, interaction: discord.Interaction, carrier_id: str):
         await interaction.response.defer()
         logger.info(f"{interaction.user.name} ({interaction.user.id}) wants to find a carrier by ID: {carrier_id}.")
@@ -985,6 +986,7 @@ class Statistics(commands.Cog):
             ROLE_WINE_CARRIER,
         ]
     )
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(False))
     async def carrier_stats(self, interaction: discord.Interaction, carrier_id: str, include_not_unloaded: bool | None):
         """
         Returns the stats for a specific carrier.

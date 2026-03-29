@@ -1,4 +1,4 @@
-from typing import Final
+from typing import Final, Literal
 
 import discord
 from discord import app_commands
@@ -17,6 +17,7 @@ logger = get_logger("boozebot.commands.background")
 
 class BackgroundTaskCommands(commands.Cog):
     websocket_started: bool
+    carrier_polling_started: bool
     bot: Bot
     task_choices: Final[list[Choice[str]]] = [
         Choice(name="periodic_stat_update", value="periodic_stat_update"),
@@ -29,10 +30,11 @@ class BackgroundTaskCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.websocket_started = False
+        self.carrier_polling_started = False
 
     @commands.Cog.listener()
     async def on_ready(self):
-        """Start the BoozeSheets websocket listener when the bot is ready."""
+        """Start BoozeSheets background listeners when the bot is ready."""
         if not self.websocket_started:
             try:
                 await booze_sheets_api.start_websocket_listener()
@@ -40,6 +42,14 @@ class BackgroundTaskCommands(commands.Cog):
                 logger.info("BoozeSheets websocket listener started")
             except Exception as e:
                 logger.exception(f"Failed to start websocket listener: {e}")
+
+        if not self.carrier_polling_started:
+            try:
+                await booze_sheets_api.start_carrier_polling()
+                self.carrier_polling_started = True
+                logger.info("BoozeSheets carrier polling loop started")
+            except Exception as e:
+                logger.exception(f"Failed to start carrier polling loop: {e}")
 
     @app_commands.command(name="start_task", description="Starts a background task.")
     @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
@@ -135,17 +145,36 @@ class BackgroundTaskCommands(commands.Cog):
         return tasks.get(task_name)
 
     @app_commands.command(
-        name="get_websocket_status", description="Gets the status of the BoozeSheets API websocket connection."
+        name="boozesheets_connection_status",
+        description="Gets status for BoozeSheets connection loops.",
     )
     @check_roles([*any_moderation_role, ROLE_SOMM, *any_council_role])
     @check_command_channel(CHANNEL_BC_STEVE_SAYS)
-    async def get_websocket_status(self, interaction: discord.Interaction):
-        logger.info(f"/get_websocket_status command called by {interaction.user}")
+    @describe(connection_type="Which connection loop to inspect.")
+    async def backend_connection_status(
+        self, interaction: discord.Interaction, connection_type: Literal["websocket", "carrier_poll"]
+    ):
+        logger.info(
+            f"/boozesheets_connection_status called by {interaction.user} for connection_type={connection_type}"
+        )
 
-        ws_status, last_message_time = booze_sheets_api.get_websocket_status()
-        logger.debug(f"BoozeSheets API websocket status: {ws_status}")
+        if connection_type == "websocket":
+            ws_status, last_message_time = booze_sheets_api.get_websocket_status()
+            logger.debug(f"BoozeSheets API websocket status: {ws_status}")
 
-        discord_timestamp = f"<t:{int(last_message_time.timestamp())}:R>" if last_message_time else "N/A"
+            discord_timestamp = f"<t:{int(last_message_time.timestamp())}:R>" if last_message_time else "N/A"
+            await interaction.response.send_message(
+                f"BoozeSheets API Websocket Status: {ws_status}\nLast Message Received: {discord_timestamp}"
+            )
+            return
+
+        poll_status, last_refresh_time, cache_size = booze_sheets_api.get_carrier_poll_status()
+        logger.debug(
+            f"BoozeSheets carrier polling status: {poll_status}, last_refresh={last_refresh_time}, cache_size={cache_size}"
+        )
+
+        discord_timestamp = f"<t:{int(last_refresh_time.timestamp())}:R>" if last_refresh_time else "N/A"
         await interaction.response.send_message(
-            f"BoozeSheets API Websocket Status: {ws_status}\nLast Message Received: {discord_timestamp}"
+            "BoozeSheets Carrier Poll Status: "
+            + f"{poll_status}\nLast Cache Refresh: {discord_timestamp}\nCached Carriers: {cache_size}"
         )
