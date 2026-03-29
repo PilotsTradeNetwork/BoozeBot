@@ -4,7 +4,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, override
+from typing import Any, Literal, override
 
 import discord
 import httpx
@@ -257,7 +257,7 @@ class BoozeSheetsApi:
 
             await asyncio.sleep(300)
 
-    def carrier_autocomplete(self, only_owned: bool = True):
+    def carrier_autocomplete(self, only_owned: bool = True, unload_state: Literal["full", "unloading"] | None = None):
         async def autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
             logger.debug(f"Carrier autocomplete called with current input: '{current}' and only_owned={only_owned}")
 
@@ -267,6 +267,11 @@ class BoozeSheetsApi:
             else:
                 carriers = list(self.carrier_cache.values())
                 carriers.sort(key=lambda c: (c.owner.discord_id != interaction.user.id, c.carrier_name.lower()))
+
+            if unload_state == "full":
+                carriers = [c for c in carriers if not c.unload_opened and c.system == "N0"]
+            elif unload_state == "unloading":
+                carriers = [c for c in carriers if c.unload_opened and not c.unload_closed]
 
             display_items = [
                 (f"{carrier.carrier_name} ({carrier.carrier_identifier})", carrier.carrier_identifier)
