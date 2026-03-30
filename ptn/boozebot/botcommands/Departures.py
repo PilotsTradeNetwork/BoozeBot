@@ -84,6 +84,13 @@ class Departures(commands.Cog):
     async def cog_unload(self):
         self.bot.tree.remove_command(self.cxt_menu_close_command.name, type=self.cxt_menu_close_command.type)
 
+    @staticmethod
+    def parse_system_index(system_id: str) -> int:
+        try:
+            return int(system_id[1:])
+        except ValueError:
+            return 16
+
     async def _post_departure(
         self,
         carrier_data: BoozeCarrier | None,
@@ -118,18 +125,21 @@ class Departures(commands.Cog):
                 "Departure and arrival are the same system.",
             )
 
-        # Construct departure message text from structured input.
-        carrier_name = carrier_data.carrier_name.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
-        clean_carrier_id = carrier_id.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
-
-        def parse_system_index(system_id: str) -> int:
+        if existing_message_id := await database.get_departure_message_for_carrier(carrier_id):
             try:
-                return int(system_id[1:])
-            except ValueError:
-                return 16
+                departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
+                existing_message_id = (await departure_channel.fetch_message(existing_message_id)).id
+            except discord.NotFound:
+                existing_message_id = None
+                await database.delete_carrier_message(carrier_id, "departure")
 
-        departure_system_index = parse_system_index(departure_system)
-        arrival_system_index = parse_system_index(arrival_system)
+        if existing_message_id:
+            raise DepartureOperationError(
+                f"A departure message is already posted for carrier ID: {carrier_id}. Please remove it before posting a new one.",
+            )
+
+        departure_system_index = self.parse_system_index(departure_system)
+        arrival_system_index = self.parse_system_index(arrival_system)
 
         if departure_system_index < arrival_system_index:
             direction_arrow = "⬇️"
@@ -147,6 +157,10 @@ class Departures(commands.Cog):
             raise DepartureOperationError(
                 "Departure announcements are currently only enabled for jumps moving up towards N0",
             )
+
+        # Construct departure message text from structured input.
+        carrier_name = carrier_data.carrier_name.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
+        clean_carrier_id = carrier_id.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
 
         departing_thoon = False
         if departure_timestamp:
@@ -177,19 +191,6 @@ class Departures(commands.Cog):
             + f"{departure_time_text} **{carrier_name} ({clean_carrier_id})** | "
             + f"{carrier_data.owner.mention} {hitchhiker_ping_text}"
         )
-
-        if existing_message_id := await database.get_departure_message_for_carrier(carrier_id):
-            try:
-                departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
-                existing_message_id = (await departure_channel.fetch_message(existing_message_id)).id
-            except discord.NotFound:
-                existing_message_id = None
-                await database.delete_carrier_message(carrier_id, "departure")
-
-        if existing_message_id:
-            raise DepartureOperationError(
-                f"A departure message is already posted for carrier ID: {carrier_id}. Please remove it before posting a new one.",
-            )
 
         try:
             departure_channel = await bot.get_or_fetch.channel(CHANNEL_BC_DEPARTURE_ANNOUNCEMENT)
@@ -326,16 +327,25 @@ class Departures(commands.Cog):
 
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
 
+        success: bool = False
+        error: str | None = None
         try:
             await self._post_departure(carrier_data, arrival_location=plotted_system, departure_timestamp=None)
+            logger.info(
+                f"Departure message posted successfully for carrier ID {carrier_id} from departure_request event."
+            )
+            success = True
         except DepartureOperationError as e:
             logger.error(
                 f"Failed to post departure message for carrier ID {carrier_id} from departure_request event: {e}"
             )
-            await booze_sheets_api.send_action_ack(action_id, success=False, error=str(e))
-            return
+            error = str(e)
 
-        await booze_sheets_api.send_action_ack(action_id, success=True)
+        if action_id:
+            logger.debug(
+                f"Sending action acknowledgment for action ID {action_id} with success={success} and error={error}"
+            )
+            await booze_sheets_api.send_action_ack(action_id, success=success, error=error)
 
     @commands.Cog.listener()
     async def on_dynamic_button_departure_close(self, interaction: discord.Interaction, button: DynamicButton):
@@ -355,7 +365,7 @@ class Departures(commands.Cog):
             logger.error(
                 f"Failed to close departure message for carrier ID {carrier_id} from dynamic button interaction: {e}"
             )
-            await interaction.edit_original_response(content=f"Failed to close departure notice: {e}")
+            await interaction.edit_original_response(content=f"Failed to close departure notice: {e}", view=None)
             return
 
         await interaction.message.edit(

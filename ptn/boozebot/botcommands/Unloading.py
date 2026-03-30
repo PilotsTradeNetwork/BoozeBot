@@ -391,14 +391,14 @@ class Unloading(commands.Cog):
         if not carrier_data:
             error_msg = f"Carrier {carrier_id} was not found."
             logger.info(error_msg)
-            await interaction.edit_original_response(content=error_msg)
+            await interaction.edit_original_response(content=error_msg, view=None)
             return
 
         try:
             result = await self._unload_complete(carrier_data, requested_by=interaction.user)
         except UnloadOperationError as e:
             logger.info(str(e))
-            await interaction.edit_original_response(content=str(e))
+            await interaction.edit_original_response(content=str(e), view=None)
             return
 
         unload_duration = result.unload_duration
@@ -443,15 +443,21 @@ class Unloading(commands.Cog):
 
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
 
+        success: bool = False
+        error: str | None = None
         try:
             await self._unload(carrier_data, is_timed=False)
+            logger.info(f"Successfully started unload for carrier {carrier_id} from unload_request event.")
+            success = True
         except UnloadOperationError as e:
             logger.warning(f"Failed to start unload for carrier {carrier_id} from unload_request event: {e}")
-            await booze_sheets_api.send_action_ack(action_id, success=False, error=str(e))
-            return
+            error = str(e)
 
-        logger.info(f"Successfully started unload for carrier {carrier_id} from unload_request event.")
-        await booze_sheets_api.send_action_ack(action_id, success=True)
+        if action_id:
+            logger.debug(
+                f"Sending action ack for unload_request event with action_id {action_id}, success={success}, error={error}"
+            )
+            await booze_sheets_api.send_action_ack(action_id, success=success, error=error)
 
     @tasks.loop(seconds=60.0)
     @track_last_run()
