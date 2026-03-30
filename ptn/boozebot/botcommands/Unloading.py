@@ -96,43 +96,42 @@ class Unloading(commands.Cog):
 
     async def _unload(
         self,
-        carrier_data: BoozeCarrier | None,
+        *,
+        carrier_id: str,
+        carrier_name: str,
+        carrier_db_id: int,
+        system: str | None,
+        body: str | None,
+        wine_total: int,
+        unload_opened: datetime | None,
+        unload_closed: datetime | None,
         is_timed: bool,
-        requested_by: discord.Member | None = None,
     ) -> UnloadStartResult:
         """
         Start a carrier unload operation.
         """
         async with self.unload_lock:
-            if not carrier_data:
-                raise UnloadOperationError("Carrier data was not provided.")
-
-            carrier_id = carrier_data.carrier_identifier
-
-            if requested_by and not carrier_data.is_owned_by(requested_by) and not is_staff(requested_by):
-                raise UnloadOperationError(f"Carrier {carrier_id} is not owned by you.")
-
             if await booze_sheets_api.get_current_cruise_state() != CruiseSystemState.ACTIVE:
                 raise UnloadOperationError(
                     "Unloads can only be started during an active booze cruise.",
                 )
 
-            if carrier_data.system != "N0":
+            if system != "N0":
                 raise UnloadOperationError(
                     f"Carrier {carrier_id} is not in N0 (HIP 58832); cannot unload wine.",
                 )
 
-            if not carrier_data.body:
+            if not body:
                 raise UnloadOperationError(
                     f"Carrier {carrier_id} must have a body set on the Booze Sheets Website before unloading.",
                 )
 
-            if carrier_data.unload_closed:
+            if unload_closed:
                 raise UnloadOperationError(
                     f"Carrier {carrier_id} has already completed all of its unloads.",
                 )
 
-            if carrier_data.unload_opened:
+            if unload_opened:
                 raise UnloadOperationError(
                     f"Carrier {carrier_id} is already unloading wine.",
                 )
@@ -146,17 +145,17 @@ class Unloading(commands.Cog):
                 open_time_str = open_time.strftime("%H:%M:%S")
                 embed_title = "Timed wine unload notification."
                 embed_description = (
-                    f"Carrier **{carrier_data.carrier_name} ({carrier_id})** will be unloading "
-                    + f"**{carrier_data.wine_total}** tonnes of wine from "
-                    + f"**{carrier_data.body}**."
+                    f"Carrier **{carrier_name} ({carrier_id})** will be unloading "
+                    + f"**{wine_total}** tonnes of wine from "
+                    + f"**{body}**."
                     + f"\n Market will open at {open_time_str} (In game time)."
                 )
             else:
                 embed_title = "Wine unload notification."
                 embed_description = (
-                    f"Carrier **{carrier_data.carrier_name} ({carrier_id})** is currently "
-                    + f"unloading **{carrier_data.wine_total}** tonnes of wine from "
-                    + f"**{carrier_data.body}**."
+                    f"Carrier **{carrier_name} ({carrier_id})** is currently "
+                    + f"unloading **{wine_total}** tonnes of wine from "
+                    + f"**{body}**."
                 )
 
             wine_load_embed = discord.Embed(
@@ -178,7 +177,7 @@ class Unloading(commands.Cog):
 
                 await database.set_unload_message_for_carrier(carrier_id, discord_alert_id)
                 await database.set_unload_notification_sent(carrier_id, False)
-                await booze_sheets_api.start_carrier_unload(carrier_data.db_id, delay=delay)
+                await booze_sheets_api.start_carrier_unload(carrier_db_id, delay=delay)
 
                 booze_cruise_chat = await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT)
                 if is_timed:
@@ -431,6 +430,13 @@ class Unloading(commands.Cog):
     async def on_boozesheets_unload_request(self, data: dict[str, Any]):
         carrier_db_id = data.get("carrierId")
         carrier_id = data.get("fcCallsign")
+        carrier_name = data.get("fcName")
+        system = data.get("currentSystem")
+        body = data.get("currentBody")
+        wine_total = data.get("wineTotal")
+        unload_opened = data.get("unloadOpened")
+        unload_closed = data.get("unloadClosed")
+        delay = data.get("delay")
         action_id = data.get("actionId")
 
         logger.info(
@@ -441,12 +447,20 @@ class Unloading(commands.Cog):
             logger.error(f"unload_request missing fcCallsign: {data}")
             return
 
-        carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
-
         success: bool = False
         error: str | None = None
         try:
-            await self._unload(carrier_data, is_timed=False)
+            await self._unload(
+                carrier_id=carrier_id,
+                carrier_name=carrier_name or "",
+                carrier_db_id=int(carrier_db_id) if carrier_db_id is not None else 0,
+                system=system,
+                body=body,
+                wine_total=int(wine_total) if wine_total is not None else 0,
+                unload_opened=unload_opened,
+                unload_closed=unload_closed,
+                is_timed=bool(delay),
+            )
             logger.info(f"Successfully started unload for carrier {carrier_id} from unload_request event.")
             success = True
         except UnloadOperationError as e:
@@ -698,8 +712,21 @@ class Unloading(commands.Cog):
 
         logger.debug(f"Preparing to send unload notification to Discord for carrier {carrier_data.carrier_identifier}.")
         await interaction.edit_original_response(content="**Sending to Discord...**")
+        if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
+            await interaction.edit_original_response(content=f"Carrier {carrier_id} is not owned by you.")
+            return
         try:
-            _ = await self._unload(carrier_data, is_timed=False, requested_by=interaction.user)
+            _ = await self._unload(
+                carrier_id=carrier_data.carrier_identifier,
+                carrier_name=carrier_data.carrier_name,
+                carrier_db_id=carrier_data.db_id,
+                system=carrier_data.system,
+                body=carrier_data.body,
+                wine_total=carrier_data.wine_total,
+                unload_opened=carrier_data.unload_opened,
+                unload_closed=carrier_data.unload_closed,
+                is_timed=False,
+            )
         except UnloadOperationError as e:
             logger.info(str(e))
             await interaction.edit_original_response(content=str(e))
@@ -777,8 +804,21 @@ class Unloading(commands.Cog):
             f"Preparing to send timed unload notification to Discord for carrier {carrier_data.carrier_identifier}."
         )
         await interaction.edit_original_response(content="**Sending to Discord...**")
+        if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
+            await interaction.edit_original_response(content=f"Carrier {carrier_id} is not owned by you.")
+            return
         try:
-            result = await self._unload(carrier_data, is_timed=True, requested_by=interaction.user)
+            result = await self._unload(
+                carrier_id=carrier_data.carrier_identifier,
+                carrier_name=carrier_data.carrier_name,
+                carrier_db_id=carrier_data.db_id,
+                system=carrier_data.system,
+                body=carrier_data.body,
+                wine_total=carrier_data.wine_total,
+                unload_opened=carrier_data.unload_opened,
+                unload_closed=carrier_data.unload_closed,
+                is_timed=True,
+            )
         except UnloadOperationError as e:
             logger.info(str(e))
             await interaction.edit_original_response(content=str(e))

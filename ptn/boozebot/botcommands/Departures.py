@@ -93,29 +93,22 @@ class Departures(commands.Cog):
 
     async def _post_departure(
         self,
-        carrier_data: BoozeCarrier | None,
-        arrival_location: str,
+        *,
+        carrier_id: str,
+        carrier_name: str,
+        owner_discord_id: str,
+        departure_system: str,
+        arrival_system: str,
         departure_timestamp: datetime | None,
-        requested_by: discord.Member | None = None,
     ) -> DeparturePostResult:
         """Post a departure notice and persist the Discord message ID."""
 
-        if not carrier_data:
-            raise DepartureOperationError("Carrier data was not provided.")
-
-        carrier_id = carrier_data.carrier_identifier
-
-        if requested_by and not carrier_data.is_owned_by(requested_by) and not is_staff(requested_by):
-            raise DepartureOperationError(f"You do not own the carrier with ID: {carrier_id}.")
-
-        departure_system = carrier_data.system
         if departure_system not in N_SYSTEMS:
             raise DepartureOperationError(
                 f"Carrier {carrier_id} current location must be a system on the ladder to post a departure notice. Current location: '{departure_system}'.",
             )
 
-        arrival_system = arrival_location.split(" ", 1)[0]
-        if arrival_system.split(" ", 1)[0] not in N_SYSTEMS:
+        if arrival_system not in N_SYSTEMS:
             raise DepartureOperationError(
                 f"Arrival location '{arrival_system}' is invalid.",
             )
@@ -159,7 +152,7 @@ class Departures(commands.Cog):
             )
 
         # Construct departure message text from structured input.
-        carrier_name = carrier_data.carrier_name.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
+        carrier_name = carrier_name.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
         clean_carrier_id = carrier_id.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
 
         departing_thoon = False
@@ -189,7 +182,7 @@ class Departures(commands.Cog):
         departure_message_text = (
             f"**{direction_arrow} {departure_location_text} > {arrival_location_text}** |"
             + f"{departure_time_text} **{carrier_name} ({clean_carrier_id})** | "
-            + f"{carrier_data.owner.mention} {hitchhiker_ping_text}"
+            + f"<@{owner_discord_id}> {hitchhiker_ping_text}"
         )
 
         try:
@@ -314,6 +307,9 @@ class Departures(commands.Cog):
     @commands.Cog.listener()
     async def on_boozesheets_departure_request(self, data: dict[str, Any]):
         carrier_id = data.get("fcCallsign")
+        fc_name = data.get("fcName")
+        owner_discord_id = data.get("ownerDiscordId")
+        current_system = data.get("currentSystem")
         plotted_system = data.get("plottedSystem")
         action_id = data.get("actionId")
 
@@ -325,12 +321,17 @@ class Departures(commands.Cog):
             logger.error("departure_request event missing carrier ID.")
             return
 
-        carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
-
         success: bool = False
         error: str | None = None
         try:
-            await self._post_departure(carrier_data, arrival_location=plotted_system, departure_timestamp=None)
+            await self._post_departure(
+                carrier_id=carrier_id,
+                carrier_name=fc_name or "",
+                owner_discord_id=owner_discord_id or "",
+                departure_system=current_system or "",
+                arrival_system=plotted_system or "",
+                departure_timestamp=None,
+            )
             logger.info(
                 f"Departure message posted successfully for carrier ID {carrier_id} from departure_request event."
             )
@@ -574,11 +575,15 @@ class Departures(commands.Cog):
             departure_time = datetime.now() + timedelta(minutes=departing_in_minutes)
 
         try:
+            if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
+                raise DepartureOperationError(f"You do not own the carrier with ID: {carrier_id}.")
             post_result = await self._post_departure(
-                carrier_data,
-                arrival_location,
-                departure_time,
-                requested_by=interaction.user,
+                carrier_id=carrier_data.carrier_identifier,
+                carrier_name=carrier_data.carrier_name,
+                owner_discord_id=str(carrier_data.owner.discord_id),
+                departure_system=carrier_data.system,
+                arrival_system=arrival_location.split(" ", 1)[0],
+                departure_timestamp=departure_time,
             )
         except DepartureOperationError as e:
             msg = str(e)
