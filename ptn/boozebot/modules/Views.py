@@ -61,22 +61,20 @@ async def interaction_check_owner(view: OwnedView, interaction: Interaction):
 
 class DynamicButton(
     ui.DynamicItem[ui.Button[ui.View]],
-    template=r"steve:user:(?P<user_id>[0-9]+):message:(?P<message_id>[0-9]+):action:(?P<action>[a-z]+)",
+    template=r"steve:user:(?P<user_id>[0-9]+):payload:(?P<payload>[^:]+):action:(?P<action>[a-z_]+)",
 ):
-    def __init__(self, label: str, action: str, user_id: int, message_id: int) -> None:
-        logger.debug(
-            f"Creating DynamicButton: label={label}, action={action}, user_id={user_id}, message_id={message_id}"
-        )
+    def __init__(self, label: str, action: str, user_id: int, payload: str) -> None:
+        logger.debug(f"Creating DynamicButton: label={label}, action={action}, user_id={user_id}, payload={payload}")
         super().__init__(
             ui.Button(
                 label=label,
                 style=ButtonStyle.green,
-                custom_id=f"steve:user:{user_id}:message:{message_id}:action:{action}",
+                custom_id=f"steve:user:{user_id}:payload:{payload}:action:{action}",
             )
         )
         self.action: str = action
         self.user_id: int = user_id
-        self.message_id: int = message_id
+        self.payload: str = payload
         logger.debug("DynamicButton created successfully")
 
     @override
@@ -86,14 +84,14 @@ class DynamicButton(
         logger.debug(f"Parsing DynamicButton from custom_id: {item.custom_id}")
         action = str(match["action"])
         user_id = int(match["user_id"])
-        message_id = int(match["message_id"])
+        payload = str(match["payload"])
         label = item.label
-        return cls(label, action, user_id, message_id)
+        return cls(label, action, user_id, payload)
 
     @override
     async def callback(self, interaction: discord.Interaction) -> None:
         logger.info(
-            f"DynamicButton clicked: action={self.action}, user_id={self.user_id}, message_id={self.message_id} by {interaction.user} ({interaction.user.id})"
+            f"DynamicButton clicked: action={self.action}, user_id={self.user_id}, payload={self.payload} by {interaction.user} ({interaction.user.id})"
         )
 
         event_name = f"dynamic_button_{self.action}"

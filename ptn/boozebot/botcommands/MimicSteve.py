@@ -32,7 +32,7 @@ class MimicSteve(commands.Cog):
         self.bot.tree.add_command(self.ctx_menu)
 
     @override
-    def cog_unload(self):  # pyright: ignore[reportIncompatibleMethodOverride]
+    async def cog_unload(self):
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])

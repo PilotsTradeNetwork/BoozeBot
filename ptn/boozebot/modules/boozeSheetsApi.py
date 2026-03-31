@@ -136,6 +136,7 @@ def _log_before_sleep(retry_state: RetryCallState):
 class BoozeSheetsApi:
     _ws_connected: bool
     _ws_running: bool
+    _ws_connection: websockets.ClientConnection | None
     ws_task: asyncio.Task[None] | None
     ws_client: AsyncClient | None
     bot: Bot
@@ -160,6 +161,7 @@ class BoozeSheetsApi:
         self._ws_running = False
         self._last_ws_message_time: datetime | None = None
         self._ws_connected = False
+        self._ws_connection = None
 
     @retry(
         stop=dynamic_attempts(_should_retry_exception, 3, 1),
@@ -672,10 +674,12 @@ class BoozeSheetsApi:
             except asyncio.CancelledError:
                 logger.info("Websocket loop cancelled")
                 self._ws_connected = False
+                self._ws_connection = None
                 break
             except Exception as e:
                 logger.exception(f"Websocket error: {e}")
                 self._ws_connected = False
+                self._ws_connection = None
 
                 if self._ws_running:
                     logger.info(f"Reconnecting websocket in {reconnect_delay} seconds...")
@@ -692,10 +696,10 @@ class BoozeSheetsApi:
 
         logger.info(f"Connecting to BoozeSheets websocket: {ws_url.split('?', maxsplit=1)[0]}")
 
-        async with websockets.connect(uri=ws_url) as websocket:
+        async with websockets.connect(uri=ws_url) as self._ws_connection:
             logger.info("Connected to BoozeSheets websocket")
 
-            async for message in websocket:
+            async for message in self._ws_connection:
                 logger.trace(f"Websocket message received: {message}")
 
                 if not self._ws_running:
@@ -742,6 +746,27 @@ class BoozeSheetsApi:
         """
         status = "Connected" if self._ws_connected else "Disconnected"
         return status, self._last_ws_message_time
+
+    async def send_action_ack(self, action_id: str, success: bool = True, error: str | None = None) -> None:
+        """
+        Send an action acknowledgement back to the BoozeSheets API over the active WebSocket
+        connection so that a pending HTTP request (e.g. POST /carriers/{id}/departure) can be
+        resolved and returned to the web UI caller.
+
+        :param action_id: The UUID that was included in the original WS request payload.
+        :param success: Whether the action was completed successfully.
+        :param error: Optional error message when success is False.
+        """
+        if self._ws_connection is None:
+            logger.error(f"Cannot send action_ack for action_id={action_id}: no active WebSocket connection")
+            return
+
+        payload = json.dumps({"type": "action_ack", "actionId": action_id, "success": success, "error": error})
+        try:
+            await self._ws_connection.send(payload)
+            logger.debug(f"Sent action_ack: action_id={action_id}, success={success}")
+        except Exception as e:
+            logger.error(f"Failed to send action_ack for action_id={action_id}: {e}")
 
 
 booze_sheets_api = BoozeSheetsApi()
