@@ -56,7 +56,7 @@ async def api_ph_check() -> tuple[bool, datetime]:
             logger.info("PH state detected from EDSM.")
             return True, updated_at
     except StaleDataException:
-        raise # Handled in public_holiday_loop
+        raise  # Handled in public_holiday_loop
     except Exception as e:
         logger.error("Problem while getting the state from EDSM.")
         if isinstance(e, httpx.HTTPError):

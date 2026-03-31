@@ -93,37 +93,27 @@ class Departures(commands.Cog):
 
     async def _post_departure(
         self,
-        carrier_data: BoozeCarrier | None,
-        arrival_location: str,
+        *,
+        carrier_id: str,
+        carrier_name: str,
+        owner_discord_id: str,
+        departure_system: str,
+        arrival_system: str,
         departure_timestamp: datetime | None,
-        requested_by: discord.Member | None = None,
     ) -> DeparturePostResult:
         """Post a departure notice and persist the Discord message ID."""
 
-        if not carrier_data:
-            raise DepartureOperationError("Carrier data was not provided.")
-
-        carrier_id = carrier_data.carrier_identifier
-
-        if requested_by and not carrier_data.is_owned_by(requested_by) and not is_staff(requested_by):
-            raise DepartureOperationError(f"You do not own the carrier with ID: {carrier_id}.")
-
-        departure_system = carrier_data.system
         if departure_system not in N_SYSTEMS:
             raise DepartureOperationError(
-                f"Carrier {carrier_id} current location must be a system on the ladder to post a departure notice. Current location: '{departure_system}'.",
+                f"Carrier {carrier_id} current location must be a system on the ladder to post a departure notice. "
+                + f"Current location: '{departure_system}'.",
             )
 
-        arrival_system = arrival_location.split(" ", 1)[0]
-        if arrival_system.split(" ", 1)[0] not in N_SYSTEMS:
-            raise DepartureOperationError(
-                f"Arrival location '{arrival_system}' is invalid.",
-            )
+        if arrival_system not in N_SYSTEMS:
+            raise DepartureOperationError(f"Arrival location '{arrival_system}' is invalid.")
 
         if departure_system == arrival_system:
-            raise DepartureOperationError(
-                "Departure and arrival are the same system.",
-            )
+            raise DepartureOperationError("Departure and arrival are the same system.")
 
         if existing_message_id := await database.get_departure_message_for_carrier(carrier_id):
             try:
@@ -135,7 +125,8 @@ class Departures(commands.Cog):
 
         if existing_message_id:
             raise DepartureOperationError(
-                f"A departure message is already posted for carrier ID: {carrier_id}. Please remove it before posting a new one.",
+                f"A departure message is already posted for carrier ID: {carrier_id}. "
+                + "Please remove it before posting a new one.",
             )
 
         departure_system_index = self.parse_system_index(departure_system)
@@ -149,9 +140,7 @@ class Departures(commands.Cog):
             direction_arrow = ""
 
         if settings.get_setting("departure_announcement_status") == "Disabled":
-            raise DepartureOperationError(
-                "Departure announcements are currently disabled.",
-            )
+            raise DepartureOperationError("Departure announcements are currently disabled.")
 
         if settings.get_setting("departure_announcement_status") == "Upwards" and direction_arrow == "⬇️":
             raise DepartureOperationError(
@@ -159,7 +148,7 @@ class Departures(commands.Cog):
             )
 
         # Construct departure message text from structured input.
-        carrier_name = carrier_data.carrier_name.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
+        carrier_name = carrier_name.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
         clean_carrier_id = carrier_id.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
 
         departing_thoon = False
@@ -189,7 +178,7 @@ class Departures(commands.Cog):
         departure_message_text = (
             f"**{direction_arrow} {departure_location_text} > {arrival_location_text}** |"
             + f"{departure_time_text} **{carrier_name} ({clean_carrier_id})** | "
-            + f"{carrier_data.owner.mention} {hitchhiker_ping_text}"
+            + f"<@{owner_discord_id}> {hitchhiker_ping_text}"
         )
 
         try:
@@ -273,7 +262,7 @@ class Departures(commands.Cog):
     )
     async def ctx_menu_close_departure(self, interaction: discord.Interaction, message: discord.Message):
         logger.info(
-            f"Received context menu close departure command from user {interaction.user.name} for message ID {message.id}"
+            f"Received context menu close departure from user {interaction.user.name} for message ID {message.id}"
         )
 
         await interaction.response.defer(ephemeral=True)
@@ -314,37 +303,36 @@ class Departures(commands.Cog):
     @commands.Cog.listener()
     async def on_boozesheets_departure_request(self, data: dict[str, Any]):
         carrier_id = data.get("fcCallsign")
+        fc_name = data.get("fcName")
+        owner_discord_id = data.get("ownerDiscordId")
+        current_system = data.get("currentSystem")
         plotted_system = data.get("plottedSystem")
         action_id = data.get("actionId")
 
-        logger.info(
-            f"Received departure_request event from booze sheets for carrier ID: {carrier_id} with plotted system: {plotted_system} and action ID: {action_id}."
-        )
-
+        logger.info(f"Received event from booze sheets: {carrier_id=}, {plotted_system=}, {action_id=}")
         if not carrier_id:
             logger.error("departure_request event missing carrier ID.")
             return
 
-        carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
-
         success: bool = False
         error: str | None = None
         try:
-            await self._post_departure(carrier_data, arrival_location=plotted_system, departure_timestamp=None)
-            logger.info(
-                f"Departure message posted successfully for carrier ID {carrier_id} from departure_request event."
+            await self._post_departure(
+                carrier_id=carrier_id,
+                carrier_name=fc_name or "",
+                owner_discord_id=owner_discord_id or "",
+                departure_system=current_system or "",
+                arrival_system=plotted_system or "",
+                departure_timestamp=None,
             )
+            logger.info(f"Departure message posted successfully for carrier ID {carrier_id}.")
             success = True
         except DepartureOperationError as e:
-            logger.error(
-                f"Failed to post departure message for carrier ID {carrier_id} from departure_request event: {e}"
-            )
+            logger.error(f"Failed to post departure message for carrier ID {carrier_id}: {e}")
             error = str(e)
 
         if action_id:
-            logger.debug(
-                f"Sending action acknowledgment for action ID {action_id} with success={success} and error={error}"
-            )
+            logger.debug(f"Sending action acknowledgment for action ID {action_id}: {success=}, {error=}")
             await booze_sheets_api.send_action_ack(action_id, success=success, error=error)
 
     @commands.Cog.listener()
@@ -353,18 +341,14 @@ class Departures(commands.Cog):
 
         await interaction.response.defer()
 
-        logger.info(
-            f"Received dynamic button interaction for departure close with carrier ID: {carrier_id} from user {interaction.user} ({interaction.user.id})."
-        )
+        logger.info(f"Received dynamic button interaction: {carrier_id=} {interaction.user=} ({interaction.user.id}).")
 
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
 
         try:
             await self._close_departure(carrier_data, requested_by=interaction.user)
         except DepartureOperationError as e:
-            logger.error(
-                f"Failed to close departure message for carrier ID {carrier_id} from dynamic button interaction: {e}"
-            )
+            logger.error(f"Failed to close departure message for carrier ID {carrier_id}: {e}")
             await interaction.edit_original_response(content=f"Failed to close departure notice: {e}", view=None)
             return
 
@@ -417,9 +401,7 @@ class Departures(commands.Cog):
                 try:
                     departure_time = int(departure_time)
                 except ValueError:
-                    logger.exception(
-                        f"Departure time was not an integer: {departure_time}, Probably means they never set a departure time."
-                    )
+                    logger.exception(f"Departure time was not an integer: {departure_time}")
                     continue
 
                 logger.info(f"Departure time: {departure_time}")
@@ -444,13 +426,15 @@ class Departures(commands.Cog):
                         )
 
                         await wine_carrier_chat.send(
-                            f"<@{author_id}> your scheduled departure time of <t:{departure_time}:F> has passed. If your carrier has entered lockdown or completed its jump, please close the departure notice by clicking the button below.",
+                            f"<@{author_id}> your scheduled departure time of <t:{departure_time}:F> has passed. "
+                            + "If your carrier has entered lockdown or completed its jump, please close the departure "
+                            + "notice by clicking the button below.",
                             view=view,
                         )
 
             except Exception as e:
                 logger.exception(
-                    f"Failed to process departure message while checking for time passed. message: {message.id}. Error: {e}"
+                    f"Failed to process departure message while checking for time passed. {message.id=}. Error: {e}"
                 )
 
     @app_commands.command(name="wine_carrier_departure", description="Post a departure message for a wine carrier.")
@@ -491,8 +475,8 @@ class Departures(commands.Cog):
         """
 
         logger.info(
-            f"User {interaction.user.name} has requested a new wine carrier departure operation for carrier: {carrier_id} "
-            + f"to {arrival_location}."
+            f"User {interaction.user.name} has requested a wine carrier departure operation: {carrier_id=}, "
+            + f"{arrival_location=}."
         )
 
         # Defer the interaction response to allow more time for processing
@@ -574,11 +558,15 @@ class Departures(commands.Cog):
             departure_time = datetime.now() + timedelta(minutes=departing_in_minutes)
 
         try:
+            if not carrier_data.is_owned_by(interaction.user) and not is_staff(interaction.user):
+                raise DepartureOperationError(f"You do not own the carrier with ID: {carrier_id}.")
             post_result = await self._post_departure(
-                carrier_data,
-                arrival_location,
-                departure_time,
-                requested_by=interaction.user,
+                carrier_id=carrier_data.carrier_identifier,
+                carrier_name=carrier_data.carrier_name,
+                owner_discord_id=str(carrier_data.owner.discord_id),
+                departure_system=carrier_data.system,
+                arrival_system=arrival_location.split(" ", 1)[0],
+                departure_timestamp=departure_time,
             )
         except DepartureOperationError as e:
             msg = str(e)
@@ -618,7 +606,7 @@ class Departures(commands.Cog):
         carrier_id = carrier_id.upper().strip()
 
         logger.info(
-            f"User {interaction.user.name} has requested to remove a wine carrier departure operation for carrier: {carrier_id}."
+            f"User {interaction.user.name} has requested to remove a wine carrier departure for carrier: {carrier_id}."
         )
 
         if not CARRIER_ID_RE.fullmatch(carrier_id):
@@ -736,7 +724,8 @@ class Departures(commands.Cog):
         departure_timestamp: str = "",
     ):
         logger.info(
-            f"User {interaction.user.name} has requested an official carrier departure for carrier: {carrier_id} from {departure_location} to {arrival_location} with type: {departure_time_type}."
+            f"User {interaction.user.name} has requested an official carrier departure: {departure_name=}, "
+            + f"{carrier_id=}, from {departure_location=} to {arrival_location=}, {departure_time_type=}."
         )
         await interaction.response.defer()
 

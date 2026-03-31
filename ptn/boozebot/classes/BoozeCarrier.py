@@ -31,7 +31,9 @@ class CarrierOwner:
         discord_id = info_dict.get("discordId")
 
         if not discord_id or not self.username or not self.display_name:
-            raise ValueError("Missing required carrier owner information: 'discordId', 'username', and 'displayName' must be present in the API response.")
+            raise ValueError(
+                "Missing required carrier owner information: 'discordId', 'username', and 'displayName' must be present in the API response."
+            )
 
         if discord_id.startswith("&"):
             self.discord_id = int(discord_id[1:])
@@ -129,7 +131,9 @@ class BoozeCarrier:
         self.staff_comment = fc_data.get("staffComment", None)
 
         if not self.carrier_name or not self.carrier_identifier:
-            raise ValueError("Missing required carrier information: 'fcName' and 'fcCallsign' must be present in the API response.")
+            raise ValueError(
+                "Missing required carrier information: 'fcName' and 'fcCallsign' must be present in the API response."
+            )
 
         # Owner data
         self.owner = CarrierOwner(fc_data.get("owner", {}))
@@ -146,7 +150,9 @@ class BoozeCarrier:
         wine_total = info_dict.get("wineTotal")
 
         if cruise_id is None or trip_id is None or wine_total is None:
-            raise ValueError("Missing required carrier information: 'cruiseId', 'tripId', and 'wineTotal' must be present in the API response.")
+            raise ValueError(
+                "Missing required carrier information: 'cruiseId', 'tripId', and 'wineTotal' must be present in the API response."
+            )
 
         self.cruise_id = int(cruise_id)
         self.trip_id = int(trip_id)
