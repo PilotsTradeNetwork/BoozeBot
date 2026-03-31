@@ -71,6 +71,10 @@ class Unloading(commands.Cog):
         - Starts the last unload time loop
     - on_raw_reaction_add
         - Listens for reactions in the unloading channel to track FC complete reactions and notify the owner if there are 5.
+    - on_dynamic_button_close_unload
+        - Listens for interactions with the close unload button and processes the unload completion.
+    - on_boozesheets_unload_request
+        - Listens for unload request events from the BoozeSheets API to start unloads from external events.
 
     TASKS
     - last_unload_time_loop

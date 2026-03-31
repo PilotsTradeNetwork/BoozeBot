@@ -71,6 +71,10 @@ class Departures(commands.Cog):
         - Checks for any departure messages needing to be closed and starts the departure message checker loop.
     - on_raw_reaction_add
         - Checks if the reaction will close the departure message and if so removes it.
+    - on_dynamic_button_departure_close
+        - Checks if the interaction will close the departure message and if so removes it.
+    - on_boozesheets_departure_request
+        - Listens for departure request events from the BoozeSheets API to post departures from external events.
 
     TASKS
     - check_departure_messages_loop
@@ -79,6 +83,8 @@ class Departures(commands.Cog):
     COMMANDS
     - /wine_carrier departure post (council/mod/somm/conn/wine carrier)
         - Posts a departure message for a carrier.
+    - /wine_carrier departure remove (council/mod/somm/conn/wine carrier)
+        - Removes a departure message for a carrier.
     - /booze_admin departure set_allowed_departures (council/mod/somm)
         - Sets what directions departures can be posted for.
     - /booze_admin departure official (council/mod/somm)
@@ -599,8 +605,9 @@ class Departures(commands.Cog):
         # Edit the original interaction response with the jump URL of the departure message
         await interaction.edit_original_response(content=f"Departure message sent to {post_result.jump_url}.")
 
+    @subcommand("wine_carrier departure")
     @app_commands.command(
-        name="remove_wine_carrier_departure", description="Remove a departure message for a wine carrier."
+        name="remove", description="Remove a departure message for a wine carrier."
     )
     @describe(carrier_id="The XXX-XXX ID string for the carrier")
     @check_roles(
