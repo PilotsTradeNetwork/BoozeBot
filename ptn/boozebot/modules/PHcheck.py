@@ -18,6 +18,26 @@ class StaleDataException(Exception):
     pass
 
 
+# Tracks the last time a state change was detected by api_ph_check or an admin override.
+# EDSM data is rejected if it is before that timestamp, to avoid flip-flopping between states
+LAST_UPDATED: datetime = datetime.now(tz=UTC)
+
+# Tracks the previous PH state so that changes can be detected by api_ph_check.
+_previous_ph_state: bool | None = None
+
+
+def set_last_updated(dt: datetime) -> None:
+    """Update LAST_UPDATED to *dt*. Use this instead of a bare ``global`` assignment."""
+    global LAST_UPDATED  # noqa: PLW0603
+    LAST_UPDATED = dt
+
+
+def set_previous_ph_state(state: bool | None) -> None:
+    """Update _previous_ph_state to *state*. Use this instead of a bare ``global`` assignment."""
+    global _previous_ph_state  # noqa: PLW0603
+    _previous_ph_state = state
+
+
 async def get_state_from_edsm() -> tuple[bool, datetime]:
     logger.debug("Getting state from EDSM API.")
     edsm_params = {
@@ -35,8 +55,14 @@ async def get_state_from_edsm() -> tuple[bool, datetime]:
     logger.debug(f"Active States: {active_states}")
     last_update = datetime.fromtimestamp(faction.get("lastUpdate") or 0, tz=UTC)
     logger.debug(f"Last update: {last_update}")
-    if datetime.now(UTC) - last_update > STALE_DATA_THRESHOLD:
+    now = datetime.now(UTC)
+    if now - last_update > STALE_DATA_THRESHOLD:
         raise StaleDataException(f"Stale data detected from EDSM. Last Updated: {last_update}")
+    if LAST_UPDATED is not None and last_update < LAST_UPDATED:
+        raise StaleDataException(
+            "EDSM data predates last known state change. "
+            + f"Last Updated: {last_update}, Last State Change: {LAST_UPDATED}"
+        )
 
     if "Public Holiday" in active_states:
         logger.debug("Public Holiday state found in EDSM response.")
@@ -52,6 +78,10 @@ async def api_ph_check() -> tuple[bool, datetime]:
     logger.debug("Attempting to get the state from EDSM.")
     try:
         state, updated_at = await get_state_from_edsm()
+        if state != _previous_ph_state:
+            logger.info(f"PH state change detected: {_previous_ph_state} -> {state}. Updating LAST_UPDATED.")
+            set_last_updated(updated_at)
+            set_previous_ph_state(state)
         if state:
             logger.info("PH state detected from EDSM.")
             return True, updated_at

@@ -36,7 +36,7 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
-from ptn.boozebot.modules.PHcheck import StaleDataException, api_ph_check, ph_check
+from ptn.boozebot.modules.PHcheck import StaleDataException, api_ph_check, ph_check, set_last_updated
 
 """
 PUBLIC HOLIDAY TASK LOOP
@@ -209,7 +209,12 @@ class PublicHoliday(commands.Cog):
         logger.info(
             f"User {interaction.user.name} requested to override the admin holiday state to: {state}, forced: {force_update}."
         )
-        _success, message = await self._set_public_holiday_state(state, datetime.now(tz=UTC), force_update)
+        now = datetime.now(tz=UTC)
+        _success, message = await self._set_public_holiday_state(state, now, force_update)
+
+        if _success:
+            logger.info(f"Admin override succeeded; updating LAST_UPDATED to {now}.")
+            set_last_updated(now)
 
         logger.info(f"Admin override result: {message}")
         await interaction.response.send_message(f"{message}. Check with /booze_started.")
