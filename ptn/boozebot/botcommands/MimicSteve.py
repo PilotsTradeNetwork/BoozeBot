@@ -1,4 +1,4 @@
-from typing import override
+from typing import cast, override
 
 import discord
 from discord import app_commands
@@ -32,7 +32,7 @@ class MimicSteve(commands.Cog):
         self.bot.tree.add_command(self.ctx_menu)
 
     @override
-    def cog_unload(self):  # pyright: ignore[reportIncompatibleMethodOverride]
+    async def cog_unload(self):
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])
@@ -81,7 +81,7 @@ class MimicSteve(commands.Cog):
 
         if not send_channel:
             logger.debug("No send_channel provided, using the interaction channel.")
-            send_channel = interaction.channel
+            send_channel = cast("discord.TextChannel", interaction.channel)
 
         logger.debug(f"Sending message as PirateSteve in channel: {send_channel}.")
 
@@ -97,12 +97,12 @@ class MimicSteve(commands.Cog):
     ):
         logger.info(
             f"User {interaction.user.name} is sending the message {message} as PirateSteve "
-            + f"in: {send_channel if send_channel else reply_message.channel}."
+            + f"in: {send_channel or reply_message.channel}."
         )
         steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
         try:
             if reply_message:
-                send_channel = reply_message.channel
+                send_channel = cast("discord.TextChannel", reply_message.channel)
                 msg = await reply_message.reply(content=message)
                 logger.debug("Sent reply message as PirateSteve.")
             elif send_channel:

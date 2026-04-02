@@ -10,11 +10,11 @@ logger = get_logger("boozebot.classes.boozecarrier")
 
 
 class CarrierOwner:
-    display_name: str | None
+    display_name: str
     discord_id: int
     is_role: bool
-    mention: str | None
-    username: str | None
+    mention: str
+    username: str
     scopes: list[str]
 
     def __init__(self, info_dict: dict[str, Any]):
@@ -26,22 +26,23 @@ class CarrierOwner:
 
         logger.debug(f"Initializing CarrierOwner with info_json: {info_dict}")
 
-        self.username = info_dict.get("username", None)
-        self.display_name = info_dict.get("displayName", None)
-        discord_id = info_dict.get("discordId", None)
-        if discord_id:
-            if discord_id.startswith("&"):
-                self.discord_id = int(discord_id[1:])
-                self.is_role = True
-                self.mention = f"<@&{self.discord_id}>"
-            else:
-                self.discord_id = int(discord_id)
-                self.is_role = False
-                self.mention = f"<@{self.discord_id}>"
+        self.username = info_dict.get("username")
+        self.display_name = info_dict.get("displayName")
+        discord_id = info_dict.get("discordId")
+
+        if not discord_id or not self.username or not self.display_name:
+            raise ValueError(
+                "Missing required carrier owner information: 'discordId', 'username', and 'displayName' must be present in the API response."
+            )
+
+        if discord_id.startswith("&"):
+            self.discord_id = int(discord_id[1:])
+            self.is_role = True
+            self.mention = f"<@&{self.discord_id}>"
         else:
-            self.discord_id = 0
+            self.discord_id = int(discord_id)
             self.is_role = False
-            self.mention = None
+            self.mention = f"<@{self.discord_id}>"
 
         self.scopes = info_dict.get("scopes", [])
 
@@ -73,9 +74,9 @@ class SignupInfo:
         :param info_dict: The dictionary containing the signup information.
         """
 
-        self.status = info_dict.get("status", None)
+        self.status = info_dict.get("status")
         self.color = info_dict.get("color", "000000")
-        self.notes = info_dict.get("notes", None)
+        self.notes = info_dict.get("notes")
         self.first_time = info_dict.get("firstTime", True)
 
 
@@ -91,8 +92,8 @@ class BoozeCarrier:
     cruise_id: int
     owner: CarrierOwner
     queue_timestamp: datetime | None
-    carrier_name: str | None
-    carrier_identifier: str | None
+    carrier_name: str
+    carrier_identifier: str
     system: str | None
     body: str | None
     staff_comment: str | None
@@ -129,26 +130,41 @@ class BoozeCarrier:
         self.queue_timestamp = sane_default_datetime(fc_data.get("queueTs", None))
         self.staff_comment = fc_data.get("staffComment", None)
 
+        if not self.carrier_name or not self.carrier_identifier:
+            raise ValueError(
+                "Missing required carrier information: 'fcName' and 'fcCallsign' must be present in the API response."
+            )
+
         # Owner data
         self.owner = CarrierOwner(fc_data.get("owner", {}))
 
         # Notable info
-        if "notable" in info_dict and info_dict.get("notable"):
-            self.signup_info = SignupInfo(info_dict.get("notable"))
+        if notable_info := info_dict.get("notable"):
+            self.signup_info = SignupInfo(notable_info)
         else:
             self.signup_info = None
 
         # Trip data
-        self.cruise_id = int(info_dict.get("cruiseId", 0))
-        self.trip_id = int(info_dict.get("tripId", 0))
-        self.wine_total = int(info_dict.get("wineTotal", 0))
-        self.wine_status = info_dict.get("wineStatus", None)
-        self.status = info_dict.get("status", None)
-        self.availability_start = sane_default_datetime(info_dict.get("availabilityStart", None))
-        self.availability_end = sane_default_datetime(info_dict.get("availabilityEnd", None))
-        self.unload_opened = sane_default_datetime(info_dict.get("unloadOpened", None))
-        self.unload_closed = sane_default_datetime(info_dict.get("unloadClosed", None))
-        self.unload_duration = sane_default_duration(info_dict.get("unloadDur", None))
+        cruise_id = info_dict.get("cruiseId")
+        trip_id = info_dict.get("tripId")
+        wine_total = info_dict.get("wineTotal")
+
+        if cruise_id is None or trip_id is None or wine_total is None:
+            raise ValueError(
+                "Missing required carrier information: 'cruiseId', 'tripId', and 'wineTotal' must be present in the API response."
+            )
+
+        self.cruise_id = int(cruise_id)
+        self.trip_id = int(trip_id)
+        self.wine_total = int(wine_total)
+
+        self.wine_status = info_dict.get("wineStatus")
+        self.status = info_dict.get("status")
+        self.availability_start = sane_default_datetime(info_dict.get("availabilityStart"))
+        self.availability_end = sane_default_datetime(info_dict.get("availabilityEnd"))
+        self.unload_opened = sane_default_datetime(info_dict.get("unloadOpened"))
+        self.unload_closed = sane_default_datetime(info_dict.get("unloadClosed"))
+        self.unload_duration = sane_default_duration(info_dict.get("unloadDur"))
 
         logger.debug(
             f"BoozeCarrier initialized: carrier_name={self.carrier_name}, carrier_identifier={self.carrier_identifier}, "
@@ -172,10 +188,9 @@ class BoozeCarrier:
 
         if self.system and self.body:
             return f"{self.system} - {self.body}"
-        elif self.system:
+        if self.system:
             return self.system
-        else:
-            return "Unknown"
+        return "Unknown"
 
     @property
     def is_staff(self):
@@ -186,9 +201,7 @@ class BoozeCarrier:
         :rtype: bool
         """
 
-        if set(self.owner.scopes) & {"Sommelier", "Connoisseur", "Old Grape"}:
-            return True
-        return False
+        return bool(set(self.owner.scopes) & {"Sommelier", "Connoisseur", "Old Grape"})
 
     def to_dictionary(self):
         """
@@ -200,11 +213,7 @@ class BoozeCarrier:
 
         logger.debug(f"Converting BoozeCarrier '{self.carrier_name}' to dictionary.")
 
-        response = {}
-        for key, value in vars(self).items():
-            if value is not None:
-                response[key] = value
-
+        response = {key: value for key, value in vars(self).items() if value is not None}
         logger.debug(f"BoozeCarrier dictionary representation: {response}")
 
         return response
@@ -228,7 +237,7 @@ class BoozeCarrier:
 
         logger.debug(f"Checking boolean state of BoozeCarrier '{self.carrier_name}'.")
 
-        state = any([value for _key, value in vars(self).items()])
+        state = any(value for _key, value in vars(self).items())
 
         logger.debug(f"BoozeCarrier '{self.carrier_name}' boolean state: {state}")
 
@@ -274,14 +283,14 @@ class CarrierStats:
         logger.debug(f"Initializing CarrierStats with info_json: {info_dict}")
 
         self.db_id = int(info_dict.get("fcId", 0))
-        self.name = info_dict.get("fcName", None)
+        self.name = info_dict.get("fcName")
         self.owner = CarrierOwner(info_dict.get("owner", {}))
         self.total_wine = int(info_dict.get("totalWine", 0))
         self.total_cruises = int(info_dict.get("totalCruises", 0))
         self.total_trips = int(info_dict.get("totalTrips", 0))
         self.total_credits = int(info_dict.get("totalCredits", 0))
-        self.first_unload_date = sane_default_datetime(info_dict.get("firstUnloadDate", None))
-        self.last_unload_date = sane_default_datetime(info_dict.get("lastUnloadDate", None))
+        self.first_unload_date = sane_default_datetime(info_dict.get("firstUnloadDate"))
+        self.last_unload_date = sane_default_datetime(info_dict.get("lastUnloadDate"))
         logger.debug(
             f"CarrierStats initialized: carrier_name={self.name}, owner_username={self.owner.username}, owner_discord_id={self.owner.discord_id}, "
             + f"total_wine={self.total_wine}, total_cruises={self.total_cruises}, total_trips={self.total_trips}, "

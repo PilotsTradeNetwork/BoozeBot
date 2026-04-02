@@ -1,6 +1,6 @@
+# pyright: reportPrivateUsage=false
 """
 Constants used throughout BoozeBot.
-
 """
 
 import datetime
@@ -8,6 +8,7 @@ import datetime
 # libraries
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
@@ -34,29 +35,29 @@ from ptn_utils.logger.logger import get_logger
 logger = get_logger("boozebot.constants")
 
 # database paths
-DB_PATH = os.path.join(DATA_DIR, "database")
-DB_DUMPS_PATH = os.path.join(DATA_DIR, "database")
-CARRIERS_DB_PATH = os.path.join(DATA_DIR, "database", "booze.db")
-CARRIERS_DB_DUMPS_PATH = os.path.join(DATA_DIR, "sql", "booze.sql")
-SETTINGS_PATH = os.path.join(DATA_DIR, "settings")
-SETTINGS_FILE_PATH = Path(SETTINGS_PATH, "settings.json")
-WELCOME_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "welcome_message.txt")
-BC_PREP_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_prep_message.txt")
-BC_START_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_start_message.txt")
-BC_END_MESSAGE_FILE_PATH = Path(SETTINGS_PATH, "bc_end_message.txt")
-GOOGLE_OAUTH_CREDENTIALS_PATH = os.path.join(DATA_DIR, ".ptnboozebot.json")
+DATA_DIR_PATH = Path(DATA_DIR)
+DB_PATH = DATA_DIR_PATH / "database"
+DB_DUMPS_PATH = DATA_DIR_PATH / "database"
+CARRIERS_DB_PATH = DATA_DIR_PATH / "database" / "booze.db"
+CARRIERS_DB_DUMPS_PATH = DATA_DIR_PATH / "sql" / "booze.sql"
+SETTINGS_PATH = DATA_DIR_PATH / "settings"
+SETTINGS_FILE_PATH = SETTINGS_PATH / "settings.json"
+WELCOME_MESSAGE_FILE_PATH = SETTINGS_PATH / "welcome_message.txt"
+BC_PREP_MESSAGE_FILE_PATH = SETTINGS_PATH / "bc_prep_message.txt"
+BC_START_MESSAGE_FILE_PATH = SETTINGS_PATH / "bc_start_message.txt"
+BC_END_MESSAGE_FILE_PATH = SETTINGS_PATH / "bc_end_message.txt"
 
-load_dotenv(os.path.join(DATA_DIR, ".env"))
+load_dotenv(DATA_DIR_PATH / ".env")
 BOOZESHEETS_API_BASE_URL = os.getenv("BOOZESHEETS_API_BASE_URL", None)
 BOOZESHEETS_API_KEY = os.getenv("BOOZESHEETS_API_KEY", None)
 
 if not BOOZESHEETS_API_BASE_URL:
     logger.critical("BOOZESHEETS_API_BASE_URL is not set")
-    exit(1)
+    sys.exit(1)
 
 if not BOOZESHEETS_API_KEY:
     logger.critical("BOOZESHEETS_API_KEY is not set")
-    exit(1)
+    sys.exit(1)
 
 # Stale Data checking from EDSM/EBGS
 STALE_DATA_THRESHOLD = datetime.timedelta(days=2)
@@ -105,6 +106,18 @@ ping_response_messages = [
     "https://tenor.com/view/hello-sexy-hi-hello-mr-bean-gif-13830351",
     "https://tenor.com/view/hello-whale-there-hi-gif-5551502",
     "https://tenor.com/view/funny-animals-gif-13669907",
+    "https://tenor.com/view/penguin-pirate-edit-walk-silly-gif-5875569",
+    "https://tenor.com/view/pingu-blanket-penguin-bed-head-gif-23669642",
+    "https://tenor.com/view/gjirlfriend-gif-16348084597044947976",
+    "https://tenor.com/view/noot-noot-gif-15728845409223101138",
+    "https://tenor.com/view/pingu-work-out-treadmill-tired-gif-15084400638827902947",
+    "https://tenor.com/view/pingu-gif-18647407",
+    "https://tenor.com/view/pinguim-fofo-gif-10217631483581146007",
+    "https://tenor.com/view/alan-tudyk-garr-dodge-ball-pirate-gif-9492100",
+    "https://tenor.com/view/you-didnt-see-anything-see-anything-ghosting-funny-penguin-gif-7879961728026425948",
+    "https://tenor.com/view/penguin-gif-5264604870865972494",
+    "https://tenor.com/view/club-penguin-clean-fast-gif-652211122523426052",
+    "https://tenor.com/view/penguin-gif-13384547",
 ]
 
 holiday_start_gif = "https://tenor.com/view/jim-carrey-ace-ventura-driving-its-show-time-cool-gif-12905775"
@@ -159,7 +172,12 @@ holiday_query_not_started_gifs = [
     "https://tenor.com/view/library-books-what-time-is-it-you-are-late-waiting-gif-14235077",
     "https://tenor.com/view/dogs-no-wine-pets-boss-dog-youre-cut-off-gif-11385245",
     "https://tenor.com/view/nope-no-starwars-obiwan-gif-16946630",
+    "https://tenor.com/view/shaking-my-head-continent7-antarctica-world-penguin-day-shaking-it-off-gif-16376866493240626843",
+    "https://tenor.com/view/head-shaking-world-penguin-day-penguinpalooza-no-nope-gif-21626139",
+    "https://tenor.com/view/animals-cute-penguin-i-want-a-kiss-nope-gif-17336939",
+    "https://tenor.com/view/pingu-shrug-penguin-shakes-head-shaking-head-gif-15014373",
 ]
+
 holiday_query_started_gifs = [
     "https://tenor.com/view/the-lion-king-it-is-time-throwing-monkey-elephants-gif-17842868",
     "https://tenor.com/view/baby-scream-yeah-hockey-kid-angry-gif-11733200",
@@ -173,7 +191,6 @@ holiday_query_started_gifs = [
     "https://tenor.com/view/lord-of-the-rings-lotr-so-it-begins-begins-beginning-gif-5322326",
     "https://tenor.com/view/yes-dog-indeed-nod-gif-10818519",
     "https://tenor.com/view/ron-pearlman-the-goon-yes-yep-anchorman-gif-12449331",
-    "https://tenor.com/view/monkey-ape-dance-dancing-orangutan-gif-15714845",
     "https://tenor.com/view/clapping-applause-clap-yes-yeah-gif-16616022",
     "https://tenor.com/view/hell-yeah-snoop-dogg-dance-moves-gif-17527488",
     "https://tenor.com/view/baby-dancing-oh-yeah-hell-yeah-dance-gif-17100703",
@@ -197,6 +214,19 @@ holiday_query_started_gifs = [
     "https://tenor.com/view/money-donald-duck-cash-counting-gif-7263498",
     "https://tenor.com/view/penguin-cute-hurry-up-on-gif-14010967",
     "https://tenor.com/view/the-office-stanley-hudson-leslie-david-baker-run-away-run-gif-4424450",
+    "https://tenor.com/view/penguin-nodding-yes-happy-gif-5360179",
+    "https://tenor.com/view/penguin-nodding-gif-25345259",
+    "https://tenor.com/view/penguin-baby-nodding-yeah-yes-gif-17106698",
+    "https://tenor.com/view/thumbs-up-bt7274-titanfall-gif-14796563",
+    "https://tenor.com/view/kaboom-rico-yes-rico-kaboom-gif-24767016",
+]
+
+unload_opened_gifs = [
+    "https://tenor.com/view/finding-nemo-finding-nemo-ptn-pilots-trade-network-gif-27361285",
+    "https://pilotstradenetwork.com/wp-content/uploads/2026/03/yes_wine_2_big.gif",
+    "https://pilotstradenetwork.com/wp-content/uploads/2026/03/winecarriergif.gif",
+    "https://pilotstradenetwork.com/wp-content/uploads/2026/03/20250107_104040.gif",
+    "https://pilotstradenetwork.com/wp-content/uploads/2026/03/PTN_BC.gif",
 ]
 
 error_gifs = [
@@ -204,6 +234,7 @@ error_gifs = [
     "https://media.tenor.com/M1rOzWS3NsQAAAAC/nothingtosee-disperse.gif",  # naked gun
     "https://media.tenor.com/oSASxe-6GesAAAAC/spongebob-patrick.gif",  # spongebob
     "https://media.tenor.com/u-1jz7ttHhEAAAAC/angry-panda-rage.gif",  # panda smash
+    "https://tenor.com/view/oof-yikes-pingu-penguin-error-gif-17513670",
 ]
 
 too_slow_gifs = [
@@ -235,24 +266,24 @@ N_SYSTEMS = {
 }
 
 # Check the folder exists
-if not os.path.exists(os.path.dirname(CARRIERS_DB_PATH)):
-    logger.info(f"Folder {os.path.dirname(CARRIERS_DB_PATH)} does not exist, making it now.")
-    os.makedirs(os.path.dirname(CARRIERS_DB_PATH))
+if not CARRIERS_DB_PATH.parent.is_dir():
+    logger.info(f"Folder {CARRIERS_DB_PATH.parent} does not exist, making it now.")
+    CARRIERS_DB_PATH.parent.mkdir(parents=True)
 
 # check the dumps folder exists
-if not os.path.exists(os.path.dirname(CARRIERS_DB_DUMPS_PATH)):
-    logger.info(f"Folder {os.path.dirname(CARRIERS_DB_DUMPS_PATH)} does not exist, making it now.")
-    os.makedirs(os.path.dirname(CARRIERS_DB_DUMPS_PATH))
+if not CARRIERS_DB_DUMPS_PATH.parent.is_dir():
+    logger.info(f"Folder {CARRIERS_DB_DUMPS_PATH.parent} does not exist, making it now.")
+    CARRIERS_DB_DUMPS_PATH.parent.mkdir(parents=True)
 
 # check the settings folder exists
-if not os.path.exists(SETTINGS_PATH):
+if not SETTINGS_PATH.is_dir():
     logger.info(f"Folder {SETTINGS_PATH} does not exist, making it now.")
-    os.makedirs(SETTINGS_PATH)
+    SETTINGS_PATH.mkdir(parents=True)
 
 # Move the old db to the new location if the new location doesn't exist and the old one does
-old_db_path = os.path.join(DATA_DIR, "database", "booze_carriers.db")
-if os.path.exists(old_db_path) and not os.path.exists(CARRIERS_DB_PATH):
-    os.rename(old_db_path, CARRIERS_DB_PATH)
+old_db_path = DATA_DIR_PATH / "database" / "booze_carriers.db"
+if old_db_path.is_file() and not CARRIERS_DB_PATH.is_file():
+    old_db_path.rename(CARRIERS_DB_PATH)
 
 _WCO_WELCOME_BLURB = (
     f"Welcome to the <@&{ROLE_WINE_CARRIER}> backrooms! If you are a returning cruiser, it's great to have you back! "

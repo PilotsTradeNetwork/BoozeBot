@@ -4,7 +4,7 @@ Cog for PH check commands and loop
 """
 
 import random
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import discord
 from discord import NotFound, app_commands
@@ -36,7 +36,7 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
-from ptn.boozebot.modules.PHcheck import api_ph_check, ph_check
+from ptn.boozebot.modules.PHcheck import StaleDataException, api_ph_check, ph_check, set_last_updated
 
 """
 PUBLIC HOLIDAY TASK LOOP
@@ -92,7 +92,7 @@ class PublicHoliday(commands.Cog):
                 logger.info("Holiday was not ongoing, started now - flag it accordingly")
                 await holiday_announce_channel.send(holiday_start_gif)
                 await holiday_announce_channel.send(
-                    f"Pirate Steve thinks the folks at Rackhams are partying again. "
+                    "Pirate Steve thinks the folks at Rackhams are partying again. "
                     + f"<@&{ROLE_COUNCIL}>, <@&{ROLE_SOMM}> please take note."
                 )
                 logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
@@ -105,50 +105,46 @@ class PublicHoliday(commands.Cog):
                 await booze_sheets_api.update_cruise_state("active")
 
                 return True, "Holiday started and flagged in the backend"
-            else:
-                logger.info("Holiday already flagged - no need to set it again")
-                return False, "Holiday already ongoing, no need to set it again"
-        else:
-            # Check if the 48 hours have expired first, to avoid scenarios of the HTTP request failing and turning
-            # off an ongoing holiday.
-            logger.info("No PH detected, checking if holiday duration has expired.")
+            logger.info("Holiday already flagged - no need to set it again")
+            return False, "Holiday already ongoing, no need to set it again"
+        # Check if the 48 hours have expired first, to avoid scenarios of the HTTP request failing and turning
+        # off an ongoing holiday.
+        logger.info("No PH detected, checking if holiday duration has expired.")
 
-            logger.debug("Fetching holiday start timestamp from backend.")
+        logger.debug("Fetching holiday start timestamp from backend.")
 
-            holiday_ongoing = await booze_sheets_api.get_current_cruise_state() == CruiseSystemState.ACTIVE
-            current_cruise = await booze_sheets_api.get_cruise_with_stats(0)
-            start_time = current_cruise.start
-            logger.debug(f"Holiday state from boozeSheetsAPI: {holiday_ongoing}, timestamp: {start_time}")
+        holiday_ongoing = await booze_sheets_api.get_current_cruise_state() == CruiseSystemState.ACTIVE
+        current_cruise = await booze_sheets_api.get_cruise_with_stats(0)
+        start_time = current_cruise.start
+        logger.debug(f"Holiday state from boozeSheetsAPI: {holiday_ongoing}, timestamp: {start_time}")
 
-            end_time = start_time + timedelta(hours=48)
+        end_time = start_time + timedelta(hours=48)
 
-            current_time_utc = datetime.now(tz=timezone.utc)
+        current_time_utc = datetime.now(tz=UTC)
 
-            logger.debug(f"Current time UTC: {current_time_utc}, holiday end time: {end_time}")
+        logger.debug(f"Current time UTC: {current_time_utc}, holiday end time: {end_time}")
 
-            if current_time_utc > end_time or force_update:
-                # Current time is after the end time, go turn the checks off.
-                logger.info("Holiday duration expired, turning the check off.")
-                holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
+        if current_time_utc > end_time or force_update:
+            # Current time is after the end time, go turn the checks off.
+            logger.info("Holiday duration expired, turning the check off.")
+            holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
 
-                if holiday_ongoing or force_update:
-                    logger.debug("Holiday ongoing - updating backend to turn it off.")
-                    await booze_sheets_api.close_cruise(timestamp)
-                    logger.debug("Backend updated to turn off holiday state.")
+            if holiday_ongoing or force_update:
+                logger.debug("Holiday ongoing - updating backend to turn it off.")
+                await booze_sheets_api.close_cruise(timestamp)
+                logger.debug("Backend updated to turn off holiday state.")
 
-                    # Only post it if it is a state change.
-                    logger.info("Holiday was ongoing, no longer ongoing - flag it accordingly")
-                    await holiday_announce_channel.send(holiday_ended_gif)
-                    logger.debug("Notified holiday end. Updating status embed.")
-                    await Cleaner.update_status_embed("bc_end")
+                # Only post it if it is a state change.
+                logger.info("Holiday was ongoing, no longer ongoing - flag it accordingly")
+                await holiday_announce_channel.send(holiday_ended_gif)
+                logger.debug("Notified holiday end. Updating status embed.")
+                await Cleaner.update_status_embed("bc_end")
 
-                    return True, "Holiday ended and flagged in the database"
-                else:
-                    logger.info("Holiday was not ongoing - no need to turn it off")
-                    return False, "Holiday was not ongoing, no need to turn it off"
-            else:
-                logger.info(f"Holiday has not yet expired, no need to turn it off. Due at: {end_time}")
-                return False, "Holiday has not yet expired, no need to turn it off"
+                return True, "Holiday ended and flagged in the database"
+            logger.info("Holiday was not ongoing - no need to turn it off")
+            return False, "Holiday was not ongoing, no need to turn it off"
+        logger.info(f"Holiday has not yet expired, no need to turn it off. Due at: {end_time}")
+        return False, "Holiday has not yet expired, no need to turn it off"
 
     @tasks.loop(minutes=10)
     @track_last_run()
@@ -163,6 +159,8 @@ class PublicHoliday(commands.Cog):
             state, updated_at = await api_ph_check()
             logger.info(f"Rackham's holiday API check returned: {state}, last updated: {updated_at}")
             await self._set_public_holiday_state(state, updated_at)
+        except StaleDataException as e:
+            logger.warning(f"{e}. Not using it.")
         except Exception as e:
             logger.exception(f"Error in the public holiday loop: {e}")
 
@@ -211,7 +209,12 @@ class PublicHoliday(commands.Cog):
         logger.info(
             f"User {interaction.user.name} requested to override the admin holiday state to: {state}, forced: {force_update}."
         )
-        _success, message = await self._set_public_holiday_state(state, datetime.now(tz=UTC), force_update)
+        now = datetime.now(tz=UTC)
+        _success, message = await self._set_public_holiday_state(state, now, force_update)
+
+        if _success:
+            logger.info(f"Admin override succeeded; updating LAST_UPDATED to {now}.")
+            set_last_updated(now)
 
         logger.info(f"Admin override result: {message}")
         await interaction.response.send_message(f"{message}. Check with /booze_started.")
@@ -227,7 +230,7 @@ class PublicHoliday(commands.Cog):
         logger.info(f"User {interaction.user.name} requested to override the start time to: {timestamp}.")
 
         try:
-            timestamp = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
+            dt_timestamp = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
         except ValueError:
             logger.exception("Invalid timestamp format provided.")
             await interaction.response.send_message(
@@ -242,11 +245,11 @@ class PublicHoliday(commands.Cog):
         if holiday_ongoing:
             logger.info("Holiday is ongoing, updating the timestamp.")
 
-            await booze_sheets_api.update_cruise_start(timestamp)
+            await booze_sheets_api.update_cruise_start(dt_timestamp)
 
             logger.debug("Database updated with new timestamp.")
             await interaction.response.send_message(
-                f"Set the cruise start time to: {timestamp}. Check with /booze_duration_remaining."
+                f"Set the cruise start time to: {dt_timestamp}. Check with /booze_duration_remaining."
             )
 
         else:

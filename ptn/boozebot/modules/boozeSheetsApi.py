@@ -1,13 +1,20 @@
-from asyncio import Lock
-from datetime import UTC, datetime
-from enum import Enum
-import httpx
 import asyncio
 import json
-from typing import Any, Callable, override
+from collections.abc import Callable
+from contextlib import suppress
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any, Literal, override
+
+import discord
+import httpx
 import websockets
+from discord import Embed, User, app_commands
 from discord.ext.commands import Bot
 from httpx import AsyncClient
+from ptn_utils.enums.booze_enums import CruiseSystemState
+from ptn_utils.global_constants import CHANNEL_BOTSPAM
+from ptn_utils.logger.logger import get_logger
 from tenacity import (
     RetryCallState,
     retry,
@@ -15,13 +22,10 @@ from tenacity import (
 )
 from tenacity.stop import stop_base
 
-from discord import Embed, User
-from ptn_utils.global_constants import CHANNEL_BOTSPAM
-from ptn_utils.enums.booze_enums import CruiseSystemState
-from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
 from ptn.boozebot.classes.Cruise import Cruise, CruiseStats
-from ptn_utils.logger.logger import get_logger
+from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
+from ptn.boozebot.modules.helpers import is_staff
 
 
 class PayloadType(Enum):
@@ -30,6 +34,8 @@ class PayloadType(Enum):
 
 
 logger = get_logger("boozebot.modules.boozeSheetsApi")
+
+_background_tasks: set[asyncio.Task[None]] = set()
 
 
 def _should_retry_exception(exception: Exception) -> bool:
@@ -59,10 +65,7 @@ class dynamic_attempts(stop_base):
     @override
     def __call__(self, retry_state: "RetryCallState") -> bool:
         exception = retry_state.outcome.exception() if retry_state.outcome else None
-        if exception and self.condition(exception):
-            max_attempts = self.attempts_if_true
-        else:
-            max_attempts = self.attempts_if_false
+        max_attempts = self.attempts_if_true if exception and self.condition(exception) else self.attempts_if_false
         return retry_state.attempt_number >= max_attempts
 
 
@@ -88,7 +91,9 @@ def _on_api_failure(retry_state: RetryCallState):
         + f"method={method}, endpoint={endpoint}, data={data}, error={error_msg}"
     )
 
-    asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
+    task = asyncio.create_task(_send_failure_to_discord(method, endpoint, data, exception, retry_state.attempt_number))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 async def _send_failure_to_discord(
@@ -133,12 +138,18 @@ def _log_before_sleep(retry_state: RetryCallState):
 class BoozeSheetsApi:
     _ws_connected: bool
     _ws_running: bool
+    _ws_connection: websockets.ClientConnection | None
+    _carrier_poll_running: bool
+    _carrier_cache_last_refresh: datetime | None
     ws_task: asyncio.Task[None] | None
+    carrier_poll_task: asyncio.Task[None] | None
     ws_client: AsyncClient | None
     bot: Bot
-    client_lock: Lock
+    client_lock: asyncio.Lock
+    carrier_cache_lock: asyncio.Lock
     client: AsyncClient
     base_url: str
+    carrier_cache: dict[int, BoozeCarrier]
 
     def __init__(self):
         self.base_url = BOOZESHEETS_API_BASE_URL
@@ -155,8 +166,127 @@ class BoozeSheetsApi:
         self.ws_client = None
         self.ws_task = None
         self._ws_running = False
+        self._carrier_poll_running = False
         self._last_ws_message_time: datetime | None = None
+        self._carrier_cache_last_refresh = None
         self._ws_connected = False
+        self._ws_connection = None
+        self.carrier_poll_task = None
+        self.carrier_cache = {}
+        self.carrier_cache_lock = asyncio.Lock()
+
+    async def _refresh_carrier_cache(self) -> dict[int, BoozeCarrier]:
+        """
+        Poll all carriers from BoozeSheets and replace the in-memory cache.
+
+        :return: The refreshed carrier cache keyed by carrier DB ID.
+        """
+        carriers = await self.get_all_carriers_info()
+        refreshed_cache = {carrier.db_id: carrier for carrier in carriers}
+
+        async with self.carrier_cache_lock:
+            self.carrier_cache = refreshed_cache
+            self._carrier_cache_last_refresh = datetime.now(tz=UTC)
+
+        logger.info(f"Carrier cache refreshed from poll with {len(refreshed_cache)} carriers")
+        return refreshed_cache
+
+    async def _carrier_cache_ws_update(self, event_type: str, data: dict[str, Any]) -> None:
+        """
+        Update the in-memory carrier cache based on a websocket event.
+
+        :param event_type: The websocket event type (e.g. carrier_created, carrier_updated).
+        :param data: The raw websocket payload.
+        """
+        logger.debug(f"Carrier WS cache update called for event_type={event_type}")
+
+        if event_type not in {"carrier_update", "carrier_created"}:
+            logger.debug("Not a carrier update/create event, skipping cache update")
+            return
+
+        async with self.carrier_cache_lock:
+            carrier = BoozeCarrier(data["carrier"])
+
+            self.carrier_cache[carrier.db_id] = carrier
+
+        logger.debug(
+            f"Carrier cache updated from websocket event for carrier_id={carrier.db_id}, event_type={event_type}"
+        )
+
+    async def start_carrier_polling(self):
+        """
+        Start the periodic carrier cache polling loop (every 5 minutes).
+        """
+        if self._carrier_poll_running:
+            logger.warning("Carrier polling loop is already running")
+            return
+
+        self._carrier_poll_running = True
+        self.carrier_poll_task = asyncio.create_task(self._carrier_poll_loop())
+        logger.info("Started carrier polling loop")
+
+    async def stop_carrier_polling(self):
+        """
+        Stop the periodic carrier cache polling loop.
+        """
+        if not self._carrier_poll_running:
+            logger.warning("Carrier polling loop is not running")
+            return
+
+        self._carrier_poll_running = False
+        if self.carrier_poll_task:
+            self.carrier_poll_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.carrier_poll_task
+            self.carrier_poll_task = None
+
+        logger.info("Stopped carrier polling loop")
+
+    async def _carrier_poll_loop(self):
+        """
+        Periodically refresh the carrier cache every 5 minutes.
+        """
+        while self._carrier_poll_running:
+            try:
+                await self._refresh_carrier_cache()
+            except asyncio.CancelledError:
+                logger.info("Carrier polling loop cancelled")
+                break
+            except Exception as e:
+                logger.exception(f"Carrier polling loop iteration failed: {e}")
+
+            await asyncio.sleep(300)
+
+    def carrier_autocomplete(self, only_owned: bool = True, unload_state: Literal["full", "unloading"] | None = None):
+        async def autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+            logger.debug(f"Carrier autocomplete called with current input: '{current}' and only_owned={only_owned}")
+
+            if (only_owned and not is_staff(interaction.user)) or current == "":
+                carriers = [c for c in self.carrier_cache.values() if c.owner.discord_id == interaction.user.id]
+                carriers.sort(key=lambda c: c.carrier_name.lower())
+            else:
+                carriers = list(self.carrier_cache.values())
+                carriers.sort(key=lambda c: (c.owner.discord_id != interaction.user.id, c.carrier_name.lower()))
+
+            if unload_state == "full":
+                carriers = [c for c in carriers if not c.unload_opened and c.system == "N0"]
+            elif unload_state == "unloading":
+                carriers = [c for c in carriers if c.unload_opened and not c.unload_closed]
+
+            display_items = [
+                (f"{carrier.carrier_name} ({carrier.carrier_identifier})", carrier.carrier_identifier)
+                for carrier in carriers
+            ]
+
+            filtered = [
+                app_commands.Choice(name=name, value=value)
+                for name, value in display_items
+                if current.lower() in name.lower()
+            ]
+            logger.debug(f"Carrier autocomplete choices: {[choice.name for choice in filtered]}")
+            return filtered[:25]
+
+        return autocomplete
 
     @retry(
         stop=dynamic_attempts(_should_retry_exception, 3, 1),
@@ -182,7 +312,9 @@ class BoozeSheetsApi:
         :return: The response from the API as a dictionary.
         """
 
-        logger.debug(f"Sending {method} request to BoozeSheets API: endpoint={endpoint}, data={data}, PayloadType: {payload_type}")
+        logger.debug(
+            f"Sending {method} request to BoozeSheets API: endpoint={endpoint}, data={data}, PayloadType: {payload_type}"
+        )
 
         async with self.client_lock:
             match payload_type:
@@ -219,13 +351,10 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Carrier not found for carrier_id={carrier_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Carrier info retrieved: {carrier_info}")
 
-        carrier = BoozeCarrier(carrier_info)
-
-        return carrier
+        return BoozeCarrier(carrier_info)
 
     async def get_all_carriers_info(self) -> list[BoozeCarrier]:
         """
@@ -244,13 +373,10 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning("No carriers found")
                 return []
-            else:
-                raise
+            raise
         logger.debug(f"All carriers info retrieved: {carriers_info}")
 
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def update_carrier_info(self, carrier_id: str, update_data: dict[str, Any]) -> BoozeCarrier:
         """
@@ -267,10 +393,7 @@ class BoozeSheetsApi:
         updated_carrier_info = await self._request("PATCH", endpoint, update_data, PayloadType.BODY)
 
         logger.debug(f"Carrier info updated: {updated_carrier_info}")
-
-        updated_carrier = BoozeCarrier(updated_carrier_info)
-
-        return updated_carrier
+        return BoozeCarrier(updated_carrier_info)
 
     async def start_carrier_unload(self, carrier_id: str, delay: int | None = None) -> BoozeCarrier:
         """
@@ -327,16 +450,14 @@ class BoozeSheetsApi:
         carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"All carriers info retrieved: {carriers_info}")
 
-        carriers = [BoozeCarrier(info) for info in carriers_info]
+        return [BoozeCarrier(info) for info in carriers_info]
 
-        return carriers
-
-    async def get_unloading_carriers(self)-> list[BoozeCarrier]:
+    async def get_unloading_carriers(self) -> list[BoozeCarrier]:
         """
-                Retrieves a list of carriers that are currently unloading.
+        Retrieves a list of carriers that are currently unloading.
 
-                :return: A list of carrier information dictionaries.
-                """
+        :return: A list of carrier information dictionaries.
+        """
 
         logger.debug("Getting info for all unloading carriers")
         endpoint = "/carriers"
@@ -346,9 +467,7 @@ class BoozeSheetsApi:
         carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"All carriers info retrieved: {carriers_info}")
 
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def get_cruises_list(self) -> dict[str, Any] | list[dict[str, Any]]:
         """
@@ -367,10 +486,8 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning("No cruises found")
                 return []
-            else:
-                raise
+            raise
         logger.debug(f"Cruises list retrieved: {cruises}")
-
         return cruises
 
     async def get_current_cruise_state(self) -> CruiseSystemState:
@@ -393,7 +510,9 @@ class BoozeSheetsApi:
 
         return state_data.get("state", CruiseSystemState.CHANNELS_CLOSED)
 
-    async def get_cruise_with_stats(self, cruise_id: int, include_not_unloaded: bool | None = None, exclude_staff: bool | None = None) -> Cruise | None:
+    async def get_cruise_with_stats(
+        self, cruise_id: int, include_not_unloaded: bool | None = None, exclude_staff: bool | None = None
+    ) -> Cruise | None:
         """
         Retrieves stats for a specific cruise.
 
@@ -403,7 +522,9 @@ class BoozeSheetsApi:
         :return: The cruise stats.
         """
 
-        logger.debug(f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}, exclude_staff={exclude_staff}")
+        logger.debug(
+            f"Getting cruise stats for cruise_id={cruise_id}, include_not_unloaded={include_not_unloaded}, exclude_staff={exclude_staff}"
+        )
 
         stats_endpoint = f"/cruises/{cruise_id}"
 
@@ -420,8 +541,7 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Cruise stats not found for cruise_id={cruise_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Cruise stats retrieved: {cruise_data}")
 
         return Cruise(cruise_data)
@@ -435,10 +555,7 @@ class BoozeSheetsApi:
 
         logger.debug("Getting biggest cruise stats")
         endpoint = "/cruises/biggest_cruise"
-        if include_not_unloaded is not None:
-            data = {"include_not_unloaded": include_not_unloaded}
-        else:
-            data = {}
+        data = {"include_not_unloaded": include_not_unloaded} if include_not_unloaded is not None else {}
 
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         try:
@@ -447,8 +564,7 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning("Biggest cruise stats not found")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Biggest cruise stats retrieved: {cruise_data}")
 
         return Cruise(cruise_data)
@@ -472,13 +588,12 @@ class BoozeSheetsApi:
             if e.response.status_code == 404:
                 logger.warning(f"Trip not found for carrier_id={carrier_id}, trip_id={trip_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Trip data retrieved: {trip_data}")
 
         return BoozeCarrier(trip_data)
 
-    async def get_carrier_stats(self, carrier_id: str) -> CarrierStats | None:
+    async def get_carrier_stats(self, carrier_id: str, include_not_unloaded: bool | None = None) -> CarrierStats | None:
         """
         Retrieves stats for a specific carrier.
 
@@ -489,15 +604,16 @@ class BoozeSheetsApi:
         logger.debug(f"Getting carrier stats for carrier_id={carrier_id}")
         endpoint = f"/carriers/by-callsign/{carrier_id}/stats"
 
+        data = {"include_not_unloaded": include_not_unloaded} if include_not_unloaded is not None else {}
+
         logger.debug(f"Sending GET request to {endpoint}")
         try:
-            stats_data = await self._request("GET", endpoint)
+            stats_data = await self._request("GET", endpoint, data, PayloadType.QUERY)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.warning(f"Carrier stats not found for carrier_id={carrier_id}")
                 return None
-            else:
-                raise
+            raise
         logger.debug(f"Carrier stats retrieved: {stats_data}")
 
         return CarrierStats(stats_data)
@@ -516,13 +632,7 @@ class BoozeSheetsApi:
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
         logger.debug(f"Unpinged signups info retrieved: {carriers_info}")
-
-        if not carriers_info:
-            return []
-
-        carriers = [BoozeCarrier(info) for info in carriers_info]
-
-        return carriers
+        return [BoozeCarrier(info) for info in carriers_info]
 
     async def set_user_pinged(self, user_id: int) -> None:
         """
@@ -572,10 +682,9 @@ class BoozeSheetsApi:
         endpoint = "/cruises/state"
         data = {"state": state}
 
-
         await self._request("PATCH", endpoint, data, PayloadType.BODY)
         logger.debug(f"Cruise state updated to {state}")
-        
+
     async def set_refresh_discord_data(self, user: User):
         """
         Set the refresh_discord_data flag for a user in BoozeSheets.
@@ -585,7 +694,7 @@ class BoozeSheetsApi:
 
         logger.debug(f"Setting refresh_discord_data for user_id={user.id}")
         endpoint = "/users/force-refresh"
-        
+
         data = {"discord_id": str(user.id)}
 
         logger.debug(f"Sending POST request to {endpoint} with data={data}")
@@ -666,10 +775,8 @@ class BoozeSheetsApi:
         self._ws_running = False
         if self.ws_task:
             self.ws_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self.ws_task
-            except asyncio.CancelledError:
-                pass
             self.ws_task = None
 
         if self.ws_client:
@@ -692,10 +799,12 @@ class BoozeSheetsApi:
             except asyncio.CancelledError:
                 logger.info("Websocket loop cancelled")
                 self._ws_connected = False
+                self._ws_connection = None
                 break
             except Exception as e:
                 logger.exception(f"Websocket error: {e}")
                 self._ws_connected = False
+                self._ws_connection = None
 
                 if self._ws_running:
                     logger.info(f"Reconnecting websocket in {reconnect_delay} seconds...")
@@ -710,12 +819,12 @@ class BoozeSheetsApi:
         """
         ws_url = f"{self.base_url.replace('http', 'ws')}ws/?api_key={BOOZESHEETS_API_KEY}"
 
-        logger.info(f"Connecting to BoozeSheets websocket: {ws_url.split('?')[0]}")
+        logger.info(f"Connecting to BoozeSheets websocket: {ws_url.split('?', maxsplit=1)[0]}")
 
-        async with websockets.connect(uri=ws_url) as websocket:
+        async with websockets.connect(uri=ws_url) as self._ws_connection:
             logger.info("Connected to BoozeSheets websocket")
 
-            async for message in websocket:
+            async for message in self._ws_connection:
                 logger.trace(f"Websocket message received: {message}")
 
                 if not self._ws_running:
@@ -743,6 +852,12 @@ class BoozeSheetsApi:
 
             logger.debug(f"Received websocket event: {event_type}")
 
+            try:
+                await self._carrier_cache_ws_update(event_type, data)
+            except Exception:
+                # Catch to allow event dispatch to continue even if cache update fails, but log the error
+                logger.exception("Error updating carrier cache from websocket event")
+
             event_name = f"boozesheets_{event_type}"
 
             if self.bot:
@@ -762,6 +877,36 @@ class BoozeSheetsApi:
         """
         status = "Connected" if self._ws_connected else "Disconnected"
         return status, self._last_ws_message_time
+
+    def get_carrier_poll_status(self) -> tuple[str, datetime | None, int]:
+        """
+        Get the current status of the carrier polling loop and cache.
+
+        :return: A tuple containing poll status, last refresh timestamp, and cache size.
+        """
+        status = "Running" if self._carrier_poll_running else "Stopped"
+        return status, self._carrier_cache_last_refresh, len(self.carrier_cache)
+
+    async def send_action_ack(self, action_id: str, success: bool = True, error: str | None = None) -> None:
+        """
+        Send an action acknowledgement back to the BoozeSheets API over the active WebSocket
+        connection so that a pending HTTP request (e.g. POST /carriers/{id}/departure) can be
+        resolved and returned to the web UI caller.
+
+        :param action_id: The UUID that was included in the original WS request payload.
+        :param success: Whether the action was completed successfully.
+        :param error: Optional error message when success is False.
+        """
+        if self._ws_connection is None:
+            logger.error(f"Cannot send action_ack for action_id={action_id}: no active WebSocket connection")
+            return
+
+        payload = json.dumps({"type": "action_ack", "actionId": action_id, "success": success, "error": error})
+        try:
+            await self._ws_connection.send(payload)
+            logger.debug(f"Sent action_ack: action_id={action_id}, success={success}")
+        except Exception as e:
+            logger.error(f"Failed to send action_ack for action_id={action_id}: {e}")
 
 
 booze_sheets_api = BoozeSheetsApi()

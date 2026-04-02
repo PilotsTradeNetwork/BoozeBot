@@ -3,8 +3,8 @@ Cog for all the commands that interact with the database
 
 """
 
-from datetime import datetime, timedelta
 import math
+from datetime import datetime, timedelta
 from typing import Any, Literal
 
 import discord
@@ -66,12 +66,11 @@ def format_large_number(number: int | float) -> str:
     """
     if number < 10**6:
         return f"{number:,.0f}"
-    elif number < 10**9:
+    if number < 10**9:
         return f"{number / 10**6:.2f} Million"
-    elif number < 10**12:
+    if number < 10**12:
         return f"{number / 10**9:.2f} Billion"
-    else:
-        return f"{number / 10**12:.2f} Trillion"
+    return f"{number / 10**12:.2f} Trillion"
 
 
 def format_duration(seconds: int | float) -> str:
@@ -83,10 +82,9 @@ def format_duration(seconds: int | float) -> str:
     """
     if seconds < 60:
         return f"{seconds:.0f} seconds"
-    elif seconds < 60 * 60:
+    if seconds < 60 * 60:
         return f"{seconds / 60:.2f} minutes"
-    else:
-        return f"{seconds / 3600:.2f} hours"
+    return f"{seconds / 3600:.2f} hours"
 
 
 IncludeNotUnloadedChoices = Literal["All Carriers", "Only Unloaded"]
@@ -137,7 +135,7 @@ class Statistics(commands.Cog):
     async def build_stat_embed(
         self,
         cruise: Cruise,
-        target_date: str = None,
+        target_date: str | None = None,
         include_timestamp: bool = False,
     ) -> discord.Embed:
         # Get faction state from the first carrier, assuming all carriers have the same state
@@ -221,7 +219,7 @@ class Statistics(commands.Cog):
     async def build_extended_stat_embed(
         self,
         cruise: Cruise,
-        target_date: str = None,
+        target_date: str | None = None,
         stat: StatChoices = "All",
     ) -> discord.Embed:
         # Get faction state from the first carrier, assuming all carriers have the same state
@@ -591,6 +589,7 @@ class Statistics(commands.Cog):
             ROLE_WINE_CARRIER,
         ]
     )
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(False))
     async def find_carrier_by_id(self, interaction: discord.Interaction, carrier_id: str):
         await interaction.response.defer()
         logger.info(f"{interaction.user.name} ({interaction.user.id}) wants to find a carrier by ID: {carrier_id}.")
@@ -659,13 +658,7 @@ class Statistics(commands.Cog):
 
         await interaction.response.defer()
 
-        if include_not_unloaded:
-            if include_not_unloaded == "All Carriers":
-                include_not_unloaded_bool = True
-            else:
-                include_not_unloaded_bool = False
-        else:
-            include_not_unloaded_bool = None
+        include_not_unloaded_bool = include_not_unloaded == "All Carriers" if include_not_unloaded else None
 
         cruise_name = "this" if cruise_select == 0 else f"-{cruise_select}"
         logger.info(
@@ -870,14 +863,7 @@ class Statistics(commands.Cog):
         )
         target_date = None
 
-        if include_not_unloaded:
-            if include_not_unloaded == "All Carriers":
-                include_not_unloaded_bool = True
-            else:
-                include_not_unloaded_bool = False
-        else:
-            include_not_unloaded_bool = None
-
+        include_not_unloaded_bool = include_not_unloaded == "All Carriers" if include_not_unloaded else None
         cruise = await booze_sheets_api.get_cruise_with_stats(-cruise_select, include_not_unloaded_bool)
 
         if cruise_select != 0:
@@ -893,7 +879,7 @@ class Statistics(commands.Cog):
     )
     @describe(
         exclude_staff="Whether to exclude staff carriers.",
-        )
+    )
     @check_roles(
         [
             *any_council_role,
@@ -976,13 +962,7 @@ class Statistics(commands.Cog):
         )
         await interaction.response.defer()
 
-        if include_not_unloaded:
-            if include_not_unloaded == "All Carriers":
-                include_not_unloaded_bool = True
-            else:
-                include_not_unloaded_bool = False
-        else:
-            include_not_unloaded_bool = None
+        include_not_unloaded_bool = include_not_unloaded == "All Carriers" if include_not_unloaded else None
 
         cruise = await booze_sheets_api.get_biggest_cruise_with_stats(include_not_unloaded_bool)
 
@@ -1006,12 +986,14 @@ class Statistics(commands.Cog):
             ROLE_WINE_CARRIER,
         ]
     )
-    async def carrier_stats(self, interaction: discord.Interaction, carrier_id: str):
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(False))
+    async def carrier_stats(self, interaction: discord.Interaction, carrier_id: str, include_not_unloaded: bool | None):
         """
         Returns the stats for a specific carrier.
 
         :param discord.Interaction interaction: The discord interaction context.
         :param str carrier_id: he XXX-XXX carrier ID.
+        :param bool include_not_unloaded: If we should include trips that did not unload yet in the stats.
         :returns: None
         """
 
@@ -1022,7 +1004,7 @@ class Statistics(commands.Cog):
 
         logger.debug("Fetching historical data for carrier stats.")
 
-        carrier_stats = await booze_sheets_api.get_carrier_stats(carrier_id)
+        carrier_stats = await booze_sheets_api.get_carrier_stats(carrier_id, include_not_unloaded=include_not_unloaded)
 
         if not carrier_stats:
             logger.warning(f"Carrier with ID {carrier_id} not found in the database.")
@@ -1031,11 +1013,19 @@ class Statistics(commands.Cog):
             )
             return
 
-        formatted_first_unload_date = f"<t:{int(carrier_stats.first_unload_date.timestamp())}:d>" if carrier_stats.first_unload_date else "N/A"
-        formatted_last_unload_date = f"<t:{int(carrier_stats.last_unload_date.timestamp())}:d>" if carrier_stats.last_unload_date else "N/A"
+        formatted_first_unload_date = (
+            f"<t:{int(carrier_stats.first_unload_date.timestamp())}:d>" if carrier_stats.first_unload_date else "N/A"
+        )
+        formatted_last_unload_date = (
+            f"<t:{int(carrier_stats.last_unload_date.timestamp())}:d>" if carrier_stats.last_unload_date else "N/A"
+        )
 
-        average_wine_per_trip = carrier_stats.total_wine / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
-        average_credits_per_trip = carrier_stats.total_credits / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
+        average_wine_per_trip = (
+            carrier_stats.total_wine / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
+        )
+        average_credits_per_trip = (
+            carrier_stats.total_credits / carrier_stats.total_trips if carrier_stats.total_trips > 0 else 0
+        )
 
         logger.debug(
             f"Carrier stats for {carrier_id} - Name: {carrier_stats.name}, "
@@ -1058,7 +1048,7 @@ class Statistics(commands.Cog):
             + f"Average Wine per Trip: {format_large_number(average_wine_per_trip)} tonnes\n"
             + f"Average Credits per Trip: {format_large_number(average_credits_per_trip)} credits\n"
             + f"First Unload Date: {formatted_first_unload_date}\n"
-            + f"Last Unload Date: {formatted_last_unload_date}"
+            + f"Last Unload Date: {formatted_last_unload_date}",
         )
 
         logger.info(f"Sending stats embed for carrier {carrier_id}.")

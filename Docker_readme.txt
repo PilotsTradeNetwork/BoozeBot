@@ -8,7 +8,6 @@ Make a local dir to store your .env and database files
 
 $ mkdir /opt/boozebot
 $ cp .env /opt/boozebot/
-$ cp .ptnboozebot.json /opt/boozebot/
 $ mkdir /opt/boozebot/dumps
 
 Run the container:

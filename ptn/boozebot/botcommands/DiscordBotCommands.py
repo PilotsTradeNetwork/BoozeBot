@@ -2,7 +2,7 @@ import sys
 
 import discord
 from discord.ext import commands
-from discord.ext.commands import Bot
+from discord.ext.commands import Bot, Context
 from ptn_utils.global_constants import CHANNEL_DEV_STEVE_BOT, ROLE_SOMM, any_council_role
 from ptn_utils.logger.logger import get_logger
 
@@ -71,7 +71,7 @@ class DiscordBotCommands(commands.Cog):
 
     @commands.command(name="ping", help="Ping the bot")
     @commands.has_any_role(*any_council_role, ROLE_SOMM)
-    async def ping(self, ctx):
+    async def ping(self, ctx: Context[Bot]):
         """
         Ping the bot and get a response
 
@@ -89,7 +89,7 @@ class DiscordBotCommands(commands.Cog):
     # quit the bot
     @commands.command(name="exit", aliases=["sober_up"], help="Stops the bots process on the VM, ending all functions.")
     @commands.has_any_role(*any_council_role)
-    async def sober_up(self, ctx):
+    async def sober_up(self, ctx: Context[Bot]):
         """
         Stop-quit command for the bot.
 
@@ -103,7 +103,7 @@ class DiscordBotCommands(commands.Cog):
 
     @commands.command(name="version", help="Logs the bot version")
     @commands.has_any_role(*any_council_role)
-    async def version(self, ctx):
+    async def version(self, ctx: Context[Bot]):
         """
         Logs the bot version
 
