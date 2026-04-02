@@ -670,6 +670,7 @@ class Unloading(commands.Cog):
         ]
     )
     @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(unload_state="full"))
     async def wine_carrier_unload(self, interaction: discord.Interaction, carrier_id: str):
         """
         Posts a wine unload request to the unloading channel.
@@ -755,6 +756,7 @@ class Unloading(commands.Cog):
         ]
     )
     @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(unload_state="full"))
     async def wine_carrier_timed_unload(self, interaction: discord.Interaction, carrier_id: str):
         """
         Posts a wine unload request to the unloading channel.
@@ -847,6 +849,7 @@ class Unloading(commands.Cog):
         ]
     )
     @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(unload_state="Unloading"))
     async def wine_unloading_complete(self, interaction: discord.Interaction, carrier_id: str):
         await interaction.response.defer()
 

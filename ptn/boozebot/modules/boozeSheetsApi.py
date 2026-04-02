@@ -4,11 +4,12 @@ from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, override
+from typing import Any, Literal, override
 
+import discord
 import httpx
 import websockets
-from discord import Embed, User
+from discord import Embed, User, app_commands
 from discord.ext.commands import Bot
 from httpx import AsyncClient
 from ptn_utils.enums.booze_enums import CruiseSystemState
@@ -24,6 +25,7 @@ from tenacity.stop import stop_base
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier, CarrierStats
 from ptn.boozebot.classes.Cruise import Cruise, CruiseStats
 from ptn.boozebot.constants import BOOZESHEETS_API_BASE_URL, BOOZESHEETS_API_KEY, bot
+from ptn.boozebot.modules.helpers import is_staff
 
 
 class PayloadType(Enum):
@@ -137,12 +139,17 @@ class BoozeSheetsApi:
     _ws_connected: bool
     _ws_running: bool
     _ws_connection: websockets.ClientConnection | None
+    _carrier_poll_running: bool
+    _carrier_cache_last_refresh: datetime | None
     ws_task: asyncio.Task[None] | None
+    carrier_poll_task: asyncio.Task[None] | None
     ws_client: AsyncClient | None
     bot: Bot
     client_lock: asyncio.Lock
+    carrier_cache_lock: asyncio.Lock
     client: AsyncClient
     base_url: str
+    carrier_cache: dict[int, BoozeCarrier]
 
     def __init__(self):
         self.base_url = BOOZESHEETS_API_BASE_URL
@@ -159,9 +166,127 @@ class BoozeSheetsApi:
         self.ws_client = None
         self.ws_task = None
         self._ws_running = False
+        self._carrier_poll_running = False
         self._last_ws_message_time: datetime | None = None
+        self._carrier_cache_last_refresh = None
         self._ws_connected = False
         self._ws_connection = None
+        self.carrier_poll_task = None
+        self.carrier_cache = {}
+        self.carrier_cache_lock = asyncio.Lock()
+
+    async def _refresh_carrier_cache(self) -> dict[int, BoozeCarrier]:
+        """
+        Poll all carriers from BoozeSheets and replace the in-memory cache.
+
+        :return: The refreshed carrier cache keyed by carrier DB ID.
+        """
+        carriers = await self.get_all_carriers_info()
+        refreshed_cache = {carrier.db_id: carrier for carrier in carriers}
+
+        async with self.carrier_cache_lock:
+            self.carrier_cache = refreshed_cache
+            self._carrier_cache_last_refresh = datetime.now(tz=UTC)
+
+        logger.info(f"Carrier cache refreshed from poll with {len(refreshed_cache)} carriers")
+        return refreshed_cache
+
+    async def _carrier_cache_ws_update(self, event_type: str, data: dict[str, Any]) -> None:
+        """
+        Update the in-memory carrier cache based on a websocket event.
+
+        :param event_type: The websocket event type (e.g. carrier_created, carrier_updated).
+        :param data: The raw websocket payload.
+        """
+        logger.debug(f"Carrier WS cache update called for event_type={event_type}")
+
+        if event_type not in {"carrier_update", "carrier_created"}:
+            logger.debug("Not a carrier update/create event, skipping cache update")
+            return
+
+        async with self.carrier_cache_lock:
+            carrier = BoozeCarrier(data["carrier"])
+
+            self.carrier_cache[carrier.db_id] = carrier
+
+        logger.debug(
+            f"Carrier cache updated from websocket event for carrier_id={carrier.db_id}, event_type={event_type}"
+        )
+
+    async def start_carrier_polling(self):
+        """
+        Start the periodic carrier cache polling loop (every 5 minutes).
+        """
+        if self._carrier_poll_running:
+            logger.warning("Carrier polling loop is already running")
+            return
+
+        self._carrier_poll_running = True
+        self.carrier_poll_task = asyncio.create_task(self._carrier_poll_loop())
+        logger.info("Started carrier polling loop")
+
+    async def stop_carrier_polling(self):
+        """
+        Stop the periodic carrier cache polling loop.
+        """
+        if not self._carrier_poll_running:
+            logger.warning("Carrier polling loop is not running")
+            return
+
+        self._carrier_poll_running = False
+        if self.carrier_poll_task:
+            self.carrier_poll_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.carrier_poll_task
+            self.carrier_poll_task = None
+
+        logger.info("Stopped carrier polling loop")
+
+    async def _carrier_poll_loop(self):
+        """
+        Periodically refresh the carrier cache every 5 minutes.
+        """
+        while self._carrier_poll_running:
+            try:
+                await self._refresh_carrier_cache()
+            except asyncio.CancelledError:
+                logger.info("Carrier polling loop cancelled")
+                break
+            except Exception as e:
+                logger.exception(f"Carrier polling loop iteration failed: {e}")
+
+            await asyncio.sleep(300)
+
+    def carrier_autocomplete(self, only_owned: bool = True, unload_state: Literal["full", "unloading"] | None = None):
+        async def autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+            logger.debug(f"Carrier autocomplete called with current input: '{current}' and only_owned={only_owned}")
+
+            if (only_owned and not is_staff(interaction.user)) or current == "":
+                carriers = [c for c in self.carrier_cache.values() if c.owner.discord_id == interaction.user.id]
+                carriers.sort(key=lambda c: c.carrier_name.lower())
+            else:
+                carriers = list(self.carrier_cache.values())
+                carriers.sort(key=lambda c: (c.owner.discord_id != interaction.user.id, c.carrier_name.lower()))
+
+            if unload_state == "full":
+                carriers = [c for c in carriers if not c.unload_opened and c.system == "N0"]
+            elif unload_state == "unloading":
+                carriers = [c for c in carriers if c.unload_opened and not c.unload_closed]
+
+            display_items = [
+                (f"{carrier.carrier_name} ({carrier.carrier_identifier})", carrier.carrier_identifier)
+                for carrier in carriers
+            ]
+
+            filtered = [
+                app_commands.Choice(name=name, value=value)
+                for name, value in display_items
+                if current.lower() in name.lower()
+            ]
+            logger.debug(f"Carrier autocomplete choices: {[choice.name for choice in filtered]}")
+            return filtered[:25]
+
+        return autocomplete
 
     @retry(
         stop=dynamic_attempts(_should_retry_exception, 3, 1),
@@ -727,6 +852,12 @@ class BoozeSheetsApi:
 
             logger.debug(f"Received websocket event: {event_type}")
 
+            try:
+                await self._carrier_cache_ws_update(event_type, data)
+            except Exception:
+                # Catch to allow event dispatch to continue even if cache update fails, but log the error
+                logger.exception("Error updating carrier cache from websocket event")
+
             event_name = f"boozesheets_{event_type}"
 
             if self.bot:
@@ -746,6 +877,15 @@ class BoozeSheetsApi:
         """
         status = "Connected" if self._ws_connected else "Disconnected"
         return status, self._last_ws_message_time
+
+    def get_carrier_poll_status(self) -> tuple[str, datetime | None, int]:
+        """
+        Get the current status of the carrier polling loop and cache.
+
+        :return: A tuple containing poll status, last refresh timestamp, and cache size.
+        """
+        status = "Running" if self._carrier_poll_running else "Stopped"
+        return status, self._carrier_cache_last_refresh, len(self.carrier_cache)
 
     async def send_action_ack(self, action_id: str, success: bool = True, error: str | None = None) -> None:
         """
