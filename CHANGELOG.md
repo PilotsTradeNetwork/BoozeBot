@@ -1,4 +1,19 @@
 # Changelog
+## 3.2.0
+-    \#793 Update Dockerfile (axleantilles)
+-    \#789 Fix linting violations (IndorilReborn)
+-    \#813 Add include not unloaded to carrier stats (Conshmea)
+-    \#810 Fix unload notification (Conshmea)
+-    \#809 Fix Make WCO Button (Conshmea)
+-    \#812 More typing (Conshmea)
+-    \#811 More gifs (Conshmea)
+-    \#798 handle StaleDataException without traceback or error log (axleantilles)
+-    \#797 catch 404 member not found and move on (axleantilles)
+-    \#817 Support timed unloads, skip carrier fetch if websocket (IndorilReborn)
+-    \#816 Site button interactions (Conshmea)
+-    \#821 Reject EDSM state if stale (IndorilReborn)
+-    \#819 Carrier autocomplete (Conshmea)
+
 
 ## 3.1.1
 -    \#788 fix: always raise EDSM PH check error (IndorilReborn)
