@@ -450,7 +450,7 @@ class Unloading(commands.Cog):
         success: bool = False
         error: str | None = None
         try:
-            await self._unload(
+            result = await self._unload(
                 carrier_id=carrier_id,
                 carrier_name=carrier_name or "",
                 carrier_db_id=int(carrier_db_id) if carrier_db_id is not None else 0,
@@ -463,6 +463,17 @@ class Unloading(commands.Cog):
             )
             logger.info(f"Successfully started unload for carrier {carrier_id} from unload_request event.")
             success = True
+            if rstc_channel := await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CARRIER_COMMAND):
+                if delay:
+                    await rstc_channel.send(
+                        f"Timed wine unload requested via boozesheets for **{carrier_name} ({carrier_id})**\n"
+                        + f"Open the market at {result.open_time_str} (In game time)."
+                    )
+                else:
+                    await rstc_channel.send(
+                        content=f"Wine unload requested via boozesheets for **{carrier_name} ({carrier_id})** "
+                        + "processed successfully."
+                    )
         except UnloadOperationError as e:
             logger.warning(f"Failed to start unload for carrier {carrier_id} from unload_request event: {e}")
             error = str(e)
