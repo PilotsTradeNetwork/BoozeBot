@@ -156,7 +156,7 @@ class Departures(commands.Cog):
             departure_time = departure_time.replace(tzinfo=UTC)
             departure_timestamp = int(departure_time.timestamp())
             departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
-            departing_thoon = departure_time < datetime.now() + timedelta(hours=2)
+            departing_thoon = departure_time < datetime.now(tz=UTC) + timedelta(hours=2)
         else:
             departure_time_text = f" {await bot.get_or_fetch.emoji(EMOJI_THOON)} |"
 
