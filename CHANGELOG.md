@@ -1,4 +1,9 @@
 # Changelog
+## 3.2.1
+-    \#829 Log to RSTC on boozesheets unloads (Conshmea) 
+-    \#830 Fix departure timestamp (Conshmea) 
+-    \#827 Cork Fixes (Conshmea) 
+
 ## 3.2.0
 -    \#793 Update Dockerfile (axleantilles)
 -    \#789 Fix linting violations (IndorilReborn)

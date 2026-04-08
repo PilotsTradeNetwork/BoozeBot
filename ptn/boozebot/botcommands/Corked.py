@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import discord
-from discord import DiscordException, Embed, PermissionOverwrite, app_commands
+from discord import Embed, PermissionOverwrite, app_commands
 from discord.ext import commands
 from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
@@ -36,7 +36,7 @@ from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 from ptn.boozebot.modules.Views import ConfirmView
 
 if TYPE_CHECKING:
-    from discord.abc import GuildChannel
+    from discord import TextChannel
 
 """
 CLEANER COMMANDS
@@ -89,7 +89,7 @@ class Corked(commands.Cog):
             failed_users = await self._booze_rebuild_corked_perms(corked_users)
             if failed_users:
                 embed = _build_failed_cork_embed(failed_users)
-                steve_says = cast("GuildChannel", await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS))
+                steve_says = cast("TextChannel", await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS))
                 await steve_says.send(embed=embed)
         except Exception as e:
             logger.exception(e)
@@ -100,7 +100,7 @@ class Corked(commands.Cog):
             logger.debug(f"Member joined: {member.display_name} ({member.name}/{member.id})")
             if await database.is_user_corked(member.id):
                 logger.info(f"Found Corked user joining the server: {member.display_name} ({member.name}/{member.id})")
-                steve_says = cast("GuildChannel", await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS))
+                steve_says = cast("TextChannel", await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS))
                 corked_users = await database.get_corked_users()
                 description = f"YARRRRRR mateys, Pirate Steve spies a bilge rat sneaking into the server! {member.mention} ({member.name}). Rebuilding corked permissions."
                 get_recorked_img_path = Path(DATA_DIR, "resources", "getrecorked.png")
@@ -254,7 +254,7 @@ class Corked(commands.Cog):
                 (await corked_user.get_member()).name,
                 f"{(await corked_user.get_member()).mention} Corked at {corked_user.timestamp}",
             )
-            for corked_user in corked_users
+            for corked_user in corked_users if (await corked_user.get_member()) is not None
         ]
         logger.debug(f"Prepared corked user data for pagination: {corked_user_data}")
 
@@ -268,16 +268,15 @@ class Corked(commands.Cog):
         failed_users = []
 
         # ASSUMPTION: presence of overwrites in BC chat is an acceptable indicator for whether a user is still corked
-        channel_chat = cast("GuildChannel", await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT))
+        channel_chat = cast("TextChannel", await bot.get_or_fetch.channel(CHANNEL_BC_BOOZE_CRUISE_CHAT))
         active_corks = [key.id for key in channel_chat.overwrites if not isinstance(key, discord.Role)]
         for corked_user in corked_users:
             if int(corked_user.user_id) not in active_corks:
                 logger.info(
                     f"corked_user id: {corked_user.user_id}, active corks: {active_corks}, in active corks: {corked_user.user_id in active_corks}"
                 )
-                try:
-                    user = await bot.get_or_fetch.member(corked_user.user_id)
-                except DiscordException:
+                user = await bot.get_or_fetch.member(corked_user.user_id)
+                if user is None:
                     logger.warning(f"Could not find member with ID {corked_user.user_id}, skipping.")
                     failed_users.append((corked_user.user_id, "User not found"))
                     continue

@@ -167,25 +167,28 @@ async def on_app_command_error(interaction: Interaction, error: AppCommandError)
             except InteractionResponded:
                 await interaction.followup.send(embed=embed, ephemeral=True)
             logger.debug("Generic error message sent to user")
-        elif isinstance(error, CommandInvokeError):
-            if isinstance(error.original, HTTPStatusError):
-                logger.debug(f"HTTPStatusError raised with message: {error}, reporting to user without details")
-                status_code = error.original.response.status_code
-                embed = Embed(description=f"❌ An HTTP error occurred: {status_code}", color=EMBED_COLOUR_ERROR)
-                try:
-                    await interaction.response.send_message(embed=embed)
-                except InteractionResponded:
-                    await interaction.followup.send(embed=embed)
-                logger.debug("HTTPStatusError message sent to user")
 
-            elif isinstance(error.original, (TimeoutException, ConnectError, NetworkError)):
-                logger.debug(f"Network-related error raised with message: {error}, reporting to user")
-                embed = Embed(description="❌ A network error occurred", color=EMBED_COLOUR_ERROR)
-                try:
-                    await interaction.response.send_message(embed=embed)
-                except InteractionResponded:
-                    await interaction.followup.send(embed=embed)
-                logger.debug("Network-related error message sent to user")
+        elif isinstance(error, CommandInvokeError) and isinstance(error.original, HTTPStatusError):
+            logger.debug(f"HTTPStatusError raised with message: {error}, reporting to user without details")
+            status_code = error.original.response.status_code
+            embed = Embed(description=f"❌ An HTTP error occurred: {status_code}", color=EMBED_COLOUR_ERROR)
+            try:
+                await interaction.response.send_message(embed=embed)
+            except InteractionResponded:
+                await interaction.followup.send(embed=embed)
+            logger.debug("HTTPStatusError message sent to user")
+
+        elif isinstance(error, CommandInvokeError) and isinstance(
+            error.original, (TimeoutException, ConnectError, NetworkError)
+        ):
+            logger.debug(f"Network-related error raised with message: {error}, reporting to user")
+            embed = Embed(description="❌ A network error occurred", color=EMBED_COLOUR_ERROR)
+            try:
+                await interaction.response.send_message(embed=embed)
+            except InteractionResponded:
+                await interaction.followup.send(embed=embed)
+            logger.debug("Network-related error message sent to user")
+
         else:
             logger.debug(f"Unhandled error type: {type(error)}, reporting to user")
             embed = Embed(description=f"❌ Unhandled Error: {error}", color=EMBED_COLOUR_ERROR)
