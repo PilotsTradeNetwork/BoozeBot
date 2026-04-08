@@ -99,7 +99,7 @@ class Departures(commands.Cog):
         owner_discord_id: str,
         departure_system: str,
         arrival_system: str,
-        departure_timestamp: datetime | None,
+        departure_time: datetime | None,
     ) -> DeparturePostResult:
         """Post a departure notice and persist the Discord message ID."""
 
@@ -152,9 +152,11 @@ class Departures(commands.Cog):
         clean_carrier_id = carrier_id.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
 
         departing_thoon = False
-        if departure_timestamp:
+        if departure_time:
+            departure_time = departure_time.replace(tzinfo=UTC)
+            departure_timestamp = int(departure_time.timestamp())
             departure_time_text = f" <t:{departure_timestamp}:f> (<t:{departure_timestamp}:R>) |"
-            departing_thoon = datetime.fromtimestamp(departure_timestamp) < datetime.now() + timedelta(hours=2)
+            departing_thoon = departure_time < datetime.now() + timedelta(hours=2)
         else:
             departure_time_text = f" {await bot.get_or_fetch.emoji(EMOJI_THOON)} |"
 
@@ -323,7 +325,7 @@ class Departures(commands.Cog):
                 owner_discord_id=owner_discord_id or "",
                 departure_system=current_system or "",
                 arrival_system=plotted_system or "",
-                departure_timestamp=None,
+                departure_time=None,
             )
             logger.info(f"Departure message posted successfully for carrier ID {carrier_id}.")
             success = True
@@ -567,7 +569,7 @@ class Departures(commands.Cog):
                 owner_discord_id=str(carrier_data.owner.discord_id),
                 departure_system=carrier_data.system,
                 arrival_system=arrival_location.split(" ", 1)[0],
-                departure_timestamp=departure_time,
+                departure_time=departure_time,
             )
         except DepartureOperationError as e:
             msg = str(e)
