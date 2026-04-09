@@ -354,14 +354,14 @@ class Departures(commands.Cog):
             await self._close_departure(carrier_data, requested_by=interaction.user)
         except DepartureOperationError as e:
             logger.error(f"Failed to close departure message for carrier ID {carrier_id}: {e}")
-            await interaction.edit_original_response(content=f"Failed to close departure notice: {e}", view=None)
+            await interaction.followup.send(content=f"{interaction.user.mention} Failed to close departure notice: {e}", ephemeral=True)
+            await interaction.message.edit(view=None)
             return
 
-        await interaction.message.edit(
-            content=f"Departure notice for carrier {carrier_id} has been closed by <@{interaction.user.id}>.",
-            view=None,
+        await interaction.followup.send(
+            content=f"Departure notice for carrier {carrier_id} has been closed by {interaction.user.mention}.",
         )
-        await interaction.edit_original_response(content=f"Departure notice for carrier {carrier_id} has been closed.")
+        await interaction.message.edit(view=None)
 
     @tasks.loop(minutes=5)
     @track_last_run()

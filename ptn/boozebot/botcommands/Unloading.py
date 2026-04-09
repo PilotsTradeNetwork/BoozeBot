@@ -390,14 +390,16 @@ class Unloading(commands.Cog):
         if not carrier_data:
             error_msg = f"Carrier {carrier_id} was not found."
             logger.info(error_msg)
-            await interaction.edit_original_response(content=error_msg, view=None)
+            await interaction.followup.send(content=error_msg)
+            await interaction.message.edit(view=None)
             return
 
         try:
             result = await self._unload_complete(carrier_data, requested_by=interaction.user)
         except UnloadOperationError as e:
             logger.info(str(e))
-            await interaction.edit_original_response(content=str(e), view=None)
+            await interaction.followup.send(content=f"{interaction.user.mention} {e!s}", ephemeral=True)
+            await interaction.message.edit(view=None)
             return
 
         unload_duration = result.unload_duration
@@ -412,15 +414,20 @@ class Unloading(commands.Cog):
             f"Removed the unload notification for {carrier_data.carrier_name} ({carrier_id})\n"
             f"-# Unload duration: {time_str}."
         )
+
+        await interaction.followup.send(content=f"{interaction.user.mention} {response}", ephemeral=True)
+        await interaction.message.edit(view=None)
+
         allowed_mentions = discord.AllowedMentions.none()
         conn_role = await bot.get_or_fetch.role(ROLE_CONN)
         allowed_mentions.roles = [conn_role]
 
         logger.info(f"Wine unload for carrier {carrier_id} completed by {interaction.user.name}.")
-        await interaction.followup.send(
-            content=f"{interaction.user.mention} {response}", allowed_mentions=allowed_mentions, view=None
+        # channel is rstc
+        message = await interaction.channel.send(
+            content=f"{interaction.user.mention} {response}", allowed_mentions=allowed_mentions
         )
-        await interaction.edit_original_response(
+        await message.edit(
             content=f"<@&{ROLE_CONN}> {interaction.user.mention} {response}",
             allowed_mentions=allowed_mentions,
             view=None,
