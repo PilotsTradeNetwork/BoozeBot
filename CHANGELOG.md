@@ -1,4 +1,9 @@
 # Changelog
+
+## 3.2.2
+-    \#831 Fix button interactions responses (Conshmea)
+-    \#832 fix site departures (Conshmea)
+  
 ## 3.2.1
 -    \#829 Log to RSTC on boozesheets unloads (Conshmea) 
 -    \#830 Fix departure timestamp (Conshmea) 
