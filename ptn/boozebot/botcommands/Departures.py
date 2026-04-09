@@ -318,6 +318,9 @@ class Departures(commands.Cog):
 
         success: bool = False
         error: str | None = None
+
+        plotted_system = plotted_system.split(" ", 1)[0]
+
         try:
             await self._post_departure(
                 carrier_id=carrier_id,
