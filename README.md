@@ -41,6 +41,9 @@ All commands are in hierarchical format, so the higher roles can run everything 
 
 ### Wine Carriers:
 
+-   `/wine_load <XXX-XXX: str> [tritium: int] [note: str]` - Posts a wine loading notice for a carrier in the loading
+    channel. Checks channel history first and returns an error if a load order for that carrier has already been posted.
+    Staff members may optionally include a note. Also triggered via WebSocket `load_request` events from BoozeSheets.
 -   `/wine_carrier_unload <XXX-XXX: str> <planet: str> <market_type: str> <unload_channel: str [optional]>` - Sets an
     unload notification for the carrier. Notification will be posted into a discord channel if TimedMarket and unload
     channel provided.
