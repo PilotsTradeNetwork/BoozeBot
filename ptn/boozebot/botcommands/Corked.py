@@ -254,7 +254,8 @@ class Corked(commands.Cog):
                 (await corked_user.get_member()).name,
                 f"{(await corked_user.get_member()).mention} Corked at {corked_user.timestamp}",
             )
-            for corked_user in corked_users if (await corked_user.get_member()) is not None
+            for corked_user in corked_users
+            if (await corked_user.get_member()) is not None
         ]
         logger.debug(f"Prepared corked user data for pagination: {corked_user_data}")
 
