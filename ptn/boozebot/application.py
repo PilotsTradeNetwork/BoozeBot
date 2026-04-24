@@ -16,6 +16,7 @@ from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.botcommands.Corked import Corked
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.DiscordBotCommands import DiscordBotCommands
+from ptn.boozebot.botcommands.Loading import Loading
 from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
 from ptn.boozebot.botcommands.MimicSteve import MimicSteve
 from ptn.boozebot.botcommands.PublicHoliday import PublicHoliday
@@ -56,6 +57,8 @@ async def boozebot():
         logger.debug("Loaded MakeWineCarrier cog.")
         await bot.add_cog(Departures(bot))
         logger.debug("Loaded Departures cog.")
+        await bot.add_cog(Loading(bot))
+        logger.debug("Loaded Loading cog.")
         await bot.add_cog(BackgroundTaskCommands(bot))
         logger.debug("Loaded BackgroundTaskCommands cog.")
         await bot.add_cog(AutoResponses(bot))

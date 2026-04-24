@@ -257,7 +257,7 @@ class BoozeSheetsApi:
 
             await asyncio.sleep(300)
 
-    def carrier_autocomplete(self, only_owned: bool = True, unload_state: Literal["full", "unloading"] | None = None):
+    def carrier_autocomplete(self, only_owned: bool = True, state: Literal["full", "unloading", "empty"] | None = None):
         async def autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
             logger.debug(f"Carrier autocomplete called with current input: '{current}' and only_owned={only_owned}")
 
@@ -268,10 +268,12 @@ class BoozeSheetsApi:
                 carriers = list(self.carrier_cache.values())
                 carriers.sort(key=lambda c: (c.owner.discord_id != interaction.user.id, c.carrier_name.lower()))
 
-            if unload_state == "full":
+            if state == "full":
                 carriers = [c for c in carriers if not c.unload_opened and c.system == "N0"]
-            elif unload_state == "unloading":
+            elif state == "unloading":
                 carriers = [c for c in carriers if c.unload_opened and not c.unload_closed]
+            elif state == "empty":
+                carriers = [c for c in carriers if c.system == "N16" and c.wine_status in ["Empty", None]]
 
             display_items = [
                 (f"{carrier.carrier_name} ({carrier.carrier_identifier})", carrier.carrier_identifier)

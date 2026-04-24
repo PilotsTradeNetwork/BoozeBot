@@ -182,6 +182,7 @@ BoozeBot/
 │       │   ├── Corked.py          # corked user management
 │       │   ├── Departures.py      # carrier departure announcements
 │       │   ├── DiscordBotCommands.py  # admin text commands (ping, version, exit, update)
+│       │   ├── Loading.py         # wine loading announcements (/wine_load, on_boozesheets_load_request)
 │       │   ├── MakeWineCarrier.py
 │       │   ├── MimicSteve.py      # steve_says, context menu
 │       │   ├── PublicHoliday.py   # holiday detection loop, channel management
