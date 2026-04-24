@@ -179,7 +179,6 @@ BoozeBot/
 │       │   ├── AutoResponses.py
 │       │   ├── BackgroundTaskCommands.py
 │       │   ├── Cleaner.py         # channel open/close, roles cleanup
-│       │   ├── Corked.py          # corked user management
 │       │   ├── Departures.py      # carrier departure announcements
 │       │   ├── DiscordBotCommands.py  # admin text commands (ping, version, exit, update)
 │       │   ├── MakeWineCarrier.py
@@ -190,7 +189,6 @@ BoozeBot/
 │       ├── classes/           # data model classes
 │       │   ├── AutoResponse.py
 │       │   ├── BoozeCarrier.py
-│       │   ├── CorkedUser.py
 │       │   └── Cruise.py
 │       ├── database/
 │       │   └── database.py    # Database class: SQLite via aiosqlite-like sync API, all bot state

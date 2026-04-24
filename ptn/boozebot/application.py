@@ -13,7 +13,6 @@ from ptn_utils.logger.logger import Logger, get_logger
 from ptn.boozebot.botcommands.AutoResponses import AutoResponses
 from ptn.boozebot.botcommands.BackgroundTaskCommands import BackgroundTaskCommands
 from ptn.boozebot.botcommands.Cleaner import Cleaner
-from ptn.boozebot.botcommands.Corked import Corked
 from ptn.boozebot.botcommands.Departures import Departures
 from ptn.boozebot.botcommands.DiscordBotCommands import DiscordBotCommands
 from ptn.boozebot.botcommands.MakeWineCarrier import MakeWineCarrier
@@ -60,8 +59,7 @@ async def boozebot():
         logger.debug("Loaded BackgroundTaskCommands cog.")
         await bot.add_cog(AutoResponses(bot))
         logger.debug("Loaded AutoResponses cog.")
-        await bot.add_cog(Corked(bot))
-        logger.debug("Loaded Corked cog.")
+
         await bot.add_cog(PrometheusCog(bot))
         logger.debug("Loaded PrometheusCog cog.")
 
