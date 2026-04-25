@@ -115,7 +115,7 @@ class PublicHoliday(commands.Cog):
 
         holiday_ongoing = await booze_sheets_api.get_current_cruise_state() == CruiseSystemState.ACTIVE
         current_cruise = await booze_sheets_api.get_cruise_with_stats(0)
-        start_time = current_cruise.start
+        start_time = current_cruise.ph_start
         logger.debug(f"Holiday state from boozeSheetsAPI: {holiday_ongoing}, timestamp: {start_time}")
 
         end_time = start_time + timedelta(hours=48)
@@ -287,7 +287,7 @@ class PublicHoliday(commands.Cog):
 
         logger.debug("Fetching holiday start timestamp from backend.")
         current_cruise = await booze_sheets_api.get_cruise_with_stats(0)
-        start_time = current_cruise.start
+        start_time = current_cruise.ph_start
 
         end_time = start_time + timedelta(hours=duration_hours)
         end_timestamp = int(end_time.timestamp())

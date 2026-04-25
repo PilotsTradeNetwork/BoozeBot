@@ -4,7 +4,6 @@ from asyncio import Lock
 from datetime import datetime
 from sqlite3 import Connection, Cursor
 from typing import Literal
-from warnings import deprecated
 
 from ptn_utils.logger.logger import get_logger
 
@@ -516,56 +515,6 @@ class Database:
             )
             self.conn.commit()
         logger.debug(f"Successfully updated auto response: {name}")
-
-    @deprecated(
-        "This function is deprecated and will be removed in a future release. Use boozeSheetsApi.get_current_cruise_state() instead."
-    )
-    async def get_holiday_status(self) -> tuple[bool, datetime]:
-        """
-        Retrieves the current holiday status from the database.
-
-        :returns: A tuple containing the holiday status (bool) and the timestamp (datetime).
-        """
-        logger.debug("Retrieving holiday status from database")
-
-        async with self.lock:
-            self.db.execute("SELECT state, timestamp FROM holidaystate ORDER BY entry DESC LIMIT 1")
-            row = self.db.fetchone()
-
-        if row is None:
-            logger.error("No holiday state found in database.")
-            raise ValueError("Holiday state not found in database.")
-
-        holiday_ongoing = bool(row["state"])
-        timestamp = datetime.fromisoformat(row["timestamp"])
-
-        logger.debug(f"Holiday status retrieved: ongoing={holiday_ongoing}, timestamp={timestamp}")
-        return holiday_ongoing, timestamp
-
-    @deprecated(
-        "This function is deprecated and will be removed in a future release. Use boozeSheetsApi.close_cruise(), boozeSheetsApi.update_cruise_start(), and/or boozeSheetsApi.update_cruise_state() instead."
-    )
-    async def set_holiday_status(self, ongoing: bool, timestamp: datetime | None = None) -> None:
-        """
-        Sets the current holiday status in the database.
-
-        :param ongoing: The holiday status to set.
-        :param timestamp: The timestamp to set. If None, uses current time.
-        """
-        logger.debug(f"Setting holiday status to ongoing={ongoing} ")
-
-        if timestamp:
-            timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        async with self.lock:
-            self.db.execute(
-                "UPDATE holidaystate SET state = ?, timestamp = ?",
-                (ongoing, timestamp_str),
-            )
-            self.conn.commit()
-        logger.debug(f"Successfully set holiday status to ongoing={ongoing} at {timestamp_str}")
 
     async def get_corked_users(self) -> list[CorkedUser]:
         """

@@ -52,8 +52,10 @@ class Cruise:
     stats: CruiseStats
     carrier_limit: int
     faction_state: str | None
-    end: datetime
     start: datetime
+    end: datetime
+    ph_start: datetime
+    ph_end: datetime
     id: int
 
     def __init__(self, info_dict: dict[str, Any]):
@@ -66,6 +68,8 @@ class Cruise:
         self.id = int(info_dict.get("cruiseId", 0))
         self.start = sane_default_datetime(info_dict.get("cruiseStart")) or datetime.min.replace(tzinfo=UTC)
         self.end = sane_default_datetime(info_dict.get("cruiseEnd")) or datetime.max.replace(tzinfo=UTC)
+        self.ph_start = sane_default_datetime(info_dict.get("phStart")) or datetime.min.replace(tzinfo=UTC)
+        self.ph_end = sane_default_datetime(info_dict.get("phEnd")) or datetime.max.replace(tzinfo=UTC)
 
         self.faction_state = info_dict.get("factionState")
         self.carrier_limit = int(info_dict.get("carrierLimit", 0))

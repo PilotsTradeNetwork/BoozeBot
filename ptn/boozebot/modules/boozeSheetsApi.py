@@ -714,7 +714,7 @@ class BoozeSheetsApi:
         """
 
         endpoint = "/cruises"
-        data = {"cruise_start": cruise_start.isoformat().replace("Z", "+00:00")}
+        data = {"ph_start": cruise_start.isoformat().replace("Z", "+00:00")}
 
         state = await self.get_current_cruise_state()
         logger.debug(f"Current cruise state is {state}")
@@ -733,7 +733,7 @@ class BoozeSheetsApi:
         """
 
         endpoint = "/cruises"
-        data = {"cruise_end": cruise_end.isoformat().replace("Z", "+00:00")}
+        data = {"ph_end": cruise_end.isoformat().replace("Z", "+00:00")}
 
         state = await self.get_current_cruise_state()
         logger.debug(f"Current cruise state is {state}")
