@@ -1,48 +1,50 @@
 name: Docker Image CI
 
 on:
-  push:
-    tags:
-      - 'v*'
+    push:
+        tags:
+            - "v*"
 
 env:
-  IMAGE_NAME: boozebot
+    IMAGE_NAME: boozebot
 
 jobs:
-  build:
+    build:
+        runs-on: ubuntu-latest
 
-    runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+            - name: Login to Docker Hub
+              uses: docker/login-action@v2
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+            - name: Get tag name and check if semantic version
+              id: prep
+              run: |
+                  TAG=${GITHUB_REF#refs/tags/}
+                  echo "BUILD_VER=${TAG}" >> $GITHUB_OUTPUT
+                  echo "BUILD_VER_CLEAN=${TAG#v}" >> $GITHUB_OUTPUT
+                  if echo "${TAG}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+                    echo "IS_SEMVER=true" >> $GITHUB_OUTPUT
+                  else
+                    echo "IS_SEMVER=false" >> $GITHUB_OUTPUT
+                  fi
 
-      - name: Get tag name and check if semantic version
-        id: prep
-        run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          echo "BUILD_VER=${TAG}" >> $GITHUB_OUTPUT
-          if echo "${TAG}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "IS_SEMVER=true" >> $GITHUB_OUTPUT
-          else
-            echo "IS_SEMVER=false" >> $GITHUB_OUTPUT
-          fi
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and push
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.prep.outputs.BUILD_VER }}
-            ${{ steps.prep.outputs.IS_SEMVER == 'true' && format('{0}/{1}:latest', secrets.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
+            - name: Build and push
+              uses: docker/build-push-action@v4
+              with:
+                  context: .
+                  file: ./Dockerfile
+                  push: true
+                  build-args: |
+                      VERSION=${{ steps.prep.outputs.BUILD_VER_CLEAN }}
+                  tags: |
+                      ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.prep.outputs.BUILD_VER }}
+                      ${{ steps.prep.outputs.IS_SEMVER == 'true' && format('{0}/{1}:latest', secrets.DOCKERHUB_USERNAME, env.IMAGE_NAME) || '' }}
