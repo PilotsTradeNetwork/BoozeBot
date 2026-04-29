@@ -36,7 +36,7 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
-from ptn.boozebot.modules.PHcheck import StaleDataException, api_ph_check, ph_check, set_last_updated
+from ptn.boozebot.modules.PHcheck import StaleDataException, api_ph_check, ph_check
 
 """
 PUBLIC HOLIDAY TASK LOOP
@@ -75,82 +75,60 @@ class PublicHoliday(commands.Cog):
             logger.debug("Public holiday state checker loop already running.")
 
     @staticmethod
+    async def _set_holiday_start():
+        holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
+        await holiday_announce_channel.send(holiday_start_gif)
+        await holiday_announce_channel.send(
+            "Pirate Steve thinks the folks at Rackhams are partying again. "
+            + f"<@&{ROLE_COUNCIL}>, <@&{ROLE_SOMM}> please take note."
+        )
+        logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
+        await Cleaner.update_status_embed("bc_start")
+        logger.info("Holiday announced to discord, updating backend state to active.")
+        await booze_sheets_api.update_cruise_state("active")
+        await booze_sheets_api.update_cruise_start(datetime.now(tz=UTC))
+
+    @staticmethod
+    async def _set_holiday_end():
+        holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
+        await holiday_announce_channel.send(holiday_ended_gif)
+        logger.debug("Notified holiday end. Updating status embed.")
+        await Cleaner.update_status_embed("bc_end")
+        logger.info("Holiday end announced to discord, updating backend state to closed.")
+        await booze_sheets_api.close_cruise(datetime.now(tz=UTC))
+
+    @staticmethod
     async def _set_public_holiday_state(
-        state: bool, timestamp: datetime, force_update: bool = False
+        new_state: bool, timestamp: datetime, force_update: bool = False
     ) -> tuple[bool, str]:
-        logger.info(f"Setting public holiday state to: {state}, force update: {force_update}")
-        if state:
-            logger.info("PH detected, triggering the notifications.")
-            holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
+        logger.info(f"Setting public holiday state to: {new_state}, force update: {force_update}")
 
-            # Check if we had a holiday flagged already
-            logger.debug("Fetching holiday state from backend.")
-            holiday_ongoing = await booze_sheets_api.get_current_cruise_state() == CruiseSystemState.ACTIVE
-            logger.debug(f"Holiday Ongoing: {holiday_ongoing}")
+        current_state = await booze_sheets_api.get_current_cruise_state()
+        holiday_ongoing = current_state["state"] == CruiseSystemState.ACTIVE
 
-            if not holiday_ongoing or force_update:
-                logger.info("Holiday was not ongoing, started now - flag it accordingly")
-                await holiday_announce_channel.send(holiday_start_gif)
-                await holiday_announce_channel.send(
-                    "Pirate Steve thinks the folks at Rackhams are partying again. "
-                    + f"<@&{ROLE_COUNCIL}>, <@&{ROLE_SOMM}> please take note."
-                )
-                logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
-                await Cleaner.update_status_embed("bc_start")
+        if timestamp < current_state["updated_at"] and not force_update:
+            logger.info(
+                f"New state info is older than the current state. Current state updated at {current_state['updated_at']}, new state timestamp: {timestamp}. No update performed."
+            )
+            return False, "New state timestamp is older than current state, no update performed"
 
-                logger.info(f"Updating cruise start on backend to {timestamp}")
-                await booze_sheets_api.update_cruise_start(timestamp)
+        if new_state and (not holiday_ongoing or force_update):
+            logger.info("New state is active and holiday is not ongoing, setting holiday start.")
+            await PublicHoliday._set_holiday_start()
+            return True, "Holiday started and flagged in the backend"
 
-                logger.info("Updating cruise state on backend to 'active'")
-                await booze_sheets_api.update_cruise_state("active")
+        if not new_state and (holiday_ongoing or force_update):
+            logger.info("New state is not active and holiday is ongoing, setting holiday end.")
+            await PublicHoliday._set_holiday_end()
+            return True, "Holiday ended and flagged in the database"
 
-                return True, "Holiday started and flagged in the backend"
-            logger.info("Holiday already flagged - no need to set it again")
-            return False, "Holiday already ongoing, no need to set it again"
-        # Check if the 48 hours have expired first, to avoid scenarios of the HTTP request failing and turning
-        # off an ongoing holiday.
-        logger.info("No PH detected, checking if holiday duration has expired.")
-
-        logger.debug("Fetching holiday start timestamp from backend.")
-
-        holiday_ongoing = await booze_sheets_api.get_current_cruise_state() == CruiseSystemState.ACTIVE
-        current_cruise = await booze_sheets_api.get_cruise_with_stats(0)
-        start_time = current_cruise.ph_start
-        logger.debug(f"Holiday state from boozeSheetsAPI: {holiday_ongoing}, timestamp: {start_time}")
-
-        end_time = start_time + timedelta(hours=48)
-
-        current_time_utc = datetime.now(tz=UTC)
-
-        logger.debug(f"Current time UTC: {current_time_utc}, holiday end time: {end_time}")
-
-        if current_time_utc > end_time or force_update:
-            # Current time is after the end time, go turn the checks off.
-            logger.info("Holiday duration expired, turning the check off.")
-            holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
-
-            if holiday_ongoing or force_update:
-                logger.debug("Holiday ongoing - updating backend to turn it off.")
-                await booze_sheets_api.close_cruise(timestamp)
-                logger.debug("Backend updated to turn off holiday state.")
-
-                # Only post it if it is a state change.
-                logger.info("Holiday was ongoing, no longer ongoing - flag it accordingly")
-                await holiday_announce_channel.send(holiday_ended_gif)
-                logger.debug("Notified holiday end. Updating status embed.")
-                await Cleaner.update_status_embed("bc_end")
-
-                return True, "Holiday ended and flagged in the database"
-            logger.info("Holiday was not ongoing - no need to turn it off")
-            return False, "Holiday was not ongoing, no need to turn it off"
-        logger.info(f"Holiday has not yet expired, no need to turn it off. Due at: {end_time}")
-        return False, "Holiday has not yet expired, no need to turn it off"
+        return False, "No state change needed for the holiday state"
 
     @tasks.loop(minutes=10)
     @track_last_run()
     async def public_holiday_loop(self):
         """
-        Command triggers periodically to check the state at Rackhams Peak. Right now this triggers every 15 minutes.
+        Command triggers periodically to check the state at Rackhams Peak. Right now this triggers every 10 minutes.
 
         :return: None
         """
@@ -211,10 +189,6 @@ class PublicHoliday(commands.Cog):
         )
         now = datetime.now(tz=UTC)
         _success, message = await self._set_public_holiday_state(state, now, force_update)
-
-        if _success:
-            logger.info(f"Admin override succeeded; updating LAST_UPDATED to {now}.")
-            set_last_updated(now)
 
         logger.info(f"Admin override result: {message}")
         await interaction.response.send_message(f"{message}. Check with /booze_started.")

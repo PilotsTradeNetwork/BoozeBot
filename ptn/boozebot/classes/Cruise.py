@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypedDict
 
+from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.modules.helpers import sane_default_datetime, sane_default_float
@@ -76,3 +77,8 @@ class Cruise:
         self.stats = CruiseStats(info_dict.get("stats", {}))
 
         logger.debug(f"Cruise initialized with stats: {self.stats}")
+
+
+class CruiseState(TypedDict):
+    state: CruiseSystemState
+    updated_at: datetime

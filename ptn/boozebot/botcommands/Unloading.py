@@ -111,7 +111,7 @@ class Unloading(commands.Cog):
         Start a carrier unload operation.
         """
         async with self.unload_lock:
-            if await booze_sheets_api.get_current_cruise_state() != CruiseSystemState.ACTIVE:
+            if (await booze_sheets_api.get_current_cruise_state())["state"] != CruiseSystemState.ACTIVE:
                 raise UnloadOperationError(
                     "Unloads can only be started during an active booze cruise.",
                 )
