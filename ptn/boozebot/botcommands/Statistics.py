@@ -182,7 +182,7 @@ class Statistics(commands.Cog):
             else ""
         )
 
-        updated_timestamp = f"\n\nLast updated: <t:{int(datetime.now().timestamp())}:F>" if include_timestamp else ""
+        updated_timestamp = f"Last updated: <t:{int(datetime.now().timestamp())}:F>" if include_timestamp else ""
         state_warning_msg = (
             "### The Public Holiday did not happen for this cruise.\n### None of these carriers got unloaded.\n\n"
         )
