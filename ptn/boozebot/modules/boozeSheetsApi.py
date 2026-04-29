@@ -261,8 +261,11 @@ class BoozeSheetsApi:
         async def autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
             logger.debug(f"Carrier autocomplete called with current input: '{current}' and only_owned={only_owned}")
 
-            if (only_owned and not is_staff(interaction.user)) or current == "":
-                carriers = [c for c in self.carrier_cache.values() if c.owner.discord_id == interaction.user.id]
+            show_only_owned = only_owned and not is_staff(interaction.user)
+            owned_carriers = [c for c in self.carrier_cache.values() if c.owner.discord_id == interaction.user.id]
+
+            if show_only_owned or (current == "" and len(owned_carriers) > 0):
+                carriers = owned_carriers
                 carriers.sort(key=lambda c: c.carrier_name.lower())
             else:
                 carriers = list(self.carrier_cache.values())
