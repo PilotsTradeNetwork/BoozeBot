@@ -909,7 +909,15 @@ class Statistics(commands.Cog):
         logger.debug(
             f"User {interaction.user.name} ({interaction.user.id}) wanted to know the remaining time of the holiday."
         )
-        holiday_ongoing = (await self.get_current_cruise_state())["state"] == CruiseSystemState.ACTIVE
+        try:
+            holiday_ongoing = (await booze_sheets_api.get_current_cruise_state())["state"] == CruiseSystemState.ACTIVE
+        except Exception as e:
+            logger.error(f"Error while fetching current cruise state for holiday duration estimation: {e}")
+            await interaction.edit_original_response(
+                content="Sorry, Pirate Steve had trouble determining the holiday state."
+            )
+            return
+
         current_cruise = await booze_sheets_api.get_cruise_with_stats(0)
         start_time = current_cruise.ph_start
         if not holiday_ongoing:

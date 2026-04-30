@@ -1,15 +1,13 @@
 # Checking for a public holiday at Rackham's (HIP 58832)
 # Returns True or False based on whether or not Rackham's is in public holiday
 # Rackham Capital Investments is the faction controlling Rackham's Peak
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from json import JSONDecodeError
 
 import httpx
-from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.constants import STALE_DATA_THRESHOLD
-from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 
 logger = get_logger("boozebot.modules.phcheck")
 
@@ -34,7 +32,6 @@ async def get_state_from_edsm() -> tuple[bool, datetime]:
     active_states = {x["state"] for x in faction.get("activeStates", [])}
     logger.debug(f"Active States: {active_states}")
     last_update = datetime.fromtimestamp(faction.get("lastUpdate") or 0, tz=UTC)
-    last_update = datetime.now(tz=UTC) - timedelta(days=1)
     now = datetime.now(UTC)
     if now - last_update > STALE_DATA_THRESHOLD:
         raise StaleDataException(f"Stale data detected from EDSM. Last Updated: {last_update}")
@@ -68,20 +65,3 @@ async def api_ph_check() -> tuple[bool, datetime]:
     # Return false if there are no public holiday hits
     logger.info("No PH state detected from external API.")
     return False, updated_at
-
-
-async def ph_check() -> bool:
-    logger.info("Checking PH state from the database.")
-    try:
-        holiday_ongoing = (await booze_sheets_api.get_current_cruise_state())["state"] == CruiseSystemState.ACTIVE
-
-        logger.debug(f"Fetched holiday state from backend: {holiday_ongoing}")
-
-        if not holiday_ongoing:
-            logger.info("PH is not ongoing according to the backend.")
-            return False
-        logger.info("PH is ongoing according to the backend.")
-        return True
-    except Exception as e:
-        logger.exception(f"Error while checking PH state from the backend: {e}")
-        return False

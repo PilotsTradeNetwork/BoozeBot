@@ -7,7 +7,7 @@ import random
 from datetime import UTC, datetime, timedelta
 
 import discord
-from discord import NotFound, app_commands
+from discord import app_commands
 from discord.app_commands import describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
@@ -36,7 +36,7 @@ from ptn.boozebot.constants import (
 )
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
-from ptn.boozebot.modules.PHcheck import StaleDataException, api_ph_check, ph_check
+from ptn.boozebot.modules.PHcheck import StaleDataException, api_ph_check
 
 """
 PUBLIC HOLIDAY TASK LOOP
@@ -95,7 +95,7 @@ class PublicHoliday(commands.Cog):
         logger.debug("Notified holiday end. Updating status embed.")
         await Cleaner.update_status_embed("bc_end")
         logger.info("Holiday end announced to discord, updating backend state to closed.")
-        await booze_sheets_api.close_cruise(datetime.now(tz=UTC))
+        await booze_sheets_api.end_ph(datetime.now(tz=UTC))
 
     @staticmethod
     async def _set_public_holiday_state(
@@ -147,29 +147,27 @@ class PublicHoliday(commands.Cog):
     async def holiday_query(self, interaction: discord.Interaction):
         await interaction.response.defer()
         logger.info(f"User {interaction.user.name} queried the holiday state.")
-        gif = ""
-        if await ph_check():
-            logger.info("Rackhams holiday check says yep.")
-            try:
-                gif = random.choice(holiday_query_started_gifs)
-                await interaction.followup.send(gif)
-                logger.debug(f"Sent holiday started GIF: {gif}")
-            except NotFound:
-                logger.exception(f"Problem sending the GIF for: {gif}.")
-                await interaction.followup.send(
-                    "Pirate Steve could not parse the gif. Try again and tell Council to check the log."
-                )
+
+        try:
+            holiday_ongoing = (await booze_sheets_api.get_current_cruise_state())["state"] == CruiseSystemState.ACTIVE
+        except Exception as e:
+            logger.error(f"Error while checking holiday state for /booze_started command: {e}")
+            await interaction.followup.send("Sorry, Pirate Steve had trouble determining the holiday state.")
+            return
+
+        logger.info(f"Holiday state: {holiday_ongoing}")
+
+        if holiday_ongoing:
+            logger.debug("Holiday is ongoing, selecting from started gifs.")
+            gifs = holiday_query_started_gifs
         else:
-            logger.info("Rackhams holiday check says nope.")
-            try:
-                gif = random.choice(holiday_query_not_started_gifs)
-                await interaction.followup.send(gif)
-                logger.debug(f"Sent holiday not started gif: {gif}")
-            except NotFound:
-                logger.exception(f"Problem sending the GIF for: {gif}.")
-                await interaction.followup.send(
-                    "Pirate Steve could not parse the gif. Try again and tell Council to check the log."
-                )
+            logger.debug("Holiday is not ongoing, selecting from not started gifs.")
+            gifs = holiday_query_not_started_gifs
+
+        gif = random.choice(gifs)
+
+        await interaction.followup.send(gif)
+        logger.debug(f"Sent GIF: {gif}")
 
     @app_commands.command(
         name="booze_started_admin_override",
@@ -188,7 +186,13 @@ class PublicHoliday(commands.Cog):
             f"User {interaction.user.name} requested to override the admin holiday state to: {state}, forced: {force_update}."
         )
         now = datetime.now(tz=UTC)
-        _success, message = await self._set_public_holiday_state(state, now, force_update)
+
+        try:
+            _success, message = await self._set_public_holiday_state(state, now, force_update)
+        except Exception as e:
+            logger.exception(f"Error while trying to override the holiday state: {e}")
+            await interaction.response.send_message("An error occurred while trying to override the holiday state.")
+            return
 
         logger.info(f"Admin override result: {message}")
         await interaction.response.send_message(f"{message}. Check with /booze_started.")
@@ -213,24 +217,38 @@ class PublicHoliday(commands.Cog):
             return
 
         # Check if we had a holiday flagged already
-        holiday_ongoing = await ph_check()
+        try:
+            holiday_ongoing = booze_sheets_api.get_current_cruise_state().get("state") == CruiseSystemState.ACTIVE
+        except Exception as e:
+            logger.exception(f"Error while checking current cruise state before overriding start timestamp: {e}")
+            await interaction.response.send_message(
+                "An error occurred while trying to fetch the current holiday state."
+            )
+            return
         logger.debug(f"Holiday state from database: {holiday_ongoing}")
 
-        if holiday_ongoing:
-            logger.info("Holiday is ongoing, updating the timestamp.")
-
-            await booze_sheets_api.update_cruise_start(dt_timestamp)
-
-            logger.debug("Database updated with new timestamp.")
-            await interaction.response.send_message(
-                f"Set the cruise start time to: {dt_timestamp}. Check with /booze_duration_remaining."
-            )
-
-        else:
+        if not holiday_ongoing:
             logger.info("No holiday ongoing, cannot set timestamp.")
             await interaction.response.send_message(
                 "No holiday has been detected yet, Wait until steve detects the holiday before using this command."
             )
+            return
+
+        logger.info("Holiday is ongoing, updating the timestamp.")
+
+        try:
+            await booze_sheets_api.update_cruise_start(dt_timestamp)
+        except Exception as e:
+            logger.exception(f"Error while updating cruise start timestamp: {e}")
+            await interaction.response.send_message(
+                "An error occurred while trying to update the cruise start timestamp."
+            )
+            return
+
+        logger.debug("Database updated with new timestamp.")
+        await interaction.response.send_message(
+            f"Set the cruise start time to: {dt_timestamp}. Check with /booze_duration_remaining."
+        )
 
     @app_commands.command(
         name="booze_duration_remaining", description="Returns roughly how long the holiday has remaining."
@@ -247,7 +265,17 @@ class PublicHoliday(commands.Cog):
         logger.info(f"User {interaction.user.name} requested remaining holiday duration.")
 
         await interaction.response.defer()
-        if not await ph_check():
+
+        try:
+            holiday_ongoing = (await booze_sheets_api.get_current_cruise_state())["state"] == CruiseSystemState.ACTIVE
+        except Exception as e:
+            logger.error(f"Error while checking holiday state for /booze_duration_remaining command: {e}")
+            await interaction.edit_original_response(
+                content="Sorry, Pirate Steve had trouble determining the holiday state."
+            )
+            return
+
+        if not holiday_ongoing:
             logger.info("Holiday not ongoing, cannot calculate remaining duration.")
             await interaction.edit_original_response(
                 content="Pirate Steve has not detected the holiday state yet, or it is already over."

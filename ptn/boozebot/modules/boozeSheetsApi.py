@@ -507,18 +507,13 @@ class BoozeSheetsApi:
             state_data: dict[str, str] = await self._request("GET", endpoint)
         except httpx.HTTPStatusError as e:
             logger.error(f"Failed to get current cruise state: {e}")
-            return {
-                "state": CruiseSystemState.CHANNELS_CLOSED,
-                "updated_at": datetime.now(tz=UTC),
-            }
+            raise
+
         logger.debug(f"Current cruise state from backend: {state_data}")
 
         if "state" not in state_data or "updatedAt" not in state_data:
             logger.error(f"Invalid cruise state response format: {state_data}")
-            return {
-                "state": CruiseSystemState.CHANNELS_CLOSED,
-                "updated_at": datetime.now(tz=UTC),
-            }
+            raise KeyError("Missing 'state' or 'updatedAt' in cruise state response")
 
         return {
             "state": CruiseSystemState(state_data["state"]),
@@ -729,7 +724,12 @@ class BoozeSheetsApi:
         endpoint = "/cruises"
         data = {"ph_start": cruise_start.isoformat().replace("Z", "+00:00")}
 
-        state = (await self.get_current_cruise_state())["state"]
+        try:
+            state = (await self.get_current_cruise_state())["state"]
+        except Exception as e:
+            logger.error(f"Failed to get current cruise state before updating cruise start: {e}")
+            raise RuntimeError("Cannot update cruise start without knowing current cruise state") from e
+
         logger.debug(f"Current cruise state is {state}")
         if state in [CruiseSystemState.PREP, CruiseSystemState.ACTIVE]:
             logger.info(f"Updating current cruise start to {cruise_start}")
@@ -738,7 +738,7 @@ class BoozeSheetsApi:
             logger.error("Automatic cruise_start update called outside of prep or active.")
             raise RuntimeError("Cannot automatically set cruise_start outside of prep or active.")
 
-    async def close_cruise(self, cruise_end: datetime):
+    async def end_ph(self, cruise_end: datetime):
         """
         Update the current cruise end time in BoozeSheets. Called when PHCheck first fails.
 
@@ -748,7 +748,12 @@ class BoozeSheetsApi:
         endpoint = "/cruises"
         data = {"ph_end": cruise_end.isoformat().replace("Z", "+00:00")}
 
-        state = (await self.get_current_cruise_state())["state"]
+        try:
+            state = (await self.get_current_cruise_state())["state"]
+        except Exception as e:
+            logger.error(f"Failed to get current cruise state before updating cruise end: {e}")
+            raise RuntimeError("Cannot update cruise end without knowing current cruise state") from e
+
         logger.debug(f"Current cruise state is {state}")
         if state == CruiseSystemState.ACTIVE:
             logger.info(f"Updating current cruise end to {cruise_end}")
