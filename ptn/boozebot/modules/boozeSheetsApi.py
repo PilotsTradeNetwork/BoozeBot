@@ -531,7 +531,7 @@ class BoozeSheetsApi:
         stats_endpoint = f"/cruises/{cruise_id}"
 
         data = {}
-        if include_not_unloaded:
+        if include_not_unloaded is not None:
             data["include_not_unloaded"] = include_not_unloaded
         if exclude_staff:
             data["exclude_staff"] = exclude_staff

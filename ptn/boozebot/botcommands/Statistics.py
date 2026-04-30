@@ -668,6 +668,12 @@ class Statistics(commands.Cog):
 
         cruise = await booze_sheets_api.get_cruise_with_stats(-cruise_select, include_not_unloaded_bool)
 
+        if cruise is None:
+            await interaction.edit_original_response(
+                content=f"Sorry, Pirate Steve couldn't find any data for the requested cruise ({cruise_select})."
+            )
+            return
+
         if cruise_select != 0:
             target_date = cruise.ph_start.strftime("%Y-%m-%d")
             logger.debug(f"Target date for historical cruise determined as: {target_date}")
