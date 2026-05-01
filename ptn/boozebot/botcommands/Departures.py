@@ -354,7 +354,9 @@ class Departures(commands.Cog):
             await self._close_departure(carrier_data, requested_by=interaction.user)
         except DepartureOperationError as e:
             logger.error(f"Failed to close departure message for carrier ID {carrier_id}: {e}")
-            await interaction.followup.send(content=f"{interaction.user.mention} Failed to close departure notice: {e}", ephemeral=True)
+            await interaction.followup.send(
+                content=f"{interaction.user.mention} Failed to close departure notice: {e}", ephemeral=True
+            )
             await interaction.message.edit(view=None)
             return
 

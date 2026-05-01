@@ -182,7 +182,7 @@ class Statistics(commands.Cog):
             else ""
         )
 
-        updated_timestamp = f"\n\nLast updated: <t:{int(datetime.now().timestamp())}:F>" if include_timestamp else ""
+        updated_timestamp = f"Last updated: <t:{int(datetime.now().timestamp())}:F>" if include_timestamp else ""
         state_warning_msg = (
             "### The Public Holiday did not happen for this cruise.\n### None of these carriers got unloaded.\n\n"
         )
@@ -546,7 +546,7 @@ class Statistics(commands.Cog):
         for carrier in carrier_data:
             logger.debug(f"Carrier with wine remaining: {carrier}")
 
-        async def buttons_callback(interaction: discord.Interaction, title: str, index: int):
+        async def buttons_callback(_view: PaginationView, interaction: discord.Interaction, title: str, index: int):
             carrier = carrier_data[index]
 
             total_unloads = carrier.trip_id if carrier.unload_closed else carrier.trip_id - 1
@@ -568,6 +568,7 @@ class Statistics(commands.Cog):
         view = PaginationView(
             title="Carriers with wine remaining",
             content=carrier_list_data,
+            owner=interaction.user,
             buttons_text="More info",
             buttons_callback=buttons_callback,
         )
@@ -668,8 +669,14 @@ class Statistics(commands.Cog):
 
         cruise = await booze_sheets_api.get_cruise_with_stats(-cruise_select, include_not_unloaded_bool)
 
+        if cruise is None:
+            await interaction.edit_original_response(
+                content=f"Sorry, Pirate Steve couldn't find any data for the requested cruise ({cruise_select})."
+            )
+            return
+
         if cruise_select != 0:
-            target_date = cruise.start.strftime("%Y-%m-%d")
+            target_date = cruise.ph_start.strftime("%Y-%m-%d")
             logger.debug(f"Target date for historical cruise determined as: {target_date}")
 
         stat_embed = await self.build_stat_embed(cruise, target_date=target_date)
@@ -867,7 +874,7 @@ class Statistics(commands.Cog):
         cruise = await booze_sheets_api.get_cruise_with_stats(-cruise_select, include_not_unloaded_bool)
 
         if cruise_select != 0:
-            target_date = cruise.start.strftime("%Y-%m-%d")
+            target_date = cruise.ph_start.strftime("%Y-%m-%d")
             logger.debug(f"Target date for historical cruise determined as: {target_date}")
 
         stat_embed = await self.build_extended_stat_embed(cruise, target_date, stat)
@@ -909,9 +916,17 @@ class Statistics(commands.Cog):
         logger.debug(
             f"User {interaction.user.name} ({interaction.user.id}) wanted to know the remaining time of the holiday."
         )
-        holiday_ongoing = await booze_sheets_api.get_current_cruise_state() == CruiseSystemState.ACTIVE
+        try:
+            holiday_ongoing = (await booze_sheets_api.get_current_cruise_state())["state"] == CruiseSystemState.ACTIVE
+        except Exception as e:
+            logger.error(f"Error while fetching current cruise state for holiday duration estimation: {e}")
+            await interaction.edit_original_response(
+                content="Sorry, Pirate Steve had trouble determining the holiday state."
+            )
+            return
+
         current_cruise = await booze_sheets_api.get_cruise_with_stats(0)
-        start_time = current_cruise.start
+        start_time = current_cruise.ph_start
         if not holiday_ongoing:
             duration_remaining = "Pirate Steve has not detected the holiday state yet, or it is already over."
         else:
@@ -968,9 +983,9 @@ class Statistics(commands.Cog):
 
         # Build the stat embed based on the extended flag
         if not extended:
-            stat_embed = await self.build_stat_embed(cruise, target_date=cruise.start.strftime("%Y-%m-%d"))
+            stat_embed = await self.build_stat_embed(cruise, target_date=cruise.ph_start.strftime("%Y-%m-%d"))
         else:
-            stat_embed = await self.build_extended_stat_embed(cruise, cruise.start.strftime("%Y-%m-%d"), stat)
+            stat_embed = await self.build_extended_stat_embed(cruise, cruise.ph_start.strftime("%Y-%m-%d"), stat)
 
         # Edit the original interaction response with the stat embed
         await interaction.edit_original_response(embed=stat_embed)

@@ -36,7 +36,6 @@ from ptn.boozebot.constants import CARRIER_ID_RE, bot, unload_opened_gifs
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, is_staff, track_last_run
-from ptn.boozebot.modules.PHcheck import ph_check
 from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import DynamicButton
 
@@ -111,10 +110,16 @@ class Unloading(commands.Cog):
         Start a carrier unload operation.
         """
         async with self.unload_lock:
-            if await booze_sheets_api.get_current_cruise_state() != CruiseSystemState.ACTIVE:
+            try:
+                if (await booze_sheets_api.get_current_cruise_state())["state"] != CruiseSystemState.ACTIVE:
+                    raise UnloadOperationError(
+                        "Unloads can only be started during an active booze cruise.",
+                    )
+            except Exception as e:
+                logger.exception(f"Error while checking cruise state before starting unload: {e}")
                 raise UnloadOperationError(
-                    "Unloads can only be started during an active booze cruise.",
-                )
+                    "Failed to get current cruise state.",
+                ) from e
 
             if system != "N0":
                 raise UnloadOperationError(
@@ -513,8 +518,14 @@ class Unloading(commands.Cog):
             logger.info("Last unload time is not set, skipping reminder check.")
             return
 
-        if not await ph_check():
-            logger.info("PH is not currently active, skipping reminder check.")
+        try:
+            holiday_ongoing = (await booze_sheets_api.get_current_cruise_state())["state"] == CruiseSystemState.ACTIVE
+        except Exception as e:
+            logger.error(f"Error while fetching current cruise state for last unload time loop: {e}")
+            return
+
+        if not holiday_ongoing:
+            logger.info("No active ph, skipping last unload time reminder check.")
             return
 
         if datetime.now(tz=UTC) - self.last_unload_time >= timedelta(minutes=20):
@@ -688,7 +699,7 @@ class Unloading(commands.Cog):
         ]
     )
     @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
-    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(unload_state="full"))
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(state="full"))
     async def wine_carrier_unload(self, interaction: discord.Interaction, carrier_id: str):
         """
         Posts a wine unload request to the unloading channel.
@@ -774,7 +785,7 @@ class Unloading(commands.Cog):
         ]
     )
     @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
-    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(unload_state="full"))
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(state="full"))
     async def wine_carrier_timed_unload(self, interaction: discord.Interaction, carrier_id: str):
         """
         Posts a wine unload request to the unloading channel.
@@ -867,7 +878,7 @@ class Unloading(commands.Cog):
         ]
     )
     @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
-    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(unload_state="Unloading"))
+    @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(state="unloading"))
     async def wine_unloading_complete(self, interaction: discord.Interaction, carrier_id: str):
         await interaction.response.defer()
 

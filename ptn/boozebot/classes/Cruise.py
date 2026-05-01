@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypedDict
 
+from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.modules.helpers import sane_default_datetime, sane_default_float
@@ -52,8 +53,10 @@ class Cruise:
     stats: CruiseStats
     carrier_limit: int
     faction_state: str | None
-    end: datetime
     start: datetime
+    end: datetime
+    ph_start: datetime
+    ph_end: datetime
     id: int
 
     def __init__(self, info_dict: dict[str, Any]):
@@ -66,9 +69,16 @@ class Cruise:
         self.id = int(info_dict.get("cruiseId", 0))
         self.start = sane_default_datetime(info_dict.get("cruiseStart")) or datetime.min.replace(tzinfo=UTC)
         self.end = sane_default_datetime(info_dict.get("cruiseEnd")) or datetime.max.replace(tzinfo=UTC)
+        self.ph_start = sane_default_datetime(info_dict.get("phStart")) or datetime.min.replace(tzinfo=UTC)
+        self.ph_end = sane_default_datetime(info_dict.get("phEnd")) or datetime.max.replace(tzinfo=UTC)
 
         self.faction_state = info_dict.get("factionState")
         self.carrier_limit = int(info_dict.get("carrierLimit", 0))
         self.stats = CruiseStats(info_dict.get("stats", {}))
 
         logger.debug(f"Cruise initialized with stats: {self.stats}")
+
+
+class CruiseState(TypedDict):
+    state: CruiseSystemState
+    updated_at: datetime

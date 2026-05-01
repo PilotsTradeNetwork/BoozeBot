@@ -254,13 +254,14 @@ class Corked(commands.Cog):
                 (await corked_user.get_member()).name,
                 f"{(await corked_user.get_member()).mention} Corked at {corked_user.timestamp}",
             )
-            for corked_user in corked_users if (await corked_user.get_member()) is not None
+            for corked_user in corked_users
+            if (await corked_user.get_member()) is not None
         ]
         logger.debug(f"Prepared corked user data for pagination: {corked_user_data}")
 
         logger.info("Creating pagination for corked users.")
 
-        view = PaginationView("Corked Users", corked_user_data)
+        view = PaginationView("Corked Users", corked_user_data, interaction.user)
         message = await interaction.edit_original_response(view=view)
         view.message = message
 
