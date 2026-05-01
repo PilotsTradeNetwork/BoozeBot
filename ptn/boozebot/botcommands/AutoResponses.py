@@ -223,9 +223,7 @@ class AutoResponses(commands.Cog):
             (ar.name, f"Trigger: {ar.trigger.pattern if ar.is_regex else ar.trigger}") for ar in self.auto_responses
         ]
 
-        view = PaginationView("Auto Responses", content, buttons_text="Edit", buttons_callback=None)
-
-        async def edit_callback(interaction: discord.Interaction, _title: str, index: int):
+        async def edit_callback(view: PaginationView, interaction: discord.Interaction, _title: str, index: int):
             auto_response = self.auto_responses[index]
 
             logger.info(
@@ -235,11 +233,15 @@ class AutoResponses(commands.Cog):
             modal = EditAutoResponseModal(auto_response, index, view)
             await interaction.response.send_modal(modal)
 
-        view.buttons_callback = edit_callback
-        await view.refresh_page()
+        view = PaginationView(
+            title="Auto Responses",
+            content=content,
+            owner=interaction.user,
+            buttons_text="Edit",
+            buttons_callback=edit_callback,
+        )
 
-        message = await interaction.followup.send(view=view)
-        view.message = message
+        view.message = await interaction.followup.send(view=view)
 
 
 class EditAutoResponseModal(discord.ui.Modal):
