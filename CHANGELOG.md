@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.3.0
+-    #836 Implement wine loads via Steve (IndorilReborn)
+-    #837 Use new body fields for ph start/end, remove deprecated functions (IndorilReborn)
+-    #838 build: convert to single-stage build (IndorilReborn)
+-    #839 Update Ladder Systems (Conshmea)
+-    #840 Fix pinned tally formatting (Conshmea)
+-    #841 Fix include not unloaded (Conshmea)
+-    #842 Show all for staff in autocomplete (Conshmea)
+-    #844 Update pagination uses (Conshmea)
+-    #843 Minor refactor: Use backend state change time (Conshmea)
+
 ## 3.2.2
 -    \#831 Fix button interactions responses (Conshmea)
 -    \#832 fix site departures (Conshmea)
