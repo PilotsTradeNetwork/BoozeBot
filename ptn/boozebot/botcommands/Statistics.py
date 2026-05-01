@@ -546,7 +546,7 @@ class Statistics(commands.Cog):
         for carrier in carrier_data:
             logger.debug(f"Carrier with wine remaining: {carrier}")
 
-        async def buttons_callback(interaction: discord.Interaction, title: str, index: int):
+        async def buttons_callback(_view: PaginationView, interaction: discord.Interaction, title: str, index: int):
             carrier = carrier_data[index]
 
             total_unloads = carrier.trip_id if carrier.unload_closed else carrier.trip_id - 1
@@ -568,6 +568,7 @@ class Statistics(commands.Cog):
         view = PaginationView(
             title="Carriers with wine remaining",
             content=carrier_list_data,
+            owner=interaction.user,
             buttons_text="More info",
             buttons_callback=buttons_callback,
         )
