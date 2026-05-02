@@ -3,7 +3,6 @@
 # without needing the .git directory to be present in the image.
 ARG VERSION=0.0.0+unknown
 FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim
-ARG VERSION
 
 # Install git (required to fetch ptn-utils from GitHub during uv sync)
 # then clean up apt lists in the same layer to keep image size down
@@ -39,6 +38,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # we need the actual package source and the SCM version file (if present).
 COPY ptn/ /app/ptn/
 COPY pyproject.toml uv.lock /app/
+ARG VERSION
 RUN --mount=type=cache,target=/root/.cache/uv \
     SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv sync --locked
 
