@@ -12,7 +12,6 @@ from discord.app_commands import describe
 from discord.ext import commands
 from ptn_utils.global_constants import (
     CHANNEL_BC_WINE_CARRIER,
-    CHANNEL_BC_WINE_CARRIER_COMMAND,
     CHANNEL_BC_WINE_CELLAR_LOADING,
     EMOJI_CARRIER_DONE,
     ROLE_CONN,
@@ -258,7 +257,7 @@ class Loading(commands.Cog):
         note="[Staff Only] Optional note to include in the loading announcement",
     )
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM, ROLE_CONN, ROLE_WINE_CARRIER])
-    @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+    @check_command_channel(CHANNEL_BC_WINE_CARRIER)
     @app_commands.autocomplete(carrier_id=booze_sheets_api.carrier_autocomplete(state="empty"))
     async def wine_load(
         self, interaction: discord.Interaction, carrier_id: str, tritium: int | None = None, note: str | None = None
@@ -328,7 +327,7 @@ class Loading(commands.Cog):
     @app_commands.command(name="wine_load_delete", description="Deletes an active wine loading notice for a carrier.")
     @describe(carrier_id="The XXX-XXX ID string for the carrier whose load notice should be removed")
     @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM, ROLE_CONN, ROLE_WINE_CARRIER])
-    @check_command_channel(CHANNEL_BC_WINE_CARRIER_COMMAND)
+    @check_command_channel(CHANNEL_BC_WINE_CARRIER)
     @app_commands.autocomplete(carrier_id=_load_delete_autocomplete)
     async def wine_load_complete(self, interaction: discord.Interaction, carrier_id: str):
         """
