@@ -474,12 +474,11 @@ class Loading(commands.Cog):
         """
         carrier_id = button.payload
         owner_id = button.user_id
+        user = interaction.user
 
-        logger.info(
-            f"delete_load button clicked for {carrier_id} by {interaction.user} ({interaction.user.id}). Expected owner_id={owner_id}."
-        )
+        logger.info(f"delete_load button clicked for {carrier_id} by {user} ({user.id}). Expected owner_id={owner_id}.")
 
-        if interaction.user.id != owner_id and not is_staff(interaction.user):
+        if user.id != owner_id and not is_staff(user):
             await interaction.response.send_message(
                 "Only the carrier owner may delete this load order.", ephemeral=True
             )
@@ -494,13 +493,13 @@ class Loading(commands.Cog):
             await interaction.followup.send(str(e), ephemeral=True)
             return
 
-        logger.info(f"Load order for {carrier_id} deleted via DynamicButton by {interaction.user.name}.")
+        logger.info(f"Load order for {carrier_id} deleted via DynamicButton by {user.name}.")
 
         # Edit the button message to reflect completion
         if interaction.message:
             try:
                 await interaction.message.edit(
-                    content=f"✅ Load order for **{carrier_id}** deleted by {interaction.user.mention}.",
+                    content=f"✅ Load order for **{carrier_id}** (owned by <@{owner_id}>) deleted by {user.mention}.",
                     view=None,
                 )
             except Exception as e:
