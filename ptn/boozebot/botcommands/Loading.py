@@ -3,6 +3,7 @@
 Cog for wine loading related commands
 """
 
+import asyncio
 import re
 from typing import Any, TypedDict
 
@@ -128,6 +129,7 @@ class Loading(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self._reaction_lock = asyncio.Lock()
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:
@@ -425,19 +427,42 @@ class Loading(commands.Cog):
         if reaction_event.member is None or reaction_event.member.bot:
             return
 
+        async with self._reaction_lock:
+            await self._handle_carrier_done_reaction(reaction_event)
+
+    async def _handle_carrier_done_reaction(self, reaction_event: discord.RawReactionActionEvent) -> None:
+        """Inner handler, called while holding the per-message reaction lock."""
+        message_id = reaction_event.message_id
+
+        # Fetch the live message so we can inspect existing reactions.
+        try:
+            loading_channel = await bot.get_or_fetch.channel(reaction_event.channel_id)
+            message = await loading_channel.fetch_message(message_id)
+        except Exception as e:
+            logger.exception(f"Failed to fetch load message {message_id}: {e}")
+            return
+
+        # Guard: if the bot has already reacted with EMOJI_CARRIER_DONE the
+        # confirm-delete button was already posted — do nothing.
+        done_emoji = await bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE)
+        for existing_reaction in message.reactions:
+            emoji = existing_reaction.emoji
+            emoji_id = emoji.id if isinstance(emoji, discord.PartialEmoji | discord.Emoji) else None
+            if emoji_id == EMOJI_CARRIER_DONE and existing_reaction.me:
+                logger.debug(f"Bot has already reacted EMOJI_CARRIER_DONE on message {message_id}. Skipping duplicate.")
+                return
+
         # Look up the carrier this message belongs to
-        found = _find_carrier_in_cache(reaction_event.message_id)
+        found = _find_carrier_in_cache(message_id)
 
         if found is None:
             # Cache miss — rebuild and retry
-            logger.info(f"Reaction on unknown message {reaction_event.message_id}. Rebuilding load cache and retrying.")
+            logger.info(f"Reaction on unknown message {message_id}. Rebuilding load cache and retrying.")
             await _build_cache_from_history()
-            found = _find_carrier_in_cache(reaction_event.message_id)
+            found = _find_carrier_in_cache(message_id)
 
         if found is None:
-            logger.debug(
-                f"Message {reaction_event.message_id} not found in load cache after rebuild. Ignoring reaction."
-            )
+            logger.debug(f"Message {message_id} not found in load cache after rebuild. Ignoring reaction.")
             return
 
         carrier_id, carrier_name, owner_id = found
@@ -465,6 +490,13 @@ class Loading(commands.Cog):
             )
         except Exception as e:
             logger.exception(f"Failed to post confirm-delete button for {carrier_id}: {e}")
+            return
+
+        # React with EMOJI_CARRIER_DONE to mark that this load message has been processed.
+        try:
+            await message.add_reaction(done_emoji)
+        except Exception as e:
+            logger.warning(f"Failed to add EMOJI_CARRIER_DONE reaction to load message {message_id}: {e}")
 
     @commands.Cog.listener()
     async def on_dynamic_button_delete_load(self, interaction: discord.Interaction, button: DynamicButton):
