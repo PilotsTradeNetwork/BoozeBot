@@ -170,6 +170,7 @@ class BoozeSheetsApi:
         self._last_ws_message_time: datetime | None = None
         self._carrier_cache_last_refresh = None
         self._ws_connected = False
+        self._reconnect_delay: int = 5
         self._ws_connection = None
         self.carrier_poll_task = None
         self.carrier_cache = {}
@@ -812,12 +813,9 @@ class BoozeSheetsApi:
         """
         Main websocket connection loop with automatic reconnection.
         """
-        reconnect_delay = 5
         max_reconnect_delay = 300
-
         while self._ws_running:
             try:
-                self._ws_connected = True
                 await self._connect_and_listen()
             except asyncio.CancelledError:
                 logger.info("Websocket loop cancelled")
@@ -830,9 +828,9 @@ class BoozeSheetsApi:
                 self._ws_connection = None
 
                 if self._ws_running:
-                    logger.info(f"Reconnecting websocket in {reconnect_delay} seconds...")
-                    await asyncio.sleep(reconnect_delay)
-                    reconnect_delay = min(reconnect_delay * 2, max_reconnect_delay)
+                    logger.info(f"Reconnecting websocket in {self._reconnect_delay} seconds...")
+                    await asyncio.sleep(self._reconnect_delay)
+                    self._reconnect_delay = min(self._reconnect_delay * 2, max_reconnect_delay)
                 else:
                     break
 
@@ -846,6 +844,8 @@ class BoozeSheetsApi:
 
         async with websockets.connect(uri=ws_url) as self._ws_connection:
             logger.info("Connected to BoozeSheets websocket")
+            self._ws_connected = True
+            self._reconnect_delay = 5
 
             async for message in self._ws_connection:
                 logger.trace(f"Websocket message received: {message}")
