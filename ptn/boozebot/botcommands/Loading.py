@@ -5,7 +5,7 @@ Cog for wine loading related commands
 
 import asyncio
 import re
-from typing import Any, TypedDict
+from typing import Any, TypedDict, final, override
 
 import discord
 from discord import app_commands
@@ -32,6 +32,7 @@ from ptn.boozebot.modules.Views import DynamicButton
 LOADING COMMANDS
 /wine_load        - wine carrier/conn/somm/mod/admin
 /wine_load_delete - wine carrier/conn/somm/mod/admin
+/wine_load_staff  - conn/somm/mod/admin (modal)
 """
 
 logger = get_logger("boozebot.commands.loading")
@@ -124,6 +125,7 @@ async def _lookup_load_message(carrier_id: str) -> LoadCacheEntry | None:
     return _load_cache.get(carrier_id)
 
 
+@final
 class Loading(commands.Cog):
     bot: commands.Bot
 
@@ -161,7 +163,7 @@ class Loading(commands.Cog):
         carrier_name = carrier_name.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
         clean_carrier_id = carrier_id.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
 
-        # Duplicate check via cache only — on startup the cache is populated
+        # Duplicate check via cache only - on startup the cache is populated
         # from history, so a miss here means no existing load order.
         if _carrier_in_cache(clean_carrier_id):
             raise LoadOperationError(f"A load order for carrier **{clean_carrier_id}** already exists.")
@@ -206,7 +208,7 @@ class Loading(commands.Cog):
             message = await loading_channel.fetch_message(entry["message_id"])
             await message.delete()
         except discord.NotFound:
-            # Message was already deleted externally — treat as success
+            # Message was already deleted externally - treat as success
             logger.warning(f"Load message for {carrier_id} (id={entry['message_id']}) was already deleted.")
         except Exception as e:
             logger.exception(f"Failed to delete load message for carrier {carrier_id}: {e}")
@@ -364,6 +366,58 @@ class Loading(commands.Cog):
             content=f"Wine load announcement for **{carrier_id}** deleted by {interaction.user.name}.",
         )
 
+    @app_commands.command(
+        name="wine_load_staff", description="[Staff] Posts a wine loading notice for a carrier using a modal."
+    )
+    @describe(carrier_id="The XXX-XXX ID string for the carrier")
+    @check_roles([*any_council_role, *any_moderation_role, ROLE_SOMM, ROLE_CONN])
+    @check_command_channel(CHANNEL_BC_WINE_CARRIER)
+    async def wine_load_staff(self, interaction: discord.Interaction, carrier_id: str):
+        """
+        Staff-only wine load command that presents a modal for carrier name, wine, tritium, note.
+        Looks up the carrier stats endpoint to validate ownership and prefill the FC name.
+
+        :param interaction: the interaction from discord
+        :param str carrier_id: The carrier ID string
+        """
+        logger.info(f"User {interaction.user.name} has initiated wine_load_staff for carrier: {carrier_id}.")
+
+        carrier_id = carrier_id.upper()
+
+        if not CARRIER_ID_RE.fullmatch(carrier_id):
+            msg = (
+                f"The carrier ID was invalid, XXX-XXX expected, received {carrier_id}.\n"
+                "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
+            )
+            logger.info(msg)
+            await interaction.response.send_message(msg, ephemeral=True)
+            return
+
+        # Attempt to fetch carrier stats to get owner info and prefill FC name
+        prefilled_name = ""
+        try:
+            carrier_stats = await booze_sheets_api.get_carrier_stats(carrier_id)
+        except Exception as e:
+            logger.warning(f"Failed to fetch carrier stats for {carrier_id}: {e}")
+            carrier_stats = None
+
+        if carrier_stats is not None:
+            owner_discord_id = str(carrier_stats.owner.discord_id)
+            if owner_discord_id != str(interaction.user.id):
+                await interaction.response.send_message(
+                    f"Carrier **{carrier_id}** belongs to a different user.", ephemeral=True
+                )
+                return
+            prefilled_name = carrier_stats.name or ""
+
+        modal = WineLoadStaffModal(
+            cog=self,
+            carrier_id=carrier_id,
+            owner_discord_id=str(interaction.user.id),
+            prefilled_name=prefilled_name,
+        )
+        await interaction.response.send_modal(modal)
+
     # ------------------------------------------------------------------
     # WebSocket event
     # ------------------------------------------------------------------
@@ -443,7 +497,7 @@ class Loading(commands.Cog):
             return
 
         # Guard: if the bot has already reacted with EMOJI_CARRIER_DONE the
-        # confirm-delete button was already posted — do nothing.
+        # confirm-delete button was already posted - do nothing.
         done_emoji = await bot.get_or_fetch.emoji(EMOJI_CARRIER_DONE)
         for existing_reaction in message.reactions:
             emoji = existing_reaction.emoji
@@ -456,7 +510,7 @@ class Loading(commands.Cog):
         found = _find_carrier_in_cache(message_id)
 
         if found is None:
-            # Cache miss — rebuild and retry
+            # Cache miss - rebuild and retry
             logger.info(f"Reaction on unknown message {message_id}. Rebuilding load cache and retrying.")
             await _build_cache_from_history()
             found = _find_carrier_in_cache(message_id)
@@ -484,7 +538,7 @@ class Loading(commands.Cog):
             view = discord.ui.View()
             view.add_item(delete_button)
             await wine_carrier_channel.send(
-                content=f"<@{owner_id}> — your load order for **{carrier_str}** has been flagged as complete. "
+                content=f"<@{owner_id}> - your load order for **{carrier_str}** has been flagged as complete. "
                 + "Verify, then click the button below to delete it.",
                 view=view,
             )
@@ -536,3 +590,95 @@ class Loading(commands.Cog):
                 )
             except Exception as e:
                 logger.warning(f"Could not edit confirm-delete message after deletion: {e}")
+
+
+@final
+class WineLoadStaffModal(discord.ui.Modal, title="Wine Load (Staff)"):
+    """Modal for staff wine load command allowing manual entry of carrier name, wine, tritium, note."""
+
+    fc_name: discord.ui.TextInput["WineLoadStaffModal"] = discord.ui.TextInput(
+        label="Carrier Name",
+        max_length=23,
+        required=True,
+    )
+    wine: discord.ui.TextInput["WineLoadStaffModal"] = discord.ui.TextInput(
+        label="Wine (tonnes)",
+        placeholder="22000",
+        max_length=5,
+        required=True,
+    )
+    tritium: discord.ui.TextInput["WineLoadStaffModal"] = discord.ui.TextInput(
+        label="Tritium (tonnes, optional)",
+        placeholder="e.g. 500",
+        max_length=5,
+        required=False,
+    )
+    note: discord.ui.TextInput["WineLoadStaffModal"] = discord.ui.TextInput(
+        label="Note (optional)",
+        placeholder="Any extra info",
+        max_length=200,
+        required=False,
+        style=discord.TextStyle.short,
+    )
+
+    def __init__(self, cog: "Loading", carrier_id: str, owner_discord_id: str, prefilled_name: str) -> None:
+        super().__init__()
+        self._cog = cog
+        self._carrier_id = carrier_id
+        self._owner_discord_id = owner_discord_id
+        # Prefill carrier name if known
+        if prefilled_name:
+            self.fc_name.default = prefilled_name
+
+    @override
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+
+        carrier_name = self.fc_name.value.strip()
+        wine_str = self.wine.value.strip()
+        tritium_str = self.tritium.value.strip()
+        note_value = self.note.value.strip() or None
+
+        try:
+            wine_total = int(wine_str)
+        except ValueError:
+            await interaction.followup.send(
+                f"Invalid wine amount: `{wine_str}`. Must be a whole number.", ephemeral=True
+            )
+            return
+
+        tritium: int | None = None
+        if tritium_str:
+            try:
+                tritium = int(tritium_str)
+            except ValueError:
+                await interaction.followup.send(
+                    f"Invalid tritium amount: `{tritium_str}`. Must be a whole number.", ephemeral=True
+                )
+                return
+
+        logger.info(
+            f"WineLoadStaffModal submitted by {interaction.user.name} for carrier {self._carrier_id}: "
+            + f"name={carrier_name!r}, wine={wine_total}, tritium={tritium}, note={note_value!r}"
+        )
+
+        try:
+            await self._cog._post_wine_load(
+                carrier_id=self._carrier_id,
+                carrier_name=carrier_name,
+                owner_discord_id=self._owner_discord_id,
+                wine_total=wine_total,
+                tritium=tritium,
+                note=note_value,
+            )
+        except LoadOperationError as e:
+            logger.info(str(e))
+            await interaction.followup.send(str(e), ephemeral=True)
+            return
+
+        carrier_str = f"{carrier_name} ({self._carrier_id})"
+        logger.info(f"Wine load announcement for {carrier_str} by {interaction.user.name} posted via staff modal.")
+        await interaction.followup.send(
+            f"Wine load announcement for **{carrier_str}** posted successfully.",
+            ephemeral=True,
+        )
