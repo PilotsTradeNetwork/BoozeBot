@@ -95,12 +95,6 @@ async def _build_cache_from_history() -> None:
     except Exception as e:
         logger.exception(f"Failed to build load cache from history: {e}")
 
-
-def _carrier_in_cache(carrier_id: str) -> bool:
-    """Return True if *carrier_id* has an active load message in the cache."""
-    return carrier_id in _load_cache
-
-
 def _find_carrier_in_cache(message_id: int) -> tuple[str, str, int] | None:
     """
     Return ``(carrier_id, carrier_name, owner_id)`` for the given *message_id*,
@@ -163,10 +157,16 @@ class Loading(commands.Cog):
         carrier_name = carrier_name.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
         clean_carrier_id = carrier_id.replace("<", "").replace(">", "").replace("@", "").replace("|", "")
 
-        # Duplicate check via cache only - on startup the cache is populated
-        # from history, so a miss here means no existing load order.
-        if _carrier_in_cache(clean_carrier_id):
-            raise LoadOperationError(f"A load order for carrier **{clean_carrier_id}** already exists.")
+        # Duplicate check: if a load order exists in cache, verify the message still exists.
+        # If it's gone, evict the stale entry and continue; otherwise raise to avoid duplicate.
+        if entry := _load_cache.get(clean_carrier_id):
+            try:
+                loading_channel = await bot.get_or_fetch.channel(CHANNEL_BC_WINE_CELLAR_LOADING)
+                await loading_channel.fetch_message(entry["message_id"])  # raises NotFound if missing
+                raise LoadOperationError(f"A load order for carrier **{clean_carrier_id}** already exists.")
+            except discord.NotFound:
+                logger.warning(f"Load message for {clean_carrier_id} not found - evicting cache and continuing.")
+                _load_cache.pop(clean_carrier_id, None)
 
         wine_text = f"**{wine_total / 1000:.1f}k** :wine_glass:"
 
