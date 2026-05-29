@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.4.1
+
+- Remove partially full from get fulls query
+
 ## 3.4.0
 
 - \#848 Move wine loading commands from RSTC -> WCO chat (IndorilReborn)
