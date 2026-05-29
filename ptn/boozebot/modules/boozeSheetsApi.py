@@ -450,7 +450,7 @@ class BoozeSheetsApi:
 
         logger.debug("Getting info for all carriers with wine remaining")
         endpoint = "/carriers"
-        data = {"wine_status": ["Full", "Partially Full"]}
+        data = {"wine_status": "Full"}
 
         logger.debug(f"Sending GET request to {endpoint} with data={data}")
         carriers_info = await self._request("GET", endpoint, data, PayloadType.QUERY)
