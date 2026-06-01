@@ -261,7 +261,8 @@ N_SYSTEMS = {
     "N13": "Plaa Trua QL-B c27-0",
     "N14": "Wregoe OP-D b58-0",
     "N15": "Wregoe ZE-B c28-2",
-    "N16": "Col 285 Sector YF-D c13-18",
+    "N16": "Wregoe NA-W B57-4",
+    "Wine Cellar": "Col 285 Sector YF-D c13-18",
 }
 
 # Check the folder exists
