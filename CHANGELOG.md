@@ -1,8 +1,12 @@
 # Changelog
 
+## 3.4.2
+
+- Add Wine cellar to departure constants, rename N16 (IndorilReborn)
+
 ## 3.4.1
 
-- Remove partially full from get fulls query
+- Remove partially full from get fulls query (Conshmea)
 
 ## 3.4.0
 
