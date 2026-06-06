@@ -32,10 +32,16 @@ from ptn_utils.global_constants import (
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.constants import CARRIER_ID_RE, bot, settings, unload_opened_gifs
+from ptn.boozebot.constants import bot, settings, unload_opened_gifs
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, is_staff, track_last_run
+from ptn.boozebot.modules.helpers import (
+    check_command_channel,
+    check_roles,
+    extract_carrier_id,
+    is_staff,
+    track_last_run,
+)
 from ptn.boozebot.modules.Views import DynamicButton
 
 """
@@ -718,11 +724,8 @@ class Unloading(commands.Cog):
             f"User {interaction.user.name} has requested a new wine unload operation for carrier: {carrier_id}."
         )
 
-        # Cast this to upper case just in case
-        carrier_id = carrier_id.upper()
-
-        # Check the carrier ID regex
-        if not CARRIER_ID_RE.fullmatch(carrier_id):
+        # Extract and validate the carrier ID
+        if (extracted := extract_carrier_id(carrier_id)) is None:
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
@@ -731,6 +734,7 @@ class Unloading(commands.Cog):
             await interaction.edit_original_response(content=msg)
             return
 
+        carrier_id = extracted
         logger.debug(f"Fetching carrier data for ID: {carrier_id}")
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
 
@@ -808,11 +812,8 @@ class Unloading(commands.Cog):
             await interaction.followup.send(msg)
             return
 
-        # Cast this to upper case just in case
-        carrier_id = carrier_id.upper()
-
-        # Check the carrier ID regex
-        if not CARRIER_ID_RE.fullmatch(carrier_id):
+        # Extract and validate the carrier ID
+        if (extracted := extract_carrier_id(carrier_id)) is None:
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
@@ -821,6 +822,7 @@ class Unloading(commands.Cog):
             await interaction.followup.send(msg)
             return
 
+        carrier_id = extracted
         logger.debug(f"Fetching carrier data for ID: {carrier_id}")
 
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
@@ -888,11 +890,8 @@ class Unloading(commands.Cog):
             f"User {interaction.user.name} has requested to complete the wine unload operation for carrier: {carrier_id}."
         )
 
-        # Cast this to upper case just in case
-        carrier_id = carrier_id.upper()
-
-        # Check the carrier ID regex
-        if not CARRIER_ID_RE.fullmatch(carrier_id):
+        # Extract and validate the carrier ID
+        if (extracted := extract_carrier_id(carrier_id)) is None:
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
@@ -901,6 +900,7 @@ class Unloading(commands.Cog):
             await interaction.edit_original_response(content=msg)
             return
 
+        carrier_id = extracted
         logger.debug(f"Fetching carrier data for ID: {carrier_id}")
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
         logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")

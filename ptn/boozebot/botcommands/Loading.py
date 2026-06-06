@@ -23,9 +23,9 @@ from ptn_utils.global_constants import (
 )
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.constants import CARRIER_ID_RE, bot
+from ptn.boozebot.constants import bot
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
-from ptn.boozebot.modules.helpers import check_command_channel, check_roles, is_staff
+from ptn.boozebot.modules.helpers import check_command_channel, check_roles, extract_carrier_id, is_staff
 from ptn.boozebot.modules.Views import DynamicButton
 
 """
@@ -94,6 +94,7 @@ async def _build_cache_from_history() -> None:
         logger.info(f"Load cache built: {len(_load_cache)} entries.")
     except Exception as e:
         logger.exception(f"Failed to build load cache from history: {e}")
+
 
 def _find_carrier_in_cache(message_id: int) -> tuple[str, str, int] | None:
     """
@@ -277,9 +278,7 @@ class Loading(commands.Cog):
         await interaction.response.defer()
         logger.info(f"User {interaction.user.name} has requested a wine load announcement for carrier: {carrier_id}.")
 
-        carrier_id = carrier_id.upper()
-
-        if not CARRIER_ID_RE.fullmatch(carrier_id):
+        if (extracted := extract_carrier_id(carrier_id)) is None:
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
@@ -287,6 +286,8 @@ class Loading(commands.Cog):
             logger.info(msg)
             await interaction.edit_original_response(content=msg)
             return
+
+        carrier_id = extracted
 
         if note and not is_staff(interaction.user):
             await interaction.edit_original_response(content="Only staff members can include a note.")
@@ -382,9 +383,7 @@ class Loading(commands.Cog):
         """
         logger.info(f"User {interaction.user.name} has initiated wine_load_staff for carrier: {carrier_id}.")
 
-        carrier_id = carrier_id.upper()
-
-        if not CARRIER_ID_RE.fullmatch(carrier_id):
+        if (extracted := extract_carrier_id(carrier_id)) is None:
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected, received {carrier_id}.\n"
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
@@ -392,6 +391,8 @@ class Loading(commands.Cog):
             logger.info(msg)
             await interaction.response.send_message(msg, ephemeral=True)
             return
+
+        carrier_id = extracted
 
         # Attempt to fetch carrier stats to get owner info and prefill FC name
         prefilled_name = ""

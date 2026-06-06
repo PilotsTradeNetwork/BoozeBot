@@ -5,6 +5,7 @@ Depends on: constants, ErrorHandler, database
 """
 
 import functools
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from types import CoroutineType
@@ -26,7 +27,7 @@ from ptn_utils.global_constants import (
 )
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.constants import bot
+from ptn.boozebot.constants import CARRIER_ID_RE, bot
 from ptn.boozebot.modules.ErrorHandler import CommandChannelError, CommandRoleError
 
 logger = get_logger("boozebot.modules.helpers")
@@ -206,6 +207,27 @@ def is_staff(user: discord.Member) -> bool:
     is_wine_staff = any(role.id in staff_roles for role in user.roles)
     logger.debug(f"User {user} wine staff status: {is_wine_staff}")
     return is_wine_staff
+
+
+_CARRIER_ID_WITH_NAME_RE = re.compile(r".+\((?P<carrier_id>\w{3}-\w{3}|\w{4})\)$")
+
+
+def extract_carrier_id(raw: str) -> str | None:
+    """
+    Normalise a carrier callsign string and extract the ID.
+
+    Accepts bare IDs ("ABC-DEF", "ABCD") and long form "Carrier Name (ABC-DEF)"
+    that Discord autocomplete often produces on copy.
+
+    Returns the uppercased carrier ID on success, or None if no valid ID.
+    """
+    normalised = raw.strip().upper()
+    if CARRIER_ID_RE.fullmatch(normalised):
+        return normalised
+    m = _CARRIER_ID_WITH_NAME_RE.fullmatch(normalised)
+    if m and CARRIER_ID_RE.fullmatch(candidate := m.group("carrier_id")):
+        return candidate
+    return None
 
 
 def sane_default_datetime(possibly_none: str | None) -> datetime | None:
