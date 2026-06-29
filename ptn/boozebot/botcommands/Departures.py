@@ -29,7 +29,7 @@ from ptn_utils.global_constants import (
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.constants import CARRIER_ID_RE, N_SYSTEMS, bot
+from ptn.boozebot.constants import CARRIER_ID_RE, N_SYSTEMS, bot, settings
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import (
@@ -38,7 +38,6 @@ from ptn.boozebot.modules.helpers import (
     is_staff,
     track_last_run,
 )
-from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView, DynamicButton
 
 """
@@ -139,10 +138,10 @@ class Departures(commands.Cog):
         else:
             direction_arrow = ""
 
-        if settings.get_setting("departure_announcement_status") == "Disabled":
+        if settings.departure_announcement_status == "Disabled":
             raise DepartureOperationError("Departure announcements are currently disabled.")
 
-        if settings.get_setting("departure_announcement_status") == "Upwards" and direction_arrow == "⬇️":
+        if settings.departure_announcement_status == "Upwards" and direction_arrow == "⬇️":
             raise DepartureOperationError(
                 "Departure announcements are currently only enabled for jumps moving up towards N0",
             )
@@ -672,7 +671,8 @@ class Departures(commands.Cog):
         logger.info(f"{interaction.user.name} {msg}")
         await steve_says_channel.send(f"{interaction.user.mention} {msg}", silent=True)
         # Set the departure announcement status
-        settings.set_setting("departure_announcement_status", status)
+        settings.departure_announcement_status = status
+        settings.write()
         # Send the response message
         logger.info(f"Departure announcements are now '{status}'.")
         await interaction.edit_original_response(content=f"Departure announcements are now '{status}'.")

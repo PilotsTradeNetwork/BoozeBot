@@ -32,11 +32,10 @@ from ptn_utils.global_constants import (
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.constants import CARRIER_ID_RE, bot, unload_opened_gifs
+from ptn.boozebot.constants import CARRIER_ID_RE, bot, settings, unload_opened_gifs
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, is_staff, track_last_run
-from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import DynamicButton
 
 """
@@ -143,7 +142,7 @@ class Unloading(commands.Cog):
 
             open_time_str = None
             if is_timed:
-                hold_minutes = settings.get_setting("timed_unload_hold_duration")
+                hold_minutes = settings.timed_unload_hold_duration
                 current_time = datetime.now(UTC)
                 open_time = current_time + timedelta(minutes=hold_minutes)
                 open_time = open_time + timedelta(seconds=60 - open_time.second)
@@ -178,7 +177,7 @@ class Unloading(commands.Cog):
                 self.last_unload_time = None
 
                 discord_alert_id = wine_unload_alert.id
-                delay = settings.get_setting("timed_unload_hold_duration") if is_timed else None
+                delay = settings.timed_unload_hold_duration if is_timed else None
 
                 await database.set_unload_message_for_carrier(carrier_id, discord_alert_id)
                 await database.set_unload_notification_sent(carrier_id, False)
@@ -800,7 +799,7 @@ class Unloading(commands.Cog):
             f"User {interaction.user.name} has requested a new wine timed unload operation for carrier: {carrier_id} "
         )
 
-        if settings.get_setting("timed_unloads_allowed") is False:
+        if not settings.timed_unloads_allowed:
             msg = "Timed unloads are not allowed at this time."
             logger.info(msg)
             await interaction.followup.send(msg)
@@ -952,11 +951,12 @@ class Unloading(commands.Cog):
 
         # Log the request
         steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
-        new_status = "Disabled" if settings.get_setting("timed_unloads_allowed") else "Enabled"
+        new_status = "Disabled" if settings.timed_unloads_allowed else "Enabled"
         msg = f"requested to toggle the timed unloads status to: '{new_status}'."
         logger.info(f"{interaction.user.name} {msg}")
         await steve_says_channel.send(f"{interaction.user.mention} {msg}", silent=True)
-        settings.set_setting("timed_unloads_allowed", not settings.get_setting("timed_unloads_allowed"))
+        settings.timed_unloads_allowed = not settings.timed_unloads_allowed
+        settings.write()
         logger.info(f"Timed unloads are now '{new_status}'.")
         await interaction.edit_original_response(content=f"Timed unloads are now '{new_status}'.")
 
@@ -981,7 +981,8 @@ class Unloading(commands.Cog):
             f"{interaction.user.name} requested to set the timed unload hold duration to {duration_minutes} minutes."
         )
 
-        settings.set_setting("timed_unload_hold_duration", duration_minutes)
+        settings.timed_unload_hold_duration = duration_minutes
+        settings.write()
 
         logger.info(f"Timed unload hold duration set to {duration_minutes} minutes.")
         await interaction.followup.send(f"Timed unload hold duration set to {duration_minutes} minutes.")
