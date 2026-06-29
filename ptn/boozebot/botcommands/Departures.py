@@ -246,11 +246,15 @@ class Departures(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        logger.info("Starting the departure message checker")
-        if not self.check_departure_messages_loop.is_running():
-            self.check_departure_messages_loop.start()
+        if settings.tasks_auto_start.get("check_departure_messages_loop", True):
+            logger.info("Starting the departure message checker")
+            if not self.check_departure_messages_loop.is_running():
+                self.check_departure_messages_loop.start()
+                logger.info("Departure message checker started successfully")
+            else:
+                logger.info("Departure message checker already running.")
         else:
-            logger.debug("Departure message checker already running.")
+            logger.info("Departure message checker is disabled in settings, not starting.")
 
     @check_roles(
         [

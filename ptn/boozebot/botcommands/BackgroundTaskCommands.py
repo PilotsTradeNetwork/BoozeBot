@@ -8,7 +8,7 @@ from discord.ext.commands import Bot
 from ptn_utils.global_constants import CHANNEL_BC_STEVE_SAYS, ROLE_SOMM, any_council_role, any_moderation_role
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.constants import bot
+from ptn.boozebot.constants import bot, settings
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
 
@@ -61,15 +61,33 @@ class BackgroundTaskCommands(commands.Cog):
 
         task = self.get_task(task_name)
         if task:
+            task_started = False
+            task_setting_set = False
+
             logger.debug(f"Found task {task_name}")
+
+            logger.debug("Checking if task is already running")
             if not task.is_running():
                 logger.debug(f"Starting task {task_name}")
                 task.start()
                 logger.info(f"Task {task_name} started successfully")
-                await interaction.response.send_message(f"Started task: {task_name}")
-            else:
-                logger.info(f"Task {task_name} is already running")
-                await interaction.response.send_message(f"Task {task_name} is already running.")
+                task_started = True
+
+            logger.debug("Checking if task auto-start setting is set to True")
+            if not settings.tasks_auto_start.get(task_name, False):
+                logger.debug(f"Setting auto-start for task {task_name} to True")
+                settings.tasks_auto_start[task_name] = True
+                settings.write()
+                logger.info(f"Auto-start for task {task_name} set to True")
+                task_setting_set = True
+
+            text = f"Started task: {task_name}." if task_started else f"Task {task_name} is already running."
+            text += (
+                f"\nAuto-start for task {task_name} is now set to True."
+                if task_setting_set
+                else f"\nAuto-start for task {task_name} was already set to True."
+            )
+            await interaction.response.send_message(text)
         else:
             logger.error(f"Task {task_name} not found.")
             await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)
@@ -84,15 +102,32 @@ class BackgroundTaskCommands(commands.Cog):
 
         task = self.get_task(task_name)
         if task:
+            task_stopped = False
+            task_setting_unset = False
             logger.debug(f"Found task {task_name}")
+
+            logger.debug("Checking if task is running")
             if task.is_running():
                 logger.debug(f"Stopping task {task_name}")
-                task.cancel()
+                task.stop()
                 logger.info(f"Task {task_name} stopped successfully")
-                await interaction.response.send_message(f"Stopped task: {task_name}.")
-            else:
-                logger.info(f"Task {task_name} is not running")
-                await interaction.response.send_message(f"Task {task_name} is not running.")
+                task_stopped = True
+
+            logger.debug("Checking if task auto-start setting is set to False")
+            if settings.tasks_auto_start.get(task_name, True):
+                logger.debug(f"Setting auto-start for task {task_name} to False")
+                settings.tasks_auto_start[task_name] = False
+                settings.write()
+                logger.info(f"Auto-start for task {task_name} set to False")
+                task_setting_unset = True
+
+            text = f"Stopped task: {task_name}." if task_stopped else f"Task {task_name} is not running."
+            text += (
+                f"\nAuto-start for task {task_name} is now set to False."
+                if task_setting_unset
+                else f"\nAuto-start for task {task_name} was already set to False."
+            )
+            await interaction.response.send_message(text)
         else:
             logger.error(f"Task {task_name} not found.")
             await interaction.response.send_message(f"Task {task_name} not found.", ephemeral=True)
@@ -121,16 +156,19 @@ class BackgroundTaskCommands(commands.Cog):
 
         next_run_time = getattr(task, "next_iteration", None)
         logger.debug(f"Task {task_name} next run time: {next_run_time}")
-        if task.is_running():
+        if task.is_running() and next_run_time:
             next_run_unix = int(next_run_time.timestamp())
             next_run_str = f", next at <t:{next_run_unix}:f> (<t:{next_run_unix}:R>)"
         else:
             next_run_str = ""
 
+        auto_start = settings.tasks_auto_start.get(task_name, False)
+        logger.debug(f"Task {task_name} auto-start setting: {auto_start}")
+
         status = "running" if task.is_running() else "stopped"
         logger.debug(f"Task {task_name} is {status}, last run {last_run_str}{next_run_str}")
         await interaction.response.send_message(
-            f"Task {task_name} is currently {status}, last run was {last_run_str}{next_run_str}."
+            f"Task {task_name} is currently {status} (Auto-start: {auto_start}), last run was {last_run_str}{next_run_str}."
         )
 
     def get_task(self, task_name: str):

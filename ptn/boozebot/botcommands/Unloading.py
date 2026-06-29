@@ -368,12 +368,15 @@ class Unloading(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        logger.info("Starting the last unload time loop")
-        if not self.last_unload_time_loop.is_running():
-            self.last_unload_time_loop.start()
-            logger.debug("Last unload time loop started")
+        if settings.tasks_auto_start.get("last_unload_time_loop", True):
+            logger.info("Starting the last unload time loop")
+            if not self.last_unload_time_loop.is_running():
+                self.last_unload_time_loop.start()
+                logger.info("Last unload time loop started successfully")
+            else:
+                logger.info("Last unload time loop is already running")
         else:
-            logger.debug("Last unload time loop is already running")
+            logger.info("Last unload time loop is disabled in settings, not starting.")
 
     @commands.Cog.listener()
     async def on_dynamic_button_close_unload(self, interaction: Interaction, button: DynamicButton):

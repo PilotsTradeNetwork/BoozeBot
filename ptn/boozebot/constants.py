@@ -10,7 +10,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 import discord
 from discord.ext import commands
@@ -93,10 +93,20 @@ class Settings(BotSettings):
     departure_announcement_status: Literal["Disabled", "Upwards", "All"] = "Disabled"
     timed_unloads_allowed: bool = False
     timed_unload_hold_duration: float = 5.0
+    tasks_auto_start: Final[dict[str, bool]] = {
+        "periodic_stat_update": True,
+        "check_departure_messages_loop": True,
+        "public_holiday_loop": True,
+        "last_unload_time_loop": True,
+        "periodic_signup_poll": True,
+        "boozesheets_websocket": True,
+        "boozesheets_carrier_polling": True,
+    }
 
 
 settings = Settings()
 settings.read()
+settings.write()
 
 RACKHAMS_PEAK_POP = 150000
 
