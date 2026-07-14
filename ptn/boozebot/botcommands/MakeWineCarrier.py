@@ -31,6 +31,7 @@ from ptn.boozebot.constants import (
     WCO_ROLE_ICON_URL,
     WELCOME_MESSAGE_FILE_PATH,
     bot,
+    settings,
     too_slow_gifs,
 )
 from ptn.boozebot.database.database import database
@@ -70,9 +71,15 @@ class MakeWineCarrier(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        logger.info("Starting periodic signup poll task loop")
-        if not self.booze_tracker_signup_check.is_running():
-            self.booze_tracker_signup_check.start()
+        if settings.tasks_auto_start.get("periodic_signup_poll", True):
+            logger.info("Starting periodic signup poll task loop")
+            if not self.booze_tracker_signup_check.is_running():
+                self.booze_tracker_signup_check.start()
+                logger.info("Periodic signup poll task loop started successfully")
+            else:
+                logger.info("Periodic signup poll task loop already running.")
+        else:
+            logger.info("Periodic signup poll task loop is disabled in settings, not starting.")
 
     @commands.Cog.listener()
     async def on_member_update(self, before: Member, after: Member):

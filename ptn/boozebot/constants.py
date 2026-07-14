@@ -10,7 +10,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 import discord
 from discord.ext import commands
@@ -31,6 +31,7 @@ from ptn_utils.global_constants import (
     _production,
 )
 from ptn_utils.logger.logger import get_logger
+from ptn_utils.settings import BotSettings
 
 logger = get_logger("boozebot.constants")
 
@@ -41,7 +42,6 @@ DB_DUMPS_PATH = DATA_DIR_PATH / "database"
 CARRIERS_DB_PATH = DATA_DIR_PATH / "database" / "booze.db"
 CARRIERS_DB_DUMPS_PATH = DATA_DIR_PATH / "sql" / "booze.sql"
 SETTINGS_PATH = DATA_DIR_PATH / "settings"
-SETTINGS_FILE_PATH = SETTINGS_PATH / "settings.json"
 WELCOME_MESSAGE_FILE_PATH = SETTINGS_PATH / "welcome_message.txt"
 BC_PREP_MESSAGE_FILE_PATH = SETTINGS_PATH / "bc_prep_message.txt"
 BC_START_MESSAGE_FILE_PATH = SETTINGS_PATH / "bc_start_message.txt"
@@ -87,6 +87,26 @@ bot = GetFetchBot(
     chunk_guilds_at_startup=True,
     allowed_mentions=discord.AllowedMentions(roles=False, users=False, everyone=False) if not _production else None,
 )
+
+
+class Settings(BotSettings):
+    departure_announcement_status: Literal["Disabled", "Upwards", "All"] = "Disabled"
+    timed_unloads_allowed: bool = False
+    timed_unload_hold_duration: float = 5.0
+    tasks_auto_start: Final[dict[str, bool]] = {
+        "periodic_stat_update": True,
+        "check_departure_messages_loop": True,
+        "public_holiday_loop": True,
+        "last_unload_time_loop": True,
+        "periodic_signup_poll": True,
+        "boozesheets_websocket": True,
+        "boozesheets_carrier_poll": True,
+    }
+
+
+settings = Settings()
+settings.read()
+settings.write()
 
 RACKHAMS_PEAK_POP = 150000
 

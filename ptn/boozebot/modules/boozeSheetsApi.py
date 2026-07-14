@@ -892,23 +892,21 @@ class BoozeSheetsApi:
         except Exception as e:
             logger.error(f"Error in websocket message handler: {e}", exc_info=True)
 
-    def get_websocket_status(self) -> tuple[str, datetime | None]:
+    def get_websocket_status(self) -> tuple[bool, datetime | None]:
         """
         Get the current status of the websocket connection.
 
         :return: A tuple containing the connection status and the timestamp of the last received message.
         """
-        status = "Connected" if self._ws_connected else "Disconnected"
-        return status, self._last_ws_message_time
+        return self._ws_connected, self._last_ws_message_time
 
-    def get_carrier_poll_status(self) -> tuple[str, datetime | None, int]:
+    def get_carrier_poll_status(self) -> tuple[bool, datetime | None, int]:
         """
         Get the current status of the carrier polling loop and cache.
 
         :return: A tuple containing poll status, last refresh timestamp, and cache size.
         """
-        status = "Running" if self._carrier_poll_running else "Stopped"
-        return status, self._carrier_cache_last_refresh, len(self.carrier_cache)
+        return self._carrier_poll_running, self._carrier_cache_last_refresh, len(self.carrier_cache)
 
     async def send_action_ack(self, action_id: str, success: bool = True, error: str | None = None) -> None:
         """

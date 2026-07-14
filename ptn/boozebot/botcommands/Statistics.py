@@ -29,7 +29,7 @@ from ptn_utils.pagination.pagination import PaginationView
 
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.classes.Cruise import Cruise
-from ptn.boozebot.constants import RACKHAMS_PEAK_POP, bot
+from ptn.boozebot.constants import RACKHAMS_PEAK_POP, bot, settings
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import (
@@ -406,9 +406,15 @@ class Statistics(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        logger.info("Starting periodic stat update task loop")
-        if not self.periodic_stat_update.is_running():
-            self.periodic_stat_update.start()
+        if settings.tasks_auto_start.get("periodic_stat_update", True):
+            logger.info("Starting periodic stat update task loop")
+            if not self.periodic_stat_update.is_running():
+                self.periodic_stat_update.start()
+                logger.info("Periodic stat update task loop started successfully")
+            else:
+                logger.info("Periodic stat update task loop already running.")
+        else:
+            logger.info("Periodic stat update task loop is disabled in settings, not starting.")
 
     @commands.Cog.listener()
     async def on_boozesheets_carrier_created(self, data: dict[str, Any]):

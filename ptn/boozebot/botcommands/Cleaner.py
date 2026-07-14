@@ -26,10 +26,9 @@ from ptn_utils.global_constants import (
 )
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.constants import BC_STATUS, BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot
+from ptn.boozebot.constants import BC_STATUS, BLURB_KEYS, BLURBS, WCO_ROLE_ICON_URL, bot, settings
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles
-from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView
 
 """
@@ -118,8 +117,9 @@ class Cleaner(commands.Cog):
             ids_list = CHANNEL_BC_PUBLIC
 
             embed = discord.Embed()
-            settings.set_setting("departure_announcement_status", "Disabled")
-            settings.set_setting("timed_unloads_allowed", False)
+            settings.departure_announcement_status = "Disabled"
+            settings.timed_unloads_allowed = False
+            settings.write()
             pilot_role = await bot.get_or_fetch.role(ROLE_PILOT)
             channels = dict.fromkeys(ids_list, pilot_role)
             channels[CHANNEL_BC_WINE_CARRIER_GUIDE] = await bot.get_or_fetch.role(ROLE_BOOZE_CRUISE)
