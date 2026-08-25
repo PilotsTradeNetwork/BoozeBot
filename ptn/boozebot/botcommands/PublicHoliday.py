@@ -33,6 +33,7 @@ from ptn.boozebot.constants import (
     holiday_query_not_started_gifs,
     holiday_query_started_gifs,
     holiday_start_gif,
+    settings,
 )
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import check_command_channel, check_roles, track_last_run
@@ -68,11 +69,15 @@ class PublicHoliday(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        logger.info("Starting the public holiday state checker")
-        if not self.public_holiday_loop.is_running():
-            self.public_holiday_loop.start()
+        if settings.tasks_auto_start.get("public_holiday_loop", True):
+            logger.info("Starting the public holiday state checker")
+            if not self.public_holiday_loop.is_running():
+                self.public_holiday_loop.start()
+                logger.info("Public holiday state checker loop started successfully")
+            else:
+                logger.info("Public holiday state checker loop already running.")
         else:
-            logger.debug("Public holiday state checker loop already running.")
+            logger.info("Public holiday state checker loop is disabled in settings, not starting.")
 
     @staticmethod
     async def _set_holiday_start():

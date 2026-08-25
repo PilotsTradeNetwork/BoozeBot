@@ -29,16 +29,16 @@ from ptn_utils.global_constants import (
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
-from ptn.boozebot.constants import CARRIER_ID_RE, N_SYSTEMS, bot
+from ptn.boozebot.constants import N_SYSTEMS, bot, settings
 from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import (
     check_command_channel,
     check_roles,
+    extract_carrier_id,
     is_staff,
     track_last_run,
 )
-from ptn.boozebot.modules.Settings import settings
 from ptn.boozebot.modules.Views import ConfirmView, DynamicButton
 
 """
@@ -139,10 +139,10 @@ class Departures(commands.Cog):
         else:
             direction_arrow = ""
 
-        if settings.get_setting("departure_announcement_status") == "Disabled":
+        if settings.departure_announcement_status == "Disabled":
             raise DepartureOperationError("Departure announcements are currently disabled.")
 
-        if settings.get_setting("departure_announcement_status") == "Upwards" and direction_arrow == "⬇️":
+        if settings.departure_announcement_status == "Upwards" and direction_arrow == "⬇️":
             raise DepartureOperationError(
                 "Departure announcements are currently only enabled for jumps moving up towards N0",
             )
@@ -247,11 +247,15 @@ class Departures(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        logger.info("Starting the departure message checker")
-        if not self.check_departure_messages_loop.is_running():
-            self.check_departure_messages_loop.start()
+        if settings.tasks_auto_start.get("check_departure_messages_loop", True):
+            logger.info("Starting the departure message checker")
+            if not self.check_departure_messages_loop.is_running():
+                self.check_departure_messages_loop.start()
+                logger.info("Departure message checker started successfully")
+            else:
+                logger.info("Departure message checker already running.")
         else:
-            logger.debug("Departure message checker already running.")
+            logger.info("Departure message checker is disabled in settings, not starting.")
 
     @check_roles(
         [
@@ -490,9 +494,6 @@ class Departures(commands.Cog):
         # Defer the interaction response to allow more time for processing
         await interaction.response.defer(ephemeral=True)
 
-        # Convert carrier ID to uppercase
-        carrier_id = carrier_id.upper().strip()
-
         command_string = f"/wine_carrier_departure carrier_id:{carrier_id} arrival_location:{arrival_location}"
 
         if departing_at is not None:
@@ -503,8 +504,9 @@ class Departures(commands.Cog):
         base_error = f"Error for {interaction.user.mention} ({interaction.user.name}) during `{command_string}`"
 
         steve_says_channel = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
-        # Validate the carrier ID format
-        if not CARRIER_ID_RE.fullmatch(carrier_id):
+
+        # Extract and validate the carrier ID
+        if (extracted := extract_carrier_id(carrier_id)) is None:
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
@@ -514,6 +516,7 @@ class Departures(commands.Cog):
             await steve_says_channel.send(f"{base_error} {msg}")
             return
 
+        carrier_id = extracted
         logger.debug(f"Fetching carrier data for carrier ID: {carrier_id}")
 
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
@@ -612,13 +615,11 @@ class Departures(commands.Cog):
     ):
         await interaction.response.defer(ephemeral=True)
 
-        carrier_id = carrier_id.upper().strip()
-
         logger.info(
             f"User {interaction.user.name} has requested to remove a wine carrier departure for carrier: {carrier_id}."
         )
 
-        if not CARRIER_ID_RE.fullmatch(carrier_id):
+        if (extracted := extract_carrier_id(carrier_id)) is None:
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
@@ -627,6 +628,7 @@ class Departures(commands.Cog):
             await interaction.edit_original_response(content=msg)
             return
 
+        carrier_id = extracted
         logger.debug(f"Fetching carrier data for carrier ID: {carrier_id}")
 
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
@@ -672,7 +674,8 @@ class Departures(commands.Cog):
         logger.info(f"{interaction.user.name} {msg}")
         await steve_says_channel.send(f"{interaction.user.mention} {msg}", silent=True)
         # Set the departure announcement status
-        settings.set_setting("departure_announcement_status", status)
+        settings.departure_announcement_status = status
+        settings.write()
         # Send the response message
         logger.info(f"Departure announcements are now '{status}'.")
         await interaction.edit_original_response(content=f"Departure announcements are now '{status}'.")
@@ -740,11 +743,8 @@ class Departures(commands.Cog):
         )
         await interaction.response.defer()
 
-        # Convert carrier ID to uppercase
-        carrier_id = carrier_id.upper().strip()
-
         # Validate the carrier ID format
-        if not CARRIER_ID_RE.fullmatch(carrier_id):
+        if (extracted := extract_carrier_id(carrier_id)) is None:
             msg = (
                 f"The carrier ID was invalid, XXX-XXX expected received, {carrier_id}.\n"
                 "Carrier IDs cannot contain `'O'`s or `'I'`s, only `'0'`s and `'1'`s respectively."
@@ -753,6 +753,7 @@ class Departures(commands.Cog):
             await interaction.edit_original_response(content=msg)
             return
 
+        carrier_id = extracted
         logger.debug(f"Fetching carrier data for carrier ID: {carrier_id}")
         carrier_data = await booze_sheets_api.get_carrier_info(carrier_id)
         logger.debug(f"Fetched carrier data: {carrier_data.to_dictionary() if carrier_data else 'None'}")

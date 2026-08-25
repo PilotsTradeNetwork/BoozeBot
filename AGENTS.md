@@ -197,7 +197,6 @@ BoozeBot/
 │       ├── modules/
 │       │   ├── ErrorHandler.py    # global on_app_command_error, on_text_command_error, custom exceptions
 │       │   ├── PHcheck.py         # public holiday check via EDSM API
-│       │   ├── Settings.py        # JSON settings file (departure status, timed unloads)
 │       │   ├── Views.py           # DynamicButton for persistent Discord UI components
 │       │   ├── boozeSheetsApi.py  # BoozeSheetsApi client (REST + WebSocket to BoozeSheets backend)
 │       │   └── helpers.py         # check_roles/check_command_channel decorators, is_staff, etc.
@@ -227,7 +226,6 @@ constants.py          ← imports ptn_utils, discord, dotenv; creates the `bot` 
     ↓
 modules/ErrorHandler.py   ← imports constants
 modules/helpers.py        ← imports constants, ErrorHandler
-modules/Settings.py       ← imports constants
 modules/PHcheck.py        ← imports constants, boozeSheetsApi
 modules/boozeSheetsApi.py ← imports constants, helpers
 modules/Views.py          ← imports ptn_utils (no local module deps)
@@ -256,5 +254,5 @@ Key rules:
 - **Role/channel IDs**: All come from `ptn_utils.global_constants` (dev vs prod values selected automatically based on `PTN_SERVICE` env var). Never hardcode Discord IDs.
 - **Logging**: Always use `get_logger("boozebot.<module_name>")` from `ptn_utils.logger.logger`. Never use `print()` or the stdlib `logging` module directly.
 - **Error handling**: Raise `CustomError`, `GenericError`, `CommandRoleError`, or `CommandChannelError` from `modules/ErrorHandler.py`. The global handler in `application.py` sends appropriate Discord embeds.
-- **Settings persistence**: Use the `settings` singleton from `modules/Settings.py` for runtime-configurable bot settings.
+- **Settings persistence**: Use the `settings` singleton from `constants.py` for runtime-configurable bot settings.
 - **BoozeSheets API**: Use the `booze_sheets_api` singleton from `modules/boozeSheetsApi.py` for all cruise/carrier data operations. Do not query the database for carrier data — use this API.
