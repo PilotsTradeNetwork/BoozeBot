@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.4.3
+## 3.5.0
 
 - Use new wine carrier channel IDs (Conshmea)
 - Normalize fc callsigns on command inputs (IndorilReborn)
