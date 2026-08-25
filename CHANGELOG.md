@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.4.3
+
+- Use new wine carrier channel IDs (Conshmea)
+- Normalize fc callsigns on command inputs (IndorilReborn)
+- Persistent Task Statuses (Conshmea)
+
 ## 3.4.2
 
 - Add Wine cellar to departure constants, rename N16 (IndorilReborn)
