@@ -4,11 +4,14 @@ Cog for all the commands related to
 """
 
 from datetime import UTC, datetime
+from typing import override
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ext.commands import Bot
+from discord.ui import TextInput
+from discord.ui.view import BaseView
 from ptn_utils.global_constants import (
     CHANNEL_BC_PUBLIC,
     CHANNEL_BC_STEVE_SAYS,
@@ -309,49 +312,35 @@ class Cleaner(commands.Cog):
             self.init_blurbs()
         blurb_message = BLURBS[blurb]["file_path"].read_text()
 
-        response_timeout = 20
-
-        logger.info(
-            f"Prompting user {interaction.user.name} to provide new {blurb} message within {response_timeout} seconds."
-        )
-        await interaction.response.send_message(
-            f"Existing message: ```\n{blurb_message}\n```\n"
-            + f"<@{interaction.user.id}> your next message in this channel will be used as the new {blurb} message, "
-            + f"or wait {response_timeout} seconds to cancel."
-        )
-
-        def check(response: discord.Message) -> bool:
-            valid = response.author == interaction.user and response.channel == interaction.channel
-            if not valid:
-                logger.debug(f"Ignored message from {response.author.name} in channel {response.channel.name}.")
-            return valid
-
-        try:
-            # process the response
-            logger.debug("Waiting for user message response.")
-            message = await bot.wait_for("message", check=check, timeout=response_timeout)
-
-        except TimeoutError:
-            logger.info(
-                f"User {interaction.user.name} did not provide a new {blurb} message within the timeout period."
+        class UpdateBlurbModal(discord.ui.Modal, title=f"Update {blurb} message"):
+            message: TextInput[BaseView] = discord.ui.TextInput(
+                label="Message",
+                style=discord.TextStyle.long,
+                default=blurb_message[:2000],
+                max_length=2000,
             )
-            await interaction.edit_original_response(content="No valid response detected.")
-            return
 
-        if message:
-            logger.info(f"Received new {blurb} message from user {interaction.user.name}.")
-            # Now try to replace the contents
-            logger.debug(f"Old {blurb} message: {blurb_message}")
-            logger.debug(f"New {blurb} message: {message.content.strip()}")
-            logger.debug(f"Writing new {blurb} message to file: {BLURBS[blurb]['file_path']}")
-            BLURBS[blurb]["file_path"].write_text(message.content.strip())
-            embed = discord.Embed(description=message.content)
-            if blurb == "wco_welcome":
-                logger.debug("Setting thumbnail for WCO welcome message.")
-                embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
-            logger.info(f"{blurb} message updated successfully by user {interaction.user.name}.")
-            await interaction.edit_original_response(content=f"New {blurb} message set:", embed=embed)
-            await message.delete()
+            @override
+            async def on_submit(self, interaction: discord.Interaction):
+                logger.info(f"User {interaction.user.name} submitted a new {blurb} message.")
+                new_message = self.message.value.strip()
+                if not new_message:
+                    logger.warning(f"Rejected empty {blurb} message from user {interaction.user.name}.")
+                    await interaction.response.send_message("Message cannot be empty.", ephemeral=True)
+                    return
+                logger.debug(f"Old {blurb} message: {blurb_message}")
+                logger.debug(f"New {blurb} message: {new_message}")
+                logger.debug(f"Writing new {blurb} message to file: {BLURBS[blurb]['file_path']}")
+                BLURBS[blurb]["file_path"].write_text(new_message)
+                embed = discord.Embed(description=new_message)
+                if blurb == "wco_welcome":
+                    logger.debug("Setting thumbnail for WCO welcome message.")
+                    embed.set_thumbnail(url=WCO_ROLE_ICON_URL)
+                logger.info(f"{blurb} message updated successfully by user {interaction.user.name}.")
+                await interaction.response.send_message(f"New {blurb} message set:", embed=embed)
+
+        logger.info(f"Prompting user {interaction.user.name} to update the {blurb} message.")
+        await interaction.response.send_modal(UpdateBlurbModal())
 
     @app_commands.command(name="open_wine_carrier_feedback", description="Opens the Wine Carrier feedback channel.")
     @check_roles([*any_council_role, ROLE_SOMM, *any_moderation_role])

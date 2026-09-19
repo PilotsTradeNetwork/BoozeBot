@@ -67,7 +67,6 @@ intents = discord.Intents.none()
 intents.guilds = True
 intents.members = True
 intents.guild_messages = True
-intents.message_content = True
 intents.guild_reactions = True
 intents.expressions = True
 
@@ -82,7 +81,7 @@ class GetFetchBot(commands.Bot):
 
 
 bot = GetFetchBot(
-    command_prefix=commands.when_mentioned_or("b/"),
+    command_prefix=commands.when_mentioned,
     intents=intents,
     chunk_guilds_at_startup=True,
     allowed_mentions=discord.AllowedMentions(roles=False, users=False, everyone=False) if not _production else None,
