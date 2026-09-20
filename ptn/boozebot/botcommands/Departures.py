@@ -14,6 +14,7 @@ from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
 from ptn_utils.global_constants import (
+    CHANNEL_BC_CONN_COORDINATION,
     CHANNEL_BC_DEPARTURE_ANNOUNCEMENT,
     CHANNEL_BC_STEVE_SAYS,
     CHANNEL_BC_WINE_CARRIER,
@@ -31,7 +32,7 @@ from ptn_utils.logger.logger import get_logger
 from ptn.boozebot.classes.BoozeCarrier import BoozeCarrier
 from ptn.boozebot.constants import N_SYSTEMS, bot, settings
 from ptn.boozebot.database.database import database
-from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
+from ptn.boozebot.modules.boozeSheetsApi import CarrierTimer, booze_sheets_api
 from ptn.boozebot.modules.helpers import (
     check_command_channel,
     check_roles,
@@ -71,6 +72,7 @@ class DepartureCloseResult:
 class Departures(commands.Cog):
     bot: Bot
     cxt_menu_close_command: app_commands.ContextMenu
+    _posted_timers: list[CarrierTimer]
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -79,10 +81,57 @@ class Departures(commands.Cog):
         )
         logger.debug("Adding context menu command: Close Departure")
         self.bot.tree.add_command(self.cxt_menu_close_command)
+        self._posted_timers = []
 
     @override
     async def cog_unload(self):
         self.bot.tree.remove_command(self.cxt_menu_close_command.name, type=self.cxt_menu_close_command.type)
+
+    @tasks.loop(minutes=1)
+    @track_last_run()
+    async def notify_upcoming_timers_loop(self):
+        """
+        Notify somm-conn chat of upcoming (within 3 minutes) timers for carriers
+        Saves last timer time to not double notify for the same timer.
+        """
+        logger.info("Checking for upcoming timers.")
+
+        timers = await booze_sheets_api.get_timers()
+
+        if timers is None:
+            logger.error("Failed to retrieve timers from BoozeSheets API.")
+            return
+
+        now = datetime.now(tz=UTC)
+
+        upcoming_timers = [timer for timer in timers if now < timer["timestamp"] <= now + timedelta(minutes=3)]
+
+        upcoming_timers = [timer for timer in upcoming_timers if timer not in self._posted_timers]
+
+        self._posted_timers.extend(upcoming_timers)
+
+        self._posted_timers = [
+            timer for timer in self._posted_timers if not (timer["timestamp"] < now and timer not in timers)
+        ]
+
+        if not upcoming_timers:
+            logger.info("No upcoming timers found.")
+            return
+
+        somm_conn_channel = await bot.get_or_fetch.channel(CHANNEL_BC_CONN_COORDINATION)
+
+        def format_timer(timer: CarrierTimer) -> str:
+            ts = int(timer["timestamp"].timestamp())
+            line = f"<t:{ts}:T> (<t:{ts}:R>)"
+            if timer["note"]:
+                line += f": {timer['note']}"
+            return f"{line} - Added by {timer['username']}"
+
+        content = "Upcoming timers:\n" + "\n".join(format_timer(t) for t in upcoming_timers)
+
+        await somm_conn_channel.send(content)
+
+        logger.info(f"Notified somm-conn chat of {len(upcoming_timers)} upcoming timers.")
 
     @staticmethod
     def parse_system_index(system_id: str) -> int:
@@ -256,6 +305,14 @@ class Departures(commands.Cog):
                 logger.info("Departure message checker already running.")
         else:
             logger.info("Departure message checker is disabled in settings, not starting.")
+
+        if settings.tasks_auto_start.get("upcoming_timers_loop", True):
+            logger.info("Starting the upcoming timers notification loop")
+            if not self.notify_upcoming_timers_loop.is_running():
+                self.notify_upcoming_timers_loop.start()
+                logger.info("Upcoming timers notification loop started successfully")
+            else:
+                logger.info("Upcoming timers notification loop already running.")
 
     @check_roles(
         [

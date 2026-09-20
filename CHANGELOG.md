@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.6.0
+
+- \#870 Removed AutoResponses, moved to ModBot (Conshmea)
+- \#871 Post upcoming timers (Conshmea)
+
 ## 3.5.0
 
 - Use new wine carrier channel IDs (Conshmea)

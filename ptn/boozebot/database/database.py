@@ -7,7 +7,6 @@ from typing import Literal
 
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.classes.AutoResponse import AutoResponse
 from ptn.boozebot.classes.CorkedUser import CorkedUser
 from ptn.boozebot.constants import CARRIERS_DB_DUMPS_PATH, CARRIERS_DB_PATH
 
@@ -71,12 +70,6 @@ class Database:
                 "entry": "INTEGER PRIMARY KEY AUTOINCREMENT",
                 "message_id": "TEXT UNIQUE",
                 "channel_id": "TEXT UNIQUE",
-            },
-            "auto_responses": {
-                "name": "TEXT PRIMARY KEY",
-                "trigger": "TEXT NOT NULL",
-                "is_regex": "BOOLEAN NOT NULL DEFAULT 0",
-                "response": "TEXT NOT NULL",
             },
             "corked_users": {
                 "entry": "INTEGER PRIMARY KEY AUTOINCREMENT",
@@ -199,6 +192,17 @@ class Database:
                 logger.info(f"Inserted {len(records)} default record(s) into table: {table_name}")
             else:
                 logger.trace(f"Table {table_name} already has data. Skipping default value insertion.")
+
+        # Temporary check for the 'auto_responses' table to delete it if it exists, since it's no longer used
+        self.db.execute("""SELECT count(name) FROM sqlite_master WHERE TYPE = 'table' AND name = 'auto_responses'""")
+        auto_responses_exists = bool(self.db.fetchone()[0])
+        if auto_responses_exists:
+            logger.warning(
+                "The 'auto_responses' table exists in the database but is no longer used. Deleting the table."
+            )
+            self.db.execute("DROP TABLE auto_responses")
+            self.conn.commit()
+            logger.info("Deleted the 'auto_responses' table from the database.")
 
     async def get_unload_message_for_carrier(self, carrier_id: str) -> int | None:
         """
@@ -427,94 +431,6 @@ class Database:
             )
             self.conn.commit()
         logger.debug(f"Successfully deleted {message_type} message entry for carrier ID: {carrier_id}")
-
-    async def add_auto_response(self, name: str, trigger: str, response: str, is_regex: bool = False) -> None:
-        """
-        Adds an auto response to the database.
-
-        :param name: The name of the auto response.
-        :param trigger: The trigger text or regex.
-        :param response: The response text.
-        :param is_regex: Whether the trigger is a regex.
-        """
-        logger.debug(f"Adding auto response '{name}' with trigger '{trigger}' (is_regex={is_regex})")
-
-        async with self.lock:
-            self.db.execute(
-                "INSERT INTO auto_responses (name, trigger, is_regex, response) VALUES (?, ?, ?, ?)",
-                (name, trigger, is_regex, response),
-            )
-            self.conn.commit()
-        logger.debug(f"Successfully added auto response '{name}'")
-
-    async def get_auto_responses(self) -> list[AutoResponse]:
-        """
-        Retrieves all auto responses from the database.
-
-        :returns: A list of auto response dictionaries.
-        """
-        logger.debug("Retrieving all auto responses from database")
-
-        async with self.lock:
-            self.db.execute("SELECT * FROM auto_responses")
-            rows = self.db.fetchall()
-
-        auto_responses = [AutoResponse(row) for row in rows]
-        logger.debug(f"Retrieved {len(auto_responses)} auto response(s) from database")
-        return auto_responses
-
-    async def get_auto_response_by_name(self, name: str) -> AutoResponse | None:
-        """
-        Retrieves an auto response by name from the database.
-
-        :param name: The name of the auto response.
-        :returns: An AutoResponse object or None if not found.
-        """
-        logger.debug(f"Retrieving auto response by name: {name}")
-
-        async with self.lock:
-            self.db.execute("SELECT * FROM auto_responses WHERE name = ?", (name,))
-            row = self.db.fetchone()
-
-        if row is None:
-            logger.debug(f"No auto response found with name: {name}")
-            return None
-
-        auto_response = AutoResponse(row)
-
-        logger.debug(f"Found auto response '{name}' with trigger '{auto_response.trigger}'")
-        return auto_response
-
-    async def delete_auto_response(self, name: str) -> None:
-        """
-        Deletes an auto response from the database.
-
-        :param str name: The name of the auto response to delete.
-        """
-        logger.debug(f"Deleting auto response: {name}")
-
-        async with self.lock:
-            self.db.execute("DELETE FROM auto_responses WHERE name = ?", (name,))
-            self.conn.commit()
-        logger.debug(f"Successfully deleted auto response: {name}")
-
-    async def update_auto_response(self, name: str, new_trigger: str, new_response: str) -> None:
-        """
-        Updates an existing auto response in the database.
-
-        :param name: The name of the auto response to update.
-        :param new_trigger: The new trigger text or regex.
-        :param new_response: The new response text.
-        """
-        logger.debug(f"Updating auto response '{name}' with new trigger '{new_trigger}'")
-
-        async with self.lock:
-            self.db.execute(
-                "UPDATE auto_responses SET trigger = ?, response = ? WHERE name = ?",
-                (new_trigger, new_response, name),
-            )
-            self.conn.commit()
-        logger.debug(f"Successfully updated auto response: {name}")
 
     async def get_corked_users(self) -> list[CorkedUser]:
         """

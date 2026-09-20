@@ -4,7 +4,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Literal, override
+from typing import Any, Literal, TypedDict, cast, override
 
 import discord
 import httpx
@@ -31,6 +31,13 @@ from ptn.boozebot.modules.helpers import is_staff
 class PayloadType(Enum):
     BODY = 0
     QUERY = 1
+
+
+class CarrierTimer(TypedDict):
+    id: int
+    username: str
+    timestamp: datetime
+    note: str
 
 
 logger = get_logger("boozebot.modules.boozeSheetsApi")
@@ -86,7 +93,7 @@ def _on_api_failure(retry_state: RetryCallState):
 
     error_msg = str(exception) or type(exception).__name__
 
-    logger.exception(
+    logger.error(
         f"BoozeSheets API request failed after {retry_state.attempt_number} attempts: "
         + f"method={method}, endpoint={endpoint}, data={data}, error={error_msg}"
     )
@@ -307,7 +314,7 @@ class BoozeSheetsApi:
         endpoint: str,
         data: dict[str, Any] | None = None,
         payload_type: PayloadType | None = PayloadType.QUERY,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Internal method to send HTTP requests to the BoozeSheets API.
 
@@ -508,12 +515,16 @@ class BoozeSheetsApi:
 
         logger.debug(f"Sending GET request to {endpoint}")
         try:
-            state_data: dict[str, str] = await self._request("GET", endpoint)
+            state_data = await self._request("GET", endpoint)
         except httpx.HTTPStatusError as e:
             logger.error(f"Failed to get current cruise state: {e}")
             raise
 
         logger.debug(f"Current cruise state from backend: {state_data}")
+
+        if not isinstance(state_data, dict):
+            logger.error(f"Invalid cruise state response format: {state_data}")
+            raise TypeError("Cruise state response is not a dictionary")
 
         if "state" not in state_data or "updatedAt" not in state_data:
             logger.error(f"Invalid cruise state response format: {state_data}")
@@ -766,6 +777,42 @@ class BoozeSheetsApi:
         else:
             logger.error("Automatic cruise end update called outside of active.")
             raise RuntimeError("Cannot automatically close cruise outside of active.")
+
+    async def get_timers(self) -> list[CarrierTimer] | None:
+        """
+        Get the current timers from BoozeSheets.
+
+        :return: A dictionary containing the current timers.
+        """
+
+        logger.debug("Getting current timers")
+        endpoint = "/calc/timer"
+
+        logger.debug(f"Sending GET request to {endpoint}")
+        try:
+            timers_data = await self._request("GET", endpoint)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to get current timers: {e}")
+            return None
+        logger.debug(f"Current timers retrieved: {timers_data}")
+
+        if not isinstance(timers_data, list):
+            logger.error(f"Invalid timers response format: {timers_data}")
+            return None
+
+        valid_timers: list[dict[str, Any]] = []
+        for timer in timers_data:
+            if not (raw_ts := timer.get("timestamp")):
+                logger.error(f"Timer missing timestamp, dropping: {timer}")
+                continue
+            try:
+                timer["timestamp"] = datetime.fromisoformat(raw_ts)
+            except Exception as e:
+                logger.error(f"Failed to parse timestamp for timer: {timer}, error: {e}")
+                continue
+            valid_timers.append(timer)
+
+        return cast("list[CarrierTimer]", valid_timers)
 
     """
     Websocket stuff

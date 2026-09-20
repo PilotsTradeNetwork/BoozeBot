@@ -175,7 +175,6 @@ BoozeBot/
 │       ├── application.py     # entry point: registers cogs, error handlers, starts bot
 │       ├── constants.py       # bot object, DB paths, role/channel IDs, GIF lists, regex
 │       ├── botcommands/       # discord.py Cogs (one per feature area)
-│       │   ├── AutoResponses.py
 │       │   ├── BackgroundTaskCommands.py
 │       │   ├── Cleaner.py         # channel open/close, roles cleanup
 │       │   ├── Corked.py          # corked user management
@@ -188,7 +187,6 @@ BoozeBot/
 │       │   ├── Statistics.py      # tally, carrier lookup, pinned stat messages
 │       │   └── Unloading.py       # wine carrier unload flow
 │       ├── classes/           # data model classes
-│       │   ├── AutoResponse.py
 │       │   ├── BoozeCarrier.py
 │       │   ├── CorkedUser.py
 │       │   └── Cruise.py

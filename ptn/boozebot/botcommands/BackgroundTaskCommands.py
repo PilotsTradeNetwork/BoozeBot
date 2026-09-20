@@ -54,6 +54,7 @@ class BackgroundTaskCommands(commands.Cog):
         Choice(name="public_holiday_loop", value="public_holiday_loop"),
         Choice(name="last_unload_time_loop", value="last_unload_time_loop"),
         Choice(name="periodic_signup_poll", value="periodic_signup_poll"),
+        Choice(name="upcoming_timers_loop", value="upcoming_timers_loop"),
         Choice(name="boozesheets_websocket", value="boozesheets_websocket"),
         Choice(name="boozesheets_carrier_poll", value="boozesheets_carrier_poll"),
     ]
@@ -235,6 +236,9 @@ class BackgroundTaskCommands(commands.Cog):
                 return Task(loop.start, loop.cancel, loop.is_running, lambda: discord_task_loop_status(loop))
             case "last_unload_time_loop":
                 loop = bot.get_cog("Unloading").last_unload_time_loop
+                return Task(loop.start, loop.cancel, loop.is_running, lambda: discord_task_loop_status(loop))
+            case "upcoming_timers_loop":
+                loop = bot.get_cog("Departures").notify_upcoming_timers_loop
                 return Task(loop.start, loop.cancel, loop.is_running, lambda: discord_task_loop_status(loop))
             case "periodic_signup_poll":
                 loop = bot.get_cog("MakeWineCarrier").booze_tracker_signup_check
