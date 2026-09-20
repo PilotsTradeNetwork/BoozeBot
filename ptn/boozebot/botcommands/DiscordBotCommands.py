@@ -1,13 +1,21 @@
+import random
 import sys
 
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot, Context
-from ptn_utils.global_constants import CHANNEL_DEV_STEVE_BOT, ROLE_SOMM, any_council_role
+from ptn_utils.global_constants import (
+    CHANNEL_BC_BOOZE_CRUISE_CHAT,
+    CHANNEL_BC_WINE_CARRIER,
+    CHANNEL_BC_WINE_CELLAR_DELIVERIES,
+    CHANNEL_DEV_STEVE_BOT,
+    ROLE_SOMM,
+    any_council_role,
+)
 from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot._metadata import __version__
-from ptn.boozebot.constants import I_AM_STEVE_GIF, bot
+from ptn.boozebot.constants import I_AM_STEVE_GIF, bot, ping_response_messages
 
 """
 LISTENERS
@@ -33,14 +41,55 @@ logger = get_logger("boozebot.commands.discord")
 
 class DiscordBotCommands(commands.Cog):
     bot: Bot
+    text_commands: list[str]
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.text_commands = ["ping", "exit", "update", "version", "sync"]
 
     """
     LISTENERS
 
     """
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.is_system():
+            logger.trace("Ignoring system message.")
+            return
+
+        if message.author == self.bot.user:
+            logger.trace("Ignoring message from bot itself.")
+            return
+
+        if not self.bot.user.mentioned_in(message):
+            logger.trace("Bot not mentioned in message, ignoring.")
+            return
+
+        if message.reference:
+            logger.trace("Ignoring mention in reply message.")
+            return
+
+        if message.channel.id not in [
+            CHANNEL_BC_WINE_CARRIER,
+            CHANNEL_BC_BOOZE_CRUISE_CHAT,
+            CHANNEL_BC_WINE_CELLAR_DELIVERIES,
+        ]:
+            logger.trace("Ignoring mention not in cruise channels.")
+            return
+
+        msg_split = message.content.split()
+
+        if len(msg_split) >= 2 and msg_split[1].lower() in self.text_commands:
+            logger.trace(f"Ignoring mention with text command: {msg_split[1].lower()}")
+            return
+
+        logger.info(f"{message.author} ({message.author.id}) mentioned PirateSteve.")
+
+        await message.channel.send(
+            random.choice(ping_response_messages).format(message_author_id=message.author.id),
+            reference=message,
+        )
 
     @commands.Cog.listener()
     async def on_ready(self):
