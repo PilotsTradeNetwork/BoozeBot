@@ -100,6 +100,7 @@ class Settings(BotSettings):
         "periodic_signup_poll": True,
         "boozesheets_websocket": True,
         "boozesheets_carrier_poll": True,
+        "upcoming_timers_loop": True,
     }
 
 
