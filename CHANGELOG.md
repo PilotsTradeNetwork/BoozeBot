@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.6.1
+
+- Keep upcoming timers loop running on error (IndorilReborn)
+
 ## 3.6.0
 
 - \#870 Removed AutoResponses, moved to ModBot (Conshmea)

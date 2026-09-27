@@ -94,6 +94,12 @@ class Departures(commands.Cog):
         Notify somm-conn chat of upcoming (within 3 minutes) timers for carriers
         Saves last timer time to not double notify for the same timer.
         """
+        try:
+            await self._notify_upcoming_timers()
+        except Exception as e:
+            logger.exception(f"Error in notify_upcoming_timers_loop: {e}")
+
+    async def _notify_upcoming_timers(self):
         logger.info("Checking for upcoming timers.")
 
         timers = await booze_sheets_api.get_timers()
