@@ -29,6 +29,7 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.constants import (
+    PH_MIN_DURATION,
     bot,
     holiday_ended_gif,
     holiday_query_not_started_gifs,
@@ -162,7 +163,7 @@ class PublicHoliday(commands.Cog):
 
     @staticmethod
     async def _set_public_holiday_state(
-        new_state: bool, timestamp: datetime, force_update: bool = False
+        new_state: bool, timestamp: datetime, force_update: bool = False, automatic: bool = False
     ) -> tuple[bool, str]:
         logger.info(f"Setting public holiday state to: {new_state}, force update: {force_update}")
 
@@ -179,6 +180,14 @@ class PublicHoliday(commands.Cog):
             logger.info("New state is active and holiday is not ongoing, setting holiday start.")
             await PublicHoliday._set_holiday_start()
             return True, "Holiday started and flagged in the backend"
+
+        if automatic and not new_state and holiday_ongoing:
+            cruise = await booze_sheets_api.get_cruise_with_stats(0)
+            if cruise and timestamp - cruise.ph_start < PH_MIN_DURATION:
+                logger.warning(
+                    f"PH end detected at {timestamp}, within {PH_MIN_DURATION} of PH start {cruise.ph_start}. Ignoring."
+                )
+                return False, f"PH end is within {PH_MIN_DURATION} of PH start, no update performed"
 
         if not new_state and (holiday_ongoing or force_update):
             logger.info("New state is not active and holiday is ongoing, setting holiday end.")
@@ -199,7 +208,7 @@ class PublicHoliday(commands.Cog):
         try:
             state, updated_at = await api_ph_check()
             logger.info(f"Rackham's holiday API check returned: {state}, last updated: {updated_at}")
-            await self._set_public_holiday_state(state, updated_at)
+            await self._set_public_holiday_state(state, updated_at, automatic=True)
         except StaleDataException as e:
             logger.warning(f"{e}. Not using it.")
         except Exception as e:
@@ -281,7 +290,7 @@ class PublicHoliday(commands.Cog):
 
         # Check if we had a holiday flagged already
         try:
-            holiday_ongoing = booze_sheets_api.get_current_cruise_state().get("state") == CruiseSystemState.ACTIVE
+            holiday_ongoing = (await booze_sheets_api.get_current_cruise_state())["state"] == CruiseSystemState.ACTIVE
         except Exception as e:
             logger.exception(f"Error while checking current cruise state before overriding start timestamp: {e}")
             await interaction.response.send_message(

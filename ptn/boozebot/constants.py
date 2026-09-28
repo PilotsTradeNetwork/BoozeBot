@@ -62,6 +62,9 @@ if not BOOZESHEETS_API_KEY:
 # Stale Data checking from EDSM/EBGS
 STALE_DATA_THRESHOLD = datetime.timedelta(days=2)
 
+# Automatic PH end checks this soon after the saved PH start are ignored
+PH_MIN_DURATION = datetime.timedelta(hours=12)
+
 # define bot object
 intents = discord.Intents.none()
 intents.guilds = True
