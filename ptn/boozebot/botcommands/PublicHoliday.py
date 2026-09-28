@@ -5,6 +5,7 @@ Cog for PH check commands and loop
 
 import random
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import discord
 from discord import app_commands
@@ -28,6 +29,7 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.constants import (
+    PH_MIN_DURATION,
     bot,
     holiday_ended_gif,
     holiday_query_not_started_gifs,
@@ -69,6 +71,12 @@ class PublicHoliday(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
+        try:
+            booze_sheets_api.last_applied_state = (await booze_sheets_api.get_current_cruise_state())["state"]
+            logger.info(f"Initial cruise state: {booze_sheets_api.last_applied_state}")
+        except Exception as e:
+            logger.exception(f"Failed to fetch initial cruise state: {e}")
+
         if settings.tasks_auto_start.get("public_holiday_loop", True):
             logger.info("Starting the public holiday state checker")
             if not self.public_holiday_loop.is_running():
@@ -79,8 +87,46 @@ class PublicHoliday(commands.Cog):
         else:
             logger.info("Public holiday state checker loop is disabled in settings, not starting.")
 
+    @commands.Cog.listener()
+    async def on_boozesheets_state_changed(self, data: dict[str, Any]):
+        """
+        Apply the Discord side of a cruise state change made on BoozeSheets.
+        Channel open/close stays with the /booze_channels_* commands.
+        """
+        state = CruiseSystemState(data["state"])
+        if state == booze_sheets_api.last_applied_state:
+            logger.debug(f"Cruise state {state} already applied, ignoring state_changed event.")
+            return
+
+        previous_state = booze_sheets_api.last_applied_state
+        logger.info(f"Cruise state changed on BoozeSheets: {previous_state} -> {state}")
+        booze_sheets_api.last_applied_state = state
+
+        match state:
+            case CruiseSystemState.PREP:
+                await Cleaner.apply_prep_state()
+            case CruiseSystemState.ACTIVE:
+                await self._announce_holiday_start()
+                await self._backfill_ph_start(datetime.fromisoformat(data["updatedAt"]))
+            case CruiseSystemState.ENDED:
+                await self._announce_holiday_end()
+            case CruiseSystemState.CHANNELS_CLOSED:
+                # bc_end is already posted on ended
+                if previous_state != CruiseSystemState.ENDED:
+                    await Cleaner.update_status_embed("bc_end")
+
     @staticmethod
-    async def _set_holiday_start():
+    async def _backfill_ph_start(timestamp: datetime):
+        """
+        Set ph_start on the current cruise if it has not been set yet.
+        """
+        cruise = await booze_sheets_api.get_cruise_with_stats(0)
+        if cruise and cruise.ph_start == datetime.min.replace(tzinfo=UTC):
+            logger.info(f"Current cruise has no PH start, setting it to {timestamp}")
+            await booze_sheets_api.update_cruise_start(timestamp)
+
+    @staticmethod
+    async def _announce_holiday_start():
         holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
         await holiday_announce_channel.send(holiday_start_gif)
         await holiday_announce_channel.send(
@@ -89,22 +135,35 @@ class PublicHoliday(commands.Cog):
         )
         logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
         await Cleaner.update_status_embed("bc_start")
+
+        if settings.departure_announcement_status == "Disabled":
+            logger.info("Holiday started, allowing upwards departures.")
+            settings.departure_announcement_status = "Upwards"
+            settings.write()
+
+    @staticmethod
+    async def _announce_holiday_end():
+        holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
+        await holiday_announce_channel.send(holiday_ended_gif)
+        logger.debug("Notified holiday end. Updating status embed.")
+        await Cleaner.update_status_embed("bc_end")
+
+    @staticmethod
+    async def _set_holiday_start():
+        await PublicHoliday._announce_holiday_start()
         logger.info("Holiday announced to discord, updating backend state to active.")
         await booze_sheets_api.update_cruise_state("active")
         await booze_sheets_api.update_cruise_start(datetime.now(tz=UTC))
 
     @staticmethod
     async def _set_holiday_end():
-        holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
-        await holiday_announce_channel.send(holiday_ended_gif)
-        logger.debug("Notified holiday end. Updating status embed.")
-        await Cleaner.update_status_embed("bc_end")
+        await PublicHoliday._announce_holiday_end()
         logger.info("Holiday end announced to discord, updating backend state to closed.")
         await booze_sheets_api.end_ph(datetime.now(tz=UTC))
 
     @staticmethod
     async def _set_public_holiday_state(
-        new_state: bool, timestamp: datetime, force_update: bool = False
+        new_state: bool, timestamp: datetime, force_update: bool = False, automatic: bool = False
     ) -> tuple[bool, str]:
         logger.info(f"Setting public holiday state to: {new_state}, force update: {force_update}")
 
@@ -121,6 +180,14 @@ class PublicHoliday(commands.Cog):
             logger.info("New state is active and holiday is not ongoing, setting holiday start.")
             await PublicHoliday._set_holiday_start()
             return True, "Holiday started and flagged in the backend"
+
+        if automatic and not new_state and holiday_ongoing:
+            cruise = await booze_sheets_api.get_cruise_with_stats(0)
+            if cruise and timestamp - cruise.ph_start < PH_MIN_DURATION:
+                logger.warning(
+                    f"PH end detected at {timestamp}, within {PH_MIN_DURATION} of PH start {cruise.ph_start}. Ignoring."
+                )
+                return False, f"PH end is within {PH_MIN_DURATION} of PH start, no update performed"
 
         if not new_state and (holiday_ongoing or force_update):
             logger.info("New state is not active and holiday is ongoing, setting holiday end.")
@@ -141,7 +208,7 @@ class PublicHoliday(commands.Cog):
         try:
             state, updated_at = await api_ph_check()
             logger.info(f"Rackham's holiday API check returned: {state}, last updated: {updated_at}")
-            await self._set_public_holiday_state(state, updated_at)
+            await self._set_public_holiday_state(state, updated_at, automatic=True)
         except StaleDataException as e:
             logger.warning(f"{e}. Not using it.")
         except Exception as e:
@@ -223,7 +290,7 @@ class PublicHoliday(commands.Cog):
 
         # Check if we had a holiday flagged already
         try:
-            holiday_ongoing = booze_sheets_api.get_current_cruise_state().get("state") == CruiseSystemState.ACTIVE
+            holiday_ongoing = (await booze_sheets_api.get_current_cruise_state())["state"] == CruiseSystemState.ACTIVE
         except Exception as e:
             logger.exception(f"Error while checking current cruise state before overriding start timestamp: {e}")
             await interaction.response.send_message(

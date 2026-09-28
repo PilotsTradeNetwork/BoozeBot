@@ -12,6 +12,7 @@ from discord.ext import commands
 from discord.ext.commands import Bot
 from discord.ui import TextInput
 from discord.ui.view import BaseView
+from ptn_utils.enums.booze_enums import CruiseSystemState
 from ptn_utils.global_constants import (
     CHANNEL_BC_PUBLIC,
     CHANNEL_BC_STEVE_SAYS,
@@ -120,15 +121,11 @@ class Cleaner(commands.Cog):
             ids_list = CHANNEL_BC_PUBLIC
 
             embed = discord.Embed()
-            settings.departure_announcement_status = "Disabled"
-            settings.timed_unloads_allowed = False
-            settings.write()
             pilot_role = await bot.get_or_fetch.role(ROLE_PILOT)
             channels = dict.fromkeys(ids_list, pilot_role)
             channels[CHANNEL_BC_WINE_CARRIER_GUIDE] = await bot.get_or_fetch.role(ROLE_BOOZE_CRUISE)
 
-            logger.info("Updating status embed to 'bc_prep'.")
-            await self.update_status_embed("bc_prep")
+            await self.apply_prep_state()
 
             logger.info("Updating cruise state on backend to 'prep")
             await booze_sheets_api.update_cruise_state("prep")
@@ -209,8 +206,16 @@ class Cleaner(commands.Cog):
                     logger.exception(f"Failed to close channel ID: {channel_id} for role: {role.name}: {e}")
                     embed.add_field(name="FAILED to close", value="<#" + str(channel_id) + f">: {e}", inline=False)
 
-            logger.info("Updating status embed to 'bc_end'.")
-            await self.update_status_embed("bc_end")
+            try:
+                ph_ended = (await booze_sheets_api.get_current_cruise_state())["state"] == CruiseSystemState.ENDED
+            except Exception as e:
+                logger.exception(f"Failed to get current cruise state, posting status embed anyway: {e}")
+                ph_ended = False
+
+            # bc_end is already posted on ended
+            if not ph_ended:
+                logger.info("Updating status embed to 'bc_end'.")
+                await self.update_status_embed("bc_end")
 
             logger.info("Updating cruise state on backend to 'channels_closed'")
             await booze_sheets_api.update_cruise_state("channels_closed")
@@ -385,6 +390,17 @@ class Cleaner(commands.Cog):
         await self.update_status_embed(status)
         logger.info(f"Status embed updated to {status} by user {interaction.user.name}.")
         await interaction.followup.send(f"Updated the status embed to {status}.", ephemeral=True)
+
+    @classmethod
+    async def apply_prep_state(cls):
+        """
+        Discord side of the prep state: reset cruise settings and post the prep status embed.
+        """
+        logger.info("Applying prep state: resetting departure/unload settings and updating status embed.")
+        settings.departure_announcement_status = "Disabled"
+        settings.timed_unloads_allowed = False
+        settings.write()
+        await cls.update_status_embed("bc_prep")
 
     @classmethod
     async def update_status_embed(cls, status: BC_STATUS):
