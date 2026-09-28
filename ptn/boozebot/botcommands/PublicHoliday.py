@@ -135,6 +135,11 @@ class PublicHoliday(commands.Cog):
         logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
         await Cleaner.update_status_embed("bc_start")
 
+        if settings.departure_announcement_status == "Disabled":
+            logger.info("Holiday started, allowing upwards departures.")
+            settings.departure_announcement_status = "Upwards"
+            settings.write()
+
     @staticmethod
     async def _announce_holiday_end():
         holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
