@@ -1,4 +1,4 @@
-# BoozeCruise
+# BoozeBot (Pirate Steve)
 
 Bot for managing our Booze Cruise activities for the Pilots Trade Network. This bot offers multiple functionalities
 which are gated by discord roles.
