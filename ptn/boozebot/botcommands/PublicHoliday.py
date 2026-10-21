@@ -10,7 +10,7 @@ from typing import Any
 
 import discord
 from discord import app_commands
-from discord.app_commands import describe
+from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
 from ptn_utils.enums.booze_enums import CruiseSystemState
@@ -51,11 +51,15 @@ Checks every 15 minutes if the PH at rackhams peak is happening and pings somm a
 PUBLIC HOLIDAY COMMANDS
 
 /booze_started - conn/somm/mod/admin
-/booze_started_admin_override - somm/mod/admin
+/booze_admin_state_override - somm/mod/admin
 /booze_duration_remaining - conn/somm/mod/admin
 """
 
 logger = get_logger("boozebot.commands.publicholiday")
+
+OVERRIDE_TARGET_BOTH = "discord_and_site"
+OVERRIDE_TARGET_DISCORD = "discord"
+OVERRIDE_TARGET_SITE = "site"
 
 
 async def _try_step(description: str, step: Coroutine[Any, Any, Any]):
@@ -184,17 +188,26 @@ class PublicHoliday(commands.Cog):
         await _try_step("update status embed", Cleaner.update_status_embed("bc_end"))
 
     @staticmethod
+    async def _set_site_holiday_start():
+        # update_cruise_state marks the state as applied, so the echoed state_changed event is ignored
+        await booze_sheets_api.update_cruise_state("active")
+        await _try_step("set PH start", booze_sheets_api.update_cruise_start(datetime.now(tz=UTC)))
+
+    @staticmethod
+    async def _set_site_holiday_end():
+        await booze_sheets_api.end_ph(datetime.now(tz=UTC))
+
+    @staticmethod
     async def _set_holiday_start():
         # Backend first: a Discord outage must not block the site update, and if the backend
         # fails nothing is announced, so the next loop run retries cleanly.
-        await booze_sheets_api.update_cruise_state("active")
-        await _try_step("set PH start", booze_sheets_api.update_cruise_start(datetime.now(tz=UTC)))
+        await PublicHoliday._set_site_holiday_start()
         logger.info("Backend state updated to active, announcing holiday to discord.")
         await PublicHoliday._announce_holiday_start()
 
     @staticmethod
     async def _set_holiday_end():
-        await booze_sheets_api.end_ph(datetime.now(tz=UTC))
+        await PublicHoliday._set_site_holiday_end()
         logger.info("Backend state updated to ended, announcing holiday end to discord.")
         await PublicHoliday._announce_holiday_end()
 
@@ -286,32 +299,82 @@ class PublicHoliday(commands.Cog):
         logger.debug(f"Sent GIF: {gif}")
 
     @app_commands.command(
-        name="booze_started_admin_override",
-        description="Overrides the holiday admin flag.Used to set the holiday state before the polling API catches it.",
+        name="booze_admin_state_override",
+        description="Overrides the holiday state on Discord, the site, or both.",
     )
     @check_roles([ROLE_SOMM, *any_moderation_role, *any_council_role])
     @describe(
-        state="True or False to override the holiday check flag.",
-        force_update="Force the update of the holiday state, even if it is already set.",
+        state="The holiday state to set.",
+        force="Apply the state even if it is already set.",
+        targets="Where to apply the state. Defaults to both Discord and the site.",
+    )
+    @app_commands.choices(
+        state=[
+            Choice(name="Active", value=CruiseSystemState.ACTIVE.value),
+            Choice(name="Ended", value=CruiseSystemState.ENDED.value),
+        ],
+        targets=[
+            Choice(name="Discord and site", value=OVERRIDE_TARGET_BOTH),
+            Choice(name="Discord only", value=OVERRIDE_TARGET_DISCORD),
+            Choice(name="Site only", value=OVERRIDE_TARGET_SITE),
+        ],
     )
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
-    async def admin_override_holiday_state(
-        self, interaction: discord.Interaction, state: bool, force_update: bool = False
+    async def admin_override_state(
+        self,
+        interaction: discord.Interaction,
+        state: str,
+        force: bool = False,
+        targets: str = OVERRIDE_TARGET_BOTH,
     ):
         logger.info(
-            f"User {interaction.user.name} requested to override the admin holiday state to: {state}, forced: {force_update}."
+            f"User {interaction.user.name} requested to override the holiday state to: {state}, "
+            + f"forced: {force}, targets: {targets}."
         )
-        now = datetime.now(tz=UTC)
+        await interaction.response.defer()
+
+        new_state = CruiseSystemState(state)
+        is_start = new_state == CruiseSystemState.ACTIVE
 
         try:
-            _success, message = await self._set_public_holiday_state(state, now, force_update)
+            async with booze_sheets_api.state_lock:
+                if targets == OVERRIDE_TARGET_DISCORD:
+                    # last_applied_state tracks what Discord has applied
+                    current_state = booze_sheets_api.last_applied_state
+                else:
+                    current_state = (await booze_sheets_api.get_current_cruise_state())["state"]
+
+                if current_state == new_state and not force:
+                    await interaction.followup.send(
+                        f"State is already {new_state.value}, use force to re-apply it. Check with /booze_started."
+                    )
+                    return
+
+                if targets == OVERRIDE_TARGET_DISCORD:
+                    if is_start:
+                        await self._announce_holiday_start()
+                    else:
+                        await self._announce_holiday_end()
+                    # Skip the announcement again when the site catches up to this state
+                    booze_sheets_api.last_applied_state = new_state
+                    message = f"Set state to {new_state.value} on Discord only"
+                elif targets == OVERRIDE_TARGET_SITE:
+                    if is_start:
+                        await self._set_site_holiday_start()
+                    else:
+                        await self._set_site_holiday_end()
+                    message = f"Set state to {new_state.value} on the site only"
+                else:
+                    _success, message = await self._set_public_holiday_state_locked(
+                        is_start, datetime.now(tz=UTC), force, automatic=False
+                    )
         except Exception as e:
             logger.exception(f"Error while trying to override the holiday state: {e}")
-            await interaction.response.send_message("An error occurred while trying to override the holiday state.")
+            await interaction.followup.send("An error occurred while trying to override the holiday state.")
             return
 
         logger.info(f"Admin override result: {message}")
-        await interaction.response.send_message(f"{message}. Check with /booze_started.")
+        await interaction.followup.send(f"{message}. Check with /booze_started.")
 
     @app_commands.command(
         name="booze_timestamp_admin_override",
