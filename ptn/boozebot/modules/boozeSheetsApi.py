@@ -158,6 +158,7 @@ class BoozeSheetsApi:
     base_url: str
     carrier_cache: dict[int, BoozeCarrier]
     last_applied_state: CruiseSystemState | None
+    state_lock: asyncio.Lock
 
     def __init__(self):
         self.base_url = BOOZESHEETS_API_BASE_URL
@@ -185,6 +186,8 @@ class BoozeSheetsApi:
         self.carrier_cache_lock = asyncio.Lock()
         # Last state the bot set or reacted to, used to skip the echoed state_changed WS event
         self.last_applied_state = None
+        # Serialises cruise state transitions between the PH loop, commands and the state_changed WS listener
+        self.state_lock = asyncio.Lock()
 
     async def _refresh_carrier_cache(self) -> dict[int, BoozeCarrier]:
         """
