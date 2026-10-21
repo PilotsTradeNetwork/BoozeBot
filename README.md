@@ -31,6 +31,7 @@ All commands are in hierarchical format, so the higher roles can run everything 
 - `/booze_unpin_all` - Removes all the pinned stat messages from the pinned_messages table.
 - `/booze_unpin_message` - Removes a specific pinned stat message from the pinned_messages table by message id.
 - `/booze_timestamp_admin_override` - Sets the start time of the cruise for use in the duration remaining calculation.
+- `/booze_admin_state_override` - Sets the holiday state (active/ended) on Discord, the site, or both (default). Use force to re-apply a state that is already set.
 
 ### Connoisseur:
 

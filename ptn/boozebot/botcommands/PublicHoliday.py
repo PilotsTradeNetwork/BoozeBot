@@ -4,11 +4,13 @@ Cog for PH check commands and loop
 """
 
 import random
+from collections.abc import Coroutine
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import discord
 from discord import app_commands
-from discord.app_commands import describe
+from discord.app_commands import Choice, describe
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
 from ptn_utils.enums.booze_enums import CruiseSystemState
@@ -28,6 +30,7 @@ from ptn_utils.logger.logger import get_logger
 
 from ptn.boozebot.botcommands.Cleaner import Cleaner
 from ptn.boozebot.constants import (
+    PH_MIN_DURATION,
     bot,
     holiday_ended_gif,
     holiday_query_not_started_gifs,
@@ -48,11 +51,33 @@ Checks every 15 minutes if the PH at rackhams peak is happening and pings somm a
 PUBLIC HOLIDAY COMMANDS
 
 /booze_started - conn/somm/mod/admin
-/booze_started_admin_override - somm/mod/admin
+/booze_admin_state_override - somm/mod/admin
 /booze_duration_remaining - conn/somm/mod/admin
 """
 
 logger = get_logger("boozebot.commands.publicholiday")
+
+OVERRIDE_TARGET_BOTH = "discord_and_site"
+OVERRIDE_TARGET_DISCORD = "discord"
+OVERRIDE_TARGET_SITE = "site"
+
+
+async def _try_step(description: str, step: Coroutine[Any, Any, Any]):
+    """Await side effect of a state change, reporting to steve-says instead of raising on failure."""
+    try:
+        await step
+    except Exception as e:
+        logger.exception(f"Failed to {description}: {e}")
+        try:
+            steve_says = await bot.get_or_fetch.channel(CHANNEL_BC_STEVE_SAYS)
+            embed = discord.Embed(
+                title="⚠️ Cruise state change step failed",
+                description=f"Pirate Steve failed to {description}.\n\n**Error:** {str(e) or type(e).__name__}",
+                color=0xFF0000,
+            )
+            await steve_says.send(embed=embed)
+        except Exception as send_error:
+            logger.exception(f"Failed to report step failure to steve-says: {send_error}")
 
 
 class PublicHoliday(commands.Cog):
@@ -67,6 +92,13 @@ class PublicHoliday(commands.Cog):
 
     rackhams_holiday_active: bool = False
 
+    async def cog_load(self):
+        try:
+            booze_sheets_api.last_applied_state = (await booze_sheets_api.get_current_cruise_state())["state"]
+            logger.info(f"Initial cruise state: {booze_sheets_api.last_applied_state}")
+        except Exception as e:
+            logger.exception(f"Failed to fetch initial cruise state: {e}")
+
     @commands.Cog.listener()
     async def on_ready(self):
         if settings.tasks_auto_start.get("public_holiday_loop", True):
@@ -79,32 +111,116 @@ class PublicHoliday(commands.Cog):
         else:
             logger.info("Public holiday state checker loop is disabled in settings, not starting.")
 
-    @staticmethod
-    async def _set_holiday_start():
-        holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
-        await holiday_announce_channel.send(holiday_start_gif)
-        await holiday_announce_channel.send(
-            "Pirate Steve thinks the folks at Rackhams are partying again. "
-            + f"<@&{ROLE_COUNCIL}>, <@&{ROLE_SOMM}> please take note."
-        )
-        logger.debug("Notified council and sommeliers of holiday start. Updating status embed.")
-        await Cleaner.update_status_embed("bc_start")
-        logger.info("Holiday announced to discord, updating backend state to active.")
-        await booze_sheets_api.update_cruise_state("active")
-        await booze_sheets_api.update_cruise_start(datetime.now(tz=UTC))
+    @commands.Cog.listener()
+    async def on_boozesheets_state_changed(self, data: dict[str, Any]):
+        """
+        Apply the Discord side of a cruise state change made on BoozeSheets.
+        Channel open/close stays with the /booze_channels_* commands.
+        """
+        state = CruiseSystemState(data["state"])
+        async with booze_sheets_api.state_lock:
+            if state == booze_sheets_api.last_applied_state:
+                logger.debug(f"Cruise state {state} already applied, ignoring state_changed event.")
+                return
+
+            previous_state = booze_sheets_api.last_applied_state
+            logger.info(f"Cruise state changed on BoozeSheets: {previous_state} -> {state}")
+            booze_sheets_api.last_applied_state = state
+
+            # Each step logs its own failure so one Discord error does not skip the rest
+            match state:
+                case CruiseSystemState.PREP:
+                    await _try_step("apply prep state", Cleaner.apply_prep_state())
+                case CruiseSystemState.ACTIVE:
+                    await self._announce_holiday_start()
+                    # BoozeSheets does not set ph_start on its own when the state goes active
+                    await _try_step(
+                        "backfill PH start", self._backfill_ph_start(datetime.fromisoformat(data["updatedAt"]))
+                    )
+                case CruiseSystemState.ENDED:
+                    await self._announce_holiday_end()
+                case CruiseSystemState.CHANNELS_CLOSED:
+                    # bc_end is already posted on ended
+                    if previous_state != CruiseSystemState.ENDED:
+                        await _try_step("update status embed", Cleaner.update_status_embed("bc_end"))
 
     @staticmethod
-    async def _set_holiday_end():
-        holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
-        await holiday_announce_channel.send(holiday_ended_gif)
-        logger.debug("Notified holiday end. Updating status embed.")
-        await Cleaner.update_status_embed("bc_end")
-        logger.info("Holiday end announced to discord, updating backend state to closed.")
+    async def _backfill_ph_start(timestamp: datetime):
+        """
+        Set ph_start on the current cruise if it has not been set yet.
+        """
+        cruise = await booze_sheets_api.get_cruise_with_stats(0)
+        if cruise and cruise.ph_start == datetime.min.replace(tzinfo=UTC):
+            logger.info(f"Current cruise has no PH start, setting it to {timestamp}")
+            await booze_sheets_api.update_cruise_start(timestamp)
+
+    @staticmethod
+    async def _announce_holiday_start():
+        if settings.departure_announcement_status == "Disabled":
+            logger.info("Holiday started, allowing upwards departures.")
+            settings.departure_announcement_status = "Upwards"
+            settings.write()
+
+        async def notify():
+            holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
+            await holiday_announce_channel.send(holiday_start_gif)
+            await holiday_announce_channel.send(
+                "Pirate Steve thinks the folks at Rackhams are partying again. "
+                + f"<@&{ROLE_COUNCIL}>, <@&{ROLE_SOMM}> please take note."
+            )
+            logger.debug("Notified council and sommeliers of holiday start.")
+
+        await _try_step("announce holiday start", notify())
+        await _try_step("update status embed", Cleaner.update_status_embed("bc_start"))
+
+    @staticmethod
+    async def _announce_holiday_end():
+        """
+        Discord side of the holiday end. Never raises, failures are logged per step.
+        """
+
+        async def notify():
+            holiday_announce_channel = await bot.get_or_fetch.channel(CHANNEL_BC_HOLIDAY_ANNOUNCE)
+            await holiday_announce_channel.send(holiday_ended_gif)
+            logger.debug("Notified holiday end.")
+
+        await _try_step("announce holiday end", notify())
+        await _try_step("update status embed", Cleaner.update_status_embed("bc_end"))
+
+    @staticmethod
+    async def _set_site_holiday_start():
+        # update_cruise_state marks the state as applied, so the echoed state_changed event is ignored
+        await booze_sheets_api.update_cruise_state("active")
+        await _try_step("set PH start", booze_sheets_api.update_cruise_start(datetime.now(tz=UTC)))
+
+    @staticmethod
+    async def _set_site_holiday_end():
         await booze_sheets_api.end_ph(datetime.now(tz=UTC))
 
     @staticmethod
+    async def _set_holiday_start():
+        # Backend first: a Discord outage must not block the site update, and if the backend
+        # fails nothing is announced, so the next loop run retries cleanly.
+        await PublicHoliday._set_site_holiday_start()
+        logger.info("Backend state updated to active, announcing holiday to discord.")
+        await PublicHoliday._announce_holiday_start()
+
+    @staticmethod
+    async def _set_holiday_end():
+        await PublicHoliday._set_site_holiday_end()
+        logger.info("Backend state updated to ended, announcing holiday end to discord.")
+        await PublicHoliday._announce_holiday_end()
+
+    @staticmethod
     async def _set_public_holiday_state(
-        new_state: bool, timestamp: datetime, force_update: bool = False
+        new_state: bool, timestamp: datetime, force_update: bool = False, automatic: bool = False
+    ) -> tuple[bool, str]:
+        async with booze_sheets_api.state_lock:
+            return await PublicHoliday._set_public_holiday_state_locked(new_state, timestamp, force_update, automatic)
+
+    @staticmethod
+    async def _set_public_holiday_state_locked(
+        new_state: bool, timestamp: datetime, force_update: bool, automatic: bool
     ) -> tuple[bool, str]:
         logger.info(f"Setting public holiday state to: {new_state}, force update: {force_update}")
 
@@ -121,6 +237,14 @@ class PublicHoliday(commands.Cog):
             logger.info("New state is active and holiday is not ongoing, setting holiday start.")
             await PublicHoliday._set_holiday_start()
             return True, "Holiday started and flagged in the backend"
+
+        if automatic and not new_state and holiday_ongoing:
+            cruise = await booze_sheets_api.get_cruise_with_stats(0)
+            if cruise and timestamp - cruise.ph_start < PH_MIN_DURATION:
+                logger.warning(
+                    f"PH end detected at {timestamp}, within {PH_MIN_DURATION} of PH start {cruise.ph_start}. Ignoring."
+                )
+                return False, f"PH end is within {PH_MIN_DURATION} of PH start, no update performed"
 
         if not new_state and (holiday_ongoing or force_update):
             logger.info("New state is not active and holiday is ongoing, setting holiday end.")
@@ -141,7 +265,7 @@ class PublicHoliday(commands.Cog):
         try:
             state, updated_at = await api_ph_check()
             logger.info(f"Rackham's holiday API check returned: {state}, last updated: {updated_at}")
-            await self._set_public_holiday_state(state, updated_at)
+            await self._set_public_holiday_state(state, updated_at, automatic=True)
         except StaleDataException as e:
             logger.warning(f"{e}. Not using it.")
         except Exception as e:
@@ -175,32 +299,82 @@ class PublicHoliday(commands.Cog):
         logger.debug(f"Sent GIF: {gif}")
 
     @app_commands.command(
-        name="booze_started_admin_override",
-        description="Overrides the holiday admin flag.Used to set the holiday state before the polling API catches it.",
+        name="booze_admin_state_override",
+        description="Overrides the holiday state on Discord, the site, or both.",
     )
     @check_roles([ROLE_SOMM, *any_moderation_role, *any_council_role])
     @describe(
-        state="True or False to override the holiday check flag.",
-        force_update="Force the update of the holiday state, even if it is already set.",
+        state="The holiday state to set.",
+        force="Apply the state even if it is already set.",
+        targets="Where to apply the state. Defaults to both Discord and the site.",
+    )
+    @app_commands.choices(
+        state=[
+            Choice(name="Active", value=CruiseSystemState.ACTIVE.value),
+            Choice(name="Ended", value=CruiseSystemState.ENDED.value),
+        ],
+        targets=[
+            Choice(name="Discord and site", value=OVERRIDE_TARGET_BOTH),
+            Choice(name="Discord only", value=OVERRIDE_TARGET_DISCORD),
+            Choice(name="Site only", value=OVERRIDE_TARGET_SITE),
+        ],
     )
     @check_command_channel([CHANNEL_BC_STEVE_SAYS])
-    async def admin_override_holiday_state(
-        self, interaction: discord.Interaction, state: bool, force_update: bool = False
+    async def admin_override_state(
+        self,
+        interaction: discord.Interaction,
+        state: str,
+        force: bool = False,
+        targets: str = OVERRIDE_TARGET_BOTH,
     ):
         logger.info(
-            f"User {interaction.user.name} requested to override the admin holiday state to: {state}, forced: {force_update}."
+            f"User {interaction.user.name} requested to override the holiday state to: {state}, "
+            + f"forced: {force}, targets: {targets}."
         )
-        now = datetime.now(tz=UTC)
+        await interaction.response.defer()
+
+        new_state = CruiseSystemState(state)
+        is_start = new_state == CruiseSystemState.ACTIVE
 
         try:
-            _success, message = await self._set_public_holiday_state(state, now, force_update)
+            async with booze_sheets_api.state_lock:
+                if targets == OVERRIDE_TARGET_DISCORD:
+                    # last_applied_state tracks what Discord has applied
+                    current_state = booze_sheets_api.last_applied_state
+                else:
+                    current_state = (await booze_sheets_api.get_current_cruise_state())["state"]
+
+                if current_state == new_state and not force:
+                    await interaction.followup.send(
+                        f"State is already {new_state.value}, use force to re-apply it. Check with /booze_started."
+                    )
+                    return
+
+                if targets == OVERRIDE_TARGET_DISCORD:
+                    if is_start:
+                        await self._announce_holiday_start()
+                    else:
+                        await self._announce_holiday_end()
+                    # Skip the announcement again when the site catches up to this state
+                    booze_sheets_api.last_applied_state = new_state
+                    message = f"Set state to {new_state.value} on Discord only"
+                elif targets == OVERRIDE_TARGET_SITE:
+                    if is_start:
+                        await self._set_site_holiday_start()
+                    else:
+                        await self._set_site_holiday_end()
+                    message = f"Set state to {new_state.value} on the site only"
+                else:
+                    _success, message = await self._set_public_holiday_state_locked(
+                        is_start, datetime.now(tz=UTC), force, automatic=False
+                    )
         except Exception as e:
             logger.exception(f"Error while trying to override the holiday state: {e}")
-            await interaction.response.send_message("An error occurred while trying to override the holiday state.")
+            await interaction.followup.send("An error occurred while trying to override the holiday state.")
             return
 
         logger.info(f"Admin override result: {message}")
-        await interaction.response.send_message(f"{message}. Check with /booze_started.")
+        await interaction.followup.send(f"{message}. Check with /booze_started.")
 
     @app_commands.command(
         name="booze_timestamp_admin_override",
@@ -223,7 +397,7 @@ class PublicHoliday(commands.Cog):
 
         # Check if we had a holiday flagged already
         try:
-            holiday_ongoing = booze_sheets_api.get_current_cruise_state().get("state") == CruiseSystemState.ACTIVE
+            holiday_ongoing = (await booze_sheets_api.get_current_cruise_state())["state"] == CruiseSystemState.ACTIVE
         except Exception as e:
             logger.exception(f"Error while checking current cruise state before overriding start timestamp: {e}")
             await interaction.response.send_message(
