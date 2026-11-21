@@ -34,7 +34,6 @@ from ptn.boozebot.constants import (
     settings,
     too_slow_gifs,
 )
-from ptn.boozebot.database.database import database
 from ptn.boozebot.modules.boozeSheetsApi import booze_sheets_api
 from ptn.boozebot.modules.helpers import (
     check_command_channel,
@@ -295,13 +294,6 @@ class MakeWineCarrier(commands.Cog):
                 if interaction.message:
                     return await interaction.followup.send(content=content, embed=embed, ephemeral=True)
                 return await interaction.edit_original_response(content=content, embed=embed)
-
-            if await database.is_user_corked(user.id):
-                logger.info(f"User {user} is corked, cannot make Wine Carrier.")
-                await respond(
-                    content=f"User {user.mention} ({user.name}) is corked and cannot be made a {wc_role.name}."
-                )
-                return
 
             if wc_role in user.roles:
                 logger.info(f"User {user} is already a {wc_role.name}, cannot add role again.")

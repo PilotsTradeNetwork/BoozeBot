@@ -7,7 +7,6 @@ from typing import Literal
 
 from ptn_utils.logger.logger import get_logger
 
-from ptn.boozebot.classes.CorkedUser import CorkedUser
 from ptn.boozebot.constants import CARRIERS_DB_DUMPS_PATH, CARRIERS_DB_PATH
 
 logger = get_logger("boozebot.database")
@@ -70,11 +69,6 @@ class Database:
                 "entry": "INTEGER PRIMARY KEY AUTOINCREMENT",
                 "message_id": "TEXT UNIQUE",
                 "channel_id": "TEXT UNIQUE",
-            },
-            "corked_users": {
-                "entry": "INTEGER PRIMARY KEY AUTOINCREMENT",
-                "user_id": "TEXT UNIQUE",
-                "timestamp": "DATETIME",
             },
             "carrier_messages": {
                 "entry": "INTEGER PRIMARY KEY AUTOINCREMENT",
@@ -431,71 +425,6 @@ class Database:
             )
             self.conn.commit()
         logger.debug(f"Successfully deleted {message_type} message entry for carrier ID: {carrier_id}")
-
-    async def get_corked_users(self) -> list[CorkedUser]:
-        """
-        Retrieves a list of corked user IDs from the database.
-
-        :returns: A list of corked user IDs.
-        """
-        logger.debug("Retrieving corked users from database")
-
-        async with self.lock:
-            self.db.execute("SELECT * FROM corked_users")
-            rows = self.db.fetchall()
-
-        corked_users = [CorkedUser(row) for row in rows]
-        logger.debug(f"Retrieved {len(corked_users)} corked user(s) from database")
-        return corked_users
-
-    async def add_corked_user(self, user_id: int) -> None:
-        """
-        Adds a corked user to the database.
-
-        :param user_id: The user ID to cork.
-        """
-        logger.debug(f"Adding corked user: {user_id}")
-
-        timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        async with self.lock:
-            self.db.execute(
-                "INSERT INTO corked_users (user_id, timestamp) VALUES (?, ?)",
-                (str(user_id), timestamp_str),
-            )
-            self.conn.commit()
-        logger.debug(f"Successfully added corked user: {user_id}")
-
-    async def remove_corked_user(self, user_id: int) -> None:
-        """
-        Removes a corked user from the database.
-
-        :param user_id: The user ID to uncork.
-        """
-        logger.debug(f"Removing corked user: {user_id}")
-
-        async with self.lock:
-            self.db.execute("DELETE FROM corked_users WHERE user_id = ?", (str(user_id),))
-            self.conn.commit()
-
-        logger.debug(f"Successfully removed corked user: {user_id}")
-
-    async def is_user_corked(self, user_id: int) -> bool:
-        """
-        Checks if a user is corked.
-
-        :param user_id: The user ID to check.
-        :returns: True if the user is corked, False otherwise.
-        """
-        logger.debug(f"Checking if user is corked: {user_id}")
-
-        async with self.lock:
-            self.db.execute("SELECT COUNT(*) FROM corked_users WHERE user_id = ?", (str(user_id),))
-            count = self.db.fetchone()[0]
-
-        is_corked = count > 0
-        logger.debug(f"User {user_id} corked status: {is_corked}")
-        return is_corked
 
     async def pin_message(self, message_id: int, channel_id: int) -> None:
         """
